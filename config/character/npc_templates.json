@@ -1,0 +1,454 @@
+{
+  "templates": {
+    "merchant": {
+      "npc_type": "MERCHANT",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 8, "max": 14},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 10, "max": 16},
+        "WIS": {"min": 10, "max": 16},
+        "CHA": {"min": 12, "max": 18}
+      },
+      "personality_traits": [
+        "Shrewd", "Calculating", "Friendly", "Talkative",
+        "Suspicious", "Generous", "Greedy"
+      ]
+    },
+    "guard": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 12, "max": 16},
+        "DEX": {"min": 10, "max": 14},
+        "CON": {"min": 12, "max": 16},
+        "INT": {"min": 8, "max": 12},
+        "WIS": {"min": 10, "max": 14},
+        "CHA": {"min": 8, "max": 12}
+      },
+      "personality_traits": [
+        "Dutiful", "Vigilant", "Stern", "Authoritative",
+        "Lazy", "Corrupt", "Honorable"
+      ]
+    },
+    "innkeeper": {
+      "npc_type": "SERVICE",
+      "stat_distributions": {
+        "STR": {"min": 9, "max": 13},
+        "DEX": {"min": 8, "max": 12},
+        "CON": {"min": 9, "max": 13},
+        "INT": {"min": 10, "max": 14},
+        "WIS": {"min": 10, "max": 16},
+        "CHA": {"min": 12, "max": 16}
+      },
+      "personality_traits": [
+        "Welcoming", "Observant", "Gossipy", "Patient",
+        "Attentive", "Tired", "Jovial", "Grumpy"
+      ]
+    },
+    "blacksmith": {
+      "npc_type": "SERVICE",
+      "stat_distributions": {
+        "STR": {"min": 14, "max": 18},
+        "DEX": {"min": 10, "max": 14},
+        "CON": {"min": 12, "max": 16},
+        "INT": {"min": 8, "max": 14},
+        "WIS": {"min": 10, "max": 14},
+        "CHA": {"min": 8, "max": 14}
+      },
+      "personality_traits": [
+        "Hardworking", "Proud", "Gruff", "Honest",
+        "Perfectionist", "Direct", "Skilled"
+      ]
+    },
+    "bandit": {
+      "npc_type": "ENEMY",
+      "stat_distributions": {
+        "STR": {"min": 10, "max": 14},
+        "DEX": {"min": 12, "max": 16},
+        "CON": {"min": 10, "max": 14},
+        "INT": {"min": 8, "max": 12},
+        "WIS": {"min": 8, "max": 12},
+        "CHA": {"min": 8, "max": 12}
+      },
+      "personality_traits": [
+        "Greedy", "Ruthless", "Desperate", "Cunning",
+        "Violent", "Opportunistic", "Cautious"
+      ]
+    },
+    "noble": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 8, "max": 12},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 10, "max": 16},
+        "WIS": {"min": 8, "max": 14},
+        "CHA": {"min": 12, "max": 18}
+      },
+      "personality_traits": [
+        "Arrogant", "Refined", "Demanding", "Cultured",
+        "Entitled", "Tactful", "Diplomatic", "Generous"
+      ]
+    },
+    "commoner": {
+      "npc_type": "BACKGROUND",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 8, "max": 12},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 8, "max": 12},
+        "WIS": {"min": 8, "max": 12},
+        "CHA": {"min": 8, "max": 12}
+      },
+      "personality_traits": [
+        "Hardworking", "Simple", "Curious", "Suspicious",
+        "Friendly", "Reserved", "Gossipy"
+      ]
+    },
+    "wizard": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 6, "max": 10},
+        "DEX": {"min": 8, "max": 12},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 14, "max": 18},
+        "WIS": {"min": 12, "max": 16},
+        "CHA": {"min": 8, "max": 14}
+      },
+      "personality_traits": [
+        "Studious", "Eccentric", "Mysterious", "Knowledgeable",
+        "Reclusive", "Curious", "Arrogant", "Thoughtful"
+      ]
+    },
+    "priest": {
+      "npc_type": "SERVICE",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 8, "max": 12},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 10, "max": 14},
+        "WIS": {"min": 14, "max": 18},
+        "CHA": {"min": 10, "max": 16}
+      },
+      "personality_traits": [
+        "Devout", "Compassionate", "Wise", "Patient",
+        "Serene", "Judgmental", "Helpful", "Inspirational"
+      ]
+    },
+    "thief": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 14, "max": 18},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 10, "max": 14},
+        "WIS": {"min": 10, "max": 14},
+        "CHA": {"min": 10, "max": 14}
+      },
+      "personality_traits": [
+        "Sly", "Cautious", "Quick-witted", "Opportunistic",
+        "Paranoid", "Charming", "Secretive", "Resourceful"
+      ]
+    },
+    "farmer": {
+      "npc_type": "BACKGROUND",
+      "stat_distributions": {
+        "STR": {"min": 10, "max": 14},
+        "DEX": {"min": 8, "max": 12},
+        "CON": {"min": 10, "max": 14},
+        "INT": {"min": 8, "max": 12},
+        "WIS": {"min": 10, "max": 14},
+        "CHA": {"min": 8, "max": 12}
+      },
+      "personality_traits": [
+        "Hardworking", "Practical", "Early-rising", "Weather-wise",
+        "Patient", "Traditional", "Stubborn", "Community-minded"
+      ]
+    },
+    "scholar": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 6, "max": 10},
+        "DEX": {"min": 8, "max": 12},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 14, "max": 18},
+        "WIS": {"min": 12, "max": 16},
+        "CHA": {"min": 8, "max": 12}
+      },
+      "personality_traits": [
+        "Analytical", "Curious", "Detail-oriented", "Logical",
+        "Absent-minded", "Methodical", "Passionate", "Skeptical"
+      ]
+    },
+    "healer": {
+      "npc_type": "SERVICE",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 10, "max": 14},
+        "CON": {"min": 10, "max": 14},
+        "INT": {"min": 12, "max": 16},
+        "WIS": {"min": 14, "max": 18},
+        "CHA": {"min": 10, "max": 14}
+      },
+      "personality_traits": [
+        "Caring", "Calm", "Gentle", "Knowledgeable",
+        "Patient", "Empathetic", "Trustworthy", "Observant"
+      ]
+    },
+    "hunter": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 10, "max": 14},
+        "DEX": {"min": 12, "max": 16},
+        "CON": {"min": 10, "max": 14},
+        "INT": {"min": 8, "max": 12},
+        "WIS": {"min": 12, "max": 16},
+        "CHA": {"min": 8, "max": 12}
+      },
+      "personality_traits": [
+        "Patient", "Quiet", "Observant", "Self-reliant",
+        "Survivalist", "Practical", "Skilled", "Solitary"
+      ]
+    },
+    "soldier": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 12, "max": 16},
+        "DEX": {"min": 10, "max": 14},
+        "CON": {"min": 12, "max": 16},
+        "INT": {"min": 8, "max": 12},
+        "WIS": {"min": 10, "max": 14},
+        "CHA": {"min": 8, "max": 12}
+      },
+      "personality_traits": [
+        "Disciplined", "Brave", "Loyal", "Practical",
+        "Hardened", "Orderly", "Direct", "Dutiful"
+      ]
+    },
+    "captain": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 12, "max": 16},
+        "DEX": {"min": 10, "max": 14},
+        "CON": {"min": 12, "max": 16},
+        "INT": {"min": 10, "max": 14},
+        "WIS": {"min": 12, "max": 16},
+        "CHA": {"min": 12, "max": 16}
+      },
+      "personality_traits": [
+        "Commanding", "Strategic", "Decisive", "Authoritative",
+        "Experienced", "Responsible", "Respected", "Stern"
+      ]
+    },
+    "bard": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 10, "max": 14},
+        "CON": {"min": 8, "max": 12},
+        "INT": {"min": 10, "max": 14},
+        "WIS": {"min": 10, "max": 14},
+        "CHA": {"min": 14, "max": 18}
+      },
+      "personality_traits": [
+        "Charismatic", "Creative", "Entertaining", "Knowledgeable",
+        "Witty", "Observant", "Persuasive", "Sociable", "Dramatic"
+      ]
+    },
+    "boss_bandit_leader": {
+      "npc_type": "ENEMY",
+      "stat_distributions": {
+        "STR": {"min": 14, "max": 18},
+        "DEX": {"min": 14, "max": 18},
+        "CON": {"min": 14, "max": 18},
+        "INT": {"min": 12, "max": 16},
+        "WIS": {"min": 12, "max": 16},
+        "CHA": {"min": 12, "max": 16}
+      },
+      "personality_traits": [
+        "Ruthless", "Cunning", "Intimidating", "Strategic",
+        "Vengeful", "Ambitious", "Dominating", "Dangerous"
+      ]
+    },
+    "boss_necromancer": {
+      "npc_type": "ENEMY",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 10, "max": 14},
+        "CON": {"min": 12, "max": 16},
+        "INT": {"min": 16, "max": 20},
+        "WIS": {"min": 14, "max": 18},
+        "CHA": {"min": 14, "max": 18}
+      },
+      "personality_traits": [
+        "Obsessed", "Macabre", "Power-hungry", "Genius",
+        "Twisted", "Calculating", "Fearless", "Sadistic"
+      ]
+    },
+    "boss_dragon": {
+      "npc_type": "ENEMY",
+      "stat_distributions": {
+        "STR": {"min": 18, "max": 24},
+        "DEX": {"min": 14, "max": 18},
+        "CON": {"min": 18, "max": 24},
+        "INT": {"min": 16, "max": 20},
+        "WIS": {"min": 16, "max": 20},
+        "CHA": {"min": 16, "max": 20}
+      },
+      "personality_traits": [
+        "Ancient", "Proud", "Territorial", "Cunning",
+        "Greedy", "Vengeful", "Majestic", "Powerful"
+      ]
+    },
+    "boss_knight": {
+      "npc_type": "ENEMY",
+      "stat_distributions": {
+        "STR": {"min": 16, "max": 20},
+        "DEX": {"min": 14, "max": 18},
+        "CON": {"min": 16, "max": 20},
+        "INT": {"min": 12, "max": 16},
+        "WIS": {"min": 12, "max": 16},
+        "CHA": {"min": 14, "max": 18}
+      },
+      "personality_traits": [
+        "Honorable", "Skilled", "Determined", "Disciplined",
+        "Arrogant", "Relentless", "Dedicated", "Formidable"
+      ]
+    },
+    "boss_witch": {
+      "npc_type": "ENEMY",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 12},
+        "DEX": {"min": 12, "max": 16},
+        "CON": {"min": 12, "max": 16},
+        "INT": {"min": 16, "max": 20},
+        "WIS": {"min": 16, "max": 20},
+        "CHA": {"min": 14, "max": 18}
+      },
+      "personality_traits": [
+        "Mysterious", "Vindictive", "Cunning", "Ancient",
+        "Manipulative", "Knowledgeable", "Unpredictable", "Formidable"
+      ]
+    },
+    "child": {
+      "npc_type": "BACKGROUND",
+      "stat_distributions": {
+        "STR": {"min": 4, "max": 8},
+        "DEX": {"min": 8, "max": 14},
+        "CON": {"min": 6, "max": 10},
+        "INT": {"min": 8, "max": 12},
+        "WIS": {"min": 6, "max": 10},
+        "CHA": {"min": 8, "max": 14}
+      },
+      "personality_traits": [
+        "Curious", "Playful", "Innocent", "Energetic",
+        "Imaginative", "Honest", "Impressionable", "Trusting"
+      ]
+    },
+    "elder": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 6, "max": 10},
+        "DEX": {"min": 6, "max": 10},
+        "CON": {"min": 6, "max": 10},
+        "INT": {"min": 10, "max": 16},
+        "WIS": {"min": 14, "max": 18},
+        "CHA": {"min": 10, "max": 14}
+      },
+      "personality_traits": [
+        "Wise", "Patient", "Traditional", "Respected",
+        "Experienced", "Contemplative", "Advice-giving", "Nostalgic"
+      ]
+    },
+    "blank_template": {
+      "npc_type": "NEUTRAL",
+      "stat_distributions": {
+        "STR": {"min": 8, "max": 14},
+        "DEX": {"min": 8, "max": 14},
+        "CON": {"min": 8, "max": 14},
+        "INT": {"min": 8, "max": 14},
+        "WIS": {"min": 8, "max": 14},
+        "CHA": {"min": 8, "max": 14}
+      },
+      "personality_traits": [
+        "Unique", "Distinctive", "Memorable", "Interesting",
+        "Complex", "Nuanced", "Authentic", "Individual"
+      ]
+    }
+  },
+  "name_pools": {
+    "generic": {
+      "male": [
+        "John", "William", "Thomas", "James", "George", "Robert", "Michael",
+        "David", "Richard", "Charles", "Joseph", "Henry", "Edward", "Arthur",
+        "Walter", "Harold", "Albert", "Samuel", "Frederick", "Peter"
+      ],
+      "female": [
+        "Mary", "Elizabeth", "Sarah", "Anne", "Margaret", "Jane", "Catherine",
+        "Alice", "Emily", "Ellen", "Florence", "Edith", "Ethel", "Emma",
+        "Rose", "Martha", "Maria", "Eliza", "Lucy", "Grace"
+      ],
+      "surname": [
+        "Smith", "Jones", "Williams", "Brown", "Taylor", "Davies", "Wilson",
+        "Evans", "Thomas", "Johnson", "Roberts", "Walker", "Wright", "Robinson",
+        "Thompson", "White", "Hughes", "Edwards", "Green", "Hall", "Lewis", "Harris"
+      ]
+    },
+    "noble": {
+      "male": [
+        "Percival", "Edmund", "Reginald", "Bartholomew", "Constantine",
+        "Maximilian", "Benedict", "Cornelius", "Desmond", "Lionel"
+      ],
+      "female": [
+        "Victoria", "Genevieve", "Constance", "Beatrice", "Penelope",
+        "Anastasia", "Evangeline", "Gwendolyn", "Wilhelmina", "Cordelia"
+      ],
+      "surname": [
+        "Blackwood", "Highcastle", "Montclair", "Pemberton", "Wyndham",
+        "Rothschild", "Crowley", "Fitzroy", "Harrington", "Lancaster"
+      ]
+    },
+    "merchant": {
+      "male": [
+        "Bartholomew", "Benedict", "Gideon", "Silas", "Elias",
+        "Isidore", "Thaddeus", "Magnus", "Roderick", "Felix"
+      ],
+      "female": [
+        "Millicent", "Henrietta", "Agatha", "Theodora", "Gertrude",
+        "Bertha", "Augusta", "Winifred", "Cecilia", "Dorothea"
+      ],
+      "surname": [
+        "Goldsmith", "Sterling", "Merchant", "Silverstein", "Cooper",
+        "Fletcher", "Cartwright", "Weaver", "Tanner", "Chandler"
+      ]
+    },
+    "fantasy": {
+      "male": [
+        "Thorne", "Alaric", "Gareth", "Aldric", "Balthazar",
+        "Cedric", "Darius", "Eadric", "Finnian", "Gideon"
+      ],
+      "female": [
+        "Aurelia", "Brielle", "Ceres", "Daphne", "Elara",
+        "Freya", "Gwyneth", "Isolde", "Lyra", "Morgana"
+      ],
+      "surname": [
+        "Stormcloak", "Lightbringer", "Dawnforge", "Nightshade", "Swiftarrow",
+        "Moonshadow", "Silverhand", "Trollsbane", "Windrider", "Stonehelm"
+      ]
+    }
+  },
+  "specialized_types": {
+    "custom": {
+      "description": "For LLM-generated unique NPCs that don't fit standard templates",
+      "use_template": "blank_template"
+    },
+    "boss": {
+      "description": "High-powered enemy NPCs that present significant challenges",
+      "templates": ["boss_bandit_leader", "boss_necromancer", "boss_dragon", "boss_knight", "boss_witch"]
+    },
+    "background": {
+      "description": "NPCs that mainly serve as flavor for the environment",
+      "templates": ["commoner", "farmer", "child"]
+    }
+  }
+}

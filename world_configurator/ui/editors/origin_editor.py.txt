@@ -1,0 +1,1141 @@
+# world_configurator/ui/editors/origin_editor.py
+"""
+Origin editor component for the World Configurator Tool.
+(Formerly Scenario Editor)
+"""
+
+import logging
+import copy
+from typing import Dict, List, Optional, Callable, Any
+
+from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
+    QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
+    QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox,
+    QInputDialog, QTableWidget, QTableWidgetItem, QHeaderView
+)
+
+# Assuming Origin model exists in base_models with the new fields
+from gui.dialogs.base_dialog import BaseDialog
+from world_configurator.models.base_models import Origin, OriginTrait
+from world_configurator.models.origin_data import OriginManager # Renamed import
+from world_configurator.models.location_data import LocationManager
+
+logger = logging.getLogger("world_configurator.ui.origin_editor") # Updated logger name
+
+
+class OriginTraitDialog(BaseDialog):
+    """Dialog for editing an OriginTrait."""
+    def __init__(self, parent=None, trait: Optional[OriginTrait] = None):
+        super().__init__(parent)
+        self.setWindowTitle("Edit Origin Trait")
+        self.setMinimumWidth(400)
+
+        self.trait = copy.deepcopy(trait) if trait else OriginTrait(name="New Trait", description="")
+
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        self.name_edit = QLineEdit(self.trait.name)
+        form.addRow("Trait Name:", self.name_edit)
+
+        self.desc_edit = QTextEdit(self.trait.description)
+        self.desc_edit.setMinimumHeight(80)
+        form.addRow("Description:", self.desc_edit)
+
+        layout.addLayout(form)
+
+        btn_layout = QHBoxLayout()
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(self.accept)
+        save_btn.setDefault(True)
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        layout.addLayout(btn_layout)
+
+    def get_trait(self) -> OriginTrait:
+        self.trait.name = self.name_edit.text().strip()
+        self.trait.description = self.desc_edit.toPlainText().strip()
+        return self.trait
+
+class OriginEditor(QWidget): # Renamed class
+    """Origin editor component."""
+
+    # Signals
+    origin_modified = Signal() # Renamed signal
+
+    def __init__(self, parent=None):
+        """
+        Initialize the origin editor.
+
+        Args:
+            parent: The parent widget.
+        """
+        super().__init__(parent)
+
+        # Internal state
+        self.origin_manager = OriginManager() # Renamed manager
+        self.location_manager = LocationManager()
+        self.current_origin: Optional[Origin] = None # Renamed variable
+
+        # Setup UI
+        self._setup_ui()
+
+    def _setup_ui(self):
+        """Setup the editor UI."""
+        main_layout = QHBoxLayout(self)
+
+        # Create a splitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        main_layout.addWidget(splitter)
+
+        # Left panel (origin list)
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+
+        list_label = QLabel("Starting Origins") # Renamed label
+        list_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        left_layout.addWidget(list_label)
+
+        self.origin_list = QListWidget() # Renamed variable
+        self.origin_list.setMinimumWidth(200)
+        self.origin_list.currentItemChanged.connect(self._on_origin_selected) # Renamed slot
+        left_layout.addWidget(self.origin_list)
+
+        list_buttons = QHBoxLayout()
+
+        self.add_origin_btn = QPushButton("Add") # Renamed variable
+        self.add_origin_btn.clicked.connect(self._add_origin) # Renamed slot
+        list_buttons.addWidget(self.add_origin_btn)
+
+        self.remove_origin_btn = QPushButton("Remove") # Renamed variable
+        self.remove_origin_btn.clicked.connect(self._remove_origin) # Renamed slot
+        self.remove_origin_btn.setEnabled(False)
+        list_buttons.addWidget(self.remove_origin_btn)
+
+        left_layout.addLayout(list_buttons)
+
+        # Add left panel to splitter
+        splitter.addWidget(left_panel)
+
+        # Right panel (origin details)
+        right_panel = QScrollArea()
+        right_panel.setWidgetResizable(True)
+        right_panel.setFrameShape(QFrame.NoFrame)
+
+        self.details_widget = QWidget()
+        right_panel.setWidget(self.details_widget)
+
+        self.details_layout = QVBoxLayout(self.details_widget)
+
+        # Origin details form
+        self.form_layout = QFormLayout()
+
+        # Origin name
+        self.name_label = QLabel("")
+        self.form_layout.addRow("Name:", self.name_label)
+
+        # Origin description
+        self.desc_label = QLabel("")
+        self.desc_label.setWordWrap(True)
+        self.desc_label.setMinimumHeight(60) # Adjusted height
+        self.form_layout.addRow("Description:", self.desc_label)
+
+        # Starting location
+        self.location_label = QLabel("")
+        self.form_layout.addRow("Starting Location:", self.location_label)
+
+        # Starting Culture (Optional) - NEW
+        self.culture_label = QLabel("")
+        self.form_layout.addRow("Starting Culture (Optional):", self.culture_label)
+
+        # Introduction text
+        self.intro_label = QLabel("")
+        self.intro_label.setWordWrap(True)
+        self.intro_label.setMinimumHeight(100) # Adjusted height
+        self.form_layout.addRow("Introduction Text:", self.intro_label)
+
+        # Setup double-click events
+        self.name_label.mouseDoubleClickEvent = self._edit_name
+        self.desc_label.mouseDoubleClickEvent = self._edit_description
+        self.location_label.mouseDoubleClickEvent = self._edit_location
+        self.culture_label.mouseDoubleClickEvent = self._edit_culture # NEW
+        self.intro_label.mouseDoubleClickEvent = self._edit_introduction
+
+        self.details_layout.addLayout(self.form_layout)
+
+        # --- NEW SECTIONS ---
+
+        # Skill Proficiencies section
+        skills_label = QLabel("Skill Proficiencies")
+        skills_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(skills_label)
+
+        self.skills_list = QListWidget()
+        self.skills_list.setMinimumHeight(60)
+        self.skills_list.itemDoubleClicked.connect(self._edit_skill) # Double-click editing
+        self.details_layout.addWidget(self.skills_list)
+
+        skills_buttons = QHBoxLayout()
+        self.add_skill_btn = QPushButton("Add Skill")
+        self.add_skill_btn.clicked.connect(self._add_skill)
+        skills_buttons.addWidget(self.add_skill_btn)
+        self.remove_skill_btn = QPushButton("Remove Skill")
+        self.remove_skill_btn.clicked.connect(self._remove_skill)
+        skills_buttons.addWidget(self.remove_skill_btn)
+        self.details_layout.addLayout(skills_buttons)
+
+        # Origin Traits section
+        traits_label = QLabel("Origin Traits")
+        traits_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(traits_label)
+
+        # Use QTableWidget for traits (Name, Description)
+        self.traits_table = QTableWidget()
+        self.traits_table.setColumnCount(2)
+        self.traits_table.setHorizontalHeaderLabels(["Trait Name", "Description"])
+        self.traits_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch) # Stretch description column
+        self.traits_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.traits_table.setEditTriggers(QTableWidget.NoEditTriggers) # Prevent direct editing
+        self.traits_table.itemDoubleClicked.connect(self._edit_trait_row) # Double-click editing
+        self.traits_table.setMinimumHeight(100)
+        self.details_layout.addWidget(self.traits_table)
+
+
+        traits_buttons = QHBoxLayout()
+        self.add_trait_btn = QPushButton("Add Trait")
+        self.add_trait_btn.clicked.connect(self._add_trait)
+        traits_buttons.addWidget(self.add_trait_btn)
+        self.edit_trait_btn = QPushButton("Edit Trait")
+        self.edit_trait_btn.clicked.connect(self._edit_selected_trait)
+        traits_buttons.addWidget(self.edit_trait_btn)
+        self.remove_trait_btn = QPushButton("Remove Trait")
+        self.remove_trait_btn.clicked.connect(self._remove_trait)
+        traits_buttons.addWidget(self.remove_trait_btn)
+        self.details_layout.addLayout(traits_buttons)
+
+        # --- END NEW SECTIONS ---
+
+        # Starting items section
+        items_label = QLabel("Starting Items")
+        items_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(items_label)
+
+        self.items_list = QListWidget()
+        self.items_list.setMinimumHeight(60) # Adjusted height
+        self.items_list.itemDoubleClicked.connect(self._edit_item) # Double-click editing
+        self.details_layout.addWidget(self.items_list)
+
+        items_buttons = QHBoxLayout()
+        self.add_item_btn = QPushButton("Add Item")
+        self.add_item_btn.clicked.connect(self._add_item)
+        items_buttons.addWidget(self.add_item_btn)
+        self.remove_item_btn = QPushButton("Remove Item")
+        self.remove_item_btn.clicked.connect(self._remove_item)
+        items_buttons.addWidget(self.remove_item_btn)
+        self.details_layout.addLayout(items_buttons)
+
+        # Initial quests section
+        quests_label = QLabel("Initial Quests")
+        quests_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(quests_label)
+
+        self.quests_list = QListWidget()
+        self.quests_list.setMinimumHeight(60) # Adjusted height
+        self.quests_list.itemDoubleClicked.connect(self._edit_quest) # Double-click editing
+        self.details_layout.addWidget(self.quests_list)
+
+        quests_buttons = QHBoxLayout()
+        self.add_quest_btn = QPushButton("Add Quest")
+        self.add_quest_btn.clicked.connect(self._add_quest)
+        quests_buttons.addWidget(self.add_quest_btn)
+        self.remove_quest_btn = QPushButton("Remove Quest")
+        self.remove_quest_btn.clicked.connect(self._remove_quest)
+        quests_buttons.addWidget(self.remove_quest_btn)
+        self.details_layout.addLayout(quests_buttons)
+
+        # Suitable races section
+        races_label = QLabel("Suitable Races")
+        races_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(races_label)
+
+        self.races_list = QListWidget()
+        self.races_list.setMinimumHeight(60) # Adjusted height
+        self.races_list.itemDoubleClicked.connect(self._edit_race) # Double-click editing
+        self.details_layout.addWidget(self.races_list)
+
+        races_buttons = QHBoxLayout()
+        self.add_race_btn = QPushButton("Add Race")
+        self.add_race_btn.clicked.connect(self._add_race)
+        races_buttons.addWidget(self.add_race_btn)
+        self.remove_race_btn = QPushButton("Remove Race")
+        self.remove_race_btn.clicked.connect(self._remove_race)
+        races_buttons.addWidget(self.remove_race_btn)
+        self.details_layout.addLayout(races_buttons)
+
+        # Suitable classes section
+        classes_label = QLabel("Suitable Classes")
+        classes_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(classes_label)
+
+        self.classes_list = QListWidget()
+        self.classes_list.setMinimumHeight(60) # Adjusted height
+        self.classes_list.itemDoubleClicked.connect(self._edit_class) # Double-click editing
+        self.details_layout.addWidget(self.classes_list)
+
+        classes_buttons = QHBoxLayout()
+        self.add_class_btn = QPushButton("Add Class")
+        self.add_class_btn.clicked.connect(self._add_class)
+        classes_buttons.addWidget(self.add_class_btn)
+        self.remove_class_btn = QPushButton("Remove Class")
+        self.remove_class_btn.clicked.connect(self._remove_class)
+        classes_buttons.addWidget(self.remove_class_btn)
+        self.details_layout.addLayout(classes_buttons)
+
+        # Save button
+        save_layout = QHBoxLayout()
+        save_layout.addStretch()
+
+        self.save_btn = QPushButton("Save Changes")
+        self.save_btn.clicked.connect(self._save_current_origin) # Renamed slot
+        self.save_btn.setEnabled(False)
+        save_layout.addWidget(self.save_btn)
+
+        self.details_layout.addLayout(save_layout)
+
+        # Add right panel to splitter
+        splitter.addWidget(right_panel)
+
+        # Set up initial state
+        self._disable_details()
+
+        # Prioritize the details panel for resizing
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 3)
+
+    # Renamed method to accept OriginManager
+    def set_managers(self, origin_manager: OriginManager, location_manager: LocationManager) -> None:
+        """
+        Set the origin and location managers to use.
+
+        Args:
+            origin_manager: The origin manager.
+            location_manager: The location manager.
+        """
+        self.origin_manager = origin_manager
+        self.location_manager = location_manager
+
+        # No need to populate location dropdown as we're using a label and dialog now
+
+        # Refresh origin list
+        self._refresh_origin_list() # Renamed method
+
+    def _refresh_origin_list(self) -> None: # Renamed method
+        """Refresh the origin list from the manager."""
+        # Clear list
+        self.origin_list.clear()
+
+        # Add all origins
+        for origin_id, origin in self.origin_manager.origins.items(): # Use origin_manager.origins
+            item = QListWidgetItem(origin.name)
+            item.setData(Qt.UserRole, origin_id)
+            self.origin_list.addItem(item)
+
+        # Sort alphabetically
+        self.origin_list.sortItems()
+
+        # Select the first item if available
+        if self.origin_list.count() > 0:
+            self.origin_list.setCurrentRow(0)
+        else: # Ensure details are disabled if list is empty
+             self._disable_details()
+             self.remove_origin_btn.setEnabled(False)
+
+    # Renamed method
+    def _on_origin_selected(self, current: Optional[QListWidgetItem], previous: Optional[QListWidgetItem]) -> None:
+        """
+        Handle origin selection change.
+
+        Args:
+            current: The current selected item, or None.
+            previous: The previously selected item, or None.
+        """
+        if current:
+            origin_id = current.data(Qt.UserRole)
+            origin = self.origin_manager.get_origin(origin_id) # Use origin_manager
+
+            if origin:
+                self._load_origin(origin) # Renamed method
+                self.remove_origin_btn.setEnabled(True)
+                return
+
+        # No valid selection
+        self._disable_details()
+        self.remove_origin_btn.setEnabled(False)
+
+    def _load_origin(self, origin: Origin) -> None: # Renamed method and type hint
+        """
+        Load an origin into the editor.
+
+        Args:
+            origin: The origin to load.
+        """
+        try:
+            self.current_origin = origin # Renamed variable
+
+            # Set form values
+            self.name_label.setText(origin.name)
+            self.desc_label.setText(origin.description)
+
+            # Set selected location
+            if origin.starting_location_id and self.location_manager and self.location_manager.locations:
+                location = self.location_manager.locations.get(origin.starting_location_id)
+                if location:
+                    self.location_label.setText(f"{location.name} ({location.type})")
+                else:
+                    self.location_label.setText(f"(Unknown location: {origin.starting_location_id})")
+            else:
+                self.location_label.setText("(None)")
+
+            # Set selected culture (Optional) - NEW
+            if origin.starting_culture_id and hasattr(self, 'culture_label'): # Check attribute exists
+                # Assume culture_manager is accessible (needs passing in set_managers or similar)
+                # For now, just display ID if manager isn't readily available
+                # TODO: Pass CultureManager to this editor if needed
+                self.culture_label.setText(origin.starting_culture_id)
+            elif hasattr(self, 'culture_label'):
+                self.culture_label.setText("(None - uses location default)")
+
+            # Set introduction text
+            self.intro_label.setText(origin.introduction_text)
+
+            # Load skill proficiencies - NEW
+            self.skills_list.clear()
+            if hasattr(origin, 'skill_proficiencies'):
+                for skill in origin.skill_proficiencies:
+                    item = QListWidgetItem(skill)
+                    self.skills_list.addItem(item)
+
+            # Load origin traits - NEW
+            self.traits_table.setRowCount(0) # Clear table
+            if hasattr(origin, 'origin_traits'):
+                self.traits_table.setRowCount(len(origin.origin_traits))
+                for row, trait in enumerate(origin.origin_traits):
+                    name_item = QTableWidgetItem(trait.name)
+                    desc_item = QTableWidgetItem(trait.description)
+                    self.traits_table.setItem(row, 0, name_item)
+                    self.traits_table.setItem(row, 1, desc_item)
+                    # Store the original trait object (or index) if needed for editing
+                    name_item.setData(Qt.UserRole, row) # Store row index
+
+            # Load starting items
+            self.items_list.clear()
+            for item_id in origin.starting_items:
+                item = QListWidgetItem(item_id)
+                self.items_list.addItem(item)
+
+            # Load initial quests
+            self.quests_list.clear()
+            for quest_id in origin.initial_quests:
+                item = QListWidgetItem(quest_id)
+                self.quests_list.addItem(item)
+
+            # Load suitable races
+            self.races_list.clear()
+            for race_name in origin.suitable_races:
+                item = QListWidgetItem(race_name)
+                self.races_list.addItem(item)
+
+            # Load suitable classes
+            self.classes_list.clear()
+            for class_name in origin.suitable_classes:
+                item = QListWidgetItem(class_name)
+                self.classes_list.addItem(item)
+
+            # Enable controls
+            self._enable_details()
+            self.save_btn.setEnabled(False)  # Initially not modified
+
+        except Exception as e:
+            logger.error(f"Error loading origin {origin.name}: {str(e)}", exc_info=True) # Added exc_info
+            QMessageBox.warning(
+                self,
+                "Error Loading Origin",
+                f"There was an error loading the origin '{origin.name}':\n\n{str(e)}\n\nSome data may not be displayed correctly."
+            )
+            # Still enable the editor to allow fixing the issue
+            self._enable_details()
+            self.save_btn.setEnabled(True)  # Enable saving to fix issues
+
+    def _disable_details(self) -> None:
+        """Disable all detail controls."""
+        self.current_origin = None # Renamed variable
+
+        self.name_label.clear()
+        self.desc_label.clear()
+        self.location_label.clear()
+        if hasattr(self, 'culture_label'): self.culture_label.clear() # Clear new label
+        self.intro_label.clear()
+
+        # Clear new lists/tables
+        self.skills_list.clear()
+        self.traits_table.setRowCount(0)
+
+        self.items_list.clear()
+        self.quests_list.clear()
+        self.races_list.clear() # Clear races list
+        self.classes_list.clear()
+
+        # Labels are always enabled for display
+        # No need to disable them as they're not directly editable
+
+        # Disable lists/tables and buttons
+        self.skills_list.setEnabled(False)
+        self.traits_table.setEnabled(False)
+        self.items_list.setEnabled(False)
+        self.quests_list.setEnabled(False)
+        self.races_list.setEnabled(False)
+        self.classes_list.setEnabled(False)
+
+        self.add_skill_btn.setEnabled(False)
+        self.remove_skill_btn.setEnabled(False)
+        self.add_trait_btn.setEnabled(False)
+        self.edit_trait_btn.setEnabled(False)
+        self.remove_trait_btn.setEnabled(False)
+        self.add_item_btn.setEnabled(False)
+        self.remove_item_btn.setEnabled(False)
+        self.add_quest_btn.setEnabled(False)
+        self.remove_quest_btn.setEnabled(False)
+        self.add_race_btn.setEnabled(False)
+        self.remove_race_btn.setEnabled(False)
+        self.add_class_btn.setEnabled(False)
+        self.remove_class_btn.setEnabled(False)
+
+        self.save_btn.setEnabled(False)
+
+    def _enable_details(self) -> None:
+        """Enable all detail controls."""
+        # Labels are always enabled for display
+        # Double-click events handle the editing
+
+        # Enable lists/tables and buttons
+        self.skills_list.setEnabled(True)
+        self.traits_table.setEnabled(True)
+        self.items_list.setEnabled(True)
+        self.quests_list.setEnabled(True)
+        self.races_list.setEnabled(True)
+        self.classes_list.setEnabled(True)
+
+        self.add_skill_btn.setEnabled(True)
+        self.remove_skill_btn.setEnabled(True)
+        self.add_trait_btn.setEnabled(True)
+        self.edit_trait_btn.setEnabled(True)
+        self.remove_trait_btn.setEnabled(True)
+        self.add_item_btn.setEnabled(True)
+        self.remove_item_btn.setEnabled(True)
+        self.add_quest_btn.setEnabled(True)
+        self.remove_quest_btn.setEnabled(True)
+        self.add_race_btn.setEnabled(True)
+        self.remove_race_btn.setEnabled(True)
+        self.add_class_btn.setEnabled(True)
+        self.remove_class_btn.setEnabled(True)
+        # Save button enabled separately when changes occur
+
+    # Renamed method
+    def _save_current_origin(self) -> None:
+        """Save the current origin to the manager."""
+        if not self.current_origin:
+            return
+
+        # Note: Basic fields (name, desc, etc.) are updated via the individual edit dialogs
+        # We only need to collect the lists/tables here
+
+        # Update skill proficiencies - NEW
+        self.current_origin.skill_proficiencies = []
+        for i in range(self.skills_list.count()):
+            item = self.skills_list.item(i)
+            self.current_origin.skill_proficiencies.append(item.text())
+
+        # Update origin traits - NEW
+        self.current_origin.origin_traits = []
+        for row in range(self.traits_table.rowCount()):
+            name_item = self.traits_table.item(row, 0)
+            desc_item = self.traits_table.item(row, 1)
+            if name_item and desc_item:
+                self.current_origin.origin_traits.append(
+                    OriginTrait(name=name_item.text(), description=desc_item.text())
+                )
+
+        # Update starting items
+        self.current_origin.starting_items = []
+        for i in range(self.items_list.count()):
+            item = self.items_list.item(i)
+            self.current_origin.starting_items.append(item.text())
+
+        # Update initial quests
+        self.current_origin.initial_quests = []
+        for i in range(self.quests_list.count()):
+            item = self.quests_list.item(i)
+            self.current_origin.initial_quests.append(item.text())
+
+        # Update suitable races
+        self.current_origin.suitable_races = []
+        for i in range(self.races_list.count()):
+            item = self.races_list.item(i)
+            self.current_origin.suitable_races.append(item.text())
+
+        # Update suitable classes
+        self.current_origin.suitable_classes = []
+        for i in range(self.classes_list.count()):
+            item = self.classes_list.item(i)
+            self.current_origin.suitable_classes.append(item.text())
+
+        # Update origin in manager
+        self.origin_manager.add_origin(self.current_origin) # Use origin_manager
+
+        # Mark as saved
+        self.save_btn.setEnabled(False)
+
+        # Update origin list
+        self._refresh_origin_list() # Renamed method
+
+        # Find and select the current origin in the list
+        for i in range(self.origin_list.count()):
+            item = self.origin_list.item(i)
+            if item.data(Qt.UserRole) == self.current_origin.id:
+                self.origin_list.setCurrentItem(item)
+                break
+
+        # Emit modified signal
+        self.origin_modified.emit() # Renamed signal
+
+        # Log
+        logger.info(f"Saved origin: {self.current_origin.name} ({self.current_origin.id})")
+
+    def _add_origin(self) -> None: # Renamed method
+        """Add a new origin."""
+        # Create new origin (use a default location if available)
+        default_location_id = ""
+        if self.location_manager and self.location_manager.locations:
+            default_location_id = next(iter(self.location_manager.locations.keys()), "")
+
+        # Assume Origin.create_new takes name, description, location_id
+        # Need to update Origin model later
+        origin = Origin.create_new("New Origin", "Description of the origin", default_location_id)
+
+        # Add to manager
+        self.origin_manager.add_origin(origin) # Use origin_manager
+
+        # Refresh list
+        self._refresh_origin_list() # Renamed method
+
+        # Find and select the new origin
+        for i in range(self.origin_list.count()):
+            item = self.origin_list.item(i)
+            if item.data(Qt.UserRole) == origin.id:
+                self.origin_list.setCurrentItem(item)
+                break
+
+        # Trigger name edit dialog for immediate editing
+        self._edit_name(None)
+
+        # Emit modified signal
+        self.origin_modified.emit() # Renamed signal
+
+        # Log
+        logger.info(f"Added new origin: {origin.id}")
+
+    def _remove_origin(self) -> None: # Renamed method
+        """Remove the selected origin."""
+        current_item = self.origin_list.currentItem()
+        if not current_item:
+            return
+
+        origin_id = current_item.data(Qt.UserRole)
+        origin = self.origin_manager.get_origin(origin_id) # Use origin_manager
+
+        if not origin:
+            return
+
+        # Confirm deletion
+        result = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to delete the origin '{origin.name}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if result != QMessageBox.Yes:
+            return
+
+        # Remove from manager
+        self.origin_manager.remove_origin(origin_id) # Use origin_manager
+
+        # Refresh list
+        self._refresh_origin_list() # Renamed method
+
+        # Emit modified signal
+        self.origin_modified.emit() # Renamed signal
+
+        # Log
+        logger.info(f"Removed origin: {origin_id}")
+
+
+    # --- NEW METHODS FOR SKILLS AND TRAITS ---
+
+    def _add_skill(self):
+        if not self.current_origin: return
+        skill_name, ok = QInputDialog.getText(self, "Add Skill Proficiency", "Enter skill name:")
+        if ok and skill_name.strip():
+            self.skills_list.addItem(skill_name.strip())
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Added skill proficiency: {skill_name.strip()}")
+
+    def _remove_skill(self):
+        item = self.skills_list.currentItem()
+        if item:
+            self.skills_list.takeItem(self.skills_list.row(item))
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Removed skill proficiency: {item.text()}")
+
+    def _edit_skill(self, item):
+        if not self.current_origin: return
+        current_text = item.text()
+        new_text, ok = QInputDialog.getText(self, "Edit Skill Proficiency", "Enter skill name:", QLineEdit.Normal, current_text)
+        if ok and new_text.strip():
+            item.setText(new_text.strip())
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Edited skill from '{current_text}' to '{new_text}'")
+
+
+    def _add_trait(self):
+        if not self.current_origin: return
+        dialog = OriginTraitDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            new_trait = dialog.get_trait()
+            row = self.traits_table.rowCount()
+            self.traits_table.insertRow(row)
+            name_item = QTableWidgetItem(new_trait.name)
+            desc_item = QTableWidgetItem(new_trait.description)
+            self.traits_table.setItem(row, 0, name_item)
+            self.traits_table.setItem(row, 1, desc_item)
+            name_item.setData(Qt.UserRole, row) # Store index for editing
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Added origin trait: {new_trait.name}")
+
+    def _edit_selected_trait(self):
+         current_row = self.traits_table.currentRow()
+         if current_row >= 0:
+             self._edit_trait_row(self.traits_table.item(current_row, 0)) # Pass the name item
+
+    def _edit_trait_row(self, item):
+        if not self.current_origin or not item: return
+        row = item.row()
+        name_item = self.traits_table.item(row, 0)
+        desc_item = self.traits_table.item(row, 1)
+
+        if not name_item or not desc_item: return # Should not happen
+
+        # Create a temporary trait object to pass to dialog
+        current_trait = OriginTrait(name=name_item.text(), description=desc_item.text())
+
+        dialog = OriginTraitDialog(self, current_trait)
+        if dialog.exec() == QDialog.Accepted:
+            edited_trait = dialog.get_trait()
+            name_item.setText(edited_trait.name)
+            desc_item.setText(edited_trait.description)
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Edited origin trait at row {row} to: {edited_trait.name}")
+
+
+    def _remove_trait(self):
+        current_row = self.traits_table.currentRow()
+        if current_row >= 0:
+            removed_name = self.traits_table.item(current_row, 0).text() if self.traits_table.item(current_row, 0) else "Unknown"
+            self.traits_table.removeRow(current_row)
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Removed origin trait: {removed_name}")
+
+    # --- END NEW METHODS ---
+
+
+    def _add_item(self) -> None:
+        """Add a starting item."""
+        if not self.current_origin:
+            return
+
+        # Create simple input dialog
+        item_id, ok = QInputDialog.getText(
+            self,
+            "Add Starting Item",
+            "Enter item ID:"
+        )
+
+        if ok and item_id.strip():
+            # Add to list
+            self.items_list.addItem(item_id.strip())
+
+            # Mark as modified
+            self.save_btn.setEnabled(True)
+
+            # Log
+            logger.debug(f"Added starting item: {item_id}")
+
+    def _remove_item(self) -> None:
+        """Remove the selected starting item."""
+        item = self.items_list.currentItem()
+        if not item:
+            return
+
+        # Remove item
+        self.items_list.takeItem(self.items_list.row(item))
+
+        # Mark as modified
+        self.save_btn.setEnabled(True)
+
+        # Log
+        logger.debug(f"Removed starting item: {item.text()}")
+
+    def _add_quest(self) -> None:
+        """Add an initial quest."""
+        if not self.current_origin:
+            return
+
+        # Create simple input dialog
+        quest_id, ok = QInputDialog.getText(
+            self,
+            "Add Initial Quest",
+            "Enter quest ID:"
+        )
+
+        if ok and quest_id.strip():
+            # Add to list
+            self.quests_list.addItem(quest_id.strip())
+
+            # Mark as modified
+            self.save_btn.setEnabled(True)
+
+            # Log
+            logger.debug(f"Added initial quest: {quest_id}")
+
+    def _remove_quest(self) -> None:
+        """Remove the selected initial quest."""
+        item = self.quests_list.currentItem()
+        if not item:
+            return
+
+        # Remove item
+        self.quests_list.takeItem(self.quests_list.row(item))
+
+        # Mark as modified
+        self.save_btn.setEnabled(True)
+
+        # Log
+        logger.debug(f"Removed initial quest: {item.text()}")
+
+    def _add_race(self) -> None:
+        """Add a suitable race."""
+        if not self.current_origin:
+            return
+
+        # Create simple input dialog
+        race_name, ok = QInputDialog.getText(
+            self,
+            "Add Suitable Race",
+            "Enter race name:"
+        )
+
+        if ok and race_name.strip():
+            # Add to list
+            self.races_list.addItem(race_name.strip())
+
+            # Mark as modified
+            self.save_btn.setEnabled(True)
+
+            # Log
+            logger.debug(f"Added suitable race: {race_name}")
+
+    def _remove_race(self) -> None:
+        """Remove the selected suitable race."""
+        item = self.races_list.currentItem()
+        if not item:
+            return
+
+        # Remove item
+        self.races_list.takeItem(self.races_list.row(item))
+
+        # Mark as modified
+        self.save_btn.setEnabled(True)
+
+        # Log
+        logger.debug(f"Removed suitable race: {item.text()}")
+
+    def _add_class(self) -> None:
+        """Add a suitable class."""
+        if not self.current_origin:
+            return
+
+        # Create simple input dialog
+        class_name, ok = QInputDialog.getText(
+            self,
+            "Add Suitable Class",
+            "Enter class name:"
+        )
+
+        if ok and class_name.strip():
+            # Add to list
+            self.classes_list.addItem(class_name.strip())
+
+            # Mark as modified
+            self.save_btn.setEnabled(True)
+
+            # Log
+            logger.debug(f"Added suitable class: {class_name}")
+
+    def _remove_class(self) -> None:
+        """Remove the selected suitable class."""
+        item = self.classes_list.currentItem()
+        if not item:
+            return
+
+        # Remove item
+        self.classes_list.takeItem(self.classes_list.row(item))
+
+        # Mark as modified
+        self.save_btn.setEnabled(True)
+
+        # Log
+        logger.debug(f"Removed suitable class: {item.text()}")
+
+    # --- Editing Methods (Double-Click Handlers) ---
+
+    def _edit_name(self, event):
+        """Edit origin name on double-click."""
+        if not self.current_origin:
+            return
+
+        name, ok = QInputDialog.getText(
+            self,
+            "Edit Origin Name",
+            "Enter origin name:",
+            QLineEdit.Normal,
+            self.current_origin.name
+        )
+
+        if ok and name.strip():
+            self.current_origin.name = name.strip()
+            self.name_label.setText(name.strip())
+            self.save_btn.setEnabled(True)
+            # Also update the list widget item text
+            current_item = self.origin_list.currentItem()
+            if current_item:
+                current_item.setText(name.strip())
+                self.origin_list.sortItems() # Re-sort after name change
+            logger.debug(f"Updated origin name to: {name}")
+
+    def _edit_description(self, event):
+        """Edit origin description on double-click."""
+        if not self.current_origin:
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Origin Description")
+        dialog.setMinimumWidth(400)
+        dialog.setMinimumHeight(200) # Adjusted height
+
+        layout = QVBoxLayout(dialog)
+
+        text_edit = QTextEdit()
+        text_edit.setPlainText(self.current_origin.description)
+        layout.addWidget(text_edit)
+
+        btn_layout = QHBoxLayout()
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(dialog.accept)
+        save_btn.setDefault(True)
+
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        layout.addLayout(btn_layout)
+
+        if dialog.exec() == QDialog.Accepted:
+            description = text_edit.toPlainText().strip()
+            self.current_origin.description = description
+            self.desc_label.setText(description)
+            self.save_btn.setEnabled(True)
+            logger.debug("Updated origin description")
+
+    def _edit_location(self, event):
+        """Edit starting location on double-click."""
+        if not self.current_origin or not self.location_manager or not self.location_manager.locations:
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Select Starting Location")
+        dialog.setMinimumWidth(300)
+
+        layout = QVBoxLayout(dialog)
+
+        combo = QComboBox()
+        # Add a "(None)" option
+        combo.addItem("(None)", "")
+        for location_id, location in self.location_manager.locations.items():
+            combo.addItem(f"{location.name} ({location.type})", location_id)
+            if location_id == self.current_origin.starting_location_id:
+                combo.setCurrentIndex(combo.count() - 1)
+
+        layout.addWidget(combo)
+
+        btn_layout = QHBoxLayout()
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(dialog.accept)
+        save_btn.setDefault(True)
+
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        layout.addLayout(btn_layout)
+
+        if dialog.exec() == QDialog.Accepted:
+            location_id = combo.currentData()
+            location = self.location_manager.locations.get(location_id) if location_id else None
+            location_display = f"{location.name} ({location.type})" if location else "(None)"
+
+            self.current_origin.starting_location_id = location_id
+            self.location_label.setText(location_display)
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Updated starting location to: {location_display} (ID: {location_id})")
+
+
+    def _edit_culture(self, event): # NEW METHOD
+        """Edit starting culture on double-click."""
+        # TODO: Implement this - Requires access to CultureManager
+        # Similar logic to _edit_location, using culture data
+        # Add a "(None)" option to allow clearing the culture ID
+        if not self.current_origin: return
+        QMessageBox.information(self, "Edit Culture", "Culture editing not yet implemented.")
+        logger.warning("Attempted to edit starting culture - functionality not implemented.")
+
+
+    def _edit_introduction(self, event):
+        """Edit introduction text on double-click."""
+        if not self.current_origin:
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Introduction Text")
+        dialog.setMinimumWidth(500)
+        dialog.setMinimumHeight(300) # Adjusted height
+
+        layout = QVBoxLayout(dialog)
+
+        text_edit = QTextEdit()
+        text_edit.setPlainText(self.current_origin.introduction_text)
+        text_edit.setPlaceholderText("Enter introduction text that will be shown to the player at the start of the game...")
+        layout.addWidget(text_edit)
+
+        btn_layout = QHBoxLayout()
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(dialog.accept)
+        save_btn.setDefault(True)
+
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        layout.addLayout(btn_layout)
+
+        if dialog.exec() == QDialog.Accepted:
+            intro_text = text_edit.toPlainText().strip()
+            self.current_origin.introduction_text = intro_text
+            self.intro_label.setText(intro_text)
+            self.save_btn.setEnabled(True)
+            logger.debug("Updated introduction text")
+
+    def _edit_item(self, item):
+        """Edit a starting item on double-click."""
+        if not self.current_origin:
+            return
+
+        current_text = item.text()
+        new_text, ok = QInputDialog.getText(
+            self,
+            "Edit Starting Item",
+            "Enter item ID:",
+            QLineEdit.Normal,
+            current_text
+        )
+
+        if ok and new_text.strip():
+            item.setText(new_text.strip())
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Updated item from '{current_text}' to '{new_text}'")
+
+    def _edit_quest(self, item):
+        """Edit an initial quest on double-click."""
+        if not self.current_origin:
+            return
+
+        current_text = item.text()
+        new_text, ok = QInputDialog.getText(
+            self,
+            "Edit Initial Quest",
+            "Enter quest ID:",
+            QLineEdit.Normal,
+            current_text
+        )
+
+        if ok and new_text.strip():
+            item.setText(new_text.strip())
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Updated quest from '{current_text}' to '{new_text}'")
+
+    def _edit_race(self, item):
+        """Edit a suitable race on double-click."""
+        if not self.current_origin:
+            return
+
+        current_text = item.text()
+        new_text, ok = QInputDialog.getText(
+            self,
+            "Edit Suitable Race",
+            "Enter race name:",
+            QLineEdit.Normal,
+            current_text
+        )
+
+        if ok and new_text.strip():
+            item.setText(new_text.strip())
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Updated race from '{current_text}' to '{new_text}'")
+
+    def _edit_class(self, item):
+        """Edit a suitable class on double-click."""
+        if not self.current_origin:
+            return
+
+        current_text = item.text()
+        new_text, ok = QInputDialog.getText(
+            self,
+            "Edit Suitable Class",
+            "Enter class name:",
+            QLineEdit.Normal,
+            current_text
+        )
+
+        if ok and new_text.strip():
+            item.setText(new_text.strip())
+            self.save_btn.setEnabled(True)
+            logger.debug(f"Updated class from '{current_text}' to '{new_text}'")
+
+    def refresh(self):
+        """Refresh the editor data."""
+        self._refresh_origin_list() # Renamed method

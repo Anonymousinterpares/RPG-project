@@ -1,0 +1,45 @@
+{
+    "backgrounds": {
+      "Noble": {
+        "id": "Noble",
+        "name": "Noble",
+        "description": "Born into privilege, you are accustomed to high society, politics, and perhaps a bit of intrigue.",
+        "starting_skills": ["Persuasion", "History"],
+        "starting_items": ["Fine Clothes", "Signet Ring", "50 Gold"],
+        "stat_modifiers": {"CHA": 1}
+      },
+      "Commoner": {
+        "id": "Commoner",
+        "name": "Commoner",
+        "description": "You grew up among the ordinary folk, learning a trade or working the land. You are resilient and practical.",
+        "starting_skills": ["Endurance", "Crafting (Basic)"],
+        "starting_items": ["Simple Clothes", "Basic Tool", "10 Gold"],
+        "stat_modifiers": {"CON": 1}
+      },
+      "Scholar": {
+        "id": "Scholar",
+        "name": "Scholar",
+        "description": "You spent years studying lore, history, or the arcane. Knowledge is your greatest asset.",
+        "starting_skills": ["Lore", "Investigation"],
+        "starting_items": ["Scholar's Robes", "Book", "Ink & Quill", "20 Gold"],
+        "stat_modifiers": {"INT": 1}
+      },
+      "Soldier": {
+        "id": "Soldier",
+        "name": "Soldier",
+        "description": "You have seen battle, whether in an army, militia, or mercenary company. You understand discipline and combat.",
+        "starting_skills": ["Athletics", "Intimidation"],
+        "starting_items": ["Worn Uniform/Armor", "Token of Service", "Simple Weapon", "15 Gold"],
+        "stat_modifiers": {"STR": 1}
+      },
+      "Outlaw": {
+        "id": "Outlaw",
+        "name": "Outlaw",
+        "description": "You have lived outside the law, relying on your wits, stealth, or force to survive.",
+        "starting_skills": ["Stealth", "Deception"],
+        "starting_items": ["Dark Cloak", "Lockpicks", "Dagger", "25 Gold"],
+        "stat_modifiers": {"DEX": 1}
+      }
+    }
+  }
+  

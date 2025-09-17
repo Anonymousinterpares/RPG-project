@@ -1,0 +1,34 @@
+{
+  "openai": [
+    { "id": "gpt-4.1-nano", "name": "GPT-4.1 Nano", "description": "OpenAI's ultra-light model for low-latency, low-cost tasks" },
+    { "id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "description": "Smaller, fast model for general tasks" },
+    { "id": "gpt-4.1", "name": "GPT-4.1", "description": "General-purpose GPT-4.1" },
+    { "id": "gpt-5-mini", "name": "GPT-5 Mini", "description": "Next-gen lightweight GPT for fast experimentation" },
+    { "id": "gpt-4o", "name": "GPT-4o", "description": "OpenAI's most capable model, optimized for both chat and text completion" },
+    { "id": "gpt-4o-mini", "name": "GPT-4o Mini", "description": "More affordable version of GPT-4o for everyday tasks" }
+  ],
+  "google": [
+    { "id": "gemini-2.5-flash-preview-05-20", "name": "Gemini 2.5 Flash Preview", "description": "Preview of Google's 2.5 Flash model" },
+    { "id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "description": "Fast, capable Gemini 2.5" },
+    { "id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "description": "Google's advanced multimodal model" },
+    { "id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash Lite", "description": "Faster, more efficient version of Gemini for everyday tasks" }
+  ],
+  "openrouter": [
+    { "id": "deepseek/deepseek-v3-base:free", "name": "DeepSeek V3 Base (Free)", "description": "OpenRouter free DeepSeek V3 base" },
+    { "id": "google/gemini-2.5-pro-exp-03-25:free", "name": "Gemini 2.5 Pro Exp (Free)", "description": "Experimental Gemini 2.5 Pro via OpenRouter (free tier)" },
+    { "id": "meta-llama/llama-4-maverick:free", "name": "LLaMA 4 Maverick (Free)", "description": "Meta LLaMA 4 Maverick via OpenRouter (free tier)" },
+    { "id": "deepseek/deepseek-r1-0528:free", "name": "DeepSeek R1 (Free)", "description": "DeepSeek R1 via OpenRouter (free tier)" },
+    { "id": "mistralai/mistral-small-3.1-24b-instruct:free", "name": "Mistral Small 3.1 24B Instruct (Free)", "description": "Mistral 24B instruct via OpenRouter (free tier)" },
+    { "id": "meta-llama/llama-4-scout:free", "name": "LLaMA 4 Scout (Free)", "description": "Meta LLaMA 4 Scout via OpenRouter (free tier)" },
+    { "id": "nvidia/llama-3.1-nemotron-nano-8b-v1:free", "name": "Nemotron Nano 8B (Free)", "description": "NVIDIA Nemotron Nano 8B via OpenRouter (free tier)" },
+    { "id": "openrouter/quasar-alpha:free", "name": "Quasar Alpha (Free)", "description": "OpenRouter Quasar Alpha experimental (free tier)" },
+    { "id": "moonshotai/kimi-vl-a3b-thinking:free", "name": "Kimi VL A3B Thinking (Free)", "description": "Moonshot Kimi VL thinking via OpenRouter (free tier)" },
+    { "id": "qwen/qwen2.5-vl-3b-instruct:free", "name": "Qwen VL 3B Instruct (Free)", "description": "Qwen 3B vision-instruct via OpenRouter (free tier)" },
+    { "id": "google/gemini-2.5-flash-preview-05-20", "name": "Gemini 2.5 Flash Preview (Free)", "description": "Free preview of Gemini 2.5 Flash via OpenRouter" },
+    { "id": "google/gemini-2.0-pro-exp-02-05:free", "name": "Google Gemini 2.0 Pro Exp (Free)", "description": "Experimental Gemini 2.0 Pro via OpenRouter (free tier)" },
+    { "id": "deepseek/deepseek-chat-v3-0324:free", "name": "DeepSeek Chat V3 (Free)", "description": "DeepSeek V3 chat via OpenRouter (free tier)" }
+  ],
+  "anthropic": [
+    { "id": "claude-sonnet-4-20250514-v1:0", "name": "Claude Sonnet 4", "description": "Anthropic Claude Sonnet 4" }
+  ]
+}

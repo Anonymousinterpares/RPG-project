@@ -1,0 +1,349 @@
+{
+  "classes": {
+    "Warrior": {
+      "description": "Masters of martial combat, warriors excel in physical strength and durability.",
+      "stat_modifiers": {
+        "STR": 2,
+        "DEX": 0,
+        "CON": 2,
+        "INT": -1,
+        "WIS": 0,
+        "CHA": 0
+      },
+      "minimum_stats": {
+        "STR": 11,
+        "CON": 10
+      },
+      "recommended_stats": {
+        "primary": ["STR", "CON"],
+        "secondary": ["DEX"],
+        "tertiary": ["WIS", "CHA", "INT"]
+      },
+      "archetypes": {
+        "Balanced": {
+          "description": "A well-rounded warrior effective in most situations",
+          "stat_distribution": {
+            "STR": 14,
+            "DEX": 12,
+            "CON": 14,
+            "INT": 8,
+            "WIS": 10,
+            "CHA": 10
+          }
+        },
+        "Offensive": {
+          "description": "A warrior focused on dealing maximum damage",
+          "stat_distribution": {
+            "STR": 16,
+            "DEX": 12,
+            "CON": 12,
+            "INT": 8,
+            "WIS": 8,
+            "CHA": 10
+          }
+        },
+        "Defensive": {
+          "description": "A warrior specialized in taking hits and protecting allies",
+          "stat_distribution": {
+            "STR": 12,
+            "DEX": 10,
+            "CON": 16,
+            "INT": 8,
+            "WIS": 12,
+            "CHA": 8
+          }
+        }
+      },
+      "weapon_proficiencies": ["swords", "axes", "maces", "polearms", "shields"],
+      "armor_proficiencies": ["light", "medium", "heavy", "shields"]
+    },
+    "Mage": {
+      "description": "Scholars of the arcane, mages command powerful spells and magical knowledge.",
+      "stat_modifiers": {
+        "STR": -1,
+        "DEX": 0,
+        "CON": -1,
+        "INT": 3,
+        "WIS": 1,
+        "CHA": 1
+      },
+      "minimum_stats": {
+        "INT": 12
+      },
+      "recommended_stats": {
+        "primary": ["INT"],
+        "secondary": ["WIS", "CON"],
+        "tertiary": ["DEX", "CHA", "STR"]
+      },
+      "archetypes": {
+        "Elementalist": {
+          "description": "A mage focused on elemental damage spells",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 10,
+            "CON": 10,
+            "INT": 16,
+            "WIS": 12,
+            "CHA": 10
+          }
+        },
+        "Enchanter": {
+          "description": "A mage specialized in controlling minds and enhancing items",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 10,
+            "CON": 8,
+            "INT": 14,
+            "WIS": 12,
+            "CHA": 14
+          }
+        },
+        "Scholar": {
+          "description": "A mage with broad magical knowledge and versatile spellcasting",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 10,
+            "CON": 10,
+            "INT": 16,
+            "WIS": 14,
+            "CHA": 8
+          }
+        }
+      },
+      "weapon_proficiencies": ["daggers", "staves", "wands"],
+      "armor_proficiencies": ["none"]
+    },
+    "Rogue": {
+      "description": "Masters of stealth and trickery, rogues excel in dexterity and cunning.",
+      "stat_modifiers": {
+        "STR": 0,
+        "DEX": 3,
+        "CON": 0,
+        "INT": 1,
+        "WIS": 0,
+        "CHA": 1
+      },
+      "minimum_stats": {
+        "DEX": 12
+      },
+      "recommended_stats": {
+        "primary": ["DEX"],
+        "secondary": ["INT", "CHA"],
+        "tertiary": ["CON", "WIS", "STR"]
+      },
+      "archetypes": {
+        "Thief": {
+          "description": "A rogue specialized in stealing and evading detection",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 16,
+            "CON": 10,
+            "INT": 12,
+            "WIS": 10,
+            "CHA": 10
+          }
+        },
+        "Assassin": {
+          "description": "A rogue focused on dealing high damage from stealth",
+          "stat_distribution": {
+            "STR": 10,
+            "DEX": 16,
+            "CON": 10,
+            "INT": 12,
+            "WIS": 12,
+            "CHA": 8
+          }
+        },
+        "Bard": {
+          "description": "A charming rogue with persuasive abilities",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 14,
+            "CON": 10,
+            "INT": 10,
+            "WIS": 8,
+            "CHA": 16
+          }
+        }
+      },
+      "weapon_proficiencies": ["daggers", "short swords", "bows", "crossbows"],
+      "armor_proficiencies": ["light"]
+    },
+    "Cleric": {
+      "description": "Divine agents who channel the power of their deity to heal and protect.",
+      "stat_modifiers": {
+        "STR": 0,
+        "DEX": 0,
+        "CON": 1,
+        "INT": 0,
+        "WIS": 3,
+        "CHA": 1
+      },
+      "minimum_stats": {
+        "WIS": 12
+      },
+      "recommended_stats": {
+        "primary": ["WIS"],
+        "secondary": ["CON", "CHA"],
+        "tertiary": ["STR", "DEX", "INT"]
+      },
+      "archetypes": {
+        "Healer": {
+          "description": "A cleric focused on healing and restoration",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 10,
+            "CON": 12,
+            "INT": 8,
+            "WIS": 16,
+            "CHA": 12
+          }
+        },
+        "Crusader": {
+          "description": "A battle cleric with combat and healing abilities",
+          "stat_distribution": {
+            "STR": 12,
+            "DEX": 8,
+            "CON": 12,
+            "INT": 8,
+            "WIS": 16,
+            "CHA": 10
+          }
+        },
+        "Oracle": {
+          "description": "A cleric with foresight and powerful divine magic",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 10,
+            "CON": 10,
+            "INT": 12,
+            "WIS": 16,
+            "CHA": 10
+          }
+        }
+      },
+      "weapon_proficiencies": ["maces", "hammers", "staves"],
+      "armor_proficiencies": ["light", "medium", "shields"]
+    },
+    "Ranger": {
+      "description": "Wilderness experts who combine combat prowess with natural knowledge.",
+      "stat_modifiers": {
+        "STR": 1,
+        "DEX": 2,
+        "CON": 1,
+        "INT": 0,
+        "WIS": 2,
+        "CHA": -1
+      },
+      "minimum_stats": {
+        "DEX": 11,
+        "WIS": 11
+      },
+      "recommended_stats": {
+        "primary": ["DEX", "WIS"],
+        "secondary": ["STR", "CON"],
+        "tertiary": ["INT", "CHA"]
+      },
+      "archetypes": {
+        "Hunter": {
+          "description": "A ranger specialized in tracking and hunting prey",
+          "stat_distribution": {
+            "STR": 10,
+            "DEX": 16,
+            "CON": 10,
+            "INT": 8,
+            "WIS": 14,
+            "CHA": 8
+          }
+        },
+        "Beastmaster": {
+          "description": "A ranger with a powerful animal companion",
+          "stat_distribution": {
+            "STR": 10,
+            "DEX": 14,
+            "CON": 12,
+            "INT": 8,
+            "WIS": 14,
+            "CHA": 10
+          }
+        },
+        "Scout": {
+          "description": "A wilderness expert with stealth and survival skills",
+          "stat_distribution": {
+            "STR": 10,
+            "DEX": 14,
+            "CON": 10,
+            "INT": 10,
+            "WIS": 14,
+            "CHA": 8
+          }
+        }
+      },
+      "weapon_proficiencies": ["bows", "spears", "swords", "daggers"],
+      "armor_proficiencies": ["light", "medium"]
+    },
+    "Wanderer": {
+      "description": "Masterless adventurers who adapt to various situations with versatile skills.",
+      "stat_modifiers": {
+        "STR": 0,
+        "DEX": 1,
+        "CON": 1,
+        "INT": 1,
+        "WIS": 1,
+        "CHA": 1
+      },
+      "minimum_stats": {},
+      "recommended_stats": {
+        "primary": ["DEX", "WIS"],
+        "secondary": ["CON", "INT"],
+        "tertiary": ["STR", "CHA"]
+      },
+      "archetypes": {
+        "Jack-of-All-Trades": {
+          "description": "A wanderer with balanced skills in many areas",
+          "stat_distribution": {
+            "STR": 10,
+            "DEX": 12,
+            "CON": 12,
+            "INT": 12,
+            "WIS": 12,
+            "CHA": 10
+          }
+        },
+        "Survivor": {
+          "description": "A wanderer focused on endurance and survival skills",
+          "stat_distribution": {
+            "STR": 10,
+            "DEX": 12,
+            "CON": 14,
+            "INT": 10,
+            "WIS": 14,
+            "CHA": 8
+          }
+        },
+        "Diplomat": {
+          "description": "A wanderer specializing in social interaction and negotiation",
+          "stat_distribution": {
+            "STR": 8,
+            "DEX": 12,
+            "CON": 10,
+            "INT": 12,
+            "WIS": 10,
+            "CHA": 14
+          }
+        }
+      },
+      "weapon_proficiencies": ["simple weapons"],
+      "armor_proficiencies": ["light"]
+    }
+  },
+  "display_colors": {
+    "class_bonus": "#2196F3",
+    "class_requirement": "#FF9800",
+    "below_minimum": "#F44336"
+  },
+  "details": {
+    "modifier_explanation": "Class modifiers are applied in addition to racial modifiers. These affect your character's capabilities and determine your starting skill proficiencies.",
+    "minimum_stats_explanation": "Some classes have minimum stat requirements. If your stats (including racial bonuses) don't meet these minimums, you'll be at a disadvantage."
+  }
+}

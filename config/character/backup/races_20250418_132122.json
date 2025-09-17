@@ -1,0 +1,277 @@
+{
+  "races": {
+    "Human": {
+      "id": "Human",
+      "name": "Human",
+      "description": "Versatile and adaptable, humans are known for their diversity and ambition.",
+      "stat_modifiers": {
+        "STR": 1,
+        "DEX": 1,
+        "CON": 1,
+        "INT": 1,
+        "WIS": 1,
+        "CHA": 1
+      },
+      "traits": [
+        {
+          "name": "Adaptability",
+          "description": "Humans can adapt to almost any situation. Gain +1 to all saving throws."
+        },
+        {
+          "name": "Quick Learner",
+          "description": "Humans gain 10% more experience from all sources."
+        }
+      ],
+      "recommended_classes": [
+        "Warrior",
+        "Mage",
+        "Rogue",
+        "Cleric",
+        "Ranger",
+        "Wanderer"
+      ]
+    },
+    "Elf": {
+      "id": "Elf",
+      "name": "Elf",
+      "description": "Ancient and graceful, elves excel in magic and dexterity-based skills.",
+      "stat_modifiers": {
+        "STR": 0,
+        "DEX": 2,
+        "CON": -1,
+        "INT": 2,
+        "WIS": 1,
+        "CHA": 1
+      },
+      "traits": [
+        {
+          "name": "Keen Senses",
+          "description": "Elves have heightened perception. Gain advantage on perception checks."
+        },
+        {
+          "name": "Magic Affinity",
+          "description": "Elves have a natural connection to magic. Spell costs are reduced by 10%."
+        }
+      ],
+      "recommended_classes": [
+        "Mage",
+        "Ranger",
+        "Wanderer"
+      ]
+    },
+    "Dwarf": {
+      "id": "Dwarf",
+      "name": "Dwarf",
+      "description": "Stout and hardy, dwarves are known for their resilience and craftsmanship.",
+      "stat_modifiers": {
+        "STR": 1,
+        "DEX": -1,
+        "CON": 3,
+        "INT": 0,
+        "WIS": 2,
+        "CHA": -1
+      },
+      "traits": [
+        {
+          "name": "Dwarven Resilience",
+          "description": "Dwarves resist poison and have additional health regeneration."
+        },
+        {
+          "name": "Stonecunning",
+          "description": "Dwarves have expertise with stone and metalwork. Advantage on related checks."
+        }
+      ],
+      "recommended_classes": [
+        "Warrior",
+        "Cleric"
+      ]
+    },
+    "Orc": {
+      "id": "Orc",
+      "name": "Orc",
+      "description": "Powerful and fierce, orcs excel in physical combat and intimidation.",
+      "stat_modifiers": {
+        "STR": 3,
+        "DEX": 0,
+        "CON": 2,
+        "INT": -1,
+        "WIS": -1,
+        "CHA": -1
+      },
+      "traits": [
+        {
+          "name": "Relentless Endurance",
+          "description": "Orcs can push through grievous wounds. Once per day, drop to 1 HP instead of 0."
+        },
+        {
+          "name": "Savage Attacks",
+          "description": "Orcs deal additional damage on critical hits."
+        }
+      ],
+      "recommended_classes": [
+        "Warrior",
+        "Ranger"
+      ]
+    },
+    "Halfling": {
+      "id": "Halfling",
+      "name": "Halfling",
+      "description": "Small but nimble, halflings are lucky and naturally stealthy.",
+      "stat_modifiers": {
+        "STR": -1,
+        "DEX": 3,
+        "CON": 1,
+        "INT": 0,
+        "WIS": 1,
+        "CHA": 1
+      },
+      "traits": [
+        {
+          "name": "Lucky",
+          "description": "Halflings can reroll critical failures once per day."
+        },
+        {
+          "name": "Naturally Stealthy",
+          "description": "Halflings gain advantage on stealth checks."
+        }
+      ],
+      "recommended_classes": [
+        "Rogue",
+        "Wanderer"
+      ]
+    },
+    "Mycora": {
+      "id": "Mycora",
+      "name": "Mycora",
+      "description": "Fungal humanoids from the Verdant plane, Mycora share a communal consciousness and can adapt their bodies to various environments.",
+      "stat_modifiers": {
+        "STR": 0,
+        "DEX": 0,
+        "CON": 2,
+        "INT": 0,
+        "WIS": 3,
+        "CHA": -1
+      },
+      "traits": [
+        {
+          "name": "Spore Symbiosis",
+          "description": "Mycora can release healing spores to regenerate health for themselves and nearby allies once per day."
+        },
+        {
+          "name": "Environmental Adaptation",
+          "description": "Mycora can adapt to toxic environments and gain resistance to poison and disease."
+        }
+      ],
+      "recommended_classes": [
+        "Cleric",
+        "Ranger",
+        "Wanderer"
+      ]
+    },
+    "Prismal": {
+      "id": "Prismal",
+      "name": "Prismal",
+      "description": "Crystalline beings from the Crystalline plane with geometric bodies that refract magical energies through their crystalline forms.",
+      "stat_modifiers": {
+        "STR": 1,
+        "DEX": -1,
+        "CON": 1,
+        "INT": 3,
+        "WIS": 1,
+        "CHA": -1
+      },
+      "traits": [
+        {
+          "name": "Crystal Resonance",
+          "description": "Prismals can focus magical energies, reducing mana costs of spells by 15%."
+        },
+        {
+          "name": "Geometric Insight",
+          "description": "Prismals gain advantage on checks involving mathematics, precision, and magical formulas."
+        }
+      ],
+      "recommended_classes": [
+        "Mage",
+        "Cleric"
+      ]
+    },
+    "Cinderspawn": {
+      "id": "Cinderspawn",
+      "name": "Cinderspawn",
+      "description": "Ash-infused beings from the Ashen plane whose bodies constantly regenerate from inner embers, leaving trails of fine ash behind them.",
+      "stat_modifiers": {
+        "STR": 2,
+        "DEX": 1,
+        "CON": 1,
+        "INT": -1,
+        "WIS": 1,
+        "CHA": -2
+      },
+      "traits": [
+        {
+          "name": "Ember Renewal",
+          "description": "Cinderspawn regenerate health when near fire and gain resistance to fire damage."
+        },
+        {
+          "name": "Ash Walking",
+          "description": "Cinderspawn can temporarily transfer their consciousness to ashes, allowing limited espionage and communication."
+        }
+      ],
+      "recommended_classes": [
+        "Warrior",
+        "Mage",
+        "Ranger"
+      ]
+    },
+    "Maelstri": {
+      "id": "Maelstri",
+      "name": "Maelstri",
+      "description": "Storm-touched beings from the Tempest plane with partially translucent bodies that contain swirling internal tempests.",
+      "stat_modifiers": {
+        "STR": 0,
+        "DEX": 3,
+        "CON": 0,
+        "INT": 1,
+        "WIS": -1,
+        "CHA": 2
+      },
+      "traits": [
+        {
+          "name": "Storm Binding",
+          "description": "Maelstri can capture essence of storms in their bodies, granting unpredictable magical abilities once per day."
+        },
+        {
+          "name": "Electric Reflexes",
+          "description": "Maelstri have lightning-fast reactions, gaining advantage on initiative rolls and dexterity saving throws."
+        }
+      ],
+      "recommended_classes": [
+        "Rogue",
+        "Mage",
+        "Wanderer"
+      ]
+    },
+    "32ac7b0c-44dd-4e4f-9a02-050ffd221486": {
+      "id": "32ac7b0c-44dd-4e4f-9a02-050ffd221486",
+      "name": "New Race",
+      "description": "test",
+      "stat_modifiers": {
+        "STR": 5,
+        "DEX": 5,
+        "CON": 5,
+        "INT": 5,
+        "WIS": 5,
+        "CHA": 5
+      },
+      "traits": [
+        {
+          "name": "New Trait",
+          "description": ""
+        }
+      ],
+      "recommended_classes": [
+        "warrior"
+      ]
+    }
+  }
+}

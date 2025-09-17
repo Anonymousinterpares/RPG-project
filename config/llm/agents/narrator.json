@@ -1,0 +1,13 @@
+{
+    "provider_type": "GOOGLE",
+    "model": "gemini-2.0-flash",
+    "temperature": 0.8,
+    "max_tokens": 1000,
+    "timeout_seconds": 40,
+    "include_conversation_history": true,
+    "include_memories": true,
+    "max_conversation_entries": 10,
+    "max_memory_entries": 10,
+    "top_p": 1.0,
+    "enabled": true
+}

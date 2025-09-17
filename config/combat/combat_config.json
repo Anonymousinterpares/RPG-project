@@ -1,0 +1,154 @@
+{
+  "version": "1.0",
+  "name": "Combat Configuration",
+  "description": "Configuration for combat system mechanics",
+  
+  "turn_mechanics": {
+    "initiative": {
+      "base_die": "1d6",
+      "surprise_advantage": 5
+    },
+    "action_types": [
+      "attack",
+      "spell",
+      "skill",
+      "defend",
+      "item",
+      "flee",
+      "move"
+    ],
+    "rounds_per_hour": 60,
+    "turns_per_round": 1,
+    "opportunity_attacks": true
+  },
+  
+  "attack": {
+    "melee": {
+      "base_die": "1d20",
+      "critical_threshold": 20,
+      "fumble_threshold": 1,
+      "advantage_bonus": 5
+    },
+    "ranged": {
+      "base_die": "1d20",
+      "critical_threshold": 20,
+      "fumble_threshold": 1,
+      "range_penalties": {
+        "close": 0,
+        "medium": -2,
+        "far": -5,
+        "extreme": -10
+      }
+    },
+    "magic": {
+      "base_die": "1d20",
+      "critical_threshold": 20,
+      "fumble_threshold": 1,
+      "element_bonuses": {
+        "fire_vs_ice": 2,
+        "ice_vs_nature": 2,
+        "nature_vs_lightning": 2,
+        "lightning_vs_water": 2,
+        "water_vs_fire": 2
+      }
+    }
+  },
+  
+  "defense": {
+    "physical": {
+      "armor_effectiveness": 1.0,
+      "damage_reduction_cap": 80,
+      "blocking_bonus": 5
+    },
+    "magical": {
+      "resistance_effectiveness": 1.0,
+      "resistance_cap": 75,
+      "spell_save_base": 8
+    }
+  },
+  
+  "damage": {
+    "types": [
+      "slashing",
+      "piercing",
+      "bludgeoning",
+      "fire",
+      "cold",
+      "lightning",
+      "poison",
+      "acid",
+      "arcane"
+    ],
+    "critical_multiplier": 2,
+    "weapon_damage_scaling": 0.1,
+    "spell_damage_scaling": 0.2
+  },
+  
+  "status_effects": {
+    "poisoned": {
+      "duration": "3d4",
+      "damage_per_turn": "1d4",
+      "stat_penalties": {
+        "strength": -2,
+        "dexterity": -2
+      }
+    },
+    "burning": {
+      "duration": "1d4",
+      "damage_per_turn": "1d6",
+      "special": "50% chance to spread to adjacent targets"
+    },
+    "frozen": {
+      "duration": "1d2",
+      "special": "Cannot move or take actions"
+    },
+    "stunned": {
+      "duration": 1,
+      "special": "Cannot take actions"
+    },
+    "bleeding": {
+      "duration": "2d4",
+      "damage_per_turn": "1d3",
+      "stackable": true,
+      "max_stacks": 3
+    },
+    "defending": {
+      "duration": 1,
+      "damage_reduction": 0.5,
+      "description": "Taking a defensive stance"
+    },
+    "inspired": {
+      "duration": "1d6",
+      "stat_bonuses": {
+        "strength": 2,
+        "dexterity": 2
+      }
+    }
+  },
+  
+  "flee": {
+    "base_chance": 50,
+    "agility_modifier": 5,
+    "enemy_level_modifier": -5,
+    "min_chance": 10,
+    "max_chance": 95
+  },
+  
+  "loot": {
+    "drop_chance": {
+      "common": 60,
+      "uncommon": 30,
+      "rare": 10,
+      "epic": 1
+    },
+    "gold_formula": "level * (1d10 + 5)",
+    "item_count_formula": "1 + (level / 3)"
+  },
+  
+  "experience": {
+    "base_formula": "100 * enemy_level",
+    "level_difference_modifier": 0.1,
+    "boss_multiplier": 2.0,
+    "group_size_modifier": 0.2
+  }
+}

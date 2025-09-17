@@ -1,0 +1,2851 @@
+# Project Documentation: character
+Generated on: 2025-05-25 22:45:07
+
+## Project Structure
+
+```
+character/
+├── selected_files_documentation_25.05.2025_22_45_07_output/
+├── README.md
+├── __init__.py
+├── background_generator.py
+├── npc_base.py
+├── npc_creator.py
+├── npc_generator.py
+├── npc_manager.py
+├── npc_memory.py
+├── npc_persistence.py
+└── npc_system.py
+```
+
+## Files Content
+
+### File: background_generator.py
+
+```python
+#!/usr/bin/env python3
+"""
+Character background generation and enhancement module.
+
+This module provides functionality for generating and enhancing character backgrounds
+using LLM technology based on character attributes.
+"""
+
+import logging
+from typing import Dict, Any, Optional, List
+
+from core.utils.logging_config import get_logger, LogCategory
+from core.llm.llm_manager import get_llm_manager, LLMRole
+
+logger = get_logger(LogCategory.AGENT)
+
+class BackgroundGenerator:
+    """
+    Handles character background generation and enhancement using LLM technology.
+    """
+    
+    def __init__(self):
+        """Initialize the background generator."""
+        self.llm_manager = get_llm_manager()
+        logger.info("Initialized BackgroundGenerator")
+    
+    def improve_background(self, background_text: str, character_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Improve an existing character background.
+        
+        Args:
+            background_text: The original background text to improve.
+            character_data: Character data including race, class, etc.
+            
+        Returns:
+            An improved version of the background text, or None if the request failed.
+        """
+        if not background_text.strip():
+            logger.warning("Cannot improve empty background")
+            return None
+        
+        try:
+            logger.info("Improving character background")
+            
+            # Extract character info
+            name = character_data.get('name', 'Character')
+            race = character_data.get('race', 'Unknown')
+            character_class = character_data.get('path', 'Unknown')
+            background = character_data.get('background', 'Unknown')
+            sex = character_data.get('sex', 'Unknown')
+            
+            # Create prompt for LLM
+            messages = [
+                {
+                    "role": LLMRole.SYSTEM,
+                    "content": f"""You are a creative writer specializing in fantasy RPG character backgrounds. 
+                    You will be provided with a character background that needs improvement.
+                    Your task is to enhance this background, making it more engaging, detailed, and aligned with fantasy RPG tropes.
+                    Maintain the core elements and intentions of the original text, but improve the writing style, add depth,
+                    and ensure it aligns well with the character's race, class, background, and sex.
+                    
+                    Your response should ONLY include the improved background text, with no additional commentary, explanations, or meta-text.
+                    Keep the length reasonable - between 150-300 words is ideal."""
+                },
+                {
+                    "role": LLMRole.USER,
+                    "content": f"""Here's a character background that needs improvement:
+                    
+                    Character Info:
+                    - Name: {name}
+                    - Race: {race}
+                    - Class: {character_class}
+                    - Background: {background}
+                    - Sex: {sex}
+                    
+                    Original background text:
+                    "{background_text}"
+                    
+                    Please improve this background, making it more engaging and aligned with fantasy RPG conventions.
+                    Remember to maintain the core elements while enhancing the writing style and depth.
+                    Return ONLY the improved background text with no additional commentary.
+                    """
+                }
+            ]
+            
+            # Get completion from LLM
+            response = self.llm_manager.get_completion(messages)
+            
+            if response:
+                improved_text = response.content.strip()
+                logger.info(f"Successfully improved background (tokens: {response.total_tokens})")
+                return improved_text
+            else:
+                logger.error("Failed to improve background: No response from LLM")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Error improving background: {e}")
+            return None
+    
+    def generate_background(self, character_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Generate a new character background.
+        
+        Args:
+            character_data: Character data including race, class, etc.
+            
+        Returns:
+            A generated background text, or None if the request failed.
+        """
+        try:
+            logger.info("Generating new character background")
+            
+            # Extract character info
+            name = character_data.get('name', 'Character')
+            race = character_data.get('race', 'Unknown')
+            character_class = character_data.get('path', 'Unknown')
+            background = character_data.get('background', 'Unknown')
+            sex = character_data.get('sex', 'Unknown')
+            
+            # Extract stats if available
+            stats_text = ""
+            if 'stats' in character_data:
+                stats = character_data['stats']
+                stats_list = []
+                for stat_name, stat_info in stats.items():
+                    value = stat_info.get('value', 10)
+                    stats_list.append(f"{stat_name}: {value}")
+                stats_text = "\n".join(stats_list)
+            
+            # Create prompt for LLM
+            messages = [
+                {
+                    "role": LLMRole.SYSTEM,
+                    "content": f"""You are a creative writer specializing in fantasy RPG character backgrounds. 
+                    You will be provided with details about a character, and your task is to create an engaging,
+                    immersive background story for them.
+                    
+                    Create a background that:
+                    1. Fits the character's race, class, background origin, and sex
+                    2. Includes formative experiences that led them to their current class/profession
+                    3. Incorporates appropriate fantasy RPG tropes without being cliché
+                    4. Has some interesting hook or unique aspect to make the character memorable
+                    5. Could serve as the beginning of an adventure
+                    
+                    Your response should ONLY include the background story, with no additional commentary, explanations, or meta-text.
+                    The background should be between 200-350 words."""
+                },
+                {
+                    "role": LLMRole.USER,
+                    "content": f"""Please create an interesting character background for:
+                    
+                    Character Info:
+                    - Name: {name}
+                    - Race: {race}
+                    - Class: {character_class}
+                    - Background Origin: {background}
+                    - Sex: {sex}
+                    {f"- Stats:\n{stats_text}" if stats_text else ""}
+                    
+                    Generate a background story for this character that fits their attributes and would be engaging in a fantasy RPG setting.
+                    The character's background origin is '{background}', which should inform their upbringing and formative experiences.
+                    Return ONLY the background text with no additional commentary.
+                    """
+                }
+            ]
+            
+            # Get completion from LLM
+            response = self.llm_manager.get_completion(messages)
+            
+            if response:
+                background_text = response.content.strip()
+                logger.info(f"Successfully generated background (tokens: {response.total_tokens})")
+                return background_text
+            else:
+                logger.error("Failed to generate background: No response from LLM")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Error generating background: {e}")
+            return None
+
+# Convenience function
+def get_background_generator() -> BackgroundGenerator:
+    """Get a background generator instance."""
+    return BackgroundGenerator()
+
+
+# Example usage
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    
+    generator = get_background_generator()
+    
+    # Example character data
+    character_data = {
+        'name': 'Tordek',
+        'race': 'Dwarf',
+        'path': 'Warrior',
+        'background': 'Soldier',
+        'sex': 'Male'
+    }
+    
+    # Example of improving a background
+    original_background = "Tordek was born in the mountains and became a warrior. He fought in many battles and is now seeking adventure."
+    improved = generator.improve_background(original_background, character_data)
+    
+    if improved:
+        print("Original background:")
+        print(original_background)
+        print("\nImproved background:")
+        print(improved)
+    
+    # Example of generating a new background
+    generated = generator.generate_background(character_data)
+    
+    if generated:
+        print("\nGenerated background:")
+        print(generated)
+
+```
+
+### File: npc_base.py
+
+```python
+#!/usr/bin/env python3
+"""
+Base classes for NPC data structures and types.
+"""
+
+from enum import Enum, auto
+from dataclasses import dataclass, field
+from typing import Dict, List, Any, Optional, Set, Union
+import uuid
+import logging
+from datetime import datetime
+
+from core.stats.stats_base import StatType, DerivedStatType
+from core.stats.stats_manager import StatsManager
+from core.interaction.social_effects import StatusEffectData # Import StatusEffectData
+
+logger = logging.getLogger(__name__)
+
+
+class NPCType(Enum):
+    """Types of NPCs in the game world."""
+    MERCHANT = auto()        # Shop owners, traders
+    QUEST_GIVER = auto()     # NPCs who give quests
+    ALLY = auto()            # Friendly NPCs who may aid the player
+    ENEMY = auto()           # Hostile NPCs
+    NEUTRAL = auto()         # NPCs with no particular alignment
+    SERVICE = auto()         # Service providers (innkeepers, etc.)
+    BACKGROUND = auto()      # Background NPCs with minimal interaction
+
+
+class NPCRelationship(Enum):
+    """Relationship states between NPCs and the player."""
+    HOSTILE = auto()         # Attacks on sight
+    UNFRIENDLY = auto()      # Dislikes player but won't attack
+    NEUTRAL = auto()         # No particular feelings
+    FRIENDLY = auto()        # Likes the player
+    ALLY = auto()            # Will help the player
+    FEAR = auto()            # Afraid of the player
+    RESPECT = auto()         # Respects the player
+    FAMILY = auto()          # Family relationship
+    ROMANTIC = auto()        # Romantic interest
+    UNKNOWN = auto()         # Relationship not yet established
+
+
+class NPCInteractionType(Enum):
+    """Types of interactions that require different NPC stats."""
+    COMBAT = auto()          # Combat interactions (need full stats)
+    SOCIAL = auto()          # Social interactions (focus on CHA, WIS)
+    COMMERCE = auto()        # Trading interactions (focus on CHA)
+    QUEST = auto()           # Quest-related interactions
+    INFORMATION = auto()     # Information-gathering (focus on INT, WIS)
+    SERVICE = auto()         # Service providing (focus on relevant skills)
+    MINIMAL = auto()         # Minimal interaction (background characters)
+
+
+@dataclass
+class NPCMemory:
+    """A memory of an interaction with an NPC."""
+    npc_id: str
+    timestamp: datetime = field(default_factory=datetime.now)
+    interaction_type: NPCInteractionType = NPCInteractionType.MINIMAL
+    description: str = ""
+    importance: int = 1  # 1-10 scale, higher is more important
+    location: Optional[str] = None
+    player_action: Optional[str] = None
+    npc_reaction: Optional[str] = None
+    relationship_change: Optional[NPCRelationship] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "npc_id": self.npc_id,
+            "timestamp": self.timestamp.isoformat(),
+            "interaction_type": self.interaction_type.name,
+            "description": self.description,
+            "importance": self.importance,
+            "location": self.location,
+            "player_action": self.player_action,
+            "npc_reaction": self.npc_reaction,
+            "relationship_change": self.relationship_change.name if self.relationship_change else None
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NPCMemory':
+        """Create from dictionary after deserialization."""
+        return cls(
+            npc_id=data["npc_id"],
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            interaction_type=NPCInteractionType[data["interaction_type"]],
+            description=data["description"],
+            importance=data["importance"],
+            location=data.get("location"),
+            player_action=data.get("player_action"),
+            npc_reaction=data.get("npc_reaction"),
+            relationship_change=NPCRelationship[data["relationship_change"]] if data.get("relationship_change") else None
+        )
+
+
+@dataclass
+class NPC:
+    """Class representing an NPC in the game world."""
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    name: str = "Unknown NPC"
+    npc_type: NPCType = NPCType.NEUTRAL
+    relationship: NPCRelationship = NPCRelationship.NEUTRAL
+    location: Optional[str] = None
+    description: str = ""
+    occupation: Optional[str] = None
+    race: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[str] = None
+    is_persistent: bool = False  # Should this NPC persist between sessions?
+    last_interaction: Optional[datetime] = None
+    interaction_count: int = 0
+    stats_generated: bool = False
+    stats_manager: Optional[StatsManager] = None
+    appearance: Optional[str] = None
+    personality: Optional[str] = None
+    goals: Optional[str] = None
+    secrets: Optional[str] = None
+    inventory: Optional[List[Dict[str, Any]]] = None
+    known_information: Optional[Dict[str, Any]] = None
+    dialog_history: List[Dict[str, Any]] = field(default_factory=list)
+    memories: List[NPCMemory] = field(default_factory=list)
+    current_resolve: float = 0.0 # Current social 'health'
+    active_social_effects: List[StatusEffectData] = field(default_factory=list)
+
+    def __post_init__(self):
+        """Initialize any empty fields."""
+        if self.inventory is None:
+            self.inventory = []
+        if self.known_information is None:
+            self.known_information = {}
+
+    def update_relationship(self, new_relationship: NPCRelationship) -> None:
+        """Update the relationship between the NPC and the player."""
+        old_relationship = self.relationship
+        self.relationship = new_relationship
+        logger.info(f"NPC {self.name}: Relationship changed from {old_relationship.name} to {new_relationship.name}")
+
+    def record_interaction(self, memory: NPCMemory) -> None:
+        """Record a new interaction with this NPC."""
+        self.memories.append(memory)
+        self.last_interaction = memory.timestamp
+        self.interaction_count += 1
+        logger.debug(f"Recorded interaction with NPC {self.name}: {memory.description}")
+
+    def has_stats(self) -> bool:
+        """Check if this NPC has stats generated."""
+        return self.stats_generated and self.stats_manager is not None
+
+    def get_stat(self, stat_type: Union[StatType, DerivedStatType, str]) -> Optional[float]:
+        """Get a specific stat value if stats have been generated."""
+        if not self.has_stats():
+            return None
+
+        try:
+            return self.stats_manager.get_stat_value(stat_type)
+        except ValueError:
+            return None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "npc_type": self.npc_type.name,
+            "relationship": self.relationship.name,
+            "location": self.location,
+            "description": self.description,
+            "occupation": self.occupation,
+            "race": self.race,
+            "gender": self.gender,
+            "age": self.age,
+            "is_persistent": self.is_persistent,
+            "last_interaction": self.last_interaction.isoformat() if self.last_interaction else None,
+            "interaction_count": self.interaction_count,
+            "stats_generated": self.stats_generated,
+            "stats": self.stats_manager.to_dict() if self.has_stats() else None,
+            "appearance": self.appearance,
+            "personality": self.personality,
+            "goals": self.goals,
+            "secrets": self.secrets,
+            "inventory": self.inventory,
+            "known_information": self.known_information,
+            "dialog_history": self.dialog_history,
+            "memories": [memory.to_dict() for memory in self.memories],
+            "current_resolve": self.current_resolve,
+            "active_social_effects": [effect.to_dict() for effect in self.active_social_effects],
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NPC':
+        """Create from dictionary after deserialization."""
+        npc = cls(
+            id=data.get("id", str(uuid.uuid4())),
+            name=data.get("name", "Unknown NPC"),
+            npc_type=NPCType[data.get("npc_type", "NEUTRAL")],
+            relationship=NPCRelationship[data.get("relationship", "NEUTRAL")],
+            location=data.get("location"),
+            description=data.get("description", ""),
+            occupation=data.get("occupation"),
+            race=data.get("race"),
+            gender=data.get("gender"),
+            age=data.get("age"),
+            is_persistent=data.get("is_persistent", False),
+            interaction_count=data.get("interaction_count", 0),
+            stats_generated=data.get("stats_generated", False),
+            appearance=data.get("appearance"),
+            personality=data.get("personality"),
+            goals=data.get("goals"),
+            secrets=data.get("secrets"),
+            inventory=data.get("inventory", []),
+            known_information=data.get("known_information", {}),
+            dialog_history=data.get("dialog_history", [])
+            # current_resolve and active_social_effects will be loaded below
+        )
+
+        # Load last_interaction
+        if data.get("last_interaction"):
+            npc.last_interaction = datetime.fromisoformat(data["last_interaction"])
+
+        # Load stats if they exist
+        if npc.stats_generated and data.get("stats"):
+            npc.stats_manager = StatsManager.from_dict(data["stats"])
+
+        # Load memories
+        if "memories" in data:
+            npc.memories = [NPCMemory.from_dict(memory_data) for memory_data in data["memories"]]
+
+        # Load current resolve and social effects
+        npc.current_resolve = data.get("current_resolve", 0.0)
+        if "active_social_effects" in data:
+            npc.active_social_effects = [
+                StatusEffectData.from_dict(effect_data)
+                for effect_data in data["active_social_effects"]
+            ]
+
+        return npc
+
+```
+
+### File: npc_creator.py
+
+```python
+#!/usr/bin/env python3
+"""
+NPC Creator module focused on creating and generating NPCs for various interactions.
+"""
+
+import logging
+from typing import Dict, List, Any, Optional, Union, Tuple
+from datetime import datetime
+
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_generator import NPCGenerator
+from core.character.npc_manager import NPCManager
+
+logger = logging.getLogger(__name__)
+
+
+class NPCCreator:
+    """
+    Class for handling NPC creation operations.
+    Contains methods for creating different types of NPCs and enhancing existing ones.
+    """
+    
+    def __init__(self, npc_manager: NPCManager):
+        """
+        Initialize the NPC creator.
+        
+        Args:
+            npc_manager: The NPCManager instance to use
+        """
+        self.npc_manager = npc_manager
+        self.npc_generator = npc_manager.npc_generator
+    
+    def create_npc(self, 
+                  interaction_type: NPCInteractionType,
+                  name: Optional[str] = None,
+                  npc_type: Optional[NPCType] = None,
+                  npc_subtype: Optional[str] = None,
+                  relationship: NPCRelationship = NPCRelationship.NEUTRAL,
+                  location: Optional[str] = None,
+                  description: Optional[str] = None,
+                  occupation: Optional[str] = None,
+                  is_persistent: bool = False) -> NPC:
+        """
+        Create a new NPC and add it to the manager.
+        
+        Args:
+            interaction_type: The type of interaction this NPC is for
+            name: Optional name for the NPC (generated if None)
+            npc_type: Type of NPC (determined from interaction if None)
+            relationship: Initial relationship with the player
+            location: Where the NPC is located
+            description: Optional description of the NPC
+            occupation: Optional occupation
+            is_persistent: Whether this NPC should be saved persistently
+            
+        Returns:
+            The newly created NPC
+        """
+        # Check if NPC with this name already exists
+        if name and self.npc_manager.get_npc_by_name(name):
+            logger.warning(f"NPC with name '{name}' already exists, checking compatibility")
+            existing_npc = self.npc_manager.get_npc_by_name(name)
+            
+            # If it exists but has minimal stats and we need more, enhance it
+            if existing_npc and not existing_npc.has_stats():
+                self.enhance_npc_for_interaction(existing_npc, interaction_type)
+                return existing_npc
+            
+            # Otherwise, append a number to make the name unique
+            i = 2
+            while self.npc_manager.get_npc_by_name(f"{name} {i}"):
+                i += 1
+            name = f"{name} {i}"
+        
+        # Generate the NPC
+        npc = self.npc_generator.generate_npc_for_interaction(
+            interaction_type=interaction_type,
+            name=name,
+            npc_type=npc_type,
+            npc_subtype=npc_subtype,
+            relationship=relationship,
+            location=location,
+            description=description,
+            occupation=occupation,
+            is_persistent=is_persistent
+        )
+        
+        # Add to manager
+        self.npc_manager.add_npc(npc)
+        
+        return npc
+    
+    def create_enemy(self, 
+                    name: Optional[str] = None,
+                    enemy_type: str = "generic",
+                    level: int = 1,
+                    location: Optional[str] = None) -> NPC:
+        """
+        Create a new enemy NPC for combat and add it to the manager.
+        
+        Args:
+            name: Optional name for the enemy
+            enemy_type: Type of enemy (e.g., "bandit", "wolf", "guard")
+            level: Level of the enemy, affects stats
+            location: Where the enemy is located
+            
+        Returns:
+            The newly created enemy NPC
+        """
+        # Generate the enemy
+        npc = self.npc_generator.generate_enemy_npc(
+            name=name,
+            enemy_type=enemy_type,
+            level=level,
+            location=location
+        )
+        
+        # Add to manager
+        self.npc_manager.add_npc(npc)
+        
+        return npc
+    
+    def create_merchant(self,
+                       name: Optional[str] = None,
+                       shop_type: str = "general",
+                       location: Optional[str] = None,
+                       description: Optional[str] = None) -> NPC:
+        """
+        Create a merchant NPC specialized for commerce interactions.
+        
+        Args:
+            name: Optional name for the merchant
+            shop_type: Type of shop (e.g., "general", "weapons", "potions")
+            location: Where the merchant is located
+            description: Optional description of the merchant
+            
+        Returns:
+            The newly created merchant NPC
+        """
+        # Generate a merchant-focused description if none provided
+        if not description and name:
+            description = f"{name} is a {shop_type} merchant offering goods for sale."
+        elif not description:
+            description = f"A {shop_type} merchant offering goods for sale."
+        
+        # Create the merchant NPC
+        return self.create_npc(
+            interaction_type=NPCInteractionType.COMMERCE,
+            name=name,
+            npc_type=NPCType.MERCHANT,
+            relationship=NPCRelationship.NEUTRAL,
+            location=location,
+            description=description,
+            occupation=f"{shop_type.capitalize()} Merchant",
+            is_persistent=True  # Merchants are typically persistent
+        )
+    
+    def create_quest_giver(self,
+                          name: Optional[str] = None,
+                          quest_type: str = "general",
+                          location: Optional[str] = None,
+                          description: Optional[str] = None) -> NPC:
+        """
+        Create a quest giver NPC specialized for quest interactions.
+        
+        Args:
+            name: Optional name for the quest giver
+            quest_type: Type of quest (e.g., "fetch", "kill", "escort")
+            location: Where the quest giver is located
+            description: Optional description of the quest giver
+            
+        Returns:
+            The newly created quest giver NPC
+        """
+        # Generate a quest-focused description if none provided
+        if not description and name:
+            description = f"{name} is looking for someone to help with a {quest_type} task."
+        elif not description:
+            description = f"Someone looking for help with a {quest_type} task."
+        
+        # Create the quest giver NPC
+        return self.create_npc(
+            interaction_type=NPCInteractionType.QUEST,
+            name=name,
+            npc_type=NPCType.QUEST_GIVER,
+            relationship=NPCRelationship.NEUTRAL,
+            location=location,
+            description=description,
+            is_persistent=True  # Quest givers are typically persistent
+        )
+    
+    def create_service_npc(self,
+                          name: Optional[str] = None,
+                          service_type: str = "innkeeper",
+                          location: Optional[str] = None,
+                          description: Optional[str] = None) -> NPC:
+        """
+        Create a service NPC specialized for service interactions.
+        
+        Args:
+            name: Optional name for the service provider
+            service_type: Type of service (e.g., "innkeeper", "blacksmith", "healer")
+            location: Where the service provider is located
+            description: Optional description of the service provider
+            
+        Returns:
+            The newly created service NPC
+        """
+        # Generate a service-focused description if none provided
+        if not description and name:
+            description = f"{name} is a {service_type} offering services."
+        elif not description:
+            description = f"A {service_type} offering services."
+        
+        # Create the service NPC
+        return self.create_npc(
+            interaction_type=NPCInteractionType.SERVICE,
+            name=name,
+            npc_type=NPCType.SERVICE,
+            relationship=NPCRelationship.NEUTRAL,
+            location=location,
+            description=description,
+            occupation=service_type.capitalize(),
+            is_persistent=True  # Service NPCs are typically persistent
+        )
+    
+    def enhance_npc_for_interaction(self, npc: NPC, interaction_type: NPCInteractionType) -> None:
+        """
+        Enhance an existing NPC with additional details for a new type of interaction.
+        This implements the just-in-time generation approach for NPC stats.
+        
+        Args:
+            npc: The NPC to enhance
+            interaction_type: The interaction type to prepare for
+        """
+        # No need to enhance if the NPC already has stats
+        if npc.has_stats() and interaction_type == NPCInteractionType.MINIMAL:
+            return
+        
+        # Generate stats if needed
+        if not npc.has_stats():
+            logger.info(f"Generating stats for NPC {npc.name} for {interaction_type.name} interaction")
+            self.npc_generator.enhance_npc_for_new_interaction(npc, interaction_type)
+            return
+        
+        # For existing NPCs with stats, enhance them for the new interaction
+        self.npc_generator.enhance_npc_for_new_interaction(npc, interaction_type)
+        
+        # Record this enhancement in NPC's logs
+        if not npc.known_information:
+            npc.known_information = {}
+        
+        if "interaction_history" not in npc.known_information:
+            npc.known_information["interaction_history"] = []
+        
+        npc.known_information["interaction_history"].append({
+            "type": interaction_type.name,
+            "timestamp": str(datetime.now())
+        })
+        
+        logger.info(f"Enhanced NPC {npc.name} for {interaction_type.name} interaction")
+    
+    def get_or_create_npc(self,
+                         name: str,
+                         interaction_type: NPCInteractionType,
+                         location: Optional[str] = None,
+                         description: Optional[str] = None,
+                         npc_type: Optional[NPCType] = None,
+                         npc_subtype: Optional[str] = None) -> Tuple[NPC, bool]:
+        """
+        Get an existing NPC by name or create a new one if not found.
+        This is the primary method for implementing just-in-time NPC generation.
+        
+        Args:
+            name: Name of the NPC to get or create
+            interaction_type: The interaction type needed
+            location: Optional location for new NPCs
+            description: Optional description for new NPCs
+            npc_type: Optional NPC type for new NPCs
+            npc_subtype: Optional subtype (e.g., 'boss_dragon', 'merchant')
+            
+        Returns:
+            Tuple of (NPC, was_created) where was_created is True if a new NPC was created
+        """
+        # Check if the NPC already exists
+        existing_npc = self.npc_manager.get_npc_by_name(name)
+        
+        if existing_npc:
+            # Enhance the NPC if necessary for the current interaction
+            self.enhance_npc_for_interaction(existing_npc, interaction_type)
+            return existing_npc, False
+        
+        # Create a new NPC
+        new_npc = self.create_npc(
+            interaction_type=interaction_type,
+            name=name,
+            npc_type=npc_type,
+            npc_subtype=npc_subtype,
+            location=location,
+            description=description
+        )
+        
+        return new_npc, True
+
+```
+
+### File: npc_generator.py
+
+```python
+#!/usr/bin/env python3
+"""
+NPC generator for creating NPCs with appropriate stats based on interaction needs.
+"""
+
+import random
+import logging
+import os
+import json
+from typing import Dict, List, Any, Optional, Tuple, Union
+
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType
+from core.stats.stats_manager import StatsManager
+from core.stats.stats_base import StatType, DerivedStatType, Stat
+from core.stats.combat_effects import StatusEffect, StatusEffectType
+
+logger = logging.getLogger(__name__)
+
+
+class NPCGenerator:
+    """
+    Generator for creating NPCs with appropriate attributes and stats.
+    Handles generation of NPCs based on context and interaction needs.
+    """
+    
+    def __init__(self, config_path: Optional[str] = None):
+        """
+        Initialize the NPC generator.
+        
+        Args:
+            config_path: Path to configuration file with NPC templates and generation rules.
+        """
+        self.config = {}
+        self.templates = {}
+        self.name_pools = {}
+        
+        # Default config path
+        if config_path is None:
+            config_path = os.path.join("config", "character", "npc_templates.json")
+        
+        # Load configuration if it exists
+        if os.path.exists(config_path):
+            self._load_config(config_path)
+        else:
+            logger.warning(f"NPC templates configuration not found at: {config_path}")
+            self._initialize_default_config()
+    
+    def _load_config(self, config_path: str) -> None:
+        """
+        Load NPC generation configuration from a JSON file.
+        
+        Args:
+            config_path: Path to the configuration file.
+        """
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                self.config = json.load(f)
+            
+            # Extract templates and name pools
+            self.templates = self.config.get("templates", {})
+            self.name_pools = self.config.get("name_pools", {})
+            
+            logger.info(f"Loaded NPC generation config from {config_path}")
+        except Exception as e:
+            logger.error(f"Error loading NPC config: {e}")
+            self._initialize_default_config()
+    
+    def _initialize_default_config(self) -> None:
+        """Initialize with default configuration if no file is found."""
+        self.config = {
+            "templates": {
+                "merchant": {
+                    "npc_type": "MERCHANT",
+                    "stat_distributions": {
+                        "STR": {"min": 8, "max": 12},
+                        "DEX": {"min": 8, "max": 14},
+                        "CON": {"min": 8, "max": 12},
+                        "INT": {"min": 10, "max": 16},
+                        "WIS": {"min": 10, "max": 16},
+                        "CHA": {"min": 12, "max": 18}
+                    },
+                    "personality_traits": [
+                        "Shrewd", "Calculating", "Friendly", "Talkative",
+                        "Suspicious", "Generous", "Greedy"
+                    ]
+                },
+                "guard": {
+                    "npc_type": "NEUTRAL",
+                    "stat_distributions": {
+                        "STR": {"min": 12, "max": 16},
+                        "DEX": {"min": 10, "max": 14},
+                        "CON": {"min": 12, "max": 16},
+                        "INT": {"min": 8, "max": 12},
+                        "WIS": {"min": 10, "max": 14},
+                        "CHA": {"min": 8, "max": 12}
+                    },
+                    "personality_traits": [
+                        "Dutiful", "Vigilant", "Stern", "Authoritative",
+                        "Lazy", "Corrupt", "Honorable"
+                    ]
+                },
+                "commoner": {
+                    "npc_type": "BACKGROUND",
+                    "stat_distributions": {
+                        "STR": {"min": 8, "max": 12},
+                        "DEX": {"min": 8, "max": 12},
+                        "CON": {"min": 8, "max": 12},
+                        "INT": {"min": 8, "max": 12},
+                        "WIS": {"min": 8, "max": 12},
+                        "CHA": {"min": 8, "max": 12}
+                    },
+                    "personality_traits": [
+                        "Hardworking", "Simple", "Curious", "Suspicious",
+                        "Friendly", "Reserved", "Gossipy"
+                    ]
+                }
+            },
+            "name_pools": {
+                "generic": {
+                    "male": ["John", "William", "Thomas", "James", "George", "Robert"],
+                    "female": ["Mary", "Elizabeth", "Sarah", "Anne", "Margaret", "Jane"],
+                    "surname": ["Smith", "Jones", "Brown", "Williams", "Taylor", "Davies"]
+                }
+            }
+        }
+        
+        self.templates = self.config["templates"]
+        self.name_pools = self.config["name_pools"]
+        
+        logger.info("Initialized default NPC generation config")
+    
+    def generate_random_name(self, gender: Optional[str] = None, name_pool: str = "generic") -> str:
+        """
+        Generate a random name for an NPC.
+        
+        Args:
+            gender: Optional gender ('male', 'female', None for random)
+            name_pool: Name pool to use from config
+            
+        Returns:
+            A random name
+        """
+        if name_pool not in self.name_pools:
+            name_pool = "generic"
+            
+        if name_pool not in self.name_pools:
+            # Fallback if no pools are available
+            return f"NPC-{random.randint(1000, 9999)}"
+        
+        # Select gender if not specified
+        if gender is None:
+            gender = random.choice(["male", "female"])
+        
+        # Ensure pools exist
+        if gender not in self.name_pools[name_pool]:
+            gender = list(self.name_pools[name_pool].keys())[0]
+        
+        if "surname" not in self.name_pools[name_pool]:
+            return random.choice(self.name_pools[name_pool][gender])
+        
+        # Generate full name
+        first_name = random.choice(self.name_pools[name_pool][gender])
+        surname = random.choice(self.name_pools[name_pool]["surname"])
+        
+        return f"{first_name} {surname}"
+    
+    def generate_minimal_npc(self, name: Optional[str] = None, npc_type: NPCType = NPCType.BACKGROUND) -> NPC:
+        """
+        Generate a minimal NPC with just basic information.
+        
+        Args:
+            name: Optional name for the NPC (generated if None)
+            npc_type: Type of NPC to generate
+            
+        Returns:
+            An NPC object with minimal details
+        """
+        # Generate name if not provided
+        if name is None:
+            name = self.generate_random_name()
+        
+        # Create basic NPC
+        npc = NPC(
+            name=name,
+            npc_type=npc_type,
+            description=f"A {npc_type.name.lower()} named {name}."
+        )
+        
+        logger.debug(f"Generated minimal NPC: {npc.name}")
+        return npc
+    
+    def _select_template(self, npc_type: NPCType, npc_subtype: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Select an appropriate template for the NPC type.
+        
+        Args:
+            npc_type: The type of NPC to generate
+            npc_subtype: Optional subtype (e.g., 'boss_dragon', 'merchant')
+            
+        Returns:
+            A template dictionary
+        """
+        # If a subtype is provided, check if it exists as a template
+        if npc_subtype and npc_subtype in self.templates:
+            logger.debug(f"Using specific template for subtype: {npc_subtype}")
+            return self.templates[npc_subtype]
+            
+        # Try to find a direct match for the type
+        type_name = npc_type.name.lower()
+        if type_name in self.templates:
+            return self.templates[type_name]
+        
+        # Check for boss-type NPCs
+        if npc_subtype and "boss" in npc_subtype.lower():
+            # Look for boss templates in specialized_types
+            if "specialized_types" in self.config and "boss" in self.config["specialized_types"]:
+                boss_templates = self.config["specialized_types"]["boss"].get("templates", [])
+                if boss_templates:
+                    boss_template = random.choice(boss_templates)
+                    if boss_template in self.templates:
+                        logger.info(f"Using boss template for subtype: {npc_subtype}")
+                        return self.templates[boss_template]
+            
+            # If we still need a boss template, look for any template starting with "boss_"
+            boss_templates = [t for t in self.templates.keys() if t.startswith("boss_")]
+            if boss_templates:
+                boss_template = random.choice(boss_templates)
+                logger.info(f"Using random boss template: {boss_template}")
+                return self.templates[boss_template]
+        
+        # Fallback templates based on NPC type
+        fallbacks = {
+            NPCType.MERCHANT: "merchant",
+            NPCType.QUEST_GIVER: "quest_giver",
+            NPCType.ALLY: "ally",
+            NPCType.ENEMY: "bandit",  # Changed from generic "enemy" to "bandit"
+            NPCType.NEUTRAL: "commoner",
+            NPCType.SERVICE: "merchant",
+            NPCType.BACKGROUND: "commoner"
+        }
+        
+        # Try to use the fallback template for this NPC type
+        if npc_type in fallbacks and fallbacks[npc_type] in self.templates:
+            return self.templates[fallbacks[npc_type]]
+        
+        # Check for "blank_template" for unexpected NPC types
+        if "blank_template" in self.templates:
+            logger.info(f"Using blank template for unexpected NPC type: {npc_type} (subtype: {npc_subtype})")
+            return self.templates["blank_template"]
+        
+        # Last resort - use commoner template
+        if "commoner" in self.templates:
+            logger.warning(f"Using commoner template as fallback for unexpected NPC type: {npc_type}")
+            return self.templates["commoner"]
+        
+        # Absolute fallback - just return a basic template
+        logger.warning(f"No suitable template found for NPC type: {npc_type}, using basic stats")
+        return {
+            "npc_type": npc_type.name,
+            "stat_distributions": {
+                "STR": {"min": 8, "max": 14},
+                "DEX": {"min": 8, "max": 14},
+                "CON": {"min": 8, "max": 14},
+                "INT": {"min": 8, "max": 14},
+                "WIS": {"min": 8, "max": 14},
+                "CHA": {"min": 8, "max": 14}
+            },
+            "personality_traits": ["Unique", "Distinctive", "Individual"]
+        }
+    
+    def _generate_stats(self, 
+                       npc: NPC, 
+                       interaction_type: NPCInteractionType,
+                       template: Dict[str, Any]) -> None:
+        """
+        Generate stats for an NPC based on the interaction type and template.
+        
+        Args:
+            npc: The NPC to generate stats for
+            interaction_type: The type of interaction (determines which stats to focus on)
+            template: The template to use for generation
+        """
+        # Create stats manager
+        stats_manager = StatsManager()
+        
+        # Generate primary stats based on template distributions
+        stat_distributions = template.get("stat_distributions", {})
+        
+        for stat_type in StatType:
+            stat_name = stat_type.name
+            if stat_name in stat_distributions:
+                min_val = stat_distributions[stat_name].get("min", 8)
+                max_val = stat_distributions[stat_name].get("max", 14)
+                value = random.randint(min_val, max_val)
+            else:
+                # Default range if not specified
+                value = random.randint(8, 14)
+            
+            # Adjust stats based on interaction type
+            if interaction_type == NPCInteractionType.COMBAT:
+                # For combat, boost combat-relevant stats
+                if stat_type in [StatType.STRENGTH, StatType.DEXTERITY, StatType.CONSTITUTION]:
+                    value = max(value, random.randint(12, 16))
+            
+            elif interaction_type == NPCInteractionType.SOCIAL:
+                # For social, boost social stats
+                if stat_type in [StatType.CHARISMA, StatType.WISDOM]:
+                    value = max(value, random.randint(12, 16))
+            
+            elif interaction_type == NPCInteractionType.COMMERCE:
+                # For commerce, boost charisma and intelligence
+                if stat_type in [StatType.CHARISMA, StatType.INTELLIGENCE]:
+                    value = max(value, random.randint(12, 16))
+            
+            elif interaction_type == NPCInteractionType.INFORMATION:
+                # For information providers, boost intelligence and wisdom
+                if stat_type in [StatType.INTELLIGENCE, StatType.WISDOM]:
+                    value = max(value, random.randint(12, 16))
+            
+            # Set the stat value
+            stats_manager.set_base_stat(stat_type, value)
+        
+        # For combat NPCs, generate some appropriate equipment modifiers
+        if interaction_type == NPCInteractionType.COMBAT:
+            # TODO: Add equipment and combat modifiers
+            pass
+        
+        # Set the stats manager on the NPC
+        npc.stats_manager = stats_manager
+        npc.stats_generated = True
+    
+    def _generate_personality(self, template: Dict[str, Any]) -> str:
+        """
+        Generate a personality description for an NPC.
+        
+        Args:
+            template: The template to use for generation
+            
+        Returns:
+            A personality description
+        """
+        traits = template.get("personality_traits", ["Unremarkable"])
+        
+        # Pick 1-3 traits
+        num_traits = min(3, len(traits))
+        selected_traits = random.sample(traits, random.randint(1, num_traits))
+        
+        # Form a simple personality description
+        if len(selected_traits) == 1:
+            return f"A {selected_traits[0].lower()} individual."
+        else:
+            traits_text = ", ".join(t.lower() for t in selected_traits[:-1])
+            return f"A {traits_text} and {selected_traits[-1].lower()} individual."
+    
+    def generate_npc_for_interaction(self, 
+                                    interaction_type: NPCInteractionType,
+                                    name: Optional[str] = None,
+                                    npc_type: Optional[NPCType] = None,
+                                    npc_subtype: Optional[str] = None,
+                                    relationship: NPCRelationship = NPCRelationship.NEUTRAL,
+                                    location: Optional[str] = None,
+                                    description: Optional[str] = None,
+                                    occupation: Optional[str] = None,
+                                    is_persistent: bool = False) -> NPC:
+        """
+        Generate an NPC customized for a specific type of interaction.
+        
+        Args:
+            interaction_type: The type of interaction this NPC is for
+            name: Optional name for the NPC (generated if None)
+            npc_type: Type of NPC (determined from interaction if None)
+            npc_subtype: Optional subtype (e.g., 'boss_dragon', 'merchant')
+            relationship: Initial relationship with the player
+            location: Where the NPC is located
+            description: Optional description of the NPC
+            occupation: Optional occupation
+            is_persistent: Whether this NPC should be saved persistently
+            
+        Returns:
+            An NPC with appropriate stats for the interaction
+        """
+        # Determine NPC type if not provided
+        if npc_type is None:
+            # Default types based on interaction
+            type_mapping = {
+                NPCInteractionType.COMBAT: NPCType.ENEMY,
+                NPCInteractionType.SOCIAL: NPCType.NEUTRAL,
+                NPCInteractionType.COMMERCE: NPCType.MERCHANT,
+                NPCInteractionType.QUEST: NPCType.QUEST_GIVER,
+                NPCInteractionType.INFORMATION: NPCType.NEUTRAL,
+                NPCInteractionType.SERVICE: NPCType.SERVICE,
+                NPCInteractionType.MINIMAL: NPCType.BACKGROUND
+            }
+            npc_type = type_mapping.get(interaction_type, NPCType.NEUTRAL)
+        
+        # Generate name if not provided
+        if name is None:
+            # Try to use a name pool for the subtype if specified
+            if npc_subtype and npc_subtype in self.name_pools:
+                name = self.generate_random_name(name_pool=npc_subtype)
+            else:
+                name = self.generate_random_name()
+        
+        # Select template based on NPC type and subtype
+        template = self._select_template(npc_type, npc_subtype)
+        
+        # Generate personality
+        personality = self._generate_personality(template)
+        
+        # Create the NPC
+        npc = NPC(
+            name=name,
+            npc_type=npc_type,
+            relationship=relationship,
+            location=location,
+            description=description or f"A {npc_subtype or npc_type.name.lower()} named {name}.",
+            occupation=occupation,
+            personality=personality,
+            is_persistent=is_persistent
+        )
+        
+        # Store the subtype in known_information if provided
+        if npc_subtype:
+            if not npc.known_information:
+                npc.known_information = {}
+            npc.known_information["subtype"] = npc_subtype
+        
+        # Generate stats appropriate for the interaction
+        if interaction_type != NPCInteractionType.MINIMAL:
+            self._generate_stats(npc, interaction_type, template)
+        
+        logger.info(f"Generated NPC for {interaction_type.name} interaction: {npc.name}")
+        return npc
+    
+    def enhance_npc_for_new_interaction(self, 
+                                       npc: NPC, 
+                                       interaction_type: NPCInteractionType) -> None:
+        """
+        Enhance an existing NPC with additional details for a new type of interaction.
+        
+        Args:
+            npc: The NPC to enhance
+            interaction_type: The new interaction type
+        """
+        # Get subtype if stored in known_information
+        npc_subtype = None
+        if npc.known_information and "subtype" in npc.known_information:
+            npc_subtype = npc.known_information["subtype"]
+        
+        # If stats haven't been generated yet, generate them
+        if not npc.has_stats():
+            template = self._select_template(npc.npc_type, npc_subtype)
+            self._generate_stats(npc, interaction_type, template)
+            logger.info(f"Generated stats for existing NPC {npc.name} for {interaction_type.name} interaction")
+        
+        # For combat interactions, ensure combat-related stats are suitable
+        if (interaction_type == NPCInteractionType.COMBAT and 
+            npc.has_stats() and 
+            npc.get_stat(StatType.STRENGTH) < 10):
+            
+            # Check if this NPC should use boss stats
+            is_boss = npc_subtype and "boss" in npc_subtype.lower()
+            
+            # Boost combat stats more significantly for bosses
+            for stat_type in [StatType.STRENGTH, StatType.DEXTERITY, StatType.CONSTITUTION]:
+                current_val = npc.get_stat(stat_type) or 8
+                if current_val < 12:
+                    if is_boss:
+                        new_val = random.randint(14, 18)  # Higher stats for bosses
+                    else:
+                        new_val = random.randint(12, 16)
+                    npc.stats_manager.set_base_stat(stat_type, new_val)
+                    logger.debug(f"Boosted {stat_type.name} for NPC {npc.name} from {current_val} to {new_val}")
+        
+        # Similar adjustments for other interaction types
+        elif (interaction_type == NPCInteractionType.SOCIAL and 
+              npc.has_stats() and 
+              npc.get_stat(StatType.CHARISMA) < 10):
+            
+            # Boost social stats
+            for stat_type in [StatType.CHARISMA, StatType.WISDOM]:
+                current_val = npc.get_stat(stat_type) or 8
+                if current_val < 12:
+                    new_val = random.randint(12, 16)
+                    npc.stats_manager.set_base_stat(stat_type, new_val)
+        
+        # Add more personality details if needed
+        if not npc.personality:
+            template = self._select_template(npc.npc_type, npc_subtype)
+            npc.personality = self._generate_personality(template)
+    
+    def generate_enemy_npc(self, 
+                          name: Optional[str] = None,
+                          enemy_type: str = "generic",
+                          level: int = 1,
+                          location: Optional[str] = None) -> NPC:
+        """
+        Generate an enemy NPC for combat.
+        
+        Args:
+            name: Optional name for the enemy
+            enemy_type: Type of enemy (e.g., "bandit", "wolf", "guard")
+            level: Level of the enemy, affects stats
+            location: Where the enemy is located
+            
+        Returns:
+            An NPC ready for combat
+        """
+        # Check if we have a template for this enemy type
+        if enemy_type in self.templates:
+            template = self.templates[enemy_type]
+        else:
+            # Fallback to generic enemy template
+            template = self._select_template(NPCType.ENEMY)
+        
+        # Generate name if not provided
+        if name is None:
+            if enemy_type in self.name_pools:
+                name = self.generate_random_name(name_pool=enemy_type)
+            else:
+                name = f"{enemy_type.capitalize()} {random.choice(['Minion', 'Warrior', 'Brute', 'Thug'])}"
+        
+        # Create the enemy NPC
+        npc = NPC(
+            name=name,
+            npc_type=NPCType.ENEMY,
+            relationship=NPCRelationship.HOSTILE,
+            location=location,
+            description=f"A hostile {enemy_type} named {name}."
+        )
+        
+        # Generate combat stats
+        stats_manager = StatsManager()
+        
+        # Scale stats based on level
+        level_modifier = max(0, (level - 1) * 2)  # +2 to stats per level
+        
+        # Generate primary stats based on template and level
+        stat_distributions = template.get("stat_distributions", {})
+        
+        for stat_type in StatType:
+            stat_name = stat_type.name
+            if stat_name in stat_distributions:
+                min_val = stat_distributions[stat_name].get("min", 8) + level_modifier
+                max_val = stat_distributions[stat_name].get("max", 14) + level_modifier
+                value = random.randint(min_val, max_val)
+            else:
+                # Default range if not specified
+                value = random.randint(8 + level_modifier, 14 + level_modifier)
+            
+            # Set the stat value
+            stats_manager.set_base_stat(stat_type, value)
+        
+        # Set the stats manager on the NPC
+        npc.stats_manager = stats_manager
+        npc.stats_generated = True
+        
+        logger.info(f"Generated enemy NPC: {npc.name} (Level {level})")
+        return npc
+
+```
+
+### File: npc_manager.py
+
+```python
+#!/usr/bin/env python3
+"""
+NPC Manager for tracking and persisting NPCs in the game world.
+Implements the just-in-time generation of NPC stats based on context.
+"""
+
+import logging
+import os
+import json
+from typing import Dict, List, Any, Optional, Union, Set
+from datetime import datetime
+
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_generator import NPCGenerator
+from core.stats.stats_base import StatType, DerivedStatType
+from core.utils.dotdict import DotDict
+
+logger = logging.getLogger(__name__)
+
+
+class NPCManager:
+    """
+    Manager for tracking and persisting NPCs in the game world.
+    Implements just-in-time generation of NPC stats based on interaction context.
+    """
+    
+    def __init__(self, save_directory: str = "saves/npcs"):
+        """
+        Initialize the NPC manager.
+        
+        Args:
+            save_directory: Directory to save NPC data
+        """
+        self.save_directory = save_directory
+        self.npcs: Dict[str, NPC] = {}  # Dictionary of NPCs by ID
+        self.npcs_by_name: Dict[str, NPC] = {}  # Dictionary of NPCs by name (lowercase)
+        self.npcs_by_location: Dict[str, List[NPC]] = {}  # Dictionary of NPCs by location
+        self.npc_generator = NPCGenerator()
+        
+        # Ensure save directory exists
+        os.makedirs(save_directory, exist_ok=True)
+    
+    def add_npc(self, npc: NPC) -> None:
+        """
+        Add an NPC to the manager.
+        
+        Args:
+            npc: The NPC to add
+        """
+        # Add to ID index
+        self.npcs[npc.id] = npc
+        
+        # Add to name index
+        name_key = npc.name.lower()
+        self.npcs_by_name[name_key] = npc
+        
+        # Add to location index if location is set
+        if npc.location:
+            location_key = npc.location.lower()
+            if location_key not in self.npcs_by_location:
+                self.npcs_by_location[location_key] = []
+            
+            # Avoid duplicates
+            if npc not in self.npcs_by_location[location_key]:
+                self.npcs_by_location[location_key].append(npc)
+        
+        logger.debug(f"Added NPC to manager: {npc.name} (ID: {npc.id})")
+    
+    def remove_npc(self, npc_id: str) -> bool:
+        """
+        Remove an NPC from the manager.
+        
+        Args:
+            npc_id: ID of the NPC to remove
+            
+        Returns:
+            True if the NPC was found and removed, False otherwise
+        """
+        if npc_id not in self.npcs:
+            return False
+        
+        npc = self.npcs[npc_id]
+        
+        # Remove from ID index
+        del self.npcs[npc_id]
+        
+        # Remove from name index
+        name_key = npc.name.lower()
+        if name_key in self.npcs_by_name and self.npcs_by_name[name_key].id == npc_id:
+            del self.npcs_by_name[name_key]
+        
+        # Remove from location index
+        if npc.location:
+            location_key = npc.location.lower()
+            if location_key in self.npcs_by_location:
+                self.npcs_by_location[location_key] = [
+                    n for n in self.npcs_by_location[location_key] if n.id != npc_id
+                ]
+                if not self.npcs_by_location[location_key]:
+                    del self.npcs_by_location[location_key]
+        
+        logger.debug(f"Removed NPC from manager: {npc.name} (ID: {npc_id})")
+        return True
+    
+    def get_npc_by_id(self, npc_id: str) -> Optional[NPC]:
+        """
+        Get an NPC by ID.
+        
+        Args:
+            npc_id: ID of the NPC to get
+            
+        Returns:
+            The NPC if found, None otherwise
+        """
+        return self.npcs.get(npc_id)
+        
+    def get_entity(self, entity_id: str) -> Optional[NPC]:
+        """
+        Get an entity (NPC) by ID.
+        Alias for get_npc_by_id to maintain compatibility with EntityManager interface.
+        
+        Args:
+            entity_id: ID of the entity to get
+            
+        Returns:
+            The entity if found, None otherwise
+        """
+        return self.get_npc_by_id(entity_id)
+    
+    def get_npc_by_name(self, name: str) -> Optional[NPC]:
+        """
+        Get an NPC by name (case-insensitive).
+        
+        Args:
+            name: Name of the NPC to get
+            
+        Returns:
+            The NPC if found, None otherwise
+        """
+        return self.npcs_by_name.get(name.lower())
+    
+    def get_npcs_by_location(self, location: str) -> List[NPC]:
+        """
+        Get all NPCs at a specific location.
+        
+        Args:
+            location: The location to check
+            
+        Returns:
+            List of NPCs at the location (empty if none)
+        """
+        return self.npcs_by_location.get(location.lower(), [])
+    
+    def get_npcs_by_type(self, npc_type: NPCType) -> List[NPC]:
+        """
+        Get all NPCs of a specific type.
+        
+        Args:
+            npc_type: The type of NPCs to get
+            
+        Returns:
+            List of NPCs of the specified type
+        """
+        return [npc for npc in self.npcs.values() if npc.npc_type == npc_type]
+    
+    def get_npcs_by_relationship(self, relationship: NPCRelationship) -> List[NPC]:
+        """
+        Get all NPCs with a specific relationship to the player.
+        
+        Args:
+            relationship: The relationship to filter by
+            
+        Returns:
+            List of NPCs with the specified relationship
+        """
+        return [npc for npc in self.npcs.values() if npc.relationship == relationship]
+    
+    def update_npc_location(self, npc_id: str, new_location: str) -> bool:
+        """
+        Update an NPC's location.
+        
+        Args:
+            npc_id: ID of the NPC to update
+            new_location: New location for the NPC
+            
+        Returns:
+            True if the NPC was found and updated, False otherwise
+        """
+        npc = self.get_npc_by_id(npc_id)
+        if not npc:
+            return False
+        
+        # Remove from old location index
+        if npc.location:
+            old_location_key = npc.location.lower()
+            if old_location_key in self.npcs_by_location:
+                self.npcs_by_location[old_location_key] = [
+                    n for n in self.npcs_by_location[old_location_key] if n.id != npc_id
+                ]
+                if not self.npcs_by_location[old_location_key]:
+                    del self.npcs_by_location[old_location_key]
+        
+        # Update NPC's location
+        npc.location = new_location
+        
+        # Add to new location index
+        if new_location:
+            new_location_key = new_location.lower()
+            if new_location_key not in self.npcs_by_location:
+                self.npcs_by_location[new_location_key] = []
+            self.npcs_by_location[new_location_key].append(npc)
+        
+        logger.debug(f"Updated location for NPC {npc.name} to {new_location}")
+        return True
+    
+    def update_npc_relationship(self, npc_id: str, new_relationship: NPCRelationship) -> bool:
+        """
+        Update an NPC's relationship with the player.
+        
+        Args:
+            npc_id: ID of the NPC to update
+            new_relationship: New relationship for the NPC
+            
+        Returns:
+            True if the NPC was found and updated, False otherwise
+        """
+        npc = self.get_npc_by_id(npc_id)
+        if not npc:
+            return False
+        
+        npc.update_relationship(new_relationship)
+        return True
+    
+    def clear_all(self) -> None:
+        """Clear all NPCs from the manager."""
+        self.npcs.clear()
+        self.npcs_by_name.clear()
+        self.npcs_by_location.clear()
+        logger.info("Cleared all NPCs from manager")
+
+
+# Singleton instance for NPC manager
+_npc_manager_instance = None
+
+# Convenience function to get the NPC manager
+def get_npc_manager() -> NPCManager:
+    """Get the NPC manager instance."""
+    global _npc_manager_instance
+    if _npc_manager_instance is None:
+        _npc_manager_instance = NPCManager()
+    
+    return _npc_manager_instance
+
+```
+
+### File: npc_memory.py
+
+```python
+#!/usr/bin/env python3
+"""
+NPC Memory module for tracking interactions and NPC memory management.
+"""
+
+import logging
+from typing import Dict, List, Any, Optional, Set, Tuple
+from datetime import datetime, timedelta
+
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_manager import NPCManager
+
+logger = logging.getLogger(__name__)
+
+
+class NPCMemoryManager:
+    """
+    Manager for tracking NPC memories and interactions.
+    Handles recording, retrieving, and managing NPC memories.
+    """
+    
+    def __init__(self, npc_manager: NPCManager):
+        """
+        Initialize the NPC memory manager.
+        
+        Args:
+            npc_manager: The NPCManager instance to use
+        """
+        self.npc_manager = npc_manager
+    
+    def record_interaction(self, 
+                          npc_id: str, 
+                          interaction_type: NPCInteractionType,
+                          description: str,
+                          location: Optional[str] = None,
+                          player_action: Optional[str] = None,
+                          npc_reaction: Optional[str] = None,
+                          relationship_change: Optional[NPCRelationship] = None,
+                          importance: int = 1) -> Optional[NPCMemory]:
+        """
+        Record an interaction with an NPC.
+        
+        Args:
+            npc_id: ID of the NPC
+            interaction_type: Type of interaction
+            description: Brief description of the interaction
+            location: Where the interaction took place
+            player_action: What the player did
+            npc_reaction: How the NPC reacted
+            relationship_change: Whether the relationship changed
+            importance: Importance of the memory (1-10)
+            
+        Returns:
+            The created memory if successful, None otherwise
+        """
+        npc = self.npc_manager.get_npc_by_id(npc_id)
+        if not npc:
+            logger.warning(f"Cannot record interaction: NPC with ID {npc_id} not found")
+            return None
+        
+        # Create the memory
+        memory = NPCMemory(
+            npc_id=npc_id,
+            timestamp=datetime.now(),
+            interaction_type=interaction_type,
+            description=description,
+            location=location,
+            player_action=player_action,
+            npc_reaction=npc_reaction,
+            relationship_change=relationship_change,
+            importance=importance
+        )
+        
+        # Add the memory to the NPC
+        npc.record_interaction(memory)
+        
+        # Update NPC information based on the interaction
+        if location and not npc.location:
+            npc.location = location
+        
+        if relationship_change:
+            npc.update_relationship(relationship_change)
+        
+        logger.debug(f"Recorded interaction with NPC {npc.name}: {description}")
+        return memory
+    
+    def get_recent_memories(self, 
+                           npc_id: str, 
+                           count: int = 5, 
+                           interaction_type: Optional[NPCInteractionType] = None) -> List[NPCMemory]:
+        """
+        Get the most recent memories for an NPC.
+        
+        Args:
+            npc_id: ID of the NPC
+            count: Maximum number of memories to return
+            interaction_type: Optional filter by interaction type
+            
+        Returns:
+            List of recent memories
+        """
+        npc = self.npc_manager.get_npc_by_id(npc_id)
+        if not npc:
+            logger.warning(f"Cannot get memories: NPC with ID {npc_id} not found")
+            return []
+        
+        # Filter and sort memories
+        if interaction_type:
+            filtered_memories = [m for m in npc.memories if m.interaction_type == interaction_type]
+        else:
+            filtered_memories = npc.memories
+        
+        # Sort by timestamp (newest first)
+        sorted_memories = sorted(filtered_memories, key=lambda m: m.timestamp, reverse=True)
+        
+        # Return the requested number of memories
+        return sorted_memories[:count]
+    
+    def get_important_memories(self, 
+                              npc_id: str, 
+                              min_importance: int = 5) -> List[NPCMemory]:
+        """
+        Get important memories for an NPC.
+        
+        Args:
+            npc_id: ID of the NPC
+            min_importance: Minimum importance level (1-10)
+            
+        Returns:
+            List of important memories
+        """
+        npc = self.npc_manager.get_npc_by_id(npc_id)
+        if not npc:
+            logger.warning(f"Cannot get memories: NPC with ID {npc_id} not found")
+            return []
+        
+        # Filter by importance
+        important_memories = [m for m in npc.memories if m.importance >= min_importance]
+        
+        # Sort by importance (highest first) and then by recency
+        sorted_memories = sorted(
+            important_memories, 
+            key=lambda m: (m.importance, m.timestamp),
+            reverse=True
+        )
+        
+        return sorted_memories
+    
+    def get_memories_by_location(self, 
+                                location: str,
+                                max_count: int = 10) -> List[Tuple[NPC, NPCMemory]]:
+        """
+        Get memories that occurred at a specific location.
+        
+        Args:
+            location: The location to check
+            max_count: Maximum number of memories to return
+            
+        Returns:
+            List of (NPC, memory) tuples
+        """
+        memories_at_location = []
+        
+        # Check all NPCs
+        for npc in self.npc_manager.npcs.values():
+            # Find memories at this location
+            location_memories = [m for m in npc.memories if m.location and m.location.lower() == location.lower()]
+            
+            # Add them to the result list
+            for memory in location_memories:
+                memories_at_location.append((npc, memory))
+        
+        # Sort by timestamp (newest first)
+        sorted_memories = sorted(memories_at_location, key=lambda nm: nm[1].timestamp, reverse=True)
+        
+        return sorted_memories[:max_count]
+    
+    def get_relationship_change_memories(self, 
+                                        npc_id: str) -> List[NPCMemory]:
+        """
+        Get memories where the relationship with the player changed.
+        
+        Args:
+            npc_id: ID of the NPC
+            
+        Returns:
+            List of relationship change memories
+        """
+        npc = self.npc_manager.get_npc_by_id(npc_id)
+        if not npc:
+            logger.warning(f"Cannot get memories: NPC with ID {npc_id} not found")
+            return []
+        
+        # Filter by relationship change
+        return [m for m in npc.memories if m.relationship_change is not None]
+    
+    def summarize_npc_interactions(self, npc_id: str) -> Dict[str, Any]:
+        """
+        Create a summary of interactions with an NPC.
+        
+        Args:
+            npc_id: ID of the NPC
+            
+        Returns:
+            Dictionary with interaction summary
+        """
+        npc = self.npc_manager.get_npc_by_id(npc_id)
+        if not npc:
+            logger.warning(f"Cannot summarize interactions: NPC with ID {npc_id} not found")
+            return {}
+        
+        # Count interactions by type
+        interaction_counts = {}
+        for memory in npc.memories:
+            interaction_type = memory.interaction_type.name
+            if interaction_type not in interaction_counts:
+                interaction_counts[interaction_type] = 0
+            interaction_counts[interaction_type] += 1
+        
+        # Find most recent interaction
+        most_recent = None
+        if npc.memories:
+            most_recent = max(npc.memories, key=lambda m: m.timestamp)
+        
+        # Find most important memory
+        most_important = None
+        if npc.memories:
+            most_important = max(npc.memories, key=lambda m: m.importance)
+        
+        # Create the summary
+        summary = {
+            "npc_name": npc.name,
+            "npc_id": npc.id,
+            "total_interactions": len(npc.memories),
+            "interaction_counts": interaction_counts,
+            "current_relationship": npc.relationship.name,
+            "first_interaction": npc.memories[0].timestamp.isoformat() if npc.memories else None,
+            "last_interaction": npc.last_interaction.isoformat() if npc.last_interaction else None,
+            "most_recent_interaction": {
+                "description": most_recent.description,
+                "timestamp": most_recent.timestamp.isoformat(),
+                "type": most_recent.interaction_type.name
+            } if most_recent else None,
+            "most_important_memory": {
+                "description": most_important.description,
+                "importance": most_important.importance,
+                "type": most_important.interaction_type.name
+            } if most_important else None
+        }
+        
+        return summary
+    
+    def get_relevant_context_for_interaction(self, 
+                                           npc_id: str, 
+                                           interaction_type: NPCInteractionType,
+                                           max_memories: int = 3) -> List[Dict[str, Any]]:
+        """
+        Get relevant memories as context for a new interaction.
+        This is the primary method for integrating NPCs with the context system.
+        
+        Args:
+            npc_id: ID of the NPC
+            interaction_type: Type of the upcoming interaction
+            max_memories: Maximum number of memories to include
+            
+        Returns:
+            List of memory dictionaries formatted for context
+        """
+        npc = self.npc_manager.get_npc_by_id(npc_id)
+        if not npc:
+            logger.warning(f"Cannot get context: NPC with ID {npc_id} not found")
+            return []
+        
+        # Start with basic NPC information
+        context = []
+        
+        # First, get the most recent memory of the same interaction type
+        same_type_memories = [m for m in npc.memories if m.interaction_type == interaction_type]
+        if same_type_memories:
+            most_recent_same_type = max(same_type_memories, key=lambda m: m.timestamp)
+            context.append({
+                "type": "recent_similar_interaction",
+                "description": most_recent_same_type.description,
+                "when": most_recent_same_type.timestamp.isoformat()
+            })
+        
+        # Next, get the most recent interaction (if different from above)
+        if npc.memories:
+            most_recent = max(npc.memories, key=lambda m: m.timestamp)
+            if not same_type_memories or most_recent.id != most_recent_same_type.id:
+                context.append({
+                    "type": "most_recent_interaction",
+                    "description": most_recent.description,
+                    "when": most_recent.timestamp.isoformat()
+                })
+        
+        # Finally, get the most important memories
+        important_memories = self.get_important_memories(npc_id, min_importance=7)
+        for memory in important_memories[:max(0, max_memories - len(context))]:
+            context.append({
+                "type": "important_memory",
+                "description": memory.description,
+                "importance": memory.importance,
+                "when": memory.timestamp.isoformat()
+            })
+        
+        return context
+    
+    def prune_old_memories(self, 
+                          npc_id: str, 
+                          max_age_days: int = 90, 
+                          keep_important: bool = True,
+                          min_importance_to_keep: int = 5) -> int:
+        """
+        Remove old, less important memories to prevent memory bloat.
+        
+        Args:
+            npc_id: ID of the NPC
+            max_age_days: Maximum age of memories to keep
+            keep_important: Whether to keep important memories regardless of age
+            min_importance_to_keep: Minimum importance level to keep regardless of age
+            
+        Returns:
+            Number of memories removed
+        """
+        npc = self.npc_manager.get_npc_by_id(npc_id)
+        if not npc:
+            logger.warning(f"Cannot prune memories: NPC with ID {npc_id} not found")
+            return 0
+        
+        cutoff_date = datetime.now() - timedelta(days=max_age_days)
+        original_count = len(npc.memories)
+        
+        # Filter memories
+        if keep_important:
+            npc.memories = [
+                m for m in npc.memories if 
+                m.timestamp >= cutoff_date or m.importance >= min_importance_to_keep
+            ]
+        else:
+            npc.memories = [m for m in npc.memories if m.timestamp >= cutoff_date]
+        
+        removed_count = original_count - len(npc.memories)
+        logger.debug(f"Pruned {removed_count} old memories from NPC {npc.name}")
+        
+        return removed_count
+
+```
+
+### File: npc_persistence.py
+
+```python
+#!/usr/bin/env python3
+"""
+NPC Persistence module handling saving, loading, and serialization of NPCs.
+"""
+
+import os
+import json
+import logging
+from typing import Dict, List, Any, Optional, Tuple, Set
+from datetime import datetime
+
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_manager import NPCManager
+
+logger = logging.getLogger(__name__)
+
+
+class NPCPersistence:
+    """
+    Class for handling NPC persistence operations.
+    Manages saving, loading, and serialization of NPCs.
+    """
+    
+    def __init__(self, npc_manager: NPCManager):
+        """
+        Initialize the NPC persistence handler.
+        
+        Args:
+            npc_manager: The NPCManager instance to use
+        """
+        self.npc_manager = npc_manager
+        self.save_directory = npc_manager.save_directory
+    
+    def save_npc(self, npc: NPC) -> bool:
+        """
+        Save an individual NPC to file.
+        
+        Args:
+            npc: The NPC to save
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not npc.is_persistent:
+            logger.debug(f"Not saving non-persistent NPC: {npc.name}")
+            return False
+        
+        try:
+            os.makedirs(self.save_directory, exist_ok=True)
+            
+            # Create a filename based on the NPC's ID
+            filename = os.path.join(self.save_directory, f"{npc.id}.json")
+            
+            # Convert NPC to dictionary
+            npc_data = npc.to_dict()
+            
+            # Save to file
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(npc_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Saved NPC {npc.name} to {filename}")
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error saving NPC {npc.name}: {e}")
+            return False
+    
+    def load_npc(self, npc_id: str) -> Optional[NPC]:
+        """
+        Load an individual NPC from file.
+        
+        Args:
+            npc_id: ID of the NPC to load
+            
+        Returns:
+            The loaded NPC if successful, None otherwise
+        """
+        try:
+            # Create filename based on NPC ID
+            filename = os.path.join(self.save_directory, f"{npc_id}.json")
+            
+            if not os.path.exists(filename):
+                logger.warning(f"NPC file not found: {filename}")
+                return None
+            
+            # Load from file
+            with open(filename, 'r', encoding='utf-8') as f:
+                npc_data = json.load(f)
+            
+            # Create NPC from data
+            npc = NPC.from_dict(npc_data)
+            
+            logger.info(f"Loaded NPC {npc.name} from {filename}")
+            return npc
+        
+        except Exception as e:
+            logger.error(f"Error loading NPC {npc_id}: {e}")
+            return None
+    
+    def save_all_persistent_npcs(self) -> Tuple[int, int]:
+        """
+        Save all persistent NPCs to file.
+        
+        Returns:
+            Tuple of (success_count, total_count)
+        """
+        persistent_npcs = [npc for npc in self.npc_manager.npcs.values() if npc.is_persistent]
+        success_count = 0
+        
+        for npc in persistent_npcs:
+            if self.save_npc(npc):
+                success_count += 1
+        
+        logger.info(f"Saved {success_count}/{len(persistent_npcs)} persistent NPCs")
+        return success_count, len(persistent_npcs)
+    
+    def load_all_npcs(self) -> int:
+        """
+        Load all NPCs from files in the save directory.
+        
+        Returns:
+            Number of NPCs loaded
+        """
+        try:
+            if not os.path.exists(self.save_directory):
+                logger.warning(f"NPC save directory not found: {self.save_directory}")
+                return 0
+            
+            # Find all JSON files in the directory
+            npc_files = [f for f in os.listdir(self.save_directory) if f.endswith('.json')]
+            loaded_count = 0
+            
+            for file in npc_files:
+                try:
+                    # Extract NPC ID from filename
+                    npc_id = os.path.splitext(file)[0]
+                    
+                    # Load the NPC
+                    npc = self.load_npc(npc_id)
+                    if npc:
+                        # Add to manager
+                        self.npc_manager.add_npc(npc)
+                        loaded_count += 1
+                
+                except Exception as e:
+                    logger.error(f"Error loading NPC from {file}: {e}")
+            
+            logger.info(f"Loaded {loaded_count}/{len(npc_files)} NPCs from {self.save_directory}")
+            return loaded_count
+        
+        except Exception as e:
+            logger.error(f"Error loading NPCs: {e}")
+            return 0
+    
+    def delete_npc_file(self, npc_id: str) -> bool:
+        """
+        Delete an NPC's save file.
+        
+        Args:
+            npc_id: ID of the NPC whose file to delete
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            filename = os.path.join(self.save_directory, f"{npc_id}.json")
+            
+            if not os.path.exists(filename):
+                logger.warning(f"NPC file not found: {filename}")
+                return False
+            
+            os.remove(filename)
+            logger.info(f"Deleted NPC file: {filename}")
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error deleting NPC file for {npc_id}: {e}")
+            return False
+    
+    def cleanup_unused_npcs(self, days_threshold: int = 30) -> int:
+        """
+        Remove NPCs that haven't been interacted with for a long time.
+        
+        Args:
+            days_threshold: Number of days of inactivity before removal
+            
+        Returns:
+            Number of NPCs removed
+        """
+        cutoff_date = datetime.now() - datetime.timedelta(days=days_threshold)
+        npcs_to_remove = []
+        
+        for npc_id, npc in self.npc_manager.npcs.items():
+            # Skip NPCs without a last interaction date
+            if not npc.last_interaction:
+                continue
+            
+            # Check if the NPC is older than the threshold
+            if npc.last_interaction < cutoff_date:
+                npcs_to_remove.append(npc_id)
+        
+        # Remove the NPCs
+        for npc_id in npcs_to_remove:
+            self.delete_npc_file(npc_id)
+            self.npc_manager.remove_npc(npc_id)
+        
+        logger.info(f"Cleaned up {len(npcs_to_remove)} unused NPCs")
+        return len(npcs_to_remove)
+    
+    def export_npcs_to_json(self, filepath: str, include_non_persistent: bool = False) -> bool:
+        """
+        Export all NPCs to a single JSON file for debugging or external processing.
+        
+        Args:
+            filepath: Path to save the JSON file
+            include_non_persistent: Whether to include non-persistent NPCs
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if include_non_persistent:
+                npcs_to_export = list(self.npc_manager.npcs.values())
+            else:
+                npcs_to_export = [npc for npc in self.npc_manager.npcs.values() if npc.is_persistent]
+            
+            npc_data = {npc.id: npc.to_dict() for npc in npcs_to_export}
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(npc_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Exported {len(npcs_to_export)} NPCs to {filepath}")
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error exporting NPCs to {filepath}: {e}")
+            return False
+    
+    def import_npcs_from_json(self, filepath: str) -> int:
+        """
+        Import NPCs from a JSON file.
+        
+        Args:
+            filepath: Path to the JSON file
+            
+        Returns:
+            Number of NPCs imported
+        """
+        try:
+            if not os.path.exists(filepath):
+                logger.warning(f"NPC import file not found: {filepath}")
+                return 0
+            
+            with open(filepath, 'r', encoding='utf-8') as f:
+                npc_data = json.load(f)
+            
+            imported_count = 0
+            
+            for npc_id, data in npc_data.items():
+                try:
+                    npc = NPC.from_dict(data)
+                    self.npc_manager.add_npc(npc)
+                    imported_count += 1
+                
+                except Exception as e:
+                    logger.error(f"Error importing NPC {npc_id}: {e}")
+            
+            logger.info(f"Imported {imported_count}/{len(npc_data)} NPCs from {filepath}")
+            return imported_count
+        
+        except Exception as e:
+            logger.error(f"Error importing NPCs from {filepath}: {e}")
+            return 0
+
+```
+
+### File: npc_system.py
+
+```python
+#!/usr/bin/env python3
+"""
+NPC System - Main integration module for the NPC subsystem.
+Provides a unified interface for NPC management, creation, persistence, and memory.
+"""
+
+import logging
+from typing import Dict, List, Any, Optional, Union, Tuple, Set
+from datetime import datetime
+
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_manager import NPCManager
+from core.character.npc_creator import NPCCreator
+from core.character.npc_persistence import NPCPersistence
+from core.character.npc_memory import NPCMemoryManager
+
+logger = logging.getLogger(__name__)
+
+
+class NPCSystem:
+    """
+    Main class for the NPC subsystem.
+    Integrates NPC management, creation, persistence, and memory into a single interface.
+    """
+    
+    def __init__(self, save_directory: str = "saves/npcs"):
+        """
+        Initialize the NPC system.
+        
+        Args:
+            save_directory: Directory for saving NPC data
+        """
+        # Initialize storage for direct access fallbacks
+        self.npcs: Dict[str, NPC] = {}
+        self.npc_list: List[NPC] = []
+        
+        # Initialize all the component managers
+        self.manager = NPCManager(save_directory)
+        self.creator = NPCCreator(self.manager)
+        self.persistence = NPCPersistence(self.manager)
+        self.memory = NPCMemoryManager(self.manager)
+        
+        logger.info("NPC system initialized")
+    
+    def load_all_npcs(self) -> int:
+        """
+        Load all persisted NPCs.
+        
+        Returns:
+            Number of NPCs loaded
+        """
+        return self.persistence.load_all_npcs()
+    
+    def save_all_npcs(self) -> Tuple[int, int]:
+        """
+        Save all persistent NPCs.
+        
+        Returns:
+            Tuple of (success_count, total_count)
+        """
+        return self.persistence.save_all_persistent_npcs()
+    
+    def clear_all_npcs(self) -> None:
+        """Clear all NPCs from the system."""
+        self.manager.clear_all()
+        self.npcs.clear()
+        self.npc_list.clear()
+    
+    def get_npc(self, npc_id: str) -> Optional[NPC]:
+        """
+        Get an NPC by ID.
+        
+        Args:
+            npc_id: ID of the NPC to get
+            
+        Returns:
+            The NPC if found, None otherwise
+        """
+        return self.manager.get_npc_by_id(npc_id)
+    
+    def get_npc_by_name(self, name: str) -> Optional[NPC]:
+        """
+        Get an NPC by name.
+        
+        Args:
+            name: Name of the NPC to get
+            
+        Returns:
+            The NPC if found, None otherwise
+        """
+        return self.manager.get_npc_by_name(name)
+    
+    def get_or_create_npc(self, 
+                         name: str, 
+                         interaction_type: NPCInteractionType,
+                         location: Optional[str] = None,
+                         npc_subtype: Optional[str] = None) -> Tuple[NPC, bool]:
+        """
+        Get an existing NPC by name or create a new one.
+        This is the primary method for just-in-time NPC generation.
+        
+        Args:
+            name: Name of the NPC
+            interaction_type: Type of interaction
+            location: Where the NPC is located
+            npc_subtype: Optional subtype (e.g., 'boss_dragon', 'merchant')
+            
+        Returns:
+            Tuple of (npc, is_new) where is_new is True if a new NPC was created
+        """
+        npc, is_new = self.creator.get_or_create_npc(
+            name=name,
+            interaction_type=interaction_type,
+            location=location,
+            npc_subtype=npc_subtype
+        )
+        # Register in direct storage if newly created
+        if npc and is_new:
+            self.register_npc(npc)
+        return npc, is_new
+    
+    def prepare_npc_for_interaction(self, 
+                                   npc_or_name: Union[NPC, str],
+                                   interaction_type: NPCInteractionType,
+                                   npc_subtype: Optional[str] = None) -> Optional[NPC]:
+        """
+        Prepare an NPC for a specific interaction, enhancing it if necessary.
+        Implements the just-in-time generation of NPC capabilities.
+        
+        Args:
+            npc_or_name: NPC object or name of the NPC
+            interaction_type: Type of interaction to prepare for
+            npc_subtype: Optional subtype for new NPCs
+            
+        Returns:
+            The prepared NPC if found or created, None on failure
+        """
+        # Get or create the NPC
+        if isinstance(npc_or_name, str):
+            npc, _ = self.get_or_create_npc(npc_or_name, interaction_type, npc_subtype=npc_subtype)
+            if not npc:
+                return None
+        else:
+            npc = npc_or_name
+            
+        # Enhance the NPC for this interaction if needed
+        self.creator.enhance_npc_for_interaction(npc, interaction_type)
+        
+        return npc
+    
+    def record_interaction(self,
+                          npc_or_name: Union[NPC, str],
+                          interaction_type: NPCInteractionType,
+                          description: str,
+                          location: Optional[str] = None,
+                          importance: int = 3,
+                          npc_subtype: Optional[str] = None) -> Optional[NPCMemory]:
+        """
+        Record an interaction with an NPC.
+        Creates the NPC if it doesn't exist.
+        
+        Args:
+            npc_or_name: NPC object or name of the NPC
+            interaction_type: Type of interaction
+            description: Description of what happened
+            location: Where it happened
+            importance: How important this memory is (1-10)
+            npc_subtype: Optional subtype for new NPCs
+            
+        Returns:
+            The created memory if successful, None otherwise
+        """
+        # Get or create the NPC
+        if isinstance(npc_or_name, str):
+            npc, _ = self.get_or_create_npc(npc_or_name, interaction_type, location, npc_subtype=npc_subtype)
+            if not npc:
+                return None
+        else:
+            npc = npc_or_name
+        
+        # Record the interaction
+        return self.memory.record_interaction(
+            npc_id=npc.id,
+            interaction_type=interaction_type,
+            description=description,
+            location=location,
+            importance=importance
+        )
+    
+    def get_context_for_interaction(self,
+                                   npc_or_name: Union[NPC, str],
+                                   interaction_type: NPCInteractionType,
+                                   npc_subtype: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get context for an interaction with an NPC.
+        Creates or enhances the NPC as needed.
+        
+        Args:
+            npc_or_name: NPC object or name of the NPC
+            interaction_type: Type of interaction
+            npc_subtype: Optional subtype for new NPCs
+            
+        Returns:
+            Dictionary with NPC information and relevant memories
+        """
+        # Prepare the NPC
+        npc = self.prepare_npc_for_interaction(npc_or_name, interaction_type, npc_subtype)
+        if not npc:
+            return {"error": "NPC not found or could not be created"}
+        
+        # Get relevant memories
+        memories = self.memory.get_relevant_context_for_interaction(npc.id, interaction_type)
+        
+        # Build the context
+        context = {
+            "npc": {
+                "id": npc.id,
+                "name": npc.name,
+                "type": npc.npc_type.name,
+                "relationship": npc.relationship.name,
+                "description": npc.description,
+                "occupation": npc.occupation,
+                "location": npc.location,
+                "personality": npc.personality
+            },
+            "stats": {},
+            "memories": memories,
+            "interaction_count": npc.interaction_count
+        }
+        
+        # Add stats if available
+        if npc.has_stats():
+            # Only include stats relevant to this interaction type
+            if interaction_type == NPCInteractionType.COMBAT:
+                combat_stats = ["STR", "DEX", "CON", "MELEE_ATTACK", "RANGED_ATTACK", "DEFENSE"]
+                for stat in combat_stats:
+                    value = npc.get_stat(stat)
+                    if value is not None:
+                        context["stats"][stat] = value
+            
+            elif interaction_type == NPCInteractionType.SOCIAL:
+                social_stats = ["CHA", "WIS"]
+                for stat in social_stats:
+                    value = npc.get_stat(stat)
+                    if value is not None:
+                        context["stats"][stat] = value
+            
+            elif interaction_type == NPCInteractionType.COMMERCE:
+                commerce_stats = ["CHA", "INT"]
+                for stat in commerce_stats:
+                    value = npc.get_stat(stat)
+                    if value is not None:
+                        context["stats"][stat] = value
+        
+        return context
+    
+    def create_enemy_for_combat(self,
+                               name: Optional[str] = None,
+                               enemy_type: str = "bandit",
+                               level: int = 1,
+                               location: Optional[str] = None) -> NPC:
+        """
+        Create an enemy NPC ready for combat.
+        
+        Args:
+            name: Optional name for the enemy
+            enemy_type: Type of enemy
+            level: Enemy level
+            location: Where the enemy is located
+            
+        Returns:
+            The created enemy NPC
+        """
+        npc = self.creator.create_enemy(
+            name=name,
+            enemy_type=enemy_type,
+            level=level,
+            location=location
+        )
+        # Register in direct storage for fallback access
+        if npc:
+            self.register_npc(npc)
+        return npc
+    
+    def create_merchant(self,
+                       name: str,
+                       shop_type: str = "general",
+                       location: Optional[str] = None) -> NPC:
+        """
+        Create a merchant NPC.
+        
+        Args:
+            name: Name of the merchant
+            shop_type: Type of shop
+            location: Where the merchant is located
+            
+        Returns:
+            The created merchant NPC
+        """
+        return self.creator.create_merchant(
+            name=name,
+            shop_type=shop_type,
+            location=location
+        )
+    
+    def update_npc_location(self, npc_id: str, new_location: str) -> bool:
+        """
+        Update an NPC's location.
+        
+        Args:
+            npc_id: ID of the NPC
+            new_location: New location
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.manager.update_npc_location(npc_id, new_location)
+    
+    def update_npc_relationship(self, npc_id: str, new_relationship: NPCRelationship) -> bool:
+        """
+        Update an NPC's relationship with the player.
+        
+        Args:
+            npc_id: ID of the NPC
+            new_relationship: New relationship
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.manager.update_npc_relationship(npc_id, new_relationship)
+    
+    def save_state(self) -> bool:
+        """
+        Save the entire NPC system state.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Save all persistent NPCs
+            self.save_all_npcs()
+            return True
+        except Exception as e:
+            logger.error(f"Error saving NPC system state: {e}")
+            return False
+    
+    def load_state(self) -> bool:
+        """
+        Load the entire NPC system state.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Clear existing NPCs
+            self.clear_all_npcs()
+            
+            # Load all NPCs
+            self.load_all_npcs()
+            return True
+        except Exception as e:
+            logger.error(f"Error loading NPC system state: {e}")
+            return False
+
+    def register_npc(self, npc: NPC) -> None:
+        """Register an NPC in the direct storage for fallback access.
+        
+        Args:
+            npc: The NPC to register
+        """
+        if npc and hasattr(npc, 'id') and npc.id:
+            self.npcs[npc.id] = npc
+            if npc not in self.npc_list:
+                self.npc_list.append(npc)
+            logger.debug(f"Registered NPC {npc.name} (ID: {npc.id}) in direct storage.")
+    
+    def get_npc_by_id(self, npc_id: str) -> Optional[NPC]:
+        """Retrieves an NPC instance by its unique ID.
+
+        Args:
+            npc_id: The unique identifier of the NPC to retrieve.
+
+        Returns:
+            The NPC object if found, otherwise None.
+        """
+        # First try the main manager
+        npc = self.manager.get_npc_by_id(npc_id)
+        if npc:
+            return npc
+        
+        # Fallback to direct storage
+        if npc_id in self.npcs:
+            return self.npcs[npc_id]
+        
+        # Fallback to list search
+        for npc in self.npc_list:
+            if getattr(npc, 'id', None) == npc_id:
+                return npc
+        
+        logger.debug(f"NPC with ID {npc_id} not found in NPCSystem storage.")
+        return None
+```
+
+### File: README.md
+
+```markdown
+# Core Character Module: Just-in-Time NPC System
+
+This module (`core/character`) implements a dynamic system for managing Non-Player Characters (NPCs) within the game. Its core feature is a "just-in-time" generation approach, where NPCs are created and enhanced only when needed for specific interactions. This allows the game to efficiently manage a potentially large number of NPCs without requiring full generation of all characters at the start, optimizing performance and memory usage.
+
+## Core Concept: Just-in-Time Generation
+
+The primary innovation of this system is the "just-in-time" generation of NPCs. Instead of generating all NPCs with complete details up front, the system:
+
+1.  Creates NPCs with minimal information when they are first encountered or mentioned (e.g., by name).
+2.  Generates or enhances NPC stats, personality, and other details only when required for a specific type of interaction (e.g., combat, social dialogue, trading).
+3.  Persists only the information that matters for future interactions, focusing on NPCs designated as `is_persistent`.
+
+This approach offers several benefits:
+-   Optimizes memory usage by only storing necessary information for active or important NPCs.
+-   Creates more appropriate NPCs tailored to specific interaction types (e.g., stronger combat stats for enemies, higher charisma for merchants).
+-   Allows narrative systems (like an LLM) to freely introduce NPCs without worrying about immediate, detailed implementation.
+-   Saves processing time by avoiding the generation of unused NPCs or attributes.
+
+## System Components
+
+The `core/character` module is divided into several Python files for better organization and maintainability:
+
+### 1. `npc_base.py`
+-   **Purpose:** Defines the core data structures for NPCs.
+-   **Key Classes/Enums:**
+    -   `NPC`: The central dataclass representing an NPC, holding attributes like `id`, `name`, `npc_type`, `relationship`, `location`, `description`, `stats_manager`, `memories`, `inventory` (basic list), etc.
+    -   `NPCMemory`: Dataclass representing a recorded interaction or event involving an NPC.
+    -   `NPCType`: Enum defining NPC roles (MERCHANT, ENEMY, QUEST_GIVER, etc.).
+    -   `NPCRelationship`: Enum defining the NPC's disposition towards the player (HOSTILE, FRIENDLY, NEUTRAL, etc.).
+    -   `NPCInteractionType`: Enum defining the context of an interaction (COMBAT, SOCIAL, COMMERCE, etc.), used to determine necessary stats/details.
+-   **Functionality:** Basic serialization (`to_dict`) and deserialization (`from_dict`) methods for `NPC` and `NPCMemory`.
+
+### 2. `npc_manager.py`
+-   **Purpose:** Manages the collection of active `NPC` objects currently loaded in memory.
+-   **Key Class:** `NPCManager`.
+-   **Functionality:** Acts as a central registry, providing methods for adding, removing, and retrieving NPCs using indices for ID, name (case-insensitive), and location.
+
+### 3. `npc_generator.py`
+-   **Purpose:** Responsible for generating NPC details, including stats, personality, and names.
+-   **Key Class:** `NPCGenerator`.
+-   **Functionality:**
+    -   Loads NPC templates from configuration (`config/character/npc_templates.json`). Templates define stat ranges, personality traits, and name pools.
+    -   Generates random names based on pools.
+    -   Generates stats (`StatsManager` instance) appropriate for a given `NPCInteractionType` using template distributions.
+    -   Enhances stats of existing NPCs for new interaction types.
+    -   Generates basic personality descriptions.
+-   **Dependencies:** `core.stats.stats_manager`, `config/character/npc_templates.json`.
+
+### 4. `npc_creator.py`
+-   **Purpose:** Provides a higher-level interface for creating and enhancing NPCs.
+-   **Key Class:** `NPCCreator`.
+-   **Functionality:**
+    -   Uses `NPCGenerator` and `NPCManager`.
+    -   Provides methods to create specific NPC types (`create_enemy`, `create_merchant`, etc.).
+    -   Implements the core "get or create" logic (`get_or_create_npc`) for just-in-time instantiation.
+    -   Handles enhancing existing NPCs when they are needed for a new interaction context (`enhance_npc_for_interaction`).
+
+### 5. `npc_persistence.py`
+-   **Purpose:** Manages the saving and loading of *persistent* NPCs to/from disk storage.
+-   **Key Class:** `NPCPersistence`.
+-   **Functionality:**
+    -   Saves individual persistent NPCs (`save_npc`) or all persistent NPCs (`save_all_persistent_npcs`) to JSON files (named `{npc_id}.json`) in a specified directory (e.g., `saves/npcs/`).
+    -   Loads NPCs from these files (`load_npc`, `load_all_npcs`).
+    -   Handles cleanup of old/unused NPC files.
+    -   Provides import/export functionality for NPC data.
+
+### 6. `npc_memory.py`
+-   **Purpose:** Manages the recording, retrieval, and lifecycle of NPC memories.
+-   **Key Class:** `NPCMemoryManager`.
+-   **Functionality:**
+    -   Records new `NPCMemory` instances associated with an NPC (`record_interaction`).
+    -   Retrieves memories based on recency, importance, location, or specific events (like relationship changes).
+    -   Summarizes interactions with an NPC.
+    -   Provides relevant memories as context for new interactions (`get_relevant_context_for_interaction`).
+    -   Prunes old or unimportant memories to manage data size.
+
+### 7. `background_generator.py`
+-   **Purpose:** Generates or enhances narrative backgrounds for characters using an external LLM.
+-   **Key Class:** `BackgroundGenerator`.
+-   **Functionality:** Constructs prompts based on character data (race, class, etc.) and sends requests to the `LLMManager` to generate or improve background text.
+-   **Dependencies:** `core.llm.llm_manager`.
+
+### 8. `npc_system.py`
+-   **Purpose:** Acts as a facade, integrating all the above components into a unified interface.
+-   **Key Class:** `NPCSystem`.
+-   **Functionality:**
+    -   Initializes and provides access to the `NPCManager`, `NPCCreator`, `NPCPersistence`, and `NPCMemoryManager`.
+    -   Provides high-level methods for common operations like loading/saving state, getting/creating NPCs (`get_or_create_npc`), preparing NPCs for interaction (`prepare_npc_for_interaction`), recording interactions, and retrieving interaction context.
+    -   Simplifies interaction with the NPC subsystem for other parts of the game.
+
+## Key Concepts & Data Flow
+
+-   **NPC Representation:** The `NPC` class is the core data structure, holding all information about a non-player character. It relies on `core.stats.StatsManager` to handle numerical attributes and derived stats.
+-   **Dynamic Stats:** Stats are not always pre-defined. `NPCGenerator` creates or enhances the `StatsManager` instance for an NPC based on the `NPCInteractionType` when needed.
+-   **Memory:** Interactions are logged as `NPCMemory` objects, managed by `NPCMemoryManager`. These memories inform future interactions and can provide context to narrative systems.
+-   **Persistence:** NPCs marked with `is_persistent=True` are saved by `NPCPersistence` to JSON files in the `saves/npcs/` directory (or as configured). `NPCSystem` orchestrates loading and saving the overall state.
+-   **Configuration:** NPC generation relies heavily on templates defined in `config/character/npc_templates.json`.
+
+## Interaction Types
+
+The system uses `NPCInteractionType` to determine the necessary level of detail and specific stats required for an NPC:
+
+-   **COMBAT**: Requires full combat stats (STR, DEX, CON, HP, Attack, Defense, etc.).
+-   **SOCIAL**: Focuses on social stats (CHA, WIS).
+-   **COMMERCE**: Focuses on relevant stats for trading (CHA, INT).
+-   **QUEST**: May require specific knowledge or flags related to quests.
+-   **INFORMATION**: Focuses on knowledge-related stats (INT, WIS).
+-   **SERVICE**: May require specific skills or flags related to services offered.
+-   **MINIMAL**: Requires only basic identification information; no stats are generated initially.
+
+## Using the NPC System
+
+The primary interface is the `NPCSystem` class, typically accessed via a central game state manager or a dedicated function like `get_npc_system()`.
+
+```python
+# Example: Assuming npc_system is an instance of NPCSystem
+
+# Get or create an NPC for a specific interaction
+# If "Guard Captain" exists, enhance for combat if needed. If not, create him.
+npc, is_new = npc_system.get_or_create_npc(
+    name="Guard Captain",
+    interaction_type=NPCInteractionType.COMBAT,
+    location="City Gates",
+    npc_subtype="guard_captain" # Optional: uses specific template if available
+)
+
+# Record an interaction
+memory = npc_system.record_interaction(
+    npc_or_name="Guard Captain", # Can use name or NPC object
+    interaction_type=NPCInteractionType.SOCIAL,
+    description="Player asked about recent patrols.",
+    location="City Gates",
+    importance=5
+)
+
+# Get context for an LLM or dialogue system
+context = npc_system.get_context_for_interaction(
+    "Guard Captain",
+    NPCInteractionType.SOCIAL
+)
+# context dictionary contains npc details, relevant stats, and recent/important memories
+```
+
+## Integration with LLM & Narrative
+
+The just-in-time approach is well-suited for integration with LLM-driven narrative engines:
+
+1.  The LLM can mention NPCs by name without needing them to exist beforehand.
+2.  `npc_system.get_or_create_npc` handles creating a minimal NPC record.
+3.  When an interaction occurs (e.g., player talks to the NPC), `npc_system.prepare_npc_for_interaction` ensures the NPC has the necessary details (like social stats).
+4.  `npc_system.get_context_for_interaction` provides the LLM with the NPC's current state, relevant stats, and past interactions (memories) to inform its response generation.
+5.  `BackgroundGenerator` can be invoked to create richer backstories for important NPCs introduced by the LLM.
+
+This allows the narrative engine to dynamically populate the world with characters without the burden of pre-defining every detail.
+
+```
+
+### File: __init__.py
+
+```python
+"""
+Character-related modules for the RPG game.
+"""
+
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_system import NPCSystem
+
+# Create alias for Character to NPC to fix import issues
+Character = NPC
+
+# Singleton instance for global access
+_npc_system = None
+
+def get_npc_system() -> NPCSystem:
+    """
+    Get the global NPC system instance.
+    
+    Returns:
+        The global NPCSystem instance
+    """
+    global _npc_system
+    if _npc_system is None:
+        _npc_system = NPCSystem()
+    return _npc_system
+
+```
+

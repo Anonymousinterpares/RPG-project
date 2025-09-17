@@ -1,0 +1,56 @@
+{
+  "game": {
+    "name": "RPG Adventure",
+    "version": "0.1.0",
+    "description": "A text-based RPG adventure with LLM integration",
+    "auto_save_interval": 300,
+    "default_save_name": "autosave"
+  },
+  "time": {
+    "initial_hour": 8,
+    "initial_day": 1,
+    "initial_month": 1,
+    "initial_year": 1000,
+    "time_scale": 1.0,
+    "tick_interval": 10,
+    "day_length": 24,
+    "month_length": 30,
+    "year_length": 12,
+    "dawn_hour": 6,
+    "dusk_hour": 18
+  },
+  "player": {
+    "initial_location": "Village Square",
+    "initial_level": 1,
+    "initial_health": 100,
+    "initial_mana": 50,
+    "initial_stamina": 100,
+    "inventory_slots": 20,
+    "inventory_weight_capacity": 50,
+    "starting_currency": {
+      "copper": 50,
+      "silver": 5,
+      "gold": 0
+    }
+  },
+  "world": {
+    "name": "Eldoria",
+    "starting_region": "Greenfield Valley",
+    "weather": {
+      "change_frequency": 4,
+      "default": "clear"
+    },
+    "seasons": [
+      "spring", 
+      "summer", 
+      "autumn", 
+      "winter"
+    ],
+    "starting_season": "spring"
+  },
+  "logging": {
+    "level": "INFO",
+    "file_rotation": 5,
+    "file_max_size": 5242880
+  }
+}

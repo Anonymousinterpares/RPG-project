@@ -1,0 +1,314 @@
+#!/usr/bin/env python3
+"""
+Handles game lifecycle operations like starting, loading, saving, and ticking.
+"""
+
+import os
+import logging
+from typing import Any, Dict, Optional
+
+# Need to import GameEngine for type hinting and accessing its members
+# Use a forward reference (string) to avoid circular import at runtime
+# from core.base.engine import GameEngine
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from core.base.engine import GameEngine
+    from core.base.state import GameState # Keep GameState
+
+# Import interaction_core to call its functions
+from core.game_flow import interaction_core
+from core.base.state import GameState
+from core.utils.logging_config import get_logger
+from core.inventory import get_inventory_manager, get_item_factory
+
+# Get the module logger (using a distinct name)
+logger = get_logger("LIFECYCLE")
+
+
+def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 'GameState':
+    """
+    Initializes systems for a new game using an already created GameState.
+    
+    Args:
+        engine: The game engine instance.
+        game_state: The pre-created and StatManager-initialized game state.
+    
+    Returns:
+        The initialized game state.
+    """
+    logger.info(f"Starting new game for player {game_state.player.name} using existing game state")
+    
+    # Set current state in state manager
+    engine._state_manager._current_state = game_state
+    
+    # Initialize memory/context system
+    engine._state_manager.initialize_memory_context(game_state)
+    logger.info("Memory/context system initialized for new game")
+
+    # Initialize player's inventory
+    # This assumes game_state.player.inventory_id is either None or a valid ID
+    # for an InventoryManager instance that might be globally managed or per-player.
+    # For simplicity, let's assume get_inventory_manager() gives us the player's inventory.
+    inventory_manager = get_inventory_manager()
+    inventory_manager.clear() # Clear any previous inventory data
+    if hasattr(inventory_manager, 'inventory_id'): # Check if inventory_manager has an ID itself
+        game_state.player.inventory_id = inventory_manager.inventory_id # Ensure player state has ref
+    else: # Fallback if InventoryManager doesn't have a direct inventory_id attribute
+        game_state.player.inventory_id = str(id(inventory_manager)) # Use object ID as a placeholder
+        logger.warning("InventoryManager does not have 'inventory_id' attribute. Using object ID as placeholder.")
+
+
+    # Add starting items from origin
+    origin_id = getattr(game_state.player, 'origin_id', None) # Assuming origin_id is stored on player
+    if not origin_id and hasattr(game_state, 'character_data_from_creation'): # Fallback if not on player state yet
+        origin_id = game_state.character_data_from_creation.get('origin_id')
+
+    if origin_id:
+        from core.base.config import get_config
+        origins_config = get_config().get_origin_data()
+        if origins_config and origin_id in origins_config:
+            origin_data = origins_config[origin_id]
+            starting_item_ids_from_origin = origin_data.get('starting_items', [])
+            item_factory = get_item_factory()
+
+            logger.info(f"Processing starting items for origin '{origin_id}': {starting_item_ids_from_origin}")
+            for item_template_id in starting_item_ids_from_origin:
+                logger.debug(f"Attempting to create starting item from template_id: '{item_template_id}'")
+                item_instance = item_factory.create_item_from_template(item_template_id, variation=False)
+                if item_instance:
+                    added_ids = inventory_manager.add_item(item_instance)
+                    if added_ids:
+                        logger.info(f"Added starting item '{item_instance.name}' (ID: {added_ids[0]}) to inventory.")
+                    else:
+                        logger.warning(f"Failed to add starting item '{item_template_id}' to inventory for player '{game_state.player.name}'.")
+                else:
+                    logger.warning(f"Could not create starting item from template_id: '{item_template_id}' for player '{game_state.player.name}'. Template not found or creation failed.")
+        else:
+            logger.warning(f"Origin ID '{origin_id}' not found in origins configuration. Cannot add starting items.")
+    else:
+        logger.warning("No origin_id found for player. Cannot add starting items.")
+
+    # Send welcome message
+    welcome_message_base = f"==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, {game_state.player.name} the {game_state.player.race} {game_state.player.path} from {game_state.player.background}!"
+    introduction_text = ""
+    # Ensure character_data_from_creation exists and is a dict
+    character_creation_data = getattr(game_state, 'character_data_from_creation', None)
+    if isinstance(character_creation_data, dict):
+        introduction_text = character_creation_data.get('description', '')
+    elif isinstance(character_creation_data, str): # Handle older format if it was just the string
+        introduction_text = character_creation_data
+    
+    full_welcome_message = f"{welcome_message_base}\n\n{introduction_text}\n\nYour journey begins now..."
+    
+    logger.info(f"Sending welcome message: '{full_welcome_message[:100]}...' with role 'gm'")
+    engine._output("gm", full_welcome_message)
+    
+    # Send help message
+    help_message = "Type 'help' for a list of commands."
+    engine._output("system", help_message)
+    
+    # Generate initial narrative if LLM is enabled
+    if engine._use_llm:
+        logger.info("Generating welcome narration")
+        # Use the full introduction text as the basis for the first LLM prompt
+        narration_prompt_base = (
+            f"I've just started a new game as {game_state.player.name}, a {game_state.player.race} {game_state.player.path} "
+            f"with a {game_state.player.background} background. "
+            f"Please introduce me to the game world, my character, and my starting situation. "
+            f"This is the first narrative in the game, so make it welcoming and informative."
+        )
+        if introduction_text:
+            narration_prompt = (
+                f"I've just started a new game as {game_state.player.name}, a {game_state.player.race} {game_state.player.path}. "
+                f"My background is: \"{introduction_text}\". " # Include the full origin intro
+                f"Please provide an initial immersive narration based on this, describing my immediate surroundings and current situation as the game begins. "
+                f"This is the first narrative in the game, so make it welcoming and informative."
+            )
+        else: # Fallback if no intro text
+            narration_prompt = narration_prompt_base
+
+
+        from core.game_flow.interaction_processor import process_interaction_with_llm
+        result = process_interaction_with_llm(engine, game_state, narration_prompt)
+        
+        if result.is_success and result.message:
+            logger.info(f"Received welcome narrative from LLM, first 100 chars: '{result.message[:100]}...'")
+            engine._output("gm", result.message)
+        else:
+            logger.warning("Failed to generate welcome narrative from LLM.")
+            engine._output("system", "The world awaits your command...")
+    else:
+        engine._output("gm", "The world awaits your command...")
+        
+    logger.info(f"New game started for {game_state.player.name}")
+    return game_state
+
+def start_new_game(engine: 'GameEngine', player_name: str, race: str = "Human",
+                   path: str = "Wanderer", background: str = "Commoner",
+                   sex: str = "Male", character_image: Optional[str] = None,
+                   stats: Optional[Dict[str, int]] = None) -> GameState:
+    """
+    Start a new game.
+
+    Args:
+        engine: The GameEngine instance.
+        player_name: The name of the player character.
+        race: The race of the player character.
+        path: The class/path of the player character.
+        background: The background of the player character.
+        sex: The sex/gender of the player character.
+        character_image: Path to character image.
+        stats: Optional dictionary of starting stats.
+
+    Returns:
+        The new game state.
+    """
+    logger.info(f"Starting new game for player {player_name}")
+
+    # Clean up existing game if present
+    if engine._state_manager.current_state is not None:
+        logger.info("Cleaning up existing game before starting new one")
+        if engine._game_loop.is_running:
+            engine._game_loop.pause()
+        if engine._agent_manager is not None and engine._use_llm:
+            try:
+                engine._agent_manager.reset_state()
+            except Exception as e:
+                logger.warning(f"Error resetting agent state: {e}")
+
+    # Create new game state
+    game_state = engine._state_manager.create_new_game(
+        player_name=player_name,
+        race=race,
+        path=path,
+        background=background,
+        sex=sex,
+        character_image=character_image,
+        stats=stats
+    )
+    
+    # Now use the shared function to start the game with this state
+    return start_new_game_with_state(engine, game_state)
+
+
+def load_game(engine: 'GameEngine', filename: str) -> Optional[GameState]:
+    """
+    Load a game from a save file.
+
+    Args:
+        engine: The GameEngine instance.
+        filename: The name of the save file.
+
+    Returns:
+        The loaded game state, or None if the load failed.
+    """
+    logger.info(f"Loading game from {filename}")
+
+    # Clean up existing game if present
+    if engine._state_manager.current_state is not None:
+        logger.info("Cleaning up existing game before loading")
+        if engine._game_loop.is_running:
+            engine._game_loop.pause()
+        if engine._agent_manager is not None and engine._use_llm:
+            try:
+                engine._agent_manager.reset_state()
+            except Exception as e:
+                logger.warning(f"Error resetting agent state: {e}")
+
+    # Load the game state
+    game_state = engine._state_manager.load_game(filename)
+
+    if game_state is None:
+        logger.error(f"Failed to load game from {filename}")
+        engine._output("system", f"Failed to load game from {filename}")
+        return None
+
+    # Set up the game loop with the loaded world state
+    engine._game_loop.set_world_state(game_state.world)
+
+    # Sync player location with world current_location for web server compatibility
+    game_state.world.current_location = game_state.player.current_location
+
+    # Reset auto-save timer
+    engine._auto_save_timer = 0
+
+    # Initialize memory/context system if available
+    try:
+        if hasattr(engine._state_manager, 'initialize_memory_context'):
+            engine._state_manager.initialize_memory_context(game_state)
+            logger.info("Memory/context system initialized for loaded game")
+    except Exception as e:
+        logger.warning(f"Error initializing memory/context system: {e}")
+
+    # Prepare agent system for the loaded game if LLM is enabled
+    if engine._use_llm and engine._agent_manager is not None:
+        try:
+            logger.info("Preparing agent system for loaded game")
+        except Exception as e:
+            logger.warning(f"Error preparing agent system: {e}")
+
+    # Output welcome back message
+    engine._output(
+        "gm",
+        f"Welcome back, {game_state.player.name}! You are currently at {game_state.player.current_location}."
+    )
+
+    # Output system info about time
+    engine._output(
+        "system",
+        f"Game time: {engine._game_loop.game_time.get_formatted_time()}"
+    )
+
+    return game_state
+
+
+def save_game(engine: 'GameEngine', filename: Optional[str] = None,
+              auto_save: bool = False) -> Optional[str]:
+    """
+    Save the current game.
+
+    Args:
+        engine: The GameEngine instance.
+        filename: The name of the save file. If None, generates a name.
+        auto_save: Whether this is an auto-save.
+
+    Returns:
+        The path to the save file, or None if the save failed.
+    """
+    logger.info(f"Saving game{' (auto)' if auto_save else ''}")
+
+    if engine._state_manager.current_state is None:
+        logger.error("Cannot save: No current game state")
+        engine._output("system", "Cannot save: No game in progress")
+        return None
+
+    # Save the game state
+    save_path = engine._state_manager.save_game(filename, auto_save)
+
+    if save_path is None:
+        logger.error("Failed to save game")
+        engine._output("system", "Failed to save game")
+        return None
+
+    # Output save confirmation (unless auto-save)
+    if not auto_save:
+        engine._output("system", f"Game saved to {os.path.basename(save_path)}")
+
+    return save_path
+
+
+def handle_tick(engine: 'GameEngine', elapsed_game_time: float) -> None:
+    """
+    Handle a game loop tick, primarily for auto-saving.
+
+    Args:
+        engine: The GameEngine instance.
+        elapsed_game_time: The elapsed game time in seconds since the last tick.
+    """
+    # Increment auto-save timer (assuming _auto_save_timer is still managed by engine)
+    engine._auto_save_timer += elapsed_game_time
+
+    # Auto-save if interval has passed
+    if engine._auto_save_timer >= engine._auto_save_interval:
+        engine._auto_save_timer = 0
+        save_game(engine, auto_save=True) # Call the save_game function in this module

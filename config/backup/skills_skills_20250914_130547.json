@@ -1,0 +1,208 @@
+{
+  "skills": {
+    "acrobatics": {
+      "name": "Acrobatics",
+      "primary_stat": "DEXTERITY",
+      "category": "PHYSICAL",
+      "description": "Performing agile maneuvers, balancing, tumbling, and reducing fall damage."
+    },
+    "appraisal": {
+      "name": "Appraisal",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Determining the value, authenticity, and properties of items, artifacts, or goods."
+    },
+    "arcana": {
+      "name": "Arcana",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Knowledge about magic, magical traditions, spells, arcane symbols, and supernatural effects."
+    },
+    "athletics": {
+      "name": "Athletics",
+      "primary_stat": "STRENGTH",
+      "category": "PHYSICAL",
+      "description": "Performing physical activities like running, jumping, swimming, climbing, and feats of raw power."
+    },
+    "crafting_basic": {
+      "name": "Crafting (Basic)",
+      "primary_stat": "INTELLIGENCE",
+      "category": "UTILITY",
+      "description": "Basic ability to create, repair, or modify simple items and equipment."
+    },
+    "crafting_metallurgy": {
+      "name": "Crafting (Metallurgy)",
+      "primary_stat": "INTELLIGENCE",
+      "category": "UTILITY",
+      "description": "Specialized skill in working with metals, including forging, smithing, and understanding alloys."
+    },
+    "deception": {
+      "name": "Deception",
+      "primary_stat": "CHARISMA",
+      "category": "SOCIAL",
+      "description": "Misleading others through lies, trickery, disguises, and manipulation of truth."
+    },
+    "diplomacy": {
+      "name": "Diplomacy",
+      "primary_stat": "CHARISMA",
+      "category": "SOCIAL",
+      "description": "Influencing others through negotiation, tact, and understanding of social etiquette."
+    },
+    "dodge": {
+      "name": "Dodge",
+      "primary_stat": "DEXTERITY",
+      "category": "COMBAT",
+      "description": "Avoiding attacks and obstacles through quick movements."
+    },
+    "endurance": {
+      "name": "Endurance",
+      "primary_stat": "CONSTITUTION",
+      "category": "PHYSICAL",
+      "description": "Withstanding prolonged physical exertion, fatigue, hardship, and resisting exhaustion."
+    },
+    "history": {
+      "name": "History",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Knowledge of past events, civilizations, historical figures, and the study of recorded history."
+    },
+    "history_oral": {
+      "name": "History (Oral)",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Knowledge of past events, legends, and traditions passed down verbally, common in cultures without extensive written records."
+    },
+    "insight": {
+      "name": "Insight",
+      "primary_stat": "INSIGHT",
+      "category": "MENTAL",
+      "description": "Discerning true intentions, detecting lies, sensing emotions, and understanding underlying truths or motives."
+    },
+    "insight_probability": {
+      "name": "Insight (Probability)",
+      "primary_stat": "INSIGHT",
+      "category": "MENTAL",
+      "description": "Intuitive understanding of chance, luck, predicting random outcomes, and sensing probability currents."
+    },
+    "insight_risk_assessment": {
+      "name": "Insight (Risk Assessment)",
+      "primary_stat": "INSIGHT",
+      "category": "MENTAL",
+      "description": "Specifically assessing potential dangers, evaluating probabilities of failure/success, and calculating risks in various situations."
+    },
+    "intimidation": {
+      "name": "Intimidation",
+      "primary_stat": "CHARISMA",
+      "category": "SOCIAL",
+      "description": "Influencing others through threats, fear, force of presence, or hostile actions."
+    },
+    "investigation": {
+      "name": "Investigation",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Finding clues, deducing information, examining details, and solving mysteries or puzzles."
+    },
+    "mathematics_basic": {
+      "name": "Mathematics (Basic)",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Basic understanding and application of mathematical principles, logic, and calculations."
+    },
+    "medicine": {
+      "name": "Medicine",
+      "primary_stat": "WISDOM",
+      "category": "UTILITY",
+      "description": "Diagnosing illnesses, treating wounds, administering first aid, and knowledge of remedies."
+    },
+    "melee_attack": {
+      "name": "Melee Attack",
+      "primary_stat": "STRENGTH",
+      "category": "COMBAT",
+      "description": "Physical close-range combat attacks."
+    },
+    "nature": {
+      "name": "Nature",
+      "primary_stat": "WISDOM",
+      "category": "EXPLORATION",
+      "description": "Knowledge about flora, fauna, weather, natural terrain, and survival in natural environments."
+    },
+    "navigation": {
+      "name": "Navigation",
+      "primary_stat": "WISDOM",
+      "category": "EXPLORATION",
+      "description": "Finding one's way through various terrains, using maps, stars, or natural signs."
+    },
+    "perception": {
+      "name": "Perception",
+      "primary_stat": "WISDOM",
+      "category": "EXPLORATION",
+      "description": "Noticing details in your surroundings, detecting hidden objects, and general awareness of your environment."
+    },
+    "persuasion": {
+      "name": "Persuasion",
+      "primary_stat": "CHARISMA",
+      "category": "SOCIAL",
+      "description": "Convincing others through reasoning, charm, debate, or emotional appeals."
+    },
+    "planar_lore": {
+      "name": "Planar Lore",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "General knowledge about the different planes of existence, their properties, inhabitants, and planar travel."
+    },
+    "planar_lore_basic": {
+      "name": "Planar Lore (Basic)",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Basic understanding of the different planes of existence, their interactions, and common phenomena."
+    },
+    "planar_lore_rumors": {
+      "name": "Planar Lore (Rumors)",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Knowledge of hearsay, gossip, unverified information, and local legends about the planes."
+    },
+    "ranged_attack": {
+      "name": "Ranged Attack",
+      "primary_stat": "DEXTERITY",
+      "category": "COMBAT",
+      "description": "Physical ranged combat attacks."
+    },
+    "religion": {
+      "name": "Religion",
+      "primary_stat": "WILLPOWER",
+      "category": "KNOWLEDGE",
+      "description": "Knowledge about deities, religious rites, holy symbols, mythology, and theological matters. Also represents strength of faith."
+    },
+    "spell_attack": {
+      "name": "Spell Attack",
+      "primary_stat": "INTELLIGENCE",
+      "category": "COMBAT",
+      "description": "Magical attacks using spells or arcane abilities."
+    },
+    "stealth": {
+      "name": "Stealth",
+      "primary_stat": "DEXTERITY",
+      "category": "COVERT",
+      "description": "Moving silently, avoiding detection, and hiding effectively."
+    },
+    "streetwise_harmonia": {
+      "name": "Streetwise (Harmonia)",
+      "primary_stat": "CHARISMA",
+      "category": "SOCIAL",
+      "description": "Knowledge of the streets, local customs, influential figures, and underworld of Harmonia."
+    },
+    "survival": {
+      "name": "Survival",
+      "primary_stat": "WISDOM",
+      "category": "EXPLORATION",
+      "description": "Thriving in the wild by tracking, foraging, finding shelter, and navigating harsh environments."
+    },
+    "unarmed_attack": {
+      "name": "Unarmed Attack",
+      "primary_stat": "STRENGTH",
+      "category": "COMBAT",
+      "description": "Combat attacks without weapons, such as punches and kicks."
+    }
+  }
+}

@@ -1,0 +1,504 @@
+/**
+ * Main JavaScript for RPG Game Web Interface
+ * Initializes all components and handles application flow
+ */
+
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Let UI manager initialize model options
+    // This code has been moved to the UI manager to prevent race conditions
+    /*
+    setTimeout(() => {
+        // Initialize model options for each agent
+        ['narrator', 'rule-checker', 'context-evaluator'].forEach(agent => { 
+            const providerSelect = document.getElementById(`${agent}-provider`);
+            if (providerSelect) {
+                const event = new Event('change');
+                providerSelect.dispatchEvent(event);
+            }
+        });
+    }, 100);
+    */
+    // Initialize UI event listeners
+    uiManager.initEventListeners();
+    
+    // New Game button
+    document.getElementById('new-game-btn').addEventListener('click', () => {
+        uiManager.openModal('newGame');
+        
+        // Initialize character creator if available
+        if (window.CharacterCreator && typeof window.CharacterCreator.init === 'function') {
+            // Initialize with a small delay to ensure the modal is fully open
+            setTimeout(() => {
+                window.CharacterCreator.init();
+            }, 100);
+        }
+    });
+    
+    // Create Game button (inside new game modal)
+    document.getElementById('create-game-btn').addEventListener('click', () => {
+        // Validate using the CharacterCreator module if it exists
+        if (window.CharacterCreator && typeof window.CharacterCreator.validateForm === 'function') {
+            if (!window.CharacterCreator.validateForm()) {
+                return; // Validation failed
+            }
+        } else {
+            // Fallback validation
+            const playerName = document.getElementById('new-player-name').value.trim();
+            if (!playerName) {
+                uiManager.showNotification('Please enter a character name', 'warning');
+                return;
+            }
+        }
+        
+        // Get character information from the form
+        const playerName = document.getElementById('new-player-name').value.trim();
+        const race = document.getElementById('character-race-select').value;
+        const characterClass = document.getElementById('character-class-select').value;
+        const background = document.getElementById('character-background-select').value;
+        const sex = document.getElementById('character-sex-select').value;
+        const useLLM = document.getElementById('character-llm-toggle').checked;
+        
+        // Get selected icon if available
+        let characterIcon = null;
+        if (window.CharacterCreator && typeof window.CharacterCreator.getSelectedIcon === 'function') {
+            const iconInfo = window.CharacterCreator.getSelectedIcon();
+            if (iconInfo) {
+                characterIcon = iconInfo.path;
+            }
+        }
+        
+        // Create the new game with all parameters
+        createNewGame(playerName, {
+            race: race,
+            path: characterClass,
+            background: background,
+            sex: sex,
+            characterImage: characterIcon,
+            useLLM: useLLM
+        });
+    });
+    
+    // Save Game button
+    document.getElementById('save-game-btn').addEventListener('click', () => {
+        if (!apiClient.hasActiveSession()) {
+            uiManager.showNotification('No active game to save', 'warning');
+            return;
+        }
+        
+        uiManager.openModal('saveGame');
+    });
+    
+    // Save button (inside save game modal)
+    document.getElementById('save-btn').addEventListener('click', () => {
+        const saveName = document.getElementById('save-name').value.trim();
+        saveGame(saveName);
+    });
+    
+    // Load Game button
+    document.getElementById('load-game-btn').addEventListener('click', () => {
+        loadSavesList();
+    });
+    
+    // Settings button
+    document.getElementById('settings-btn').addEventListener('click', async () => {
+        uiManager.openModal('settings');
+        
+        // Load LLM settings when settings dialog is opened
+        try {
+            await uiManager.loadLLMSettings();
+        } catch (error) {
+            console.error('Error loading LLM settings:', error);
+            uiManager.showNotification('Error loading LLM settings', 'error');
+        }
+    });
+    
+    // Command submission
+    document.getElementById('send-command-btn').addEventListener('click', () => {
+        sendCommand();
+    });
+    
+    // Command submission via Enter key
+    document.getElementById('command-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendCommand();
+        }
+    });
+    
+    // Listen for save loading event
+    document.addEventListener('load-save', (e) => {
+        loadGame(e.detail.saveId);
+    });
+
+    // Listen for new session creation
+    document.addEventListener('session-created', (e) => {
+        // Always reconnect to ensure fresh connection
+        connectWebSocket(e.detail.sessionId);
+        uiManager.enableCommandInput();
+    });
+    
+    // Check for existing session
+    checkExistingSession();
+    
+    // Check server status
+    checkServerStatus();
+});
+
+/**
+ * Check if the server is available
+ */
+async function checkServerStatus() {
+    try {
+        const isAvailable = await apiClient.checkServerStatus();
+        
+        if (!isAvailable) {
+            uiManager.showNotification('Server is not available. Please try again later.', 'error', 0);
+        }
+    } catch (error) {
+        console.error('Server check failed:', error);
+        uiManager.showNotification('Unable to connect to the server.', 'error', 0);
+    }
+}
+
+/**
+ * Check for existing session and restore if found
+ */
+function checkExistingSession() {
+    if (apiClient.hasActiveSession()) {
+        uiManager.addMessage('Reconnecting to existing game session...', 'system');
+        connectWebSocket(apiClient.sessionId);
+        uiManager.enableCommandInput();
+    }
+}
+
+/**
+ * Create a new game with optional character customization
+ * 
+ * @param {string} playerName - Name of the character
+ * @param {Object} options - Optional character customization options
+ */
+async function createNewGame(playerName, options = {}) {
+    try {
+        // Clear any existing game
+        uiManager.clearOutput();
+        
+        // Show loading message
+        uiManager.addMessage('Creating new game...', 'system');
+        
+        // Create new game via API with all character options
+        const result = await apiClient.createNewGame(playerName, options);
+        
+        // Close the modal
+        uiManager.closeAllModals();
+        
+        // Connect WebSocket
+        connectWebSocket(result.session_id);
+        
+        // Extract character details for UI update
+        const characterRace = options.race || result.race || 'Human';
+        const characterClass = options.path || result.path || 'Wanderer';
+        
+        // Update UI
+        uiManager.updateGameInfo({
+            player: {
+                name: playerName,
+                level: 1,
+                race: characterRace,
+                path: characterClass
+            },
+            location: result.location || 'Starting Area',
+            time: result.game_time || 'Dawn'
+        });
+        
+        // Enable input
+        uiManager.enableCommandInput();
+        
+        // Add welcome message
+        uiManager.addMessage(`Welcome, ${playerName} the ${characterRace} ${characterClass}! Your adventure begins...`, 'game');
+        uiManager.addMessage('Type "help" to see available commands.', 'system');
+        
+        // Create user-event for session creation (for other components to react to)
+        document.dispatchEvent(new CustomEvent('session-created', { 
+            detail: { 
+                sessionId: result.session_id,
+                playerData: result
+            }
+        }));
+        
+    } catch (error) {
+        console.error('Error creating new game:', error);
+        uiManager.showNotification('Failed to create new game: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Connect to WebSocket for real-time updates
+ */
+function connectWebSocket(sessionId) {
+    if (!sessionId && !apiClient.sessionId) {
+        console.error('No session ID to connect WebSocket');
+        return;
+    }
+    
+    const id = sessionId || apiClient.sessionId;
+    
+    // If already connected to this session, don't reconnect
+    if (webSocketClient.socket && webSocketClient.isConnected && webSocketClient.sessionId === id) {
+        console.log('Already connected to session', id);
+        return;
+    }
+    
+    // Important: First disconnect completely before setting up new handlers
+    webSocketClient.disconnect();
+    
+    // Remove any existing event handlers to prevent duplication
+    if (typeof webSocketClient.offAll === 'function') {
+        // Clear all event handlers
+        Object.keys(webSocketClient.eventHandlers).forEach(eventType => {
+            webSocketClient.offAll(eventType);
+        });
+    } else {
+        // Alternative cleanup if offAll is not available
+        console.warn('WebSocketClient.offAll is not available - using manual event handler cleanup');
+        webSocketClient.eventHandlers = {
+            'connect': [],
+            'disconnect': [],
+            'game_state': [],
+            'command_result': [],
+            'game_loaded': [],
+            'time_update': [],
+            'error': []
+        };
+    }
+    
+    // Set up WebSocket event handlers BEFORE connecting
+    webSocketClient.on('game_state', (data) => {
+        console.log('Received game state update');
+        updateGameState(data);
+    });
+    
+    webSocketClient.on('command_result', (data) => {
+        console.log('Received command result via WebSocket');
+        // Only handle responses that came from WebSocket to prevent duplication
+        if (data.source === 'websocket') {
+            handleCommandResult(data);
+        }
+    });
+    
+    webSocketClient.on('game_loaded', (data) => {
+        console.log('Received game loaded event');
+        if (data.state) {
+            updateGameState(data.state);
+        }
+        if (data.message) {
+            uiManager.addMessage(data.message, 'system');
+        }
+    });
+    
+    webSocketClient.on('time_update', (data) => {
+        if (data.time) {
+            uiManager.gameTimeElement.textContent = data.time;
+        }
+    });
+    
+    webSocketClient.on('error', (data) => {
+        uiManager.showNotification('Connection error: ' + data.message, 'error');
+    });
+    
+    webSocketClient.on('disconnect', (data) => {
+        uiManager.addMessage('Connection to server lost. Attempting to reconnect...', 'system');
+    });
+    
+    webSocketClient.on('connect', (data) => {
+        uiManager.addMessage('Connected to game server.', 'system');
+    });
+    
+    // Connect WebSocket only after setting up all handlers
+    webSocketClient.connect(id);
+}
+
+/**
+ * Send a command to the server
+ */
+async function sendCommand() {
+    const command = uiManager.commandInput.value.trim();
+    
+    if (!command) {
+        return;
+    }
+    
+    if (!apiClient.hasActiveSession()) {
+        uiManager.showNotification('No active game session', 'warning');
+        return;
+    }
+    
+    try {
+        // Show command in output
+        uiManager.addMessage(command, 'player');
+        
+        // Add to command history
+        uiManager.addCommandToHistory(command);
+        
+        // Clear input
+        uiManager.clearCommandInput();
+        
+        // Send command to server
+        const result = await apiClient.sendCommand(command);
+        
+        // Handle result only if it came from HTTP response
+        if (result.source === 'http_response') {
+            handleCommandResult(result);
+        }
+        
+    } catch (error) {
+        console.error('Command error:', error);
+        uiManager.addMessage(`Error: ${error.message}`, 'system');
+    }
+}
+
+/**
+ * Handle command result
+ */
+function handleCommandResult(result) {
+    if (!result) return;
+    
+    // Add result message
+    if (result.message) {
+        uiManager.addMessage(result.message, 'game');
+    }
+    
+    // Update game state if provided
+    if (result.state) {
+        updateGameState(result.state);
+    }
+    
+    // Handle exit command
+    if (result.status === 'EXIT') {
+        handleGameExit();
+    }
+}
+
+/**
+ * Update game state in UI
+ */
+function updateGameState(state) {
+    if (!state) return;
+    
+    const gameInfo = {
+        player: state.player,
+        location: state.player?.location || state.location,
+        time: state.time
+    };
+    
+    uiManager.updateGameInfo(gameInfo);
+}
+
+/**
+ * Handle game exit
+ */
+function handleGameExit() {
+    apiClient.endSession().then(() => {
+        webSocketClient.disconnect();
+        uiManager.disableCommandInput();
+        uiManager.addMessage('Thanks for playing! Refresh the page to start a new game.', 'system');
+    });
+}
+
+/**
+ * Save the current game
+ */
+async function saveGame(saveName) {
+    if (!apiClient.hasActiveSession()) {
+        uiManager.showNotification('No active game to save', 'warning');
+        return;
+    }
+    
+    try {
+        const result = await apiClient.saveGame(saveName);
+        uiManager.closeAllModals();
+        
+        if (result.status === 'success') {
+            uiManager.addMessage(`Game saved as "${result.save_name}"`, 'system');
+            uiManager.showNotification('Game saved successfully', 'success');
+        }
+    } catch (error) {
+        console.error('Save error:', error);
+        uiManager.showNotification('Failed to save game: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Load available saves list
+ */
+async function loadSavesList() {
+    try {
+        // Open the modal and show loading state
+        uiManager.openModal('loadGame');
+        
+        // Fetch saves
+        const result = await apiClient.listSaves();
+        
+        if (result.status === 'success') {
+            // Populate the saves list
+            uiManager.populateSavesList(result.saves);
+        } else {
+            uiManager.savesList.innerHTML = '<div class="error-message">Failed to load saves.</div>';
+        }
+    } catch (error) {
+        console.error('List saves error:', error);
+        uiManager.savesList.innerHTML = '<div class="error-message">Failed to load saves: ' + error.message + '</div>';
+    }
+}
+
+/**
+ * Load a saved game
+ */
+async function loadGame(saveId) {
+    if (!apiClient.hasActiveSession()) {
+        try {
+            // Create a temporary session first
+            uiManager.addMessage('Creating a new session to load the game...', 'system');
+            const result = await apiClient.createNewGame('Temporary');
+            connectWebSocket(result.session_id);
+        } catch (error) {
+            uiManager.showNotification('Failed to create session to load game', 'error');
+            return;
+        }
+    }
+    
+    try {
+        // Clear the current output
+        uiManager.clearOutput();
+        uiManager.addMessage('Loading game...', 'system');
+        
+        // Load the game
+        const result = await apiClient.loadGame(saveId);
+        
+        if (result.status === 'success') {
+            // Update game state
+            updateGameState(result.state);
+            
+            // Enable input
+            uiManager.enableCommandInput();
+            
+            uiManager.addMessage('Game loaded successfully.', 'system');
+            uiManager.showNotification('Game loaded successfully', 'success');
+        } else {
+            uiManager.addMessage('Failed to load game.', 'system');
+            uiManager.showNotification('Failed to load game', 'error');
+        }
+    } catch (error) {
+        console.error('Load game error:', error);
+        uiManager.addMessage('Failed to load game: ' + error.message, 'system');
+        uiManager.showNotification('Failed to load game: ' + error.message, 'error');
+    }
+}
+
+// Handle window beforeunload event to warn about losing game progress
+window.addEventListener('beforeunload', (event) => {
+    if (apiClient.hasActiveSession()) {
+        const message = 'You have an active game session. Leaving this page will end your session.';
+        event.returnValue = message;
+        return message;
+    }
+});

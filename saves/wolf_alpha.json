@@ -1,0 +1,1269 @@
+{
+    "session_id": "aee48ce2-7807-4aac-960f-735d8c310916",
+    "created_at": 1757850509.8213663,
+    "last_saved_at": 1758021211.458996,
+    "game_version": "0.1.0",
+    "player": {
+        "name": "Pras",
+        "race": "Human",
+        "path": "Wanderer",
+        "background": "This is a dedicated test scenario. You begin in the Quest Test Hub, with tools to validate quest objective detection and event logging.",
+        "sex": "Male",
+        "origin_id": "quest_testbed",
+        "level": 1,
+        "experience": 0,
+        "stats_manager_id": "ec288276-3155-4d65-b658-d9f7bc82760f",
+        "current_location": "Quest Test Hub",
+        "current_district": "",
+        "inventory_id": "04ac605f-d288-416b-996b-18c14becb707",
+        "equipped_items": {},
+        "active_quests": [],
+        "completed_quests": [],
+        "character_image": "D:\\coding\\RPG project\\latest version\\images\\character_icons\\Human_Wanderer\\1_Human_Wanderer_Male.jpg",
+        "current_resolve": 0.0,
+        "active_social_effects": []
+    },
+    "world": {
+        "game_time": 1757850509.8213663,
+        "game_date": "Day 1",
+        "weather": "Clear",
+        "is_day": true,
+        "magical_conditions": {},
+        "global_vars": {},
+        "active_events": []
+    },
+    "conversation_history": [
+        {
+            "role": "gm",
+            "content": "==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, Pras the Human Wanderer from This is a dedicated test scenario. You begin in the Quest Test Hub, with tools to validate quest objective detection and event logging.!\n\nYour journey begins now...",
+            "timestamp": 1757850509.8517215
+        },
+        {
+            "role": "gm",
+            "content": "Welcome back, Pras! You are currently at Quest Test Hub.",
+            "timestamp": 1757946488.4161012
+        },
+        {
+            "role": "gm",
+            "content": "The Quest Test Hub shimmers under the midday sun. You stand in a small, nondescript clearing, the air still and warm. Before you lies a path leading deeper into the test environment. A faint hum emanates from the various structures and objects scattered around, a constant reminder of the artificial nature of this place. You recall that you're here to test and validate quest objective detection and event logging. All active quests are listed above.",
+            "timestamp": 1757946494.3088562
+        },
+        {
+            "role": "player",
+            "content": "this is dev and this is a test scenario. create 1 test apple with {ITEM_CREATE apple type:consumable rarity:common quantity:1}",
+            "timestamp": 1757946620.4348078
+        },
+        {
+            "role": "gm",
+            "content": "A shimmering light briefly envelops the area, and a single, perfectly formed apple materializes in front of you. It looks remarkably ordinary, despite its sudden appearance from thin air.",
+            "timestamp": 1757946625.4984016
+        },
+        {
+            "role": "gm",
+            "content": "Welcome back, Pras! You are currently at Quest Test Hub.",
+            "timestamp": 1757967338.1396685
+        },
+        {
+            "role": "gm",
+            "content": "The familiar hum of the Quest Test Hub fills the air, a constant reminder of the simulated reality you inhabit. Sunlight warms your face as you stand in the small clearing, the apple you recently conjured still resting nearby. You recall your purpose here: to rigorously test quest objective detection and event logging, ensuring the smooth functionality of the system. All active quests are listed above.",
+            "timestamp": 1757967343.7296207
+        },
+        {
+            "role": "player",
+            "content": "drop 26cbf333-98e9-4106-ac55-888b09c04083",
+            "timestamp": 1757967347.32954
+        },
+        {
+            "role": "player",
+            "content": "this is dev and this is a test scenario - we;re working on an inventory.-> fetch me another test apple",
+            "timestamp": 1757967372.5805194
+        },
+        {
+            "role": "gm",
+            "content": "As you request another apple, a faint shimmer appears in the air, and a second, identical apple materializes beside the first. It seems the system is quite responsive to your commands within this test environment.",
+            "timestamp": 1757967377.4050581
+        },
+        {
+            "role": "player",
+            "content": "and another",
+            "timestamp": 1757967391.6653552
+        },
+        {
+            "role": "gm",
+            "content": "Another apple materializes beside the others, a testament to the seemingly limitless resources of this test environment. They sit there, three identical apples, radiating an almost unsettling aura of artificial perfection.",
+            "timestamp": 1757967396.2911294
+        },
+        {
+            "role": "player",
+            "content": "another apple please",
+            "timestamp": 1757967413.387668
+        },
+        {
+            "role": "gm",
+            "content": "Another apple pops into existence, joining its brethren. You now have four identical test apples sitting before you. The air crackles faintly with the energy used to conjure them.",
+            "timestamp": 1757967416.9007416
+        },
+        {
+            "role": "gm",
+            "content": "Welcome back, Pras! You are currently at Quest Test Hub.",
+            "timestamp": 1757968596.9595764
+        },
+        {
+            "role": "gm",
+            "content": "The midday sun beats down on the Quest Test Hub, casting sharp shadows from the meticulously crafted, yet obviously artificial, trees that surround the small clearing. You, Pras the Human Wanderer, stand amidst the carefully calibrated chaos, a faint shimmer of residual magical energy still lingering in the air. Before you sit four identical test apples, conjured into existence through your recent experimentation. The hum of the Hub's systems is a constant, subtle reminder of the artificiality of your surroundings, a stark contrast to the simulated warmth on your skin. You were last focused on testing the environment's resource generation capabilities. Your primary objective remains validating quest objective detection and event logging, a task that requires your full attention amidst the digital artifice.",
+            "timestamp": 1757968602.2993166
+        },
+        {
+            "role": "player",
+            "content": "drop 04a9b889-b82e-405f-bf17-0e17aebf07d6",
+            "timestamp": 1757968608.9323752
+        },
+        {
+            "role": "player",
+            "content": "drop 5fca5fef-27c1-4951-9960-17254e6d6f34",
+            "timestamp": 1757968610.1314247
+        },
+        {
+            "role": "player",
+            "content": "this is the dev and this is a test scenario - please add 2 test apples to my inventory\\",
+            "timestamp": 1757968626.535522
+        },
+        {
+            "role": "gm",
+            "content": "Acknowledging the developer override, the system prepares to add two test apples directly into your inventory.",
+            "timestamp": 1757968631.6910226
+        },
+        {
+            "role": "player",
+            "content": "please add another 3 test apples",
+            "timestamp": 1757968655.2555702
+        },
+        {
+            "role": "gm",
+            "content": "The air shimmers again as three more identical test apples materialize, seemingly from thin air, and are placed directly into your inventory. You feel a slight shift in the weight of your pack as they appear.",
+            "timestamp": 1757968659.768771
+        },
+        {
+            "role": "player",
+            "content": "now please add another 20",
+            "timestamp": 1757968669.467593
+        },
+        {
+            "role": "gm",
+            "content": "With a final surge of controlled energy, twenty more test apples blink into existence and find their way into your inventory. The weight is now definitely noticeable, though still within comfortable limits. The system hums quietly, processing the changes.",
+            "timestamp": 1757968673.4327936
+        },
+        {
+            "role": "gm",
+            "content": "Welcome back, Pras! You are currently at Quest Test Hub.",
+            "timestamp": 1758020990.1791923
+        },
+        {
+            "role": "gm",
+            "content": "The noonday sun casts long, artificial shadows across the Quest Test Hub. You stand amidst the meticulously arranged, yet clearly simulated, trees and foliage. The faint, ever-present hum of the Hub's systems serves as a constant reminder of the manufactured reality that surrounds you. You are Pras, the Human Wanderer, here to rigorously test the system's quest objective detection and event logging capabilities. Your pockets feel heavy with the twenty-seven test apples you recently conjured into existence. Before that, you were likely focused on evaluating the environment's resource generation. A multitude of quests remain active, each a carefully designed scenario meant to push the boundaries of the system's ability to track your progress. Which one will you tackle next?",
+            "timestamp": 1758020997.0931637
+        },
+        {
+            "role": "player",
+            "content": "this is dev - I need to fight with wolf_alpha. please set as low stats as possible as I need to test scenario of defeating it",
+            "timestamp": 1758021045.0473878
+        },
+        {
+            "role": "gm",
+            "content": "Acknowledging your developer request, the environment around you subtly shifts. A large, gray wolf, visibly tagged 'wolf_alpha' and radiating an aura of diminished power, appears a short distance away, its eyes fixed on you. It snarls weakly, a clear indication of its intent to engage. The system logs your desire to test the defeat scenario.",
+            "timestamp": 1758021051.5786257
+        },
+        {
+            "role": "player",
+            "content": "I attack",
+            "timestamp": 1758021085.5953379
+        },
+        {
+            "role": "player",
+            "content": "I attack",
+            "timestamp": 1758021129.6618757
+        },
+        {
+            "role": "player",
+            "content": "I attack",
+            "timestamp": 1758021171.1484675
+        }
+    ],
+    "event_log": [
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": -1,
+            "source": "inventory_remove",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": -1,
+            "source": "inventory_remove",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": -1,
+            "source": "inventory_remove",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 2,
+            "source": "inventory_add",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 3,
+            "source": "inventory_add",
+            "game_time": 1757850509.8213663
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 20,
+            "source": "inventory_add",
+            "game_time": 1757850509.8213663
+        }
+    ],
+    "last_command": "drop 5fca5fef-27c1-4951-9960-17254e6d6f34",
+    "current_mode": "COMBAT",
+    "current_combatants": [],
+    "current_trade_partner_id": null,
+    "mode_transition_cooldowns": {},
+    "is_transitioning_to_combat": true,
+    "combat_narrative_buffer": [],
+    "journal": {
+        "character": "",
+        "quests": {
+            "TEST_Q01": {
+                "title": "Q01 \u2013 Fetch an Apple",
+                "description": "Obtain a test apple.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Obtain 1 test_apple.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q02": {
+                "title": "Q02 \u2013 Defeat the Test Wolf",
+                "description": "Defeat the test_wolf_alpha.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_wolf_alpha.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q03": {
+                "title": "Q03 \u2013 Visit the Test Ruins",
+                "description": "Visit test_ancient_ruins.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_ancient_ruins.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q04": {
+                "title": "Q04 \u2013 Speak to the Test Elder",
+                "description": "Ensure flag test_spoke_to_elder is true.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Speak with the test_elder.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q05": {
+                "title": "Q05 \u2013 Beat the Clock (Before 5m)",
+                "description": "Complete before time < 300.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Finish the timed task before 300s.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q06": {
+                "title": "Q06 \u2013 After Time Gate (After 10m)",
+                "description": "Complete only after time > 600.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Finish the timed task after 600s.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q07": {
+                "title": "Q07 \u2013 All Composite",
+                "description": "Have test_key and defeat test_guardian.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Have test_key and defeat test_guardian.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q08": {
+                "title": "Q08 \u2013 Any Composite",
+                "description": "Visit either test_dock or test_harbor.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_dock OR test_harbor.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q09": {
+                "title": "Q09 \u2013 None Composite",
+                "description": "Alarm must NOT be triggered.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Ensure alarm remains silent.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q10": {
+                "title": "Q10 \u2013 Mandatory + Optional",
+                "description": "Mandatory item; optional visit.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Obtain test_badge.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Optionally visit test_outpost.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q11": {
+                "title": "Q11 \u2013 Two Mandatory Objectives",
+                "description": "Complete both mandatory objectives.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_bandit_captain.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Collect 3 test_gem.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q12": {
+                "title": "Q12 \u2013 Semantic Only (No DSL)",
+                "description": "Objective completion via semantic inference.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Convince the test_mayor to help.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q13": {
+                "title": "Q13 \u2013 Semantic Mandatory + Optional DSL",
+                "description": "Mandatory semantic objective and optional visit objective.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Broker peace between test_factions.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Optionally visit test_neutral_ground.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q14": {
+                "title": "Q14 \u2013 Flag Chain",
+                "description": "Require both flags set (speak to guard and acquire pass).",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Speak to guard and acquire pass.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q15": {
+                "title": "Q15 \u2013 Inventory Count",
+                "description": "Collect 3 test_herb.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Collect 3 test_herb.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q16": {
+                "title": "Q16 \u2013 Any of Three Enemies",
+                "description": "Defeat any one of three test bandits.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat any bandit (1 of 3).",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q17": {
+                "title": "Q17 \u2013 Visit Two Key Locations",
+                "description": "Visit both test_gate and test_keep.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_gate and test_keep.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q18": {
+                "title": "Q18 \u2013 Negative Flag (Not Banished)",
+                "description": "Ensure not banished.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Ensure test_banished is false.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q19": {
+                "title": "Q19 \u2013 Mixed All/Any",
+                "description": "Travel to dock or harbor and have a test_ticket.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_dock or test_harbor and show test_ticket.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q20": {
+                "title": "Q20 \u2013 Optional Does Not Block",
+                "description": "Optional objective should not block completion.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Deliver test_letter.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Explore test_garden (optional).",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q21": {
+                "title": "Q21 \u2013 Narrative-Heavy Objective",
+                "description": "Deliver an inspiring speech to the council.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Deliver an inspiring speech to the test_council about unity and cooperation.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q22": {
+                "title": "Q22 \u2013 Three Mandatory Objectives",
+                "description": "Complete three distinct tasks.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_ogre.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Collect 2 test_ogre_tooth.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O3",
+                        "description": "Visit test_ogre_cave.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q23": {
+                "title": "Q23 \u2013 Semantic Failure Gating",
+                "description": "Objective completion depends on semantic inference only.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Convince test_skeptic to trust you.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q24": {
+                "title": "Q24 \u2013 Abandon/Fallback Scenario",
+                "description": "Regular quest for abandon/failure flow testing.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Recover the test_relic.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q25": {
+                "title": "Q25 \u2013 Complex Mixed Conditions",
+                "description": "Any of two routes, but no alarm and with resource gate.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Route A (visit test_tower AND have test_rope) OR Route B (defeat test_spider_queen) with no alarm.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            }
+        },
+        "notes": []
+    },
+    "combat_manager": {
+        "id": "2b80785c-d0d6-4c1e-aea9-7e113b600945",
+        "entities": {
+            "ec288276-3155-4d65-b658-d9f7bc82760f": {
+                "id": "ec288276-3155-4d65-b658-d9f7bc82760f",
+                "name": "Pras",
+                "combat_name": "Pras",
+                "entity_type": "PLAYER",
+                "stats": {
+                    "STR": 15.0,
+                    "DEX": 12.0,
+                    "CON": 12.0,
+                    "INT": 12.0,
+                    "WIS": 12.0,
+                    "CHA": 10.0,
+                    "WIL": 8.0,
+                    "INS": 8.0,
+                    "Max Health Points": 11.0,
+                    "Max Mana Points": 7.0,
+                    "Max Stamina": 14.0,
+                    "Max Resolve": 8.0,
+                    "Melee Attack": 4.0,
+                    "Ranged Attack": 3.0,
+                    "Magic Attack": 3.0,
+                    "Defense": 12.0,
+                    "Magic Defense": 11.0,
+                    "Damage Reduction": 0.0,
+                    "Initiative": 1.0,
+                    "Carry Capacity": 125.0,
+                    "Movement": 35.0,
+                    "Health Points": 11.0,
+                    "Resolve": 8.0,
+                    "Mana Points": 7.0,
+                    "Stamina": 14.0
+                },
+                "current_hp": 7,
+                "max_hp": 11.0,
+                "current_mp": 7,
+                "max_mp": 7.0,
+                "current_stamina": 4.0,
+                "max_stamina": 14.0,
+                "status_effects": {},
+                "initiative": 4.0,
+                "position": 0,
+                "is_active_in_combat": true,
+                "description": "Human Wanderer"
+            },
+            "850803a7-4875-40bf-81b6-3ab48d915c92": {
+                "id": "850803a7-4875-40bf-81b6-3ab48d915c92",
+                "name": "wolf_alpha",
+                "combat_name": "wolf_alpha",
+                "entity_type": "ENEMY",
+                "stats": {
+                    "STR": 9.0,
+                    "DEX": 9.0,
+                    "CON": 11.0,
+                    "INT": 14.0,
+                    "WIS": 14.0,
+                    "CHA": 13.0,
+                    "WIL": 10.0,
+                    "INS": 13.0,
+                    "Max Health Points": 10.0,
+                    "Max Mana Points": 9.0,
+                    "Max Stamina": 11.0,
+                    "Max Resolve": 11.0,
+                    "Melee Attack": 1.0,
+                    "Ranged Attack": 1.0,
+                    "Magic Attack": 4.0,
+                    "Defense": 9.0,
+                    "Magic Defense": 13.0,
+                    "Damage Reduction": 0.0,
+                    "Initiative": 0.0,
+                    "Carry Capacity": 95.0,
+                    "Movement": 29.0,
+                    "Health Points": 10.0,
+                    "Resolve": 11.0,
+                    "Mana Points": 9.0,
+                    "Stamina": 11.0
+                },
+                "current_hp": 1.0,
+                "max_hp": 10.0,
+                "current_mp": 9,
+                "max_mp": 9.0,
+                "current_stamina": 2.0,
+                "max_stamina": 11.0,
+                "status_effects": {},
+                "initiative": 6.0,
+                "position": 0,
+                "is_active_in_combat": true,
+                "description": "A hostile wolf named wolf_alpha."
+            }
+        },
+        "turn_order": [
+            "850803a7-4875-40bf-81b6-3ab48d915c92",
+            "ec288276-3155-4d65-b658-d9f7bc82760f"
+        ],
+        "current_turn_index": 1,
+        "round_number": 1,
+        "state": "IN_PROGRESS",
+        "current_step": "AWAITING_PLAYER_INPUT",
+        "active_entity_id": "ec288276-3155-4d65-b658-d9f7bc82760f",
+        "player_entity_id": "ec288276-3155-4d65-b658-d9f7bc82760f",
+        "enemy_entity_ids": [
+            "850803a7-4875-40bf-81b6-3ab48d915c92"
+        ],
+        "is_surprise_round": false,
+        "surprise_round_entities": [],
+        "combat_log": [
+            "Combat started! Pras vs wolf_alpha",
+            "Pras rolls initiative: 4 (Base:1 + Roll:3)",
+            "wolf_alpha rolls initiative: 6 (Base:0 + Roll:6)",
+            "Round 1 begins!",
+            "wolf_alpha spent 5.0 stamina. Rem: 6.0",
+            "wolf_alpha attacks Pras with Melee_attack Attack: Roll 18 (Dice:[19] + Bonus:-1) vs Def 12",
+            "  Raw Damage: 0 ([1] + -1 mod)",
+            "  Mitigation: DR 0. Final Damage: 0",
+            "  Pras takes 0 Physical damage! (HP: 11/11)",
+            "  Entity recovers 1 stamina.",
+            "Pras's turn.",
+            "Pras spent 4.0 stamina. Rem: 10.0",
+            "Pras attacks wolf_alpha with Unarmed_attack Attack: Roll 7 (Dice:[5] + Bonus:2) vs Def 9",
+            "  Attack misses.",
+            "  Entity recovers 1 stamina.",
+            "wolf_alpha's turn.",
+            "wolf_alpha spent 5.0 stamina. Rem: 2.0",
+            "wolf_alpha attacks Pras with Melee_attack Attack: Roll 19 (Dice:[20] + Bonus:-1) vs Def 12",
+            "  Critical Hit!",
+            "  Raw Damage: 4 ([3] + [2] (Crit!) + -1 mod)",
+            "  Mitigation: DR 0. Final Damage: 4",
+            "  Pras takes 4 Physical damage! (HP: 7/11)",
+            "  Entity recovers 1 stamina.",
+            "Pras's turn.",
+            "Pras spent 4.0 stamina. Rem: 7.0",
+            "Pras attacks wolf_alpha with Unarmed_attack Attack: Roll 13 (Dice:[11] + Bonus:2) vs Def 9",
+            "  Raw Damage: 4 ([2] + 2 mod)",
+            "  Mitigation: DR 0. Final Damage: 4",
+            "  wolf_alpha takes 4 Physical damage! (HP: 6/10)",
+            "  Entity recovers 1 stamina.",
+            "wolf_alpha's turn.",
+            "wolf_alpha tries to Melee_attack Attack but lacks stamina (3.0/5.0)",
+            "  Entity recovers 1 stamina.",
+            "Pras's turn.",
+            "Pras spent 4.0 stamina. Rem: 4.0",
+            "Pras attacks wolf_alpha with Unarmed_attack Attack: Roll 21 (Dice:[19] + Bonus:2) vs Def 9",
+            "  Raw Damage: 5 ([3] + 2 mod)",
+            "  Mitigation: DR 0. Final Damage: 5",
+            "  wolf_alpha takes 5 Physical damage! (HP: 1/10)",
+            "  Entity recovers 1 stamina.",
+            "wolf_alpha's turn.",
+            "wolf_alpha tries to Melee_attack Attack but lacks stamina (4.0/5.0)",
+            "  Entity recovers 1 stamina.",
+            "Pras's turn."
+        ],
+        "combat_log_html": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\np, li { white-space: pre-wrap; }\nhr { height: 1px; border-width: 0; }\nli.unchecked::marker { content: \"\\2610\"; }\nli.checked::marker { content: \"\\2612\"; }\n</style></head><body style=\" font-family:'Segoe UI'; font-size:9pt; font-weight:400; font-style:normal;\">\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700; color:#ececec;\">Combat started! Pras vs wolf_alpha</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">Pras rolls initiative: 4 (Base:1 + Roll:3)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">wolf_alpha rolls initiative: 6 (Base:0 + Roll:6)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700; color:#0064ff;\">Round 1 begins!</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">Turn order: wolf_alpha, Pras</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">The wolf alpha lunges forward, snapping its jaws in a ferocious attempt to bite Pras.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">wolf_alpha attacks Pras with Melee_attack Attack: Roll 18 (Dice:[19] + Bonus:-1) vs Def 12</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Raw Damage: 0 ([1] + -1 mod)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Mitigation: DR 0. Final Damage: 0</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Pras takes 0 Physical damage! (HP: 11/11)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-style:italic; color:#969696;\">The Alpha Wolf's attack lands squarely on Pras, a physical blow that, despite connecting, fails to penetrate, leaving Pras unscathed at 11 HP.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now Pras's turn.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">Pras steps forward, assuming a fighting stance, preparing to strike at the wolf_alpha with his bare hands.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">Pras attacks wolf_alpha with Unarmed_attack Attack: Roll 7 (Dice:[5] + Bonus:2) vs Def 9</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-style:italic; color:#969696;\">  Attack misses.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-style:italic; color:#969696;\">Pras lashes out with an unarmed strike, but the wolf alpha deftly evades! The attack misses its mark.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now wolf_alpha's turn.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">The alpha wolf lunges forward, snapping its jaws towards Pras, aiming to bite.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">wolf_alpha attacks Pras with Melee_attack Attack: Roll 19 (Dice:[20] + Bonus:-1) vs Def 12</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700; color:#ff0000;\">  Critical Hit!</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Raw Damage: 4 ([3] + [2] (Crit!) + -1 mod)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Mitigation: DR 0. Final Damage: 4</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Pras takes 4 Physical damage! (HP: 7/11)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">The wolf alpha's attack CRITICALLY connects, dealing 4 physical damage to Pras! Pras staggers, now at 7 HP.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now Pras's turn.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">Pras steps forward, attempting a quick strike against the wolf_alpha. They lash out with a punch.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">Pras attacks wolf_alpha with Unarmed_attack Attack: Roll 13 (Dice:[11] + Bonus:2) vs Def 9</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Raw Damage: 4 ([2] + 2 mod)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Mitigation: DR 0. Final Damage: 4</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  wolf_alpha takes 4 Physical damage! (HP: 6/10)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">Pras's unarmed attack connects, dealing 4 physical damage to the wolf alpha! The alpha's health drops from 10 to 6. It remains standing, but wounded.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now wolf_alpha's turn.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">The wolf alpha lunges at Pras, teeth bared and claws extended, aiming to tear into his flesh.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">wolf_alpha tries to Melee_attack Attack but lacks stamina (3.0/5.0)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">The wolf alpha lunges, claws extended, but falters, stamina failing. The attack on Pras fizzles before it begins.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now Pras's turn.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">Pras steps forward, drawing back a fist, ready to strike at the wolf_alpha.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">Pras attacks wolf_alpha with Unarmed_attack Attack: Roll 21 (Dice:[19] + Bonus:2) vs Def 9</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Raw Damage: 5 ([3] + 2 mod)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  Mitigation: DR 0. Final Damage: 5</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#aa007f;\">  wolf_alpha takes 5 Physical damage! (HP: 1/10)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">Pras's attack lands true, a physical blow that slams into the wolf alpha, leaving it reeling with a mere 1 HP remaining.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now wolf_alpha's turn.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">The wolf alpha lunges forward, snapping its jaws at Pras, attempting to bite.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">wolf_alpha tries to Melee_attack Attack but lacks stamina (4.0/5.0)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">The wolf alpha lunges, claws extended, but falters, stamina failing. The attack on Pras collapses before it begins.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now Pras's turn.</span></p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; color:#0064c8;\"><br /></p></body></html>",
+        "last_action_results": {}
+    },
+    "character_stats": {
+        "level": 1,
+        "stats": {
+            "STR": {
+                "name": "STRENGTH",
+                "base_value": 15,
+                "category": "PRIMARY",
+                "description": "Physical power, affects melee damage and carrying capacity."
+            },
+            "DEX": {
+                "name": "DEXTERITY",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Agility and reflexes, affects ranged attacks, initiative, and dodge."
+            },
+            "CON": {
+                "name": "CONSTITUTION",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Physical resilience, affects health, stamina, and resistance to poison/disease."
+            },
+            "INT": {
+                "name": "INTELLIGENCE",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Mental acuity, affects spell power and learning ability."
+            },
+            "WIS": {
+                "name": "WISDOM",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Intuition and perception, affects magical resistance and willpower."
+            },
+            "CHA": {
+                "name": "CHARISMA",
+                "base_value": 10,
+                "category": "PRIMARY",
+                "description": "Social influence, affects dialogue, prices, and persuasion."
+            },
+            "WIL": {
+                "name": "WILLPOWER",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Mental fortitude, resistance to influence and fear."
+            },
+            "INS": {
+                "name": "INSIGHT",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Understanding situations, detecting lies, and sensing motives."
+            }
+        },
+        "derived_stats": {
+            "Max Health Points": {
+                "name": "MAX_HEALTH",
+                "base_value": 11.0,
+                "category": "DERIVED",
+                "description": "Your maximum hit points."
+            },
+            "Max Mana Points": {
+                "name": "MAX_MANA",
+                "base_value": 7.0,
+                "category": "DERIVED",
+                "description": "Your maximum magical energy."
+            },
+            "Max Stamina": {
+                "name": "MAX_STAMINA",
+                "base_value": 14.0,
+                "category": "DERIVED",
+                "description": "Your maximum physical energy."
+            },
+            "Max Resolve": {
+                "name": "MAX_RESOLVE",
+                "base_value": 8.0,
+                "category": "DERIVED",
+                "description": "Your maximum social/mental composure."
+            },
+            "Melee Attack": {
+                "name": "MELEE_ATTACK",
+                "base_value": 4.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents in melee combat."
+            },
+            "Ranged Attack": {
+                "name": "RANGED_ATTACK",
+                "base_value": 3.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with ranged weapons."
+            },
+            "Magic Attack": {
+                "name": "MAGIC_ATTACK",
+                "base_value": 3.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with magical attacks."
+            },
+            "Defense": {
+                "name": "DEFENSE",
+                "base_value": 12.0,
+                "category": "DERIVED",
+                "description": "Your ability to avoid physical damage."
+            },
+            "Magic Defense": {
+                "name": "MAGIC_DEFENSE",
+                "base_value": 11.0,
+                "category": "DERIVED",
+                "description": "Your ability to resist magical effects."
+            },
+            "Damage Reduction": {
+                "name": "DAMAGE_REDUCTION",
+                "base_value": 0.0,
+                "category": "DERIVED",
+                "description": "Reduces incoming physical damage by a flat amount."
+            },
+            "Initiative": {
+                "name": "INITIATIVE",
+                "base_value": 1.0,
+                "category": "DERIVED",
+                "description": "Determines your turn order in combat."
+            },
+            "Carry Capacity": {
+                "name": "CARRY_CAPACITY",
+                "base_value": 125.0,
+                "category": "DERIVED",
+                "description": "The maximum weight you can carry."
+            },
+            "Movement": {
+                "name": "MOVEMENT",
+                "base_value": 35.0,
+                "category": "DERIVED",
+                "description": "How far you can move in combat."
+            },
+            "Health Points": {
+                "name": "HEALTH",
+                "base_value": 7.0,
+                "category": "DERIVED",
+                "description": "Your current hit points. When this reaches zero, you are incapacitated."
+            },
+            "Resolve": {
+                "name": "RESOLVE",
+                "base_value": 8,
+                "category": "DERIVED",
+                "description": "Your current social/mental composure. Reduced by stress or social defeats."
+            },
+            "Mana Points": {
+                "name": "MANA",
+                "base_value": 7,
+                "category": "DERIVED",
+                "description": "Your current magical energy. Required for casting spells."
+            },
+            "Stamina": {
+                "name": "STAMINA",
+                "base_value": 5.0,
+                "category": "DERIVED",
+                "description": "Your current physical energy. Required for special physical actions."
+            }
+        },
+        "modifiers": {
+            "modifiers": [],
+            "modifier_groups": []
+        },
+        "status_effects": {
+            "active_effects": {}
+        }
+    },
+    "memory_context": {
+        "version": "0.1.0",
+        "memory_entries": [],
+        "context_state": {}
+    },
+    "detailed_inventory": {
+        "items": {
+            "3a4296c3-983f-4720-87ed-da77eeb6506c": {
+                "id": "3a4296c3-983f-4720-87ed-da77eeb6506c",
+                "name": "Test apple",
+                "description": "A test apple.",
+                "item_type": "miscellaneous",
+                "rarity": "common",
+                "weight": 0.1,
+                "value": 1,
+                "icon_path": null,
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": true,
+                "is_stackable": true,
+                "stack_limit": 20,
+                "quantity": 20,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "miscellaneous",
+                    "consumable",
+                    "food"
+                ],
+                "template_id": "test_apple",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-15T22:37:11.701087",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "is_quest_item",
+                    "id",
+                    "tags",
+                    "rarity",
+                    "value",
+                    "quantity",
+                    "item_type",
+                    "name",
+                    "description",
+                    "is_stackable",
+                    "icon_path",
+                    "weight"
+                ]
+            },
+            "f28b0a78-6e2c-4163-9bb3-a15530085c1f": {
+                "id": "f28b0a78-6e2c-4163-9bb3-a15530085c1f",
+                "name": "Test apple (2)",
+                "description": "A test apple.",
+                "item_type": "miscellaneous",
+                "rarity": "common",
+                "weight": 0.1,
+                "value": 1,
+                "icon_path": null,
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": true,
+                "is_stackable": true,
+                "stack_limit": 20,
+                "quantity": 5,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "miscellaneous",
+                    "consumable",
+                    "food"
+                ],
+                "template_id": "test_apple",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-15T22:37:53.438914",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "is_quest_item",
+                    "id",
+                    "tags",
+                    "rarity",
+                    "value",
+                    "quantity",
+                    "item_type",
+                    "name",
+                    "description",
+                    "is_stackable",
+                    "icon_path",
+                    "weight"
+                ]
+            }
+        },
+        "weight_limit_base": 100.0,
+        "weight_limit_modifiers": {},
+        "slot_limit_base": 20,
+        "slot_limit_modifiers": {},
+        "equipment": {},
+        "currency": {
+            "gold": 0,
+            "silver": 0,
+            "copper": 0,
+            "total_copper": 0
+        }
+    }
+}

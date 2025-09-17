@@ -1,0 +1,118 @@
+{
+  "version": "1.0",
+  "name": "Character Stats Configuration",
+  "description": "Configuration for character statistics and derived values",
+  
+  "default_stat_value": 10,
+  
+  "base_strength": 10,
+  "base_dexterity": 10,
+  "base_constitution": 10,
+  "base_intelligence": 10,
+  "base_wisdom": 10,
+  "base_charisma": 10,
+  
+  "base_health": 10,
+  "hp_per_level": 5,
+  
+  "base_mana": 5,
+  "mana_per_level": 3,
+  
+  "base_stamina": 10,
+  "stamina_per_level": 2,
+  
+  "base_defense": 10,
+  "base_magic_defense": 10,
+  "max_dex_mod_to_defense": 5,
+  
+  "base_carry_capacity": 50,
+  "carry_capacity_multiplier": 5,
+  
+  "base_movement": 30,
+  
+  "stat_min_value": 3,
+  "stat_max_value": 20,
+  
+  "modifier_thresholds": {
+    "1": -5,
+    "2": -4,
+    "3": -4,
+    "4": -3,
+    "5": -3,
+    "6": -2,
+    "7": -2,
+    "8": -1,
+    "9": -1,
+    "10": 0,
+    "11": 0,
+    "12": 1,
+    "13": 1,
+    "14": 2,
+    "15": 2,
+    "16": 3,
+    "17": 3,
+    "18": 4,
+    "19": 4,
+    "20": 5
+  },
+  
+  "races": {
+    "human": {
+      "stat_bonuses": {
+        "strength": 1,
+        "dexterity": 1,
+        "constitution": 1,
+        "intelligence": 1,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "abilities": ["versatile", "adaptable"]
+    },
+    "elf": {
+      "stat_bonuses": {
+        "dexterity": 2,
+        "intelligence": 1,
+        "wisdom": 1
+      },
+      "abilities": ["darkvision", "keen_senses"]
+    },
+    "dwarf": {
+      "stat_bonuses": {
+        "constitution": 2,
+        "strength": 1,
+        "wisdom": 1
+      },
+      "abilities": ["darkvision", "stonecutting", "poison_resistance"]
+    }
+  },
+  
+  "classes": {
+    "warrior": {
+      "primary_stats": ["strength", "constitution"],
+      "hp_bonus": 2,
+      "stamina_bonus": 2
+    },
+    "mage": {
+      "primary_stats": ["intelligence", "wisdom"],
+      "mp_bonus": 3,
+      "magic_attack_bonus": 1
+    },
+    "rogue": {
+      "primary_stats": ["dexterity", "charisma"],
+      "initiative_bonus": 2,
+      "evasion_bonus": 1
+    }
+  },
+  
+  "level_up": {
+    "points_per_level": 2,
+    "max_points_per_stat": 1
+  },
+  
+  "combat": {
+    "critical_hit_threshold": 20,
+    "fumble_threshold": 1,
+    "base_hit_chance": 65,
+    "base_flee_chance": 50
+  }
+}

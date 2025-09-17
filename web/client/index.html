@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Adventure</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Add FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with game info -->
+        <header class="game-header">
+            <div class="game-title">RPG Adventure</div>
+            <div class="game-info">
+                <div id="player-info">Player: <span id="player-name">-</span> | Level: <span id="player-level">1</span></div>
+                <div id="location-info">Location: <span id="current-location">-</span></div>
+                <div id="time-info">Time: <span id="game-time">-</span></div>
+            </div>
+            <div class="menu-buttons">
+                <button id="new-game-btn" class="menu-btn"><i class="fas fa-plus"></i> New Game</button>
+                <button id="save-game-btn" class="menu-btn"><i class="fas fa-save"></i> Save Game</button>
+                <button id="load-game-btn" class="menu-btn"><i class="fas fa-folder-open"></i> Load Game</button>
+                <button id="settings-btn" class="menu-btn"><i class="fas fa-cog"></i> Settings</button>
+            </div>
+        </header>
+
+        <!-- Main game area -->
+        <main class="game-content">
+            <!-- Game output area -->
+            <div class="game-output" id="game-output">
+                <div class="welcome-message">
+                    <h2>Welcome to RPG Adventure</h2>
+                    <p>Start a new game or load a saved game to begin your adventure.</p>
+                </div>
+            </div>
+
+            <!-- Command input area -->
+            <div class="command-input-container">
+                <input type="text" id="command-input" class="command-input" placeholder="Enter a command..." disabled>
+                <button id="send-command-btn" class="send-command-btn" disabled><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </main>
+
+        <!-- Modals -->
+        <!-- New Game Modal -->
+        <div class="modal" id="new-game-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create New Game</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="character-creator-container">
+                        <div class="character-info-section">
+                            <div class="form-group">
+                                <label for="new-player-name">Character Name:</label>
+                                <input type="text" id="new-player-name" placeholder="Enter your character name">
+                            </div>
+                            <div class="form-group">
+                                <label for="character-race-select">Race:</label>
+                                <select id="character-race-select">
+                                    <option value="Human">Human</option>
+                                    <option value="Elf">Elf</option>
+                                    <option value="Dwarf">Dwarf</option>
+                                    <option value="Halfling">Halfling</option>
+                                    <option value="Orc">Orc</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="character-class-select">Class:</label>
+                                <select id="character-class-select">
+                                    <option value="Wanderer">Wanderer</option>
+                                    <option value="Warrior">Warrior</option>
+                                    <option value="Mage">Mage</option>
+                                    <option value="Rogue">Rogue</option>
+                                    <option value="Cleric">Cleric</option>
+                                    <option value="Ranger">Ranger</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="character-background-select">Background:</label>
+                                <select id="character-background-select">
+                                    <option value="Commoner">Commoner</option>
+                                    <option value="Noble">Noble</option>
+                                    <option value="Merchant">Merchant</option>
+                                    <option value="Soldier">Soldier</option>
+                                    <option value="Scholar">Scholar</option>
+                                    <option value="Criminal">Criminal</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="character-sex-select">Sex:</label>
+                                <select id="character-sex-select">
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="character-llm-toggle" checked>
+                                    <span class="toggle-slider"></span>
+                                    <span class="toggle-label">Enable LLM for this game</span>
+                                </label>
+                            </div>
+                            <!-- Hidden input for selected icon path -->
+                            <input type="hidden" id="character-icon-input">
+                        </div>
+                        <div class="character-icon-section">
+                            <label>Character Portrait:</label>
+                            <div class="icon-display-container">
+                                <div id="character-icon-display" class="icon-display">
+                                    <div class="loading-icons">Loading icons...</div>
+                                </div>
+                                <div class="icon-controls">
+                                    <button id="prev-icon-button" class="icon-nav-btn"><i class="fas fa-arrow-left"></i></button>
+                                    <span id="icon-counter">0 / 0</span>
+                                    <button id="next-icon-button" class="icon-nav-btn"><i class="fas fa-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="create-game-btn" class="primary-btn">Create Game</button>
+                    <button class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Game Modal -->
+        <div class="modal" id="save-game-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Save Game</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="save-name">Save Name:</label>
+                        <input type="text" id="save-name" placeholder="Enter a name for your save">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="save-btn" class="primary-btn">Save</button>
+                    <button class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load Game Modal -->
+        <div class="modal" id="load-game-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Load Game</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="saves-list" id="saves-list">
+                        <div class="loading-saves">Loading saved games...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="load-btn" class="primary-btn" disabled>Load Selected</button>
+                    <button class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settings-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-tabs">
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" data-tab="display-settings">Display</button>
+                            <button class="tab-btn" data-tab="llm-settings">LLM Settings</button>
+                            <button class="tab-btn" data-tab="agent-settings">Agent Settings</button>
+                        </div>
+                        
+                        <div class="tab-content">
+                            <!-- Display Settings Tab -->
+                            <div class="tab-pane active" id="display-settings">
+                                <div class="settings-section">
+                                    <h3>Display Settings</h3>
+                                    <div class="form-group">
+                                        <label for="theme-select">Theme:</label>
+                                        <select id="theme-select">
+                                            <option value="light">Light</option>
+                                            <option value="dark">Dark</option>
+                                            <option value="fantasy">Fantasy</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="font-size-slider">Font Size:</label>
+                                        <input type="range" id="font-size-slider" min="12" max="24" value="16">
+                                        <span id="font-size-value">16px</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- LLM Settings Tab -->
+                            <div class="tab-pane" id="llm-settings">
+                                <div class="settings-section">
+                                    <h3>LLM Provider Settings</h3>
+                                    <div class="form-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="llm-enabled-toggle">
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Enable LLM Functionality</span>
+                                        </label>
+                                    </div>
+                                    
+                                    <div id="llm-provider-settings">
+                                        <!-- OpenAI Settings -->
+                                        <div class="provider-section">
+                                            <h4>OpenAI</h4>
+                                            <div class="form-group">
+                                                <label for="openai-api-key">API Key:</label>
+                                                <input type="password" id="openai-api-key" placeholder="Enter OpenAI API key">
+                                                <button class="show-hide-btn" data-target="openai-api-key"><i class="fas fa-eye"></i></button>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="openai-enabled-toggle" checked>
+                                                    <span class="toggle-slider"></span>
+                                                    <span class="toggle-label">Enabled</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Google Settings -->
+                                        <div class="provider-section">
+                                            <h4>Google</h4>
+                                            <div class="form-group">
+                                                <label for="google-api-key">API Key:</label>
+                                                <input type="password" id="google-api-key" placeholder="Enter Google API key">
+                                                <button class="show-hide-btn" data-target="google-api-key"><i class="fas fa-eye"></i></button>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="google-enabled-toggle" checked>
+                                                    <span class="toggle-slider"></span>
+                                                    <span class="toggle-label">Enabled</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- OpenRouter Settings -->
+                                        <div class="provider-section">
+                                            <h4>OpenRouter</h4>
+                                            <div class="form-group">
+                                                <label for="openrouter-api-key">API Key:</label>
+                                                <input type="password" id="openrouter-api-key" placeholder="Enter OpenRouter API key">
+                                                <button class="show-hide-btn" data-target="openrouter-api-key"><i class="fas fa-eye"></i></button>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="openrouter-enabled-toggle" checked>
+                                                    <span class="toggle-slider"></span>
+                                                    <span class="toggle-label">Enabled</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Provider sections end here -->
+                                        
+                                        <!-- Additional providers can be added here in the future -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Agent Settings Tab -->
+                            <div class="tab-pane" id="agent-settings">
+                                <div class="settings-section">
+                                    <h3>Agent Configuration</h3>
+                                    
+                                    <!-- Narrator Agent Settings -->
+                                    <div class="agent-section">
+                                        <h4>Narrator Agent</h4>
+                                        <div class="form-group">
+                                            <label for="narrator-provider">Provider:</label>
+                                            <select id="narrator-provider">
+                                                <option value="OPENAI">OpenAI</option>
+                                                <option value="GOOGLE">Google</option>
+                                                <option value="OPENROUTER">OpenRouter</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="narrator-model">Model:</label>
+                                            <select id="narrator-model">
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="narrator-temperature">Temperature:</label>
+                                            <input type="range" id="narrator-temperature" min="0" max="2" step="0.1" value="0.7">
+                                            <span id="narrator-temperature-value">0.7</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="narrator-enabled-toggle" checked>
+                                                <span class="toggle-slider"></span>
+                                                <span class="toggle-label">Enabled</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Rule Checker Agent Settings -->
+                                    <div class="agent-section">
+                                        <h4>Rule Checker Agent</h4>
+                                        <div class="form-group">
+                                            <label for="rule-checker-provider">Provider:</label>
+                                            <select id="rule-checker-provider">
+                                                <option value="OPENAI">OpenAI</option>
+                                                <option value="GOOGLE">Google</option>
+                                                <option value="OPENROUTER">OpenRouter</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="rule-checker-model">Model:</label>
+                                            <select id="rule-checker-model">
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="rule-checker-temperature">Temperature:</label>
+                                            <input type="range" id="rule-checker-temperature" min="0" max="2" step="0.1" value="0.3">
+                                            <span id="rule-checker-temperature-value">0.3</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="rule-checker-enabled-toggle" checked>
+                                                <span class="toggle-slider"></span>
+                                                <span class="toggle-label">Enabled</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Context Evaluator Agent Settings -->
+                                    <div class="agent-section">
+                                        <h4>Context Evaluator Agent</h4>
+                                        <div class="form-group">
+                                            <label for="context-evaluator-provider">Provider:</label>
+                                            <select id="context-evaluator-provider">
+                                                <option value="OPENAI">OpenAI</option>
+                                                <option value="GOOGLE">Google</option>
+                                                <option value="OPENROUTER">OpenRouter</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="context-evaluator-model">Model:</label>
+                                            <select id="context-evaluator-model">
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="context-evaluator-temperature">Temperature:</label>
+                                            <input type="range" id="context-evaluator-temperature" min="0" max="2" step="0.1" value="0.2">
+                                            <span id="context-evaluator-temperature-value">0.2</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="context-evaluator-enabled-toggle" checked>
+                                                <span class="toggle-slider"></span>
+                                                <span class="toggle-label">Enabled</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="reset-settings-btn" class="secondary-btn">Reset to Default</button>
+                    <button id="save-settings-btn" class="primary-btn">Save Settings</button>
+                    <button class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification System -->
+        <div class="notification-container" id="notification-container"></div>
+    </div>
+
+    <!-- Create CSS directory -->
+    <script>
+        // This will be replaced by proper CSS files
+        const createCssDirectory = () => {
+            console.log("CSS directory would be created here in a real deployment");
+        };
+    </script>
+
+    <!-- JavaScript Files -->
+    <script src="js/api-client.js"></script>
+    <script src="js/websocket-client.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/character-creator.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/model-debug.js"></script>
+</body>
+</html>

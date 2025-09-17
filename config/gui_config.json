@@ -1,0 +1,10 @@
+{
+    "resolution": {
+        "width": 1280,
+        "height": 720
+    },
+    "fullscreen": false,
+    "theme": "default",
+    "font_size": 12,
+    "show_fps": false
+}

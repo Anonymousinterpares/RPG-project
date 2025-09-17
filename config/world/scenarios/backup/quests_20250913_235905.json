@@ -1,0 +1,1099 @@
+{
+  "quests": {
+    "luminary_fragment_hunt": {
+      "id": "luminary_fragment_hunt",
+      "title": "Echoes of the Luminaries",
+      "description": "Reports indicate a Luminary fragment has manifested in the Echo Woods. Various factions are racing to obtain it, and the Harmonic Order has tasked you with retrieving it before it falls into dangerous hands.",
+      "giver_id": "resonance_sage",
+      "level": 3,
+      "objectives": [
+        {
+          "id": "locate_fragment",
+          "description": "Find the location of the Luminary fragment in Echo Woods",
+          "type": "explore",
+          "target_id": "whispering_grove",
+          "location_id": "echo_woods",
+          "completion_criteria": "Discover the Whispering Grove location where the fragment is hidden",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "defeat_cipher",
+          "description": "Defeat the Cipher Remnant agents attempting to claim the fragment",
+          "type": "kill",
+          "target_id": "cipher_agents",
+          "location_id": "whispering_grove",
+          "completion_criteria": "Defeat all Cipher Remnant agents in the area",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "secure_fragment",
+          "description": "Retrieve the Luminary fragment",
+          "type": "fetch",
+          "target_id": "luminary_fragment",
+          "location_id": "whispering_grove",
+          "completion_criteria": "Collect the Luminary fragment",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "return_fragment",
+          "description": "Return the fragment to the Resonance Sage in Harmonia",
+          "type": "deliver",
+          "target_id": "resonance_sage",
+          "location_id": "harmonia",
+          "completion_criteria": "Deliver the Luminary fragment to the Resonance Sage",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "xp": 800,
+        "gold": 250,
+        "items": [
+          "resonance_charm"
+        ]
+      },
+      "prerequisites": []
+    },
+    "resonance_crisis": {
+      "id": "resonance_crisis",
+      "title": "Dangerous Frequencies",
+      "description": "A small frontier settlement is experiencing unusually violent Resonance Events. The Harmonic Order needs someone to investigate the cause and protect the community during these unpredictable phenomena.",
+      "giver_id": "council_speaker",
+      "level": 5,
+      "objectives": [
+        {
+          "id": "reach_settlement",
+          "description": "Travel to the affected settlement near Echo Woods",
+          "type": "explore",
+          "target_id": "woodhaven_settlement",
+          "location_id": "echo_woods",
+          "completion_criteria": "Arrive at Woodhaven Settlement",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "investigate_anomalies",
+          "description": "Investigate the unusual Resonance patterns in three locations around the settlement",
+          "type": "explore",
+          "target_id": "anomaly_sites",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Investigate all three anomaly sites",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "identify_disruptor",
+          "description": "Identify the source of the Resonance disruption",
+          "type": "fetch",
+          "target_id": "dissonant_device",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Find the Dissonant Path device causing the disruptions",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "confront_dissonant",
+          "description": "Confront the Dissonant Path member responsible for the disruption",
+          "type": "kill",
+          "target_id": "dissonant_disruptor",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Defeat the Dissonant Path member",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "stabilize_resonance",
+          "description": "Use Planar Anchoring techniques to stabilize the area during the next Resonance Event",
+          "type": "interact",
+          "target_id": "resonance_node",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Complete the anchoring ritual at the village center",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "xp": 1200,
+        "gold": 400,
+        "items": [
+          "planar_anchor_stone"
+        ]
+      },
+      "prerequisites": []
+    },
+    "planar_expedition": {
+      "id": "planar_expedition",
+      "title": "Beyond the Veil",
+      "description": "A research team from the Harmonic Order is mounting an expedition to explore a newly discovered Planar Bleed Zone. They need additional security and assistance to catalog the unique resources and phenomena within the zone.",
+      "giver_id": "harmonic_researcher",
+      "level": 4,
+      "objectives": [
+        {
+          "id": "meet_expedition",
+          "description": "Meet with the research team at their camp near The Convergence",
+          "type": "explore",
+          "target_id": "research_camp",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Find and speak with the research team at their camp",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "escort_researchers",
+          "description": "Escort the research team safely into the Planar Bleed Zone",
+          "type": "escort",
+          "target_id": "research_team",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Protect all researchers during travel to the convergence perimeter",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "collect_samples",
+          "description": "Collect samples from three different areas within the zone",
+          "type": "fetch",
+          "target_id": "planar_samples",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Collect all required samples",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "defend_camp",
+          "description": "Defend the research camp from planar hybrid creatures",
+          "type": "kill",
+          "target_id": "planar_hybrids",
+          "location_id": "research_camp",
+          "completion_criteria": "Defeat all attacking creatures",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "document_anomaly",
+          "description": "Help researchers document a major planar anomaly at the center of the zone",
+          "type": "interact",
+          "target_id": "reality_fault",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Complete documentation of the planar anomaly",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "xp": 1000,
+        "gold": 350,
+        "items": [
+          "planar_sample_kit",
+          "hybrid_seedling"
+        ]
+      },
+      "prerequisites": []
+    },
+    "lost_knowledge": {
+      "id": "lost_knowledge",
+      "title": "Pages Through Time",
+      "description": "The Shifting Library contains crucial information about stabilizing Resonance Events, but the needed texts only become accessible during a specific planar alignment. You need to obtain the required authorization and retrieve the knowledge before time runs out.",
+      "giver_id": "head_lexicant",
+      "level": 6,
+      "objectives": [
+        {
+          "id": "obtain_authorization",
+          "description": "Obtain authorization to access the Shifting Library from the Council of Resonance",
+          "type": "interact",
+          "target_id": "council_speaker",
+          "location_id": "harmonia",
+          "completion_criteria": "Convince the Council to grant library access",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "retrieve_focusing_crystal",
+          "description": "Retrieve a focusing crystal from the Crystalline Enclave to help locate the texts",
+          "type": "fetch",
+          "target_id": "planar_focusing_crystal",
+          "location_id": "crystalline_enclave",
+          "completion_criteria": "Obtain the focusing crystal",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "access_library",
+          "description": "Travel to the Shifting Library during the planar alignment",
+          "type": "explore",
+          "target_id": "shifting_library",
+          "location_id": "shifting_library",
+          "completion_criteria": "Reach the library during the alignment event",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "navigate_shifting_stacks",
+          "description": "Navigate the constantly changing layout of the library to find the Pre-Shattering Archive",
+          "type": "interact",
+          "target_id": "shifting_stacks",
+          "location_id": "shifting_library",
+          "completion_criteria": "Solve the navigation puzzle of the shifting stacks",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "locate_texts",
+          "description": "Find the texts about Resonance stabilization in the Pre-Shattering Archive",
+          "type": "fetch",
+          "target_id": "resonance_codex",
+          "location_id": "pre_shattering_archive",
+          "completion_criteria": "Locate and retrieve the Resonance Codex",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "escape_collapse",
+          "description": "Escape the library as the planar alignment ends and sections begin disappearing",
+          "type": "explore",
+          "target_id": "library_entrance",
+          "location_id": "shifting_library",
+          "completion_criteria": "Reach the library entrance with the codex before time runs out",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "xp": 1500,
+        "gold": 300,
+        "items": [
+          "lexicant_cipher",
+          "plane_reader"
+        ]
+      },
+      "prerequisites": []
+    },
+    "merchant_protection": {
+      "id": "merchant_protection",
+      "title": "Valuable Cargo",
+      "description": "The Mercantile Chord is transporting a shipment of rare Resonant Materials between trading hubs and needs protection from bandits and natural hazards.",
+      "giver_id": "mercantile_factor",
+      "level": 3,
+      "objectives": [
+        {
+          "id": "meet_caravan",
+          "description": "Meet with the merchant caravan in Harmonia",
+          "type": "interact",
+          "target_id": "caravan_master",
+          "location_id": "harmonia",
+          "completion_criteria": "Meet and speak with the caravan master",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "escort_to_crystalline",
+          "description": "Escort the caravan to the Crystalline Enclave",
+          "type": "escort",
+          "target_id": "merchant_caravan",
+          "location_id": "crystalline_enclave",
+          "completion_criteria": "Safely escort the caravan to its destination",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "fend_off_bandits",
+          "description": "Protect the caravan from bandit attacks along the route",
+          "type": "kill",
+          "target_id": "resonance_bandits",
+          "location_id": "",
+          "completion_criteria": "Defeat all bandit groups that attack the caravan",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "navigate_flux_zone",
+          "description": "Help the caravan safely navigate through a minor Resonance flux zone",
+          "type": "interact",
+          "target_id": "flux_zone",
+          "location_id": "",
+          "completion_criteria": "Successfully guide the caravan through the flux zone",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "delivery_complete",
+          "description": "Ensure the cargo is safely delivered to the Crystalline Enclave",
+          "type": "interact",
+          "target_id": "consortium_representative",
+          "location_id": "crystalline_enclave",
+          "completion_criteria": "Complete delivery to the Consortium representative",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "xp": 750,
+        "gold": 500,
+        "items": [
+          "resonant_trinket"
+        ]
+      },
+      "prerequisites": []
+    },
+    "resonance_touched": {
+      "id": "resonance_touched",
+      "title": "Fragmented Self",
+      "description": "A citizen of Harmonia has returned from a Resonance Event changed, possibly merged with an alternate version of themselves. They're experiencing 'Resonance sickness' and need help integrating their fragmented identity.",
+      "giver_id": "attunement_master",
+      "level": 2,
+      "objectives": [
+        {
+          "id": "meet_patient",
+          "description": "Meet with the Resonance-touched patient in the Attunement Hall",
+          "type": "interact",
+          "target_id": "resonance_touched_citizen",
+          "location_id": "attunement_hall",
+          "completion_criteria": "Meet and speak with the affected citizen",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "collect_erdium",
+          "description": "Collect Erdium crystals to help with the reattunement ritual",
+          "type": "fetch",
+          "target_id": "erdium_crystal",
+          "location_id": "echo_woods",
+          "completion_criteria": "Gather the required erdium crystals",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "find_memories",
+          "description": "Help the patient recover memories from before the Resonance Event",
+          "type": "explore",
+          "target_id": "memory_locations",
+          "location_id": "harmonia",
+          "completion_criteria": "Find all three memory locations in Harmonia",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "perform_ritual",
+          "description": "Assist the Attunement Master in performing a reattunement ritual",
+          "type": "interact",
+          "target_id": "attunement_hall",
+          "location_id": "harmonia",
+          "completion_criteria": "Successfully complete the reattunement ritual",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "follow_up",
+          "description": "Check on the patient after a few days to ensure the treatment worked",
+          "type": "interact",
+          "target_id": "resonance_touched_citizen",
+          "location_id": "harmonia",
+          "completion_criteria": "Follow up with the citizen to confirm recovery",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "xp": 500,
+        "gold": 150,
+        "items": [
+          "identity_charm"
+        ]
+      },
+      "prerequisites": []
+    },
+    "551cdb35-a4bb-4b23-b6c1-4d2772947efb": {
+      "id": "551cdb35-a4bb-4b23-b6c1-4d2772947efb",
+      "title": "Whispers of the Ash Plane (Ashen Covenant Recruit)",
+      "description": "The Ashen Elder has tasked you with your first practical Ash Walking ritual. The Covenant needs to find a new, safe migration path, and the Elder believes a long-dead ancestor holds the key within the Ash Plane. You must project your consciousness, seek the ancestral spirit, and glean crucial information to guide your people.",
+      "giver_id": "ashen_elder",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "gather_ritual_ashes",
+          "description": "Gather specific ritual ashes from the designated area near the Ashen Camp.",
+          "type": "fetch",
+          "target_id": "ritual_ashes",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Collect the required ritual ashes for the Ash Walking ceremony.",
+          "rewards": {},
+          "mandatory": false
+        },
+        {
+          "id": "perform_ash_walking_ritual",
+          "description": "Perform the guided Ash Walking ritual at the sacred altar within the Ashen Camp.",
+          "type": "interact",
+          "target_id": "ash_walking_altar",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Successfully initiate the Ash Walking ritual and project your consciousness.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "seek_ancestral_guidance",
+          "description": "Within the Ash Plane, seek out the ancestral spirit and glean information about a safe migration path.",
+          "type": "explore",
+          "target_id": "ancestral_spirit_echo",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Obtain the cryptic message or vision from the ancestral spirit.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "interpret_ancestral_message",
+          "description": "Return to your body and consult with the Ashen Elder to interpret the ancestral message.",
+          "type": "deliver",
+          "target_id": "ashen_elder",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Discuss the ancestral message with the Ashen Elder to understand its meaning.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "scout_new_migration_path",
+          "description": "Based on the interpreted ancestral guidance, scout the new migration path in Echo Woods.",
+          "type": "explore",
+          "target_id": "migration_path_entrance",
+          "location_id": "echo_woods",
+          "completion_criteria": "Locate and assess the viability of the new migration path as indicated by the ancestor.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "gold": 50,
+        "items": [
+          "ash_walker_talisman"
+        ],
+        "xp": 200
+      },
+      "prerequisites": []
+    },
+    "the-first-exchange": {
+      "id": "the-first-exchange",
+      "title": "The First Exchange",
+      "description": "A local merchant in Harmonia needs a small, important package delivered to a contact in the Verdant Embassy. This simple task will serve as your first foray into the world's commerce.",
+      "giver_id": "merchant_guild_representative",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "collect_package",
+          "description": "Collect the delivery package from the Merchant Guild Representative in Harmonia.",
+          "type": "fetch",
+          "target_id": "delivery_package_harmonia",
+          "location_id": "harmonia",
+          "completion_criteria": "Obtain the delivery package from the representative.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "deliver_to_embassy",
+          "description": "Deliver the package to the designated contact at the Verdant Embassy.",
+          "type": "deliver",
+          "target_id": "verdant_embassy_contact",
+          "location_id": "verdant_embassy",
+          "completion_criteria": "Successfully deliver the package to the contact.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {
+        "gold": 50,
+        "items": [],
+        "xp": 100
+      },
+      "prerequisites": []
+    },
+    "TEST_Q01": {
+      "id": "TEST_Q01",
+      "title": "Q01 – Fetch an Apple",
+      "description": "Obtain a test apple.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Obtain 1 test_apple.",
+          "type": "fetch",
+          "target_id": "test_apple",
+          "location_id": "",
+          "completion_criteria": "Have at least 1 test_apple in inventory.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q02": {
+      "id": "TEST_Q02",
+      "title": "Q02 – Defeat the Test Wolf",
+      "description": "Defeat the test_wolf_alpha.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Defeat test_wolf_alpha.",
+          "type": "kill",
+          "target_id": "test_wolf_alpha",
+          "location_id": "test_area",
+          "completion_criteria": "Eliminate the test_wolf_alpha.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q03": {
+      "id": "TEST_Q03",
+      "title": "Q03 – Visit the Test Ruins",
+      "description": "Visit test_ancient_ruins.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Visit test_ancient_ruins.",
+          "type": "explore",
+          "target_id": "test_ancient_ruins",
+          "location_id": "test_ancient_ruins",
+          "completion_criteria": "Enter the test_ancient_ruins location.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q04": {
+      "id": "TEST_Q04",
+      "title": "Q04 – Speak to the Test Elder",
+      "description": "Ensure flag test_spoke_to_elder is true.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Speak with the test_elder.",
+          "type": "interact",
+          "target_id": "test_elder",
+          "location_id": "test_area",
+          "completion_criteria": "Conversation with test_elder completed.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q05": {
+      "id": "TEST_Q05",
+      "title": "Q05 – Beat the Clock (Before 5m)",
+      "description": "Complete before time < 300.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Finish the timed task before 300s.",
+          "type": "interact",
+          "target_id": "test_timer_gate",
+          "location_id": "test_area",
+          "completion_criteria": "Objective completed in under 300 seconds.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q06": {
+      "id": "TEST_Q06",
+      "title": "Q06 – After Time Gate (After 10m)",
+      "description": "Complete only after time > 600.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Finish the timed task after 600s.",
+          "type": "interact",
+          "target_id": "test_timer_gate",
+          "location_id": "test_area",
+          "completion_criteria": "Objective completed after 600 seconds have elapsed.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q07": {
+      "id": "TEST_Q07",
+      "title": "Q07 – All Composite",
+      "description": "Have test_key and defeat test_guardian.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Have test_key and defeat test_guardian.",
+          "type": "interact",
+          "target_id": "test_guardian_gate",
+          "location_id": "test_area",
+          "completion_criteria": "Gate opened with test_key and guardian defeated.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q08": {
+      "id": "TEST_Q08",
+      "title": "Q08 – Any Composite",
+      "description": "Visit either test_dock or test_harbor.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Visit test_dock OR test_harbor.",
+          "type": "explore",
+          "target_id": "test_dock_or_harbor",
+          "location_id": "test_coast",
+          "completion_criteria": "Arrive at either test_dock or test_harbor.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q09": {
+      "id": "TEST_Q09",
+      "title": "Q09 – None Composite",
+      "description": "Alarm must NOT be triggered.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Ensure alarm remains silent.",
+          "type": "interact",
+          "target_id": "test_alarm_system",
+          "location_id": "test_area",
+          "completion_criteria": "Objective completed with no alarm raised.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q10": {
+      "id": "TEST_Q10",
+      "title": "Q10 – Mandatory + Optional",
+      "description": "Mandatory item; optional visit.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Obtain test_badge.",
+          "type": "fetch",
+          "target_id": "test_badge",
+          "location_id": "",
+          "completion_criteria": "Acquire the test_badge.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "O2",
+          "description": "Optionally visit test_outpost.",
+          "type": "explore",
+          "target_id": "test_outpost",
+          "location_id": "test_outpost",
+          "completion_criteria": "Enter the test_outpost (optional).",
+          "rewards": {},
+          "mandatory": false
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q11": {
+      "id": "TEST_Q11",
+      "title": "Q11 – Two Mandatory Objectives",
+      "description": "Complete both mandatory objectives.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Defeat test_bandit_captain.",
+          "type": "kill",
+          "target_id": "test_bandit_captain",
+          "location_id": "test_road",
+          "completion_criteria": "Defeat the test_bandit_captain.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "O2",
+          "description": "Collect 3 test_gem.",
+          "type": "fetch",
+          "target_id": "test_gem",
+          "location_id": "",
+          "completion_criteria": "Possess 3 test_gem.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q12": {
+      "id": "TEST_Q12",
+      "title": "Q12 – Semantic Only (No DSL)",
+      "description": "Objective completion via semantic inference.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Convince the test_mayor to help.",
+          "type": "interact",
+          "target_id": "test_mayor",
+          "location_id": "test_town",
+          "completion_criteria": "Mayor agrees to help.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q13": {
+      "id": "TEST_Q13",
+      "title": "Q13 – Semantic Mandatory + Optional DSL",
+      "description": "Mandatory semantic objective and optional visit objective.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Broker peace between test_factions.",
+          "type": "interact",
+          "target_id": "test_faction_council",
+          "location_id": "test_hall",
+          "completion_criteria": "Agreement reached between factions.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "O2",
+          "description": "Optionally visit test_neutral_ground.",
+          "type": "explore",
+          "target_id": "test_neutral_ground",
+          "location_id": "test_neutral_ground",
+          "completion_criteria": "Enter test_neutral_ground (optional).",
+          "rewards": {},
+          "mandatory": false
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q14": {
+      "id": "TEST_Q14",
+      "title": "Q14 – Flag Chain",
+      "description": "Require both flags set (speak to guard and acquire pass).",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Speak to guard and acquire pass.",
+          "type": "interact",
+          "target_id": "test_gate_guard",
+          "location_id": "test_gate",
+          "completion_criteria": "Guard spoken to and pass acquired.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q15": {
+      "id": "TEST_Q15",
+      "title": "Q15 – Inventory Count",
+      "description": "Collect 3 test_herb.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Collect 3 test_herb.",
+          "type": "fetch",
+          "target_id": "test_herb",
+          "location_id": "",
+          "completion_criteria": "Possess 3 test_herb.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q16": {
+      "id": "TEST_Q16",
+      "title": "Q16 – Any of Three Enemies",
+      "description": "Defeat any one of three test bandits.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Defeat any bandit (1 of 3).",
+          "type": "kill",
+          "target_id": "test_bandit_group",
+          "location_id": "test_road",
+          "completion_criteria": "Defeat at least one of test_bandit_1/2/3.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q17": {
+      "id": "TEST_Q17",
+      "title": "Q17 – Visit Two Key Locations",
+      "description": "Visit both test_gate and test_keep.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Visit test_gate and test_keep.",
+          "type": "explore",
+          "target_id": "test_gate_and_keep",
+          "location_id": "test_realm",
+          "completion_criteria": "Enter both test_gate and test_keep.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q18": {
+      "id": "TEST_Q18",
+      "title": "Q18 – Negative Flag (Not Banished)",
+      "description": "Ensure not banished.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Ensure test_banished is false.",
+          "type": "interact",
+          "target_id": "test_citizenship_check",
+          "location_id": "test_town",
+          "completion_criteria": "Status confirms not banished.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q19": {
+      "id": "TEST_Q19",
+      "title": "Q19 – Mixed All/Any",
+      "description": "Travel to dock or harbor and have a test_ticket.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Visit test_dock or test_harbor and show test_ticket.",
+          "type": "interact",
+          "target_id": "test_port_entry",
+          "location_id": "test_coast",
+          "completion_criteria": "Entry permitted with test_ticket at dock or harbor.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q20": {
+      "id": "TEST_Q20",
+      "title": "Q20 – Optional Does Not Block",
+      "description": "Optional objective should not block completion.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Deliver test_letter.",
+          "type": "deliver",
+          "target_id": "test_recipient",
+          "location_id": "test_town",
+          "completion_criteria": "Deliver the test_letter to recipient.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "O2",
+          "description": "Explore test_garden (optional).",
+          "type": "explore",
+          "target_id": "test_garden",
+          "location_id": "test_garden",
+          "completion_criteria": "Enter the test_garden.",
+          "rewards": {},
+          "mandatory": false
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q21": {
+      "id": "TEST_Q21",
+      "title": "Q21 – Narrative-Heavy Objective",
+      "description": "Deliver an inspiring speech to the council.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Deliver an inspiring speech to the test_council about unity and cooperation.",
+          "type": "interact",
+          "target_id": "test_council",
+          "location_id": "test_hall",
+          "completion_criteria": "Speech delivered; council acknowledges.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q22": {
+      "id": "TEST_Q22",
+      "title": "Q22 – Three Mandatory Objectives",
+      "description": "Complete three distinct tasks.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Defeat test_ogre.",
+          "type": "kill",
+          "target_id": "test_ogre",
+          "location_id": "test_ogre_cave",
+          "completion_criteria": "Ogre defeated.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "O2",
+          "description": "Collect 2 test_ogre_tooth.",
+          "type": "fetch",
+          "target_id": "test_ogre_tooth",
+          "location_id": "",
+          "completion_criteria": "Possess 2 test_ogre_tooth.",
+          "rewards": {},
+          "mandatory": true
+        },
+        {
+          "id": "O3",
+          "description": "Visit test_ogre_cave.",
+          "type": "explore",
+          "target_id": "test_ogre_cave",
+          "location_id": "test_ogre_cave",
+          "completion_criteria": "Enter the ogre cave.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q23": {
+      "id": "TEST_Q23",
+      "title": "Q23 – Semantic Failure Gating",
+      "description": "Objective completion depends on semantic inference only.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Convince test_skeptic to trust you.",
+          "type": "interact",
+          "target_id": "test_skeptic",
+          "location_id": "test_village",
+          "completion_criteria": "Skeptic indicates trust.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q24": {
+      "id": "TEST_Q24",
+      "title": "Q24 – Abandon/Fallback Scenario",
+      "description": "Regular quest for abandon/failure flow testing.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Recover the test_relic.",
+          "type": "fetch",
+          "target_id": "test_relic",
+          "location_id": "test_ruins",
+          "completion_criteria": "Obtain the test_relic.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    },
+    "TEST_Q25": {
+      "id": "TEST_Q25",
+      "title": "Q25 – Complex Mixed Conditions",
+      "description": "Any of two routes, but no alarm and with resource gate.",
+      "giver_id": "test_proctor",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "O1",
+          "description": "Route A (visit test_tower AND have test_rope) OR Route B (defeat test_spider_queen) with no alarm.",
+          "type": "interact",
+          "target_id": "test_tower_or_spider_queen",
+          "location_id": "test_vale",
+          "completion_criteria": "No alarm triggered; either tower+rope route or spider queen defeated.",
+          "rewards": {},
+          "mandatory": true
+        }
+      ],
+      "rewards": {"xp": 0, "gold": 0, "items": []},
+      "prerequisites": []
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Quest definitions for the RPG game world"
+  }
+}

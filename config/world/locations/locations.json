@@ -1,0 +1,440 @@
+{
+  "locations": {
+    "harmonia": {
+      "id": "harmonia",
+      "name": "Harmonia",
+      "description": "The largest and most influential of the Concordant Cities, serving as the capital of their confederation. Built at the confluence of major Resonance nodes, its architecture is a mesmerizing blend of all five planes that shifts and reconfigures during Resonance Events. The city is arranged in seven concentric rings, each representing different aspects of planar influence.",
+      "type": "city",
+      "region": "Central Nexus",
+      "culture_id": "concordant",
+      "population": 80000,
+      "features": [
+        {
+          "name": "The Harmonic Spire",
+          "description": "A towering structure at the city center that serves as both government seat and Resonance monitoring station. The spire changes color and sometimes shape depending on upcoming Resonance Events.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "The Attunement Hall",
+          "description": "A sacred space where citizens receive their protective tattoos. The walls are lined with designs from across all five planes.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "The Resonance Academy",
+          "description": "The premier institution for studying planar phenomena and predicting Resonance Events. Home to the Harmonic Order.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "The Five Voices Plaza",
+          "description": "A pentagonal square where the Five Speakers occasionally gather to deliberate. Each corner features a statue representing a fragmented Luminary.",
+          "interaction_type": "examine"
+        }
+      ],
+      "connections": [
+        {
+          "target": "verdant_embassy",
+          "description": "A well-maintained road leading to the diplomatic outpost of the Verdant Collective.",
+          "travel_time": 240,
+          "requirements": []
+        },
+        {
+          "target": "crystalline_enclave",
+          "description": "A geometric pathway of perfectly aligned stones leading to the Crystalline Consortium's trading post.",
+          "travel_time": 180,
+          "requirements": []
+        },
+        {
+          "target": "echo_woods",
+          "description": "A winding path through increasingly wild terrain that eventually reaches the Echo Woods.",
+          "travel_time": 360,
+          "requirements": []
+        }
+      ],
+      "npcs": [
+        "council_speaker",
+        "resonance_sage",
+        "attunement_master"
+      ]
+    },
+    "verdant_embassy": {
+      "id": "verdant_embassy",
+      "name": "Verdant Embassy",
+      "description": "An outpost of the Verdant Collective on the Nexus plane. The embassy is a living structure, grown rather than built, with walls of interwoven trees and flowering vines that change with the seasons. It serves as both a diplomatic mission and a trading post for the unique flora and fauna of the Verdant plane.",
+      "type": "outpost",
+      "region": "Western Nexus",
+      "culture_id": "verdant",
+      "population": 350,
+      "features": [
+        {
+          "name": "The Living Council Chamber",
+          "description": "A circular room where tree branches have been coaxed into forming a natural amphitheater. The branches shift slightly to improve acoustics when someone speaks.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "The Green Speech Garden",
+          "description": "A secluded garden where members of the Verdant Collective communicate through their unique plant-based language.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "Seasonal Quarters",
+          "description": "Living quarters that transform with the seasons, offering different amenities depending on the time of year.",
+          "interaction_type": "interact"
+        }
+      ],
+      "connections": [
+        {
+          "target": "harmonia",
+          "description": "A well-maintained road leading back to the capital city of Harmonia.",
+          "travel_time": 240,
+          "requirements": []
+        },
+        {
+          "target": "deeproot_crossing",
+          "description": "A temporary passage to the Verdant plane that becomes accessible during specific Resonance Events.",
+          "travel_time": 120,
+          "requirements": [
+            "resonance_event_verdant"
+          ]
+        }
+      ],
+      "npcs": [
+        "verdant_ambassador",
+        "botanical_trader",
+        "green_speaker"
+      ]
+    },
+    "crystalline_enclave": {
+      "id": "crystalline_enclave",
+      "name": "Crystalline Enclave",
+      "description": "A trading post and research facility established by the Crystalline Consortium on the Nexus plane. The entire structure is built from precisely angled crystalline materials that reflect light in complex mathematical patterns. Inside, scholars and merchants work to advance Facet Magic and trade in rare minerals.",
+      "type": "outpost",
+      "region": "Eastern Nexus",
+      "culture_id": "crystalline",
+      "population": 275,
+      "features": [
+        {
+          "name": "The Calculation Chamber",
+          "description": "A hexagonal room where crystal matrices are used to solve complex mathematical and magical equations. The floor is inscribed with intricate geometric formulas.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "The Precision Market",
+          "description": "A marketplace where crystalline components and precision instruments are traded under strict quality control standards.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Faceting Workshop",
+          "description": "A facility where young members of the Consortium receive their crystal implants, carefully aligned to enhance specific mental abilities.",
+          "interaction_type": "examine"
+        }
+      ],
+      "connections": [
+        {
+          "target": "harmonia",
+          "description": "A geometric pathway of perfectly aligned stones leading back to Harmonia.",
+          "travel_time": 180,
+          "requirements": []
+        },
+        {
+          "target": "lattice_point",
+          "description": "A precisely calibrated portal to the Crystalline plane, accessible only during certain celestial alignments.",
+          "travel_time": 90,
+          "requirements": [
+            "celestial_alignment"
+          ]
+        }
+      ],
+      "npcs": [
+        "consortium_representative",
+        "facet_mage",
+        "crystal_merchant"
+      ]
+    },
+    "echo_woods": {
+      "id": "echo_woods",
+      "name": "Echo Woods",
+      "description": "A mysterious forest that exists partially in the Nexus plane and partially in the Verdant plane. The trees seem to whisper echoes of conversations held long ago, and visitors often report seeing shadowy figures moving between the trunks. It's known as a place where the boundaries between planes are naturally thin.",
+      "type": "forest",
+      "region": "Northwestern Nexus",
+      "culture_id": "",
+      "population": 0,
+      "features": [
+        {
+          "name": "The Whispering Grove",
+          "description": "A clearing where echoes of past conversations can be heard clearly, sometimes providing valuable historical information.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "The Blurred Stream",
+          "description": "A waterway that occasionally shifts between planes, with water that can grant temporary visions of other planes when drunk.",
+          "interaction_type": "use"
+        },
+        {
+          "name": "The Ancient Hollow",
+          "description": "An enormous hollow tree that predates The Shattering. Inside is a small, permanent Planar Bleed Zone.",
+          "interaction_type": "examine"
+        }
+      ],
+      "connections": [
+        {
+          "target": "harmonia",
+          "description": "A winding path through increasingly civilized terrain that eventually reaches Harmonia.",
+          "travel_time": 360,
+          "requirements": []
+        },
+        {
+          "target": "ashen_camp",
+          "description": "A barely visible trail that leads to a temporary settlement of the Ashen Covenant.",
+          "travel_time": 180,
+          "requirements": [
+            "tracking_skill"
+          ]
+        }
+      ],
+      "npcs": [
+        "echo_collector",
+        "plane_walker"
+      ]
+    },
+    "ashen_camp": {
+      "id": "ashen_camp",
+      "name": "Ashen Camp",
+      "description": "A temporary settlement of the Ashen Covenant, comprised of easily dismantled structures and tents made from ash-treated hides. The camp is relocated monthly according to Covenant traditions. At its center burns an eternal flame where ancestral ashes are kept and used in rituals.",
+      "type": "settlement",
+      "region": "Northern Nexus",
+      "culture_id": "ashen",
+      "population": 120,
+      "features": [
+        {
+          "name": "The Ancestor Fire",
+          "description": "A central fire pit where ashes of ancestors are preserved. Covenant members can sometimes communicate with the dead through rituals performed here.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "The Exchange Circle",
+          "description": "An open area where the monthly Possession Exchange ceremony takes place, redistributing all material goods among the community.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "Ash Walker Tents",
+          "description": "Special tents where practitioners of Ash Walking temporarily transfer their consciousness to the Ashen plane.",
+          "interaction_type": "examine"
+        }
+      ],
+      "connections": [
+        {
+          "target": "echo_woods",
+          "description": "A barely visible trail leading back to the Echo Woods.",
+          "travel_time": 180,
+          "requirements": []
+        },
+        {
+          "target": "gray_veil",
+          "description": "A spiritual pathway to a location in the Ashen plane, only accessible to those trained in Ash Walking.",
+          "travel_time": 60,
+          "requirements": [
+            "ash_walking_knowledge"
+          ]
+        }
+      ],
+      "npcs": [
+        "covenant_elder",
+        "ash_walker",
+        "memory_keeper"
+      ]
+    },
+    "tempest_harbor": {
+      "id": "tempest_harbor",
+      "name": "Tempest Harbor",
+      "description": "A temporary docking location for the Tempest Flotilla on the Nexus plane, only present during specific celestial alignments. The harbor consists of rapidly constructed floating platforms and swaying walkways, all designed to be disassembled quickly. The atmosphere is chaotic and festive, with constant trading, gambling, and storytelling.",
+      "type": "harbor",
+      "region": "Southern Nexus",
+      "culture_id": "tempest",
+      "population": 800,
+      "features": [
+        {
+          "name": "The Flux Market",
+          "description": "A chaotic marketplace where leadership and prices change daily, offering rare goods from the Tempest plane.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Storm Binder's Pavilion",
+          "description": "A large tent where skilled artisans capture storm essences in elaborate tattoo designs.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "The Opportunity Board",
+          "description": "A constantly updated notice board listing current jobs, adventures, and opportunities throughout the planes.",
+          "interaction_type": "examine"
+        }
+      ],
+      "connections": [
+        {
+          "target": "harmonia",
+          "description": "A southern road leading to the capital city of Harmonia.",
+          "travel_time": 300,
+          "requirements": []
+        },
+        {
+          "target": "maelstrom_edge",
+          "description": "A dangerous passage to the edge of the Tempest plane, only navigable during specific celestial alignments.",
+          "travel_time": 240,
+          "requirements": [
+            "celestial_alignment",
+            "tempest_navigation"
+          ]
+        }
+      ],
+      "npcs": [
+        "flotilla_captain",
+        "storm_binder",
+        "probability_merchant"
+      ]
+    },
+    "shifting_library": {
+      "id": "shifting_library",
+      "name": "The Shifting Library",
+      "description": "A mysterious repository of knowledge that exists simultaneously in all planes. Different sections become accessible depending on which plane is currently dominant. The exterior appears as a modest stone building, but the interior contains seemingly endless halls of books, artifacts, and recordings from across all planes and time periods.",
+      "type": "library",
+      "region": "Planar Overlap",
+      "culture_id": "",
+      "population": 20,
+      "features": [
+        {
+          "name": "The Lexicant Hall",
+          "description": "The central chamber where the enigmatic Lexicants—beings who can exist in multiple planes simultaneously—catalog and preserve knowledge.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "The Shifting Stacks",
+          "description": "Endless rows of bookshelves that rearrange themselves based on planar influences, sometimes revealing previously inaccessible tomes.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Pre-Shattering Archive",
+          "description": "A heavily secured section containing fragmentary records from before The Shattering, only accessible during rare planar alignments.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "The Reading Nexus",
+          "description": "A circular chamber with desks that automatically provide reference materials related to the researcher's current study.",
+          "interaction_type": "use"
+        }
+      ],
+      "connections": [
+        {
+          "target": "harmonia",
+          "description": "The library's location relative to Harmonia changes based on planar alignments, but it's typically a day's journey.",
+          "travel_time": 480,
+          "requirements": [
+            "library_authorization"
+          ]
+        }
+      ],
+      "npcs": [
+        "head_lexicant",
+        "knowledge_seeker",
+        "forgotten_scholar"
+      ]
+    },
+    "planar_bleed_zone": {
+      "id": "planar_bleed_zone",
+      "name": "The Convergence",
+      "description": "A large area where multiple planes have permanently merged, creating a surreal landscape with elements from all planes coexisting in impossible ways. Flora and fauna have hybridized, and the laws of physics seem to vary from one meter to the next. Despite the dangers, researchers and resource gatherers frequent the area for its unique properties.",
+      "type": "anomaly",
+      "region": "Planar Border",
+      "culture_id": "",
+      "population": 50,
+      "features": [
+        {
+          "name": "Reality Fault",
+          "description": "A visible crack in space where raw planar energy seeps through, causing unpredictable magical effects in the vicinity.",
+          "interaction_type": "examine"
+        },
+        {
+          "name": "Hybridization Gardens",
+          "description": "A research station where Harmonic Order scientists study the unique hybrid flora and fauna that have evolved in the zone.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Echo Chamber",
+          "description": "A cave where sounds seem to echo from other planes and times, occasionally revealing useful information.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Harvester Camp",
+          "description": "A fortified encampment for those who gather the valuable resources that can only be found in Planar Bleed Zones.",
+          "interaction_type": "interact"
+        }
+      ],
+      "connections": [
+        {
+          "target": "echo_woods",
+          "description": "A hazardous path through shifting terrain that eventually reaches more stable ground near the Echo Woods.",
+          "travel_time": 600,
+          "requirements": [
+            "planar_protection"
+          ]
+        }
+      ],
+      "npcs": [
+        "harmonic_researcher",
+        "resource_harvester",
+        "planar_hybrid"
+      ]
+    },
+    "ghost_market": {
+      "id": "ghost_market",
+      "name": "The Ghost Market",
+      "description": "A mysterious marketplace that appears only during specific Resonance Events. Run by enigmatic entities known as 'The Between,' it offers goods, services, and information from across all planes. The market materializes in different locations each time but is recognizable by its ethereal tents and the faint bell music that accompanies its appearance.",
+      "type": "market",
+      "region": "Variable",
+      "culture_id": "",
+      "population": 0,
+      "features": [
+        {
+          "name": "The Contract Circle",
+          "description": "A central area where deals and contracts are formalized. Agreements made here are magically binding across all planes.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Memory Exchange",
+          "description": "A tent where memories can be bought, sold, or traded – sometimes willingly, sometimes not.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Between Emporium",
+          "description": "The largest structure in the market, selling impossible items that shouldn't exist in any single plane.",
+          "interaction_type": "interact"
+        },
+        {
+          "name": "Information Well",
+          "description": "A literal well where visitors can ask questions and receive answers – for a price.",
+          "interaction_type": "use"
+        }
+      ],
+      "connections": [],
+      "npcs": [
+        "the_proprietor",
+        "memory_merchant",
+        "contract_binder"
+      ]
+    },
+    "test_hub": {
+      "id": "test_hub",
+      "name": "Quest Test Hub",
+      "description": "A developer test area used to quickly validate quest proofs (items, kills, visits, flags) in a controlled environment.",
+      "type": "outpost",
+      "region": "Dev",
+      "culture_id": "concordant",
+      "population": 0,
+      "features": [],
+      "connections": [],
+      "npcs": []
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Location definitions for the RPG game world"
+  }
+}

@@ -1,0 +1,267 @@
+{
+    "session_id": "358cf3d6-7506-4107-9590-612eab001992",
+    "created_at": 1757594975.3368223,
+    "last_saved_at": 1757598890.148745,
+    "game_version": "0.1.0",
+    "player": {
+        "name": "Lars",
+        "race": "Elf",
+        "path": "Cleric",
+        "background": "Lars, an elf of slender build and unsettlingly piercing grey eyes, carries himself with an air of ancient responsibility that belies his relatively young age for his kind. A network of fine lines, etched by worry and countless hours spent poring over arcane texts, frames his face, highlighting the sharp angles of his cheekbones and the determined set of his jaw. His silver hair, usually meticulously braided with beads of polished obsidian, is slightly disheveled, a testament to the urgency of his mission. Though physically frail, weakened by a constitution ill-suited for the rigors of the world beyond his secluded home, Lars possesses an unwavering will and a sharp intellect, honed by years of study and a deep-seated devotion to protecting his people. He is driven by a profound sense of duty, tempered by a cautious nature and a profound respect for the delicate balance between the mortal realm and the arcane energies that flow through it. His diplomatic credentials, carefully concealed beneath his travel-worn robes, are both a symbol of his authority and a reminder of the weight of his people's expectations. He hopes to find answers, but fears what he might uncover.",
+        "sex": "Male",
+        "origin_id": "elven_emissary",
+        "level": 1,
+        "experience": 0,
+        "stats_manager_id": "5cb42f0a-c10d-4181-8da2-9864dd51bdbe",
+        "current_location": "Harmonia",
+        "current_district": "",
+        "inventory_id": "34af731b-1bc7-44d0-a692-91133a8eb23e",
+        "equipped_items": {},
+        "active_quests": [],
+        "completed_quests": [],
+        "character_image": "D:\\coding\\RPG project\\latest version\\images\\character_icons\\Elf_Cleric\\2_Elf_Cleric_Male.jpg",
+        "current_resolve": 0.0,
+        "active_social_effects": []
+    },
+    "world": {
+        "game_time": 1757594975.3368223,
+        "game_date": "Day 1",
+        "weather": "Clear",
+        "is_day": true,
+        "magical_conditions": {},
+        "global_vars": {},
+        "active_events": []
+    },
+    "conversation_history": [
+        {
+            "role": "gm",
+            "content": "==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, Lars the Elf Cleric from Lars, an elf of slender build and unsettlingly piercing grey eyes, carries himself with an air of ancient responsibility that belies his relatively young age for his kind. A network of fine lines, etched by worry and countless hours spent poring over arcane texts, frames his face, highlighting the sharp angles of his cheekbones and the determined set of his jaw. His silver hair, usually meticulously braided with beads of polished obsidian, is slightly disheveled, a testament to the urgency of his mission. Though physically frail, weakened by a constitution ill-suited for the rigors of the world beyond his secluded home, Lars possesses an unwavering will and a sharp intellect, honed by years of study and a deep-seated devotion to protecting his people. He is driven by a profound sense of duty, tempered by a cautious nature and a profound respect for the delicate balance between the mortal realm and the arcane energies that flow through it. His diplomatic credentials, carefully concealed beneath his travel-worn robes, are both a symbol of his authority and a reminder of the weight of his people's expectations. He hopes to find answers, but fears what he might uncover.!\n\nYour journey begins now...",
+            "timestamp": 1757594975.4128158
+        },
+        {
+            "role": "gm",
+            "content": "The Seven-Ring Market of Harmonia sprawls before you, a dizzying kaleidoscope of sights, sounds, and smells. Stalls overflowing with exotic wares from a thousand planes jostle for space, their vibrant colours assaulting your eyes. The air hums with a chaotic symphony of barters, boasts, and the strange, ethereal music of planar energies intermingling. You grip the focus crystal at your neck, its cool smoothness a grounding presence amidst the sensory overload. Around you, beings of every imaginable form throng the narrow walkways, their voices rising and falling in a babel of languages. A whiff of spiced xindfruit from Xylos mingles with the metallic tang of forge-fire from Mechanus, creating an olfactory tapestry both fascinating and overwhelming. You stand at the threshold, a lone elf amidst a sea of the unfamiliar, the weight of your mission pressing heavily upon you. To the north, the market appears to ascend towards the higher rings, while to the south, you can make out what looks like a more residential district. East and west are more of the sprawling market. You feel a slight twinge in your legs, and consider the next step.",
+            "timestamp": 1757594983.864212
+        },
+        {
+            "role": "gm",
+            "content": "Welcome back, Lars! You are currently at Harmonia.",
+            "timestamp": 1757598813.6102304
+        },
+        {
+            "role": "gm",
+            "content": "The midday sun beats down on the Seven-Ring Market of Harmonia, casting long shadows that dance and shift with the movements of the bustling crowds. The air is thick with the aroma of exotic spices and strange energies, a constant hum vibrating through the cobblestone streets. You, Lars, an elf carrying the weight of your people's fate, stand at the intersection of two paths, the sounds of bartering and distant music washing over you. You recall your arrival, the sensory overload nearly overwhelming your senses. The northern path seems to lead upwards towards the higher rings of the market, while the southern path descends into what appears to be a more residential area. To the east and west, the market sprawls endlessly, a labyrinth of stalls and strange faces. You feel the familiar ache in your legs, a constant reminder of your physical limitations. Your hand instinctively goes to the focus crystal at your neck, its smooth surface offering a small measure of comfort.",
+            "timestamp": 1757598820.9377444
+        },
+        {
+            "role": "player",
+            "content": "is there any person close to me?",
+            "timestamp": 1757598832.6903472
+        },
+        {
+            "role": "gm",
+            "content": "You pause, closing your eyes for a moment and focusing your senses outwards. The cacophony of the market makes it difficult to discern individuals, but you extend your awareness, reaching for any distinct presence nearby. The press of the crowd is almost tangible, a sea of bodies and energies. As you concentrate, you begin to distinguish a few figures in your immediate vicinity. To your left, a hulking goliath, easily towering over the crowd, examines a rack of weapons with a discerning eye. To your right, a pair of gnomish merchants haggle loudly over the price of some shimmering dust, their voices high-pitched and grating. Directly in front of you, a cloaked figure stands motionless, seemingly oblivious to the chaos around them, their face hidden in shadow.",
+            "timestamp": 1757598839.9706075
+        },
+        {
+            "role": "player",
+            "content": "I approach the gnomes",
+            "timestamp": 1757598860.2654455
+        },
+        {
+            "role": "gm",
+            "content": "You begin to make your way towards the two gnomish merchants, carefully navigating through the throng of beings that populate the marketplace. The aroma of spiced xindfruit intensifies as you move closer to their stall, a small but vibrant display of various exotic ingredients and alchemical components. The gnomes themselves are a flurry of motion, gesticulating wildly as they continue their spirited negotiation. One, with a pointed hat adorned with several jingling bells, clutches a pouch tightly, while the other, his beard braided with colourful beads, gestures emphatically at a small vial filled with shimmering, iridescent dust. They seem completely engrossed in their transaction, barely registering your approach. As you get closer, you can hear snippets of their conversation, a rapid-fire exchange filled with arcane terms and exaggerated claims.",
+            "timestamp": 1757598868.8508186
+        }
+    ],
+    "last_command": null,
+    "current_mode": "NARRATIVE",
+    "current_combatants": [],
+    "current_trade_partner_id": null,
+    "mode_transition_cooldowns": {},
+    "is_transitioning_to_combat": false,
+    "combat_narrative_buffer": [],
+    "character_stats": {
+        "level": 1,
+        "stats": {
+            "STR": {
+                "name": "STRENGTH",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Physical power, affects melee damage and carrying capacity."
+            },
+            "DEX": {
+                "name": "DEXTERITY",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Agility and reflexes, affects ranged attacks, initiative, and dodge."
+            },
+            "CON": {
+                "name": "CONSTITUTION",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Physical resilience, affects health, stamina, and resistance to poison/disease."
+            },
+            "INT": {
+                "name": "INTELLIGENCE",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Mental acuity, affects spell power and learning ability."
+            },
+            "WIS": {
+                "name": "WISDOM",
+                "base_value": 14,
+                "category": "PRIMARY",
+                "description": "Intuition and perception, affects magical resistance and willpower."
+            },
+            "CHA": {
+                "name": "CHARISMA",
+                "base_value": 15,
+                "category": "PRIMARY",
+                "description": "Social influence, affects dialogue, prices, and persuasion."
+            },
+            "WIL": {
+                "name": "WILLPOWER",
+                "base_value": 15,
+                "category": "PRIMARY",
+                "description": "Mental fortitude, resistance to influence and fear."
+            },
+            "INS": {
+                "name": "INSIGHT",
+                "base_value": 10,
+                "category": "PRIMARY",
+                "description": "Understanding situations, detecting lies, and sensing motives."
+            }
+        },
+        "derived_stats": {
+            "Max Health Points": {
+                "name": "MAX_HEALTH",
+                "base_value": 9.0,
+                "category": "DERIVED",
+                "description": "Your maximum hit points."
+            },
+            "Max Mana Points": {
+                "name": "MAX_MANA",
+                "base_value": 6.0,
+                "category": "DERIVED",
+                "description": "Your maximum magical energy."
+            },
+            "Max Stamina": {
+                "name": "MAX_STAMINA",
+                "base_value": 10.0,
+                "category": "DERIVED",
+                "description": "Your maximum physical energy."
+            },
+            "Max Resolve": {
+                "name": "MAX_RESOLVE",
+                "base_value": 12.0,
+                "category": "DERIVED",
+                "description": "Your maximum social/mental composure."
+            },
+            "Melee Attack": {
+                "name": "MELEE_ATTACK",
+                "base_value": 1.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents in melee combat."
+            },
+            "Ranged Attack": {
+                "name": "RANGED_ATTACK",
+                "base_value": 1.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with ranged weapons."
+            },
+            "Magic Attack": {
+                "name": "MAGIC_ATTACK",
+                "base_value": 1.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with magical attacks."
+            },
+            "Defense": {
+                "name": "DEFENSE",
+                "base_value": 8.0,
+                "category": "DERIVED",
+                "description": "Your ability to avoid physical damage."
+            },
+            "Magic Defense": {
+                "name": "MAGIC_DEFENSE",
+                "base_value": 11.0,
+                "category": "DERIVED",
+                "description": "Your ability to resist magical effects."
+            },
+            "Damage Reduction": {
+                "name": "DAMAGE_REDUCTION",
+                "base_value": 0.0,
+                "category": "DERIVED",
+                "description": "Reduces incoming physical damage by a flat amount."
+            },
+            "Initiative": {
+                "name": "INITIATIVE",
+                "base_value": 0.0,
+                "category": "DERIVED",
+                "description": "Determines your turn order in combat."
+            },
+            "Carry Capacity": {
+                "name": "CARRY_CAPACITY",
+                "base_value": 90.0,
+                "category": "DERIVED",
+                "description": "The maximum weight you can carry."
+            },
+            "Movement": {
+                "name": "MOVEMENT",
+                "base_value": 29.0,
+                "category": "DERIVED",
+                "description": "How far you can move in combat."
+            },
+            "Health Points": {
+                "name": "HEALTH",
+                "base_value": 9,
+                "category": "DERIVED",
+                "description": "Your current hit points. When this reaches zero, you are incapacitated."
+            },
+            "Resolve": {
+                "name": "RESOLVE",
+                "base_value": 12,
+                "category": "DERIVED",
+                "description": "Your current social/mental composure. Reduced by stress or social defeats."
+            },
+            "Mana Points": {
+                "name": "MANA",
+                "base_value": 6,
+                "category": "DERIVED",
+                "description": "Your current magical energy. Required for casting spells."
+            },
+            "Stamina": {
+                "name": "STAMINA",
+                "base_value": 10,
+                "category": "DERIVED",
+                "description": "Your current physical energy. Required for special physical actions."
+            }
+        },
+        "modifiers": {
+            "modifiers": [],
+            "modifier_groups": []
+        },
+        "status_effects": {
+            "active_effects": {}
+        }
+    },
+    "memory_context": {
+        "version": "0.1.0",
+        "memory_entries": [],
+        "context_state": {}
+    },
+    "detailed_inventory": {
+        "items": {},
+        "weight_limit_base": 100.0,
+        "weight_limit_modifiers": {},
+        "slot_limit_base": 20,
+        "slot_limit_modifiers": {},
+        "equipment": {},
+        "currency": {
+            "gold": 0,
+            "silver": 0,
+            "copper": 0,
+            "total_copper": 0
+        }
+    }
+}

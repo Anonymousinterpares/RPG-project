@@ -1,0 +1,701 @@
+{
+    "session_id": "d6ea404a-b298-49be-a2bc-1f299bef0224",
+    "created_at": 1757452034.3938026,
+    "last_saved_at": 1757452061.591229,
+    "game_version": "0.1.0",
+    "player": {
+        "name": "Lars",
+        "race": "Cinderspawn",
+        "path": "Warrior",
+        "background": "The Eternal Flame at the center of the Ashen Camp dances hypnotically, casting long shadows from the temporary structures that surround it. You've arrived just days ago, but already the Covenant has accepted you as one of their own \u2013 an unusually quick integration into their normally closed society. Perhaps they saw something in you that suggested an affinity for their ways, or perhaps the ancestors spoke your name during a ritual.\n\nYour tent, like all others in the camp, is designed for quick assembly and disassembly. The nomadic Ashen Covenant never stays in one place long, following ancient migration patterns known only to their elders. All possessions are considered temporary \u2013 including the ritual dagger you were gifted this morning, which you're expected to surrender during the next Possession Exchange ceremony.\n\nAn elder approaches you now, their skin bearing the distinctive gray markings that indicate frequent Ash Walking \u2013 the mysterious practice of projecting consciousness through the ashes of the dead to commune with ancestors or travel spiritually to the Ashen plane. They've promised to begin your initial training today, starting with the fundamental philosophy that nothing \u2013 not possessions, not places, not even lives \u2013 is permanent. All returns to ash eventually, and in understanding this, the Covenant finds freedom.",
+        "sex": "Male",
+        "origin_id": "cinderspawn_pilgrim",
+        "level": 1,
+        "experience": 0,
+        "stats_manager_id": "d27882cd-e116-4a44-83e9-79f352926d21",
+        "current_location": "Starting Town",
+        "current_district": "Town Square",
+        "inventory_id": "92ae3eeb-d8e0-4f97-a4c3-792051ec176e",
+        "equipped_items": {},
+        "active_quests": [],
+        "completed_quests": [],
+        "character_image": "D:\\coding\\RPG project\\latest version\\images\\character_icons\\Cinderspawn_Warrior\\1_Cinderspawn_Warrior_Male.jpg",
+        "current_resolve": 0.0,
+        "active_social_effects": []
+    },
+    "world": {
+        "game_time": 21600,
+        "game_date": "Day 1",
+        "weather": "Clear",
+        "is_day": true,
+        "magical_conditions": {},
+        "global_vars": {
+            "current_season": "Winter"
+        },
+        "active_events": []
+    },
+    "conversation_history": [
+        {
+            "role": "gm",
+            "content": "==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, Lars the Cinderspawn Warrior from The Eternal Flame at the center of the Ashen Camp dances hypnotically, casting long shadows from the temporary structures that surround it. You've arrived just days ago, but already the Covenant has accepted you as one of their own \u2013 an unusually quick integration into their normally closed society. Perhaps they saw something in you that suggested an affinity for their ways, or perhaps the ancestors spoke your name during a ritual.\n\nYour tent, like all others in the camp, is designed for quick assembly and disassembly. The nomadic Ashen Covenant never stays in one place long, following ancient migration patterns known only to their elders. All possessions are considered temporary \u2013 including the ritual dagger you were gifted this morning, which you're expected to surrender during the next Possession Exchange ceremony.\n\nAn elder approaches you now, their skin bearing the distinctive gray markings that indicate frequent Ash Walking \u2013 the mysterious practice of projecting consciousness through the ashes of the dead to commune with ancestors or travel spiritually to the Ashen plane. They've promised to begin your initial training today, starting with the fundamental philosophy that nothing \u2013 not possessions, not places, not even lives \u2013 is permanent. All returns to ash eventually, and in understanding this, the Covenant finds freedom.!\n\nYour journey begins now...",
+            "timestamp": 1757452034.423201
+        },
+        {
+            "role": "gm",
+            "content": "The heat of the Eternal Flame kisses your face as you kneel, the ember renewal tonic coursing through your veins. You feel the exhilarating burn of transformation, the familiar ache of your Cinderspawn form embracing the ancestral power. Around you, the Ashen Camp hums with a quiet energy, the temporary tents silhouetted against the darkening sky. Covenant members move with purpose, their faces etched with the calm acceptance of impermanence, giving you respectful distance as you commune with the flame.\n\nThe air smells of woodsmoke and something ancient, something carried on the living ash that dances around you. The pilgrimage map rests securely within your flame-resistant wrappings, a promise of the journey ahead. Tomorrow, you will follow its guidance, seeking the next sacred flame. But tonight, the Eternal Flame calls to you, offering a glimpse into the wisdom of those who came before.",
+            "timestamp": 1757452042.52379
+        }
+    ],
+    "last_command": null,
+    "current_mode": "NARRATIVE",
+    "current_combatants": [],
+    "current_trade_partner_id": null,
+    "mode_transition_cooldowns": {},
+    "is_transitioning_to_combat": false,
+    "combat_narrative_buffer": [],
+    "character_stats": {
+        "level": 1,
+        "stats": {
+            "STR": {
+                "name": "STRENGTH",
+                "base_value": 14,
+                "category": "PRIMARY",
+                "description": "Physical power, affects melee damage and carrying capacity."
+            },
+            "DEX": {
+                "name": "DEXTERITY",
+                "base_value": 15,
+                "category": "PRIMARY",
+                "description": "Agility and reflexes, affects ranged attacks, initiative, and dodge."
+            },
+            "CON": {
+                "name": "CONSTITUTION",
+                "base_value": 14,
+                "category": "PRIMARY",
+                "description": "Physical resilience, affects health, stamina, and resistance to poison/disease."
+            },
+            "INT": {
+                "name": "INTELLIGENCE",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Mental acuity, affects spell power and learning ability."
+            },
+            "WIS": {
+                "name": "WISDOM",
+                "base_value": 10,
+                "category": "PRIMARY",
+                "description": "Intuition and perception, affects magical resistance and willpower."
+            },
+            "CHA": {
+                "name": "CHARISMA",
+                "base_value": 10,
+                "category": "PRIMARY",
+                "description": "Social influence, affects dialogue, prices, and persuasion."
+            },
+            "WIL": {
+                "name": "WILLPOWER",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Mental fortitude, resistance to influence and fear."
+            },
+            "INS": {
+                "name": "INSIGHT",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Understanding situations, detecting lies, and sensing motives."
+            }
+        },
+        "derived_stats": {
+            "Max Health Points": {
+                "name": "MAX_HEALTH",
+                "base_value": 12.0,
+                "category": "DERIVED",
+                "description": "Your maximum hit points."
+            },
+            "Max Mana Points": {
+                "name": "MAX_MANA",
+                "base_value": 4.0,
+                "category": "DERIVED",
+                "description": "Your maximum magical energy."
+            },
+            "Max Stamina": {
+                "name": "MAX_STAMINA",
+                "base_value": 15.0,
+                "category": "DERIVED",
+                "description": "Your maximum physical energy."
+            },
+            "Max Resolve": {
+                "name": "MAX_RESOLVE",
+                "base_value": 8.0,
+                "category": "DERIVED",
+                "description": "Your maximum social/mental composure."
+            },
+            "Melee Attack": {
+                "name": "MELEE_ATTACK",
+                "base_value": 4.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents in melee combat."
+            },
+            "Ranged Attack": {
+                "name": "RANGED_ATTACK",
+                "base_value": 4.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with ranged weapons."
+            },
+            "Magic Attack": {
+                "name": "MAGIC_ATTACK",
+                "base_value": 1.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with magical attacks."
+            },
+            "Defense": {
+                "name": "DEFENSE",
+                "base_value": 14.0,
+                "category": "DERIVED",
+                "description": "Your ability to avoid physical damage."
+            },
+            "Magic Defense": {
+                "name": "MAGIC_DEFENSE",
+                "base_value": 9.0,
+                "category": "DERIVED",
+                "description": "Your ability to resist magical effects."
+            },
+            "Damage Reduction": {
+                "name": "DAMAGE_REDUCTION",
+                "base_value": 0.0,
+                "category": "DERIVED",
+                "description": "Reduces incoming physical damage by a flat amount."
+            },
+            "Initiative": {
+                "name": "INITIATIVE",
+                "base_value": 2.0,
+                "category": "DERIVED",
+                "description": "Determines your turn order in combat."
+            },
+            "Carry Capacity": {
+                "name": "CARRY_CAPACITY",
+                "base_value": 120.0,
+                "category": "DERIVED",
+                "description": "The maximum weight you can carry."
+            },
+            "Movement": {
+                "name": "MOVEMENT",
+                "base_value": 37.0,
+                "category": "DERIVED",
+                "description": "How far you can move in combat."
+            },
+            "Health Points": {
+                "name": "HEALTH",
+                "base_value": 12,
+                "category": "DERIVED",
+                "description": "Your current hit points. When this reaches zero, you are incapacitated."
+            },
+            "Resolve": {
+                "name": "RESOLVE",
+                "base_value": 8,
+                "category": "DERIVED",
+                "description": "Your current social/mental composure. Reduced by stress or social defeats."
+            },
+            "Mana Points": {
+                "name": "MANA",
+                "base_value": 4,
+                "category": "DERIVED",
+                "description": "Your current magical energy. Required for casting spells."
+            },
+            "Stamina": {
+                "name": "STAMINA",
+                "base_value": 15,
+                "category": "DERIVED",
+                "description": "Your current physical energy. Required for special physical actions."
+            }
+        },
+        "modifiers": {
+            "modifiers": [
+                {
+                    "id": "c14f0f9c-ab7f-4ca1-ab98-3e2ff1511c9c",
+                    "stat": "STR",
+                    "value": 2,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "7f37caa9-ed23-4d88-a687-f3e0bf017dda",
+                    "stat": "DEX",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "d1c53dfa-6d69-41eb-a084-349366166f68",
+                    "stat": "CON",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "779ef1cc-5004-4578-a6bf-dc9942bdea8d",
+                    "stat": "INT",
+                    "value": -1,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "1180896f-582a-4b9e-af61-390555273dc6",
+                    "stat": "WIS",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "1691f174-5214-4174-8b2d-2d476bc82e97",
+                    "stat": "CHA",
+                    "value": -2,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "1693df50-a702-4e91-8599-f7020b7bd078",
+                    "stat": "WIL",
+                    "value": 2,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "28fc0af7-78d5-466d-8172-550535c90064",
+                    "stat": "INS",
+                    "value": 0,
+                    "source_type": "RACIAL",
+                    "source_name": "Cinderspawn Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "cc9a7dc0-5231-4fb1-bf73-afa0d40bc125",
+                    "stat": "STR",
+                    "value": 2,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "07b06051-9f78-4fb1-affb-b4e7df85265a",
+                    "stat": "DEX",
+                    "value": 0,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "adde0e29-8095-46c5-bd82-b11b1af00c6b",
+                    "stat": "CON",
+                    "value": 2,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "a58d9101-9149-4f17-b800-890fe38243f4",
+                    "stat": "INT",
+                    "value": -1,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "6bc9d528-8eea-43c1-b93b-61f7c063c802",
+                    "stat": "WIS",
+                    "value": 0,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "8eec092b-ac19-46e4-895a-032937458428",
+                    "stat": "CHA",
+                    "value": 0,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "988dce36-59aa-4122-8909-dc97d212d42c",
+                    "stat": "WIL",
+                    "value": 2,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "f721d393-ecdb-4dad-8d8e-0398dcae1ee6",
+                    "stat": "INS",
+                    "value": -1,
+                    "source_type": "CLASS",
+                    "source_name": "Warrior Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                }
+            ],
+            "modifier_groups": []
+        },
+        "status_effects": {
+            "active_effects": {}
+        }
+    },
+    "memory_context": {
+        "version": "0.1.0",
+        "memory_entries": [],
+        "context_state": {}
+    },
+    "detailed_inventory": {
+        "items": {
+            "d60e3c9f-a8e1-490e-9c6c-f23faa742b43": {
+                "id": "d60e3c9f-a8e1-490e-9c6c-f23faa742b43",
+                "name": "Ancestral Ash Container",
+                "description": "A specially crafted container made from obsidian and silver, designed to safely hold and preserve sacred ancestral ashes.",
+                "item_type": "container",
+                "rarity": "rare",
+                "weight": 0.5,
+                "value": 400,
+                "icon_path": null,
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": 1,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "container",
+                    "cinderspawn",
+                    "ash",
+                    "ritual",
+                    "ancestral"
+                ],
+                "template_id": "ancestral_ash_container",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-09T23:07:14.418791",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "rarity",
+                    "name",
+                    "weight",
+                    "description",
+                    "tags",
+                    "quantity",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "is_quest_item",
+                    "icon_path"
+                ]
+            },
+            "98e6e480-89e9-439b-b2a4-3784287223a2": {
+                "id": "98e6e480-89e9-439b-b2a4-3784287223a2",
+                "name": "Ember Renewal Tonic",
+                "description": "A potent tonic that revitalizes a Cinderspawn's inner ember, hastening regeneration and enhancing flame-based abilities.",
+                "item_type": "consumable",
+                "rarity": "uncommon",
+                "weight": 0.2,
+                "value": 200,
+                "icon_path": null,
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": true,
+                "is_stackable": true,
+                "stack_limit": 3,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "potion",
+                    "consumable",
+                    "cinderspawn",
+                    "buff",
+                    "fire"
+                ],
+                "template_id": "ember_renewal_tonic",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-09T23:07:14.419790",
+                "stats": [
+                    {
+                        "name": "regeneration_boost",
+                        "value": 50,
+                        "display_name": "Regeneration Boost",
+                        "is_percentage": true
+                    },
+                    {
+                        "name": "flame_power_increase",
+                        "value": 2,
+                        "display_name": "Flame Power",
+                        "is_percentage": false
+                    },
+                    {
+                        "name": "duration_minutes",
+                        "value": 10,
+                        "display_name": "Duration (Minutes)",
+                        "is_percentage": false
+                    }
+                ],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "rarity",
+                    "name",
+                    "weight",
+                    "description",
+                    "tags",
+                    "quantity",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "is_quest_item",
+                    "icon_path"
+                ]
+            },
+            "a534d05a-2995-46f7-abe1-37f5017980f6": {
+                "id": "a534d05a-2995-46f7-abe1-37f5017980f6",
+                "name": "Pilgrimage Map",
+                "description": "A map charted on fire-resistant hide, marking known sacred flame sites across various planes.",
+                "item_type": "document",
+                "rarity": "uncommon",
+                "weight": 0.2,
+                "value": 0,
+                "icon_path": null,
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": 1,
+                "quantity": 1,
+                "is_quest_item": true,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "document",
+                    "map",
+                    "cinderspawn",
+                    "pilgrimage",
+                    "quest_item"
+                ],
+                "template_id": "pilgrimage_map",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-09T23:07:14.421201",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "rarity",
+                    "name",
+                    "weight",
+                    "description",
+                    "tags",
+                    "quantity",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "is_quest_item",
+                    "icon_path"
+                ]
+            },
+            "d0f48ea4-c0c9-4283-9d5f-2490cabdb292": {
+                "id": "d0f48ea4-c0c9-4283-9d5f-2490cabdb292",
+                "name": "Flame-Resistant Wrappings",
+                "description": "Thick, specially treated cloth wrappings that offer significant protection against fire and extreme heat.",
+                "item_type": "armor",
+                "rarity": "uncommon",
+                "weight": 0.8,
+                "value": 120,
+                "icon_path": null,
+                "is_equippable": true,
+                "equip_slots": [
+                    "wrists",
+                    "legs",
+                    "chest"
+                ],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": 1,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": 90,
+                "current_durability": 90,
+                "is_destroyed": false,
+                "tags": [
+                    "clothing",
+                    "armor",
+                    "cinderspawn",
+                    "fire_protection"
+                ],
+                "template_id": "flame-resistant_wrappings",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-09T23:07:14.421201",
+                "stats": [
+                    {
+                        "name": "fire_resistance",
+                        "value": 25,
+                        "display_name": "Fire Resistance",
+                        "is_percentage": true
+                    }
+                ],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "current_durability",
+                    "description",
+                    "quantity",
+                    "equip_slots",
+                    "stats",
+                    "is_equippable",
+                    "is_stackable",
+                    "is_quest_item",
+                    "icon_path",
+                    "durability",
+                    "rarity",
+                    "name",
+                    "weight",
+                    "value",
+                    "tags",
+                    "item_type"
+                ]
+            },
+            "87cb8a69-da9a-4594-ae6c-897d1d7f5ab0": {
+                "id": "87cb8a69-da9a-4594-ae6c-897d1d7f5ab0",
+                "name": "Ritual Igniter",
+                "description": "A Cinderspawn tool that can create a spark of intense, spiritually attuned flame, used to light sacred fires.",
+                "item_type": "tool",
+                "rarity": "rare",
+                "weight": 0.3,
+                "value": 350,
+                "icon_path": null,
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": 1,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "tool",
+                    "cinderspawn",
+                    "fire",
+                    "ritual"
+                ],
+                "template_id": "ritual_igniter",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-09T23:07:14.422200",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "rarity",
+                    "name",
+                    "weight",
+                    "description",
+                    "tags",
+                    "quantity",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "is_quest_item",
+                    "icon_path"
+                ]
+            }
+        },
+        "weight_limit_base": 100.0,
+        "weight_limit_modifiers": {},
+        "slot_limit_base": 20,
+        "slot_limit_modifiers": {},
+        "equipment": {},
+        "currency": {
+            "gold": 0,
+            "silver": 0,
+            "copper": 0,
+            "total_copper": 0
+        }
+    }
+}

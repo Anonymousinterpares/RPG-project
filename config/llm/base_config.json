@@ -1,0 +1,13 @@
+{
+    "default_provider_type": "GOOGLE",
+    "timeout_seconds": 30,
+    "retry_attempts": 3,
+    "retry_delay_seconds": 2,
+    "run_diagnostics_on_start": false,
+    "log_prompts": true,
+    "log_completions": true,
+    "cost_tracking_enabled": true,
+    "enabled": true,
+    "default_temperature": 0.7,
+    "llm_enabled": true
+}

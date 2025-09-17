@@ -1,0 +1,1053 @@
+{
+    "session_id": "aee48ce2-7807-4aac-960f-735d8c310916",
+    "created_at": 1757850509.8213663,
+    "last_saved_at": 1757850559.444845,
+    "game_version": "0.1.0",
+    "player": {
+        "name": "Pras",
+        "race": "Human",
+        "path": "Wanderer",
+        "background": "This is a dedicated test scenario. You begin in the Quest Test Hub, with tools to validate quest objective detection and event logging.",
+        "sex": "Male",
+        "origin_id": "quest_testbed",
+        "level": 1,
+        "experience": 0,
+        "stats_manager_id": "ec288276-3155-4d65-b658-d9f7bc82760f",
+        "current_location": "Quest Test Hub",
+        "current_district": "",
+        "inventory_id": "04ac605f-d288-416b-996b-18c14becb707",
+        "equipped_items": {},
+        "active_quests": [],
+        "completed_quests": [],
+        "character_image": "D:\\coding\\RPG project\\latest version\\images\\character_icons\\Human_Wanderer\\1_Human_Wanderer_Male.jpg",
+        "current_resolve": 0.0,
+        "active_social_effects": []
+    },
+    "world": {
+        "game_time": 1757850509.8213663,
+        "game_date": "Day 1",
+        "weather": "Clear",
+        "is_day": true,
+        "magical_conditions": {},
+        "global_vars": {},
+        "active_events": []
+    },
+    "conversation_history": [
+        {
+            "role": "gm",
+            "content": "==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, Pras the Human Wanderer from This is a dedicated test scenario. You begin in the Quest Test Hub, with tools to validate quest objective detection and event logging.!\n\nYour journey begins now...",
+            "timestamp": 1757850509.8517215
+        }
+    ],
+    "event_log": [
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 1757850509.8213663
+        }
+    ],
+    "last_command": null,
+    "current_mode": "NARRATIVE",
+    "current_combatants": [],
+    "current_trade_partner_id": null,
+    "mode_transition_cooldowns": {},
+    "is_transitioning_to_combat": false,
+    "combat_narrative_buffer": [],
+    "journal": {
+        "character": "",
+        "quests": {
+            "TEST_Q01": {
+                "title": "Q01 \u2013 Fetch an Apple",
+                "description": "Obtain a test apple.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Obtain 1 test_apple.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q02": {
+                "title": "Q02 \u2013 Defeat the Test Wolf",
+                "description": "Defeat the test_wolf_alpha.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_wolf_alpha.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q03": {
+                "title": "Q03 \u2013 Visit the Test Ruins",
+                "description": "Visit test_ancient_ruins.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_ancient_ruins.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q04": {
+                "title": "Q04 \u2013 Speak to the Test Elder",
+                "description": "Ensure flag test_spoke_to_elder is true.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Speak with the test_elder.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q05": {
+                "title": "Q05 \u2013 Beat the Clock (Before 5m)",
+                "description": "Complete before time < 300.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Finish the timed task before 300s.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q06": {
+                "title": "Q06 \u2013 After Time Gate (After 10m)",
+                "description": "Complete only after time > 600.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Finish the timed task after 600s.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q07": {
+                "title": "Q07 \u2013 All Composite",
+                "description": "Have test_key and defeat test_guardian.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Have test_key and defeat test_guardian.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q08": {
+                "title": "Q08 \u2013 Any Composite",
+                "description": "Visit either test_dock or test_harbor.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_dock OR test_harbor.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q09": {
+                "title": "Q09 \u2013 None Composite",
+                "description": "Alarm must NOT be triggered.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Ensure alarm remains silent.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q10": {
+                "title": "Q10 \u2013 Mandatory + Optional",
+                "description": "Mandatory item; optional visit.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Obtain test_badge.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Optionally visit test_outpost.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q11": {
+                "title": "Q11 \u2013 Two Mandatory Objectives",
+                "description": "Complete both mandatory objectives.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_bandit_captain.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Collect 3 test_gem.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q12": {
+                "title": "Q12 \u2013 Semantic Only (No DSL)",
+                "description": "Objective completion via semantic inference.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Convince the test_mayor to help.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q13": {
+                "title": "Q13 \u2013 Semantic Mandatory + Optional DSL",
+                "description": "Mandatory semantic objective and optional visit objective.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Broker peace between test_factions.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Optionally visit test_neutral_ground.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q14": {
+                "title": "Q14 \u2013 Flag Chain",
+                "description": "Require both flags set (speak to guard and acquire pass).",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Speak to guard and acquire pass.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q15": {
+                "title": "Q15 \u2013 Inventory Count",
+                "description": "Collect 3 test_herb.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Collect 3 test_herb.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q16": {
+                "title": "Q16 \u2013 Any of Three Enemies",
+                "description": "Defeat any one of three test bandits.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat any bandit (1 of 3).",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q17": {
+                "title": "Q17 \u2013 Visit Two Key Locations",
+                "description": "Visit both test_gate and test_keep.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_gate and test_keep.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q18": {
+                "title": "Q18 \u2013 Negative Flag (Not Banished)",
+                "description": "Ensure not banished.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Ensure test_banished is false.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q19": {
+                "title": "Q19 \u2013 Mixed All/Any",
+                "description": "Travel to dock or harbor and have a test_ticket.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_dock or test_harbor and show test_ticket.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q20": {
+                "title": "Q20 \u2013 Optional Does Not Block",
+                "description": "Optional objective should not block completion.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Deliver test_letter.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Explore test_garden (optional).",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q21": {
+                "title": "Q21 \u2013 Narrative-Heavy Objective",
+                "description": "Deliver an inspiring speech to the council.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Deliver an inspiring speech to the test_council about unity and cooperation.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q22": {
+                "title": "Q22 \u2013 Three Mandatory Objectives",
+                "description": "Complete three distinct tasks.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_ogre.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Collect 2 test_ogre_tooth.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    },
+                    {
+                        "id": "O3",
+                        "description": "Visit test_ogre_cave.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q23": {
+                "title": "Q23 \u2013 Semantic Failure Gating",
+                "description": "Objective completion depends on semantic inference only.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Convince test_skeptic to trust you.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q24": {
+                "title": "Q24 \u2013 Abandon/Fallback Scenario",
+                "description": "Regular quest for abandon/failure flow testing.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Recover the test_relic.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q25": {
+                "title": "Q25 \u2013 Complex Mixed Conditions",
+                "description": "Any of two routes, but no alarm and with resource gate.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Route A (visit test_tower AND have test_rope) OR Route B (defeat test_spider_queen) with no alarm.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            }
+        },
+        "notes": []
+    },
+    "character_stats": {
+        "level": 1,
+        "stats": {
+            "STR": {
+                "name": "STRENGTH",
+                "base_value": 15,
+                "category": "PRIMARY",
+                "description": "Physical power, affects melee damage and carrying capacity."
+            },
+            "DEX": {
+                "name": "DEXTERITY",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Agility and reflexes, affects ranged attacks, initiative, and dodge."
+            },
+            "CON": {
+                "name": "CONSTITUTION",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Physical resilience, affects health, stamina, and resistance to poison/disease."
+            },
+            "INT": {
+                "name": "INTELLIGENCE",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Mental acuity, affects spell power and learning ability."
+            },
+            "WIS": {
+                "name": "WISDOM",
+                "base_value": 12,
+                "category": "PRIMARY",
+                "description": "Intuition and perception, affects magical resistance and willpower."
+            },
+            "CHA": {
+                "name": "CHARISMA",
+                "base_value": 10,
+                "category": "PRIMARY",
+                "description": "Social influence, affects dialogue, prices, and persuasion."
+            },
+            "WIL": {
+                "name": "WILLPOWER",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Mental fortitude, resistance to influence and fear."
+            },
+            "INS": {
+                "name": "INSIGHT",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "description": "Understanding situations, detecting lies, and sensing motives."
+            }
+        },
+        "derived_stats": {
+            "Max Health Points": {
+                "name": "MAX_HEALTH",
+                "base_value": 11.0,
+                "category": "DERIVED",
+                "description": "Your maximum hit points."
+            },
+            "Max Mana Points": {
+                "name": "MAX_MANA",
+                "base_value": 7.0,
+                "category": "DERIVED",
+                "description": "Your maximum magical energy."
+            },
+            "Max Stamina": {
+                "name": "MAX_STAMINA",
+                "base_value": 14.0,
+                "category": "DERIVED",
+                "description": "Your maximum physical energy."
+            },
+            "Max Resolve": {
+                "name": "MAX_RESOLVE",
+                "base_value": 8.0,
+                "category": "DERIVED",
+                "description": "Your maximum social/mental composure."
+            },
+            "Melee Attack": {
+                "name": "MELEE_ATTACK",
+                "base_value": 4.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents in melee combat."
+            },
+            "Ranged Attack": {
+                "name": "RANGED_ATTACK",
+                "base_value": 3.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with ranged weapons."
+            },
+            "Magic Attack": {
+                "name": "MAGIC_ATTACK",
+                "base_value": 3.0,
+                "category": "DERIVED",
+                "description": "Your ability to hit opponents with magical attacks."
+            },
+            "Defense": {
+                "name": "DEFENSE",
+                "base_value": 12.0,
+                "category": "DERIVED",
+                "description": "Your ability to avoid physical damage."
+            },
+            "Magic Defense": {
+                "name": "MAGIC_DEFENSE",
+                "base_value": 11.0,
+                "category": "DERIVED",
+                "description": "Your ability to resist magical effects."
+            },
+            "Damage Reduction": {
+                "name": "DAMAGE_REDUCTION",
+                "base_value": 0.0,
+                "category": "DERIVED",
+                "description": "Reduces incoming physical damage by a flat amount."
+            },
+            "Initiative": {
+                "name": "INITIATIVE",
+                "base_value": 1.0,
+                "category": "DERIVED",
+                "description": "Determines your turn order in combat."
+            },
+            "Carry Capacity": {
+                "name": "CARRY_CAPACITY",
+                "base_value": 125.0,
+                "category": "DERIVED",
+                "description": "The maximum weight you can carry."
+            },
+            "Movement": {
+                "name": "MOVEMENT",
+                "base_value": 35.0,
+                "category": "DERIVED",
+                "description": "How far you can move in combat."
+            },
+            "Health Points": {
+                "name": "HEALTH",
+                "base_value": 11,
+                "category": "DERIVED",
+                "description": "Your current hit points. When this reaches zero, you are incapacitated."
+            },
+            "Resolve": {
+                "name": "RESOLVE",
+                "base_value": 8,
+                "category": "DERIVED",
+                "description": "Your current social/mental composure. Reduced by stress or social defeats."
+            },
+            "Mana Points": {
+                "name": "MANA",
+                "base_value": 7,
+                "category": "DERIVED",
+                "description": "Your current magical energy. Required for casting spells."
+            },
+            "Stamina": {
+                "name": "STAMINA",
+                "base_value": 14,
+                "category": "DERIVED",
+                "description": "Your current physical energy. Required for special physical actions."
+            }
+        },
+        "modifiers": {
+            "modifiers": [
+                {
+                    "id": "48c79e25-6c85-4939-a859-10f8999580d8",
+                    "stat": "STR",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "54038dec-06ee-4dcf-bb85-c36579ad2d56",
+                    "stat": "DEX",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "49a69f89-4480-4491-acb8-80a3dd33c3ae",
+                    "stat": "CON",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "97ab9ba7-b66f-4bde-a2f5-0e361f8d3046",
+                    "stat": "INT",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "0084e9d7-d1fc-4014-b6ff-c2ddaf684600",
+                    "stat": "WIS",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "01ef0acd-9a5d-4263-9d92-030a3b02ecc5",
+                    "stat": "CHA",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "3797b613-8a29-4979-b8f4-449810b74491",
+                    "stat": "WIL",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "6a357788-09b4-41fd-bee2-46eb093ee6f9",
+                    "stat": "INS",
+                    "value": 1,
+                    "source_type": "RACIAL",
+                    "source_name": "Human Racial Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "a10a9440-59c7-4033-99fd-2ab2757ddebb",
+                    "stat": "STR",
+                    "value": 0,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "92a5cd34-d27e-4254-abca-dea5bbc27bcb",
+                    "stat": "DEX",
+                    "value": 1,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "e4225961-c4a6-4f35-a6c9-92f153800ba7",
+                    "stat": "CON",
+                    "value": 1,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "6a847f35-8adc-4f34-9192-48626e675dc8",
+                    "stat": "INT",
+                    "value": 1,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "7be0aeff-7121-43ba-a9f7-0b79c03c839e",
+                    "stat": "WIS",
+                    "value": 1,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "8c716749-216a-452b-ac41-b319803d5a25",
+                    "stat": "CHA",
+                    "value": 1,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "f4e17929-bd1b-438f-9cff-465cb07a85a5",
+                    "stat": "WIL",
+                    "value": 1,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                },
+                {
+                    "id": "53849b74-2510-4b02-9dad-a5239e2556b7",
+                    "stat": "INS",
+                    "value": 1,
+                    "source_type": "CLASS",
+                    "source_name": "Wanderer Class Bonus",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": ""
+                }
+            ],
+            "modifier_groups": []
+        },
+        "status_effects": {
+            "active_effects": {}
+        }
+    },
+    "memory_context": {
+        "version": "0.1.0",
+        "memory_entries": [],
+        "context_state": {}
+    },
+    "detailed_inventory": {
+        "items": {
+            "5fca5fef-27c1-4951-9960-17254e6d6f34": {
+                "id": "5fca5fef-27c1-4951-9960-17254e6d6f34",
+                "name": "Test apple",
+                "description": "A test apple.",
+                "item_type": "miscellaneous",
+                "rarity": "common",
+                "weight": 0.1,
+                "value": 1,
+                "icon_path": null,
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": true,
+                "is_stackable": true,
+                "stack_limit": 1,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "miscellaneous",
+                    "consumable",
+                    "food"
+                ],
+                "template_id": "test_apple",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-09-14T13:48:29.849508",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "weight",
+                    "description",
+                    "tags",
+                    "icon_path",
+                    "name",
+                    "is_quest_item",
+                    "rarity",
+                    "quantity"
+                ]
+            }
+        },
+        "weight_limit_base": 100.0,
+        "weight_limit_modifiers": {},
+        "slot_limit_base": 20,
+        "slot_limit_modifiers": {},
+        "equipment": {},
+        "currency": {
+            "gold": 0,
+            "silver": 0,
+            "copper": 0,
+            "total_copper": 0
+        }
+    }
+}

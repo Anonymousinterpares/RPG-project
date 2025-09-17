@@ -1,0 +1,444 @@
+{
+  "quests": {
+    "luminary_fragment_hunt": {
+      "id": "luminary_fragment_hunt",
+      "title": "Echoes of the Luminaries",
+      "description": "Reports indicate a Luminary fragment has manifested in the Echo Woods. Various factions are racing to obtain it, and the Harmonic Order has tasked you with retrieving it before it falls into dangerous hands.",
+      "giver_id": "resonance_sage",
+      "level": 3,
+      "objectives": [
+        {
+          "id": "locate_fragment",
+          "description": "Find the location of the Luminary fragment in Echo Woods",
+          "type": "explore",
+          "target_id": "whispering_grove",
+          "location_id": "echo_woods",
+          "completion_criteria": "Discover the Whispering Grove location where the fragment is hidden",
+          "rewards": {}
+        },
+        {
+          "id": "defeat_cipher",
+          "description": "Defeat the Cipher Remnant agents attempting to claim the fragment",
+          "type": "kill",
+          "target_id": "cipher_agents",
+          "location_id": "whispering_grove",
+          "completion_criteria": "Defeat all Cipher Remnant agents in the area",
+          "rewards": {}
+        },
+        {
+          "id": "secure_fragment",
+          "description": "Retrieve the Luminary fragment",
+          "type": "fetch",
+          "target_id": "luminary_fragment",
+          "location_id": "whispering_grove",
+          "completion_criteria": "Collect the Luminary fragment",
+          "rewards": {}
+        },
+        {
+          "id": "return_fragment",
+          "description": "Return the fragment to the Resonance Sage in Harmonia",
+          "type": "deliver",
+          "target_id": "resonance_sage",
+          "location_id": "harmonia",
+          "completion_criteria": "Deliver the Luminary fragment to the Resonance Sage",
+          "rewards": {}
+        }
+      ],
+      "rewards": {
+        "xp": 800,
+        "gold": 250,
+        "items": [
+          "resonance_charm"
+        ]
+      },
+      "prerequisites": []
+    },
+    "resonance_crisis": {
+      "id": "resonance_crisis",
+      "title": "Dangerous Frequencies",
+      "description": "A small frontier settlement is experiencing unusually violent Resonance Events. The Harmonic Order needs someone to investigate the cause and protect the community during these unpredictable phenomena.",
+      "giver_id": "council_speaker",
+      "level": 5,
+      "objectives": [
+        {
+          "id": "reach_settlement",
+          "description": "Travel to the affected settlement near Echo Woods",
+          "type": "explore",
+          "target_id": "woodhaven_settlement",
+          "location_id": "echo_woods",
+          "completion_criteria": "Arrive at Woodhaven Settlement",
+          "rewards": {}
+        },
+        {
+          "id": "investigate_anomalies",
+          "description": "Investigate the unusual Resonance patterns in three locations around the settlement",
+          "type": "explore",
+          "target_id": "anomaly_sites",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Investigate all three anomaly sites",
+          "rewards": {}
+        },
+        {
+          "id": "identify_disruptor",
+          "description": "Identify the source of the Resonance disruption",
+          "type": "fetch",
+          "target_id": "dissonant_device",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Find the Dissonant Path device causing the disruptions",
+          "rewards": {}
+        },
+        {
+          "id": "confront_dissonant",
+          "description": "Confront the Dissonant Path member responsible for the disruption",
+          "type": "kill",
+          "target_id": "dissonant_disruptor",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Defeat the Dissonant Path member",
+          "rewards": {}
+        },
+        {
+          "id": "stabilize_resonance",
+          "description": "Use Planar Anchoring techniques to stabilize the area during the next Resonance Event",
+          "type": "interact",
+          "target_id": "resonance_node",
+          "location_id": "woodhaven_settlement",
+          "completion_criteria": "Complete the anchoring ritual at the village center",
+          "rewards": {}
+        }
+      ],
+      "rewards": {
+        "xp": 1200,
+        "gold": 400,
+        "items": [
+          "planar_anchor_stone"
+        ]
+      },
+      "prerequisites": []
+    },
+    "planar_expedition": {
+      "id": "planar_expedition",
+      "title": "Beyond the Veil",
+      "description": "A research team from the Harmonic Order is mounting an expedition to explore a newly discovered Planar Bleed Zone. They need additional security and assistance to catalog the unique resources and phenomena within the zone.",
+      "giver_id": "harmonic_researcher",
+      "level": 4,
+      "objectives": [
+        {
+          "id": "meet_expedition",
+          "description": "Meet with the research team at their camp near The Convergence",
+          "type": "explore",
+          "target_id": "research_camp",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Find and speak with the research team at their camp",
+          "rewards": {}
+        },
+        {
+          "id": "escort_researchers",
+          "description": "Escort the research team safely into the Planar Bleed Zone",
+          "type": "escort",
+          "target_id": "research_team",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Protect all researchers during travel to the convergence perimeter",
+          "rewards": {}
+        },
+        {
+          "id": "collect_samples",
+          "description": "Collect samples from three different areas within the zone",
+          "type": "fetch",
+          "target_id": "planar_samples",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Collect all required samples",
+          "rewards": {}
+        },
+        {
+          "id": "defend_camp",
+          "description": "Defend the research camp from planar hybrid creatures",
+          "type": "kill",
+          "target_id": "planar_hybrids",
+          "location_id": "research_camp",
+          "completion_criteria": "Defeat all attacking creatures",
+          "rewards": {}
+        },
+        {
+          "id": "document_anomaly",
+          "description": "Help researchers document a major planar anomaly at the center of the zone",
+          "type": "interact",
+          "target_id": "reality_fault",
+          "location_id": "planar_bleed_zone",
+          "completion_criteria": "Complete documentation of the planar anomaly",
+          "rewards": {}
+        }
+      ],
+      "rewards": {
+        "xp": 1000,
+        "gold": 350,
+        "items": [
+          "planar_sample_kit",
+          "hybrid_seedling"
+        ]
+      },
+      "prerequisites": []
+    },
+    "lost_knowledge": {
+      "id": "lost_knowledge",
+      "title": "Pages Through Time",
+      "description": "The Shifting Library contains crucial information about stabilizing Resonance Events, but the needed texts only become accessible during a specific planar alignment. You need to obtain the required authorization and retrieve the knowledge before time runs out.",
+      "giver_id": "head_lexicant",
+      "level": 6,
+      "objectives": [
+        {
+          "id": "obtain_authorization",
+          "description": "Obtain authorization to access the Shifting Library from the Council of Resonance",
+          "type": "interact",
+          "target_id": "council_speaker",
+          "location_id": "harmonia",
+          "completion_criteria": "Convince the Council to grant library access",
+          "rewards": {}
+        },
+        {
+          "id": "retrieve_focusing_crystal",
+          "description": "Retrieve a focusing crystal from the Crystalline Enclave to help locate the texts",
+          "type": "fetch",
+          "target_id": "planar_focusing_crystal",
+          "location_id": "crystalline_enclave",
+          "completion_criteria": "Obtain the focusing crystal",
+          "rewards": {}
+        },
+        {
+          "id": "access_library",
+          "description": "Travel to the Shifting Library during the planar alignment",
+          "type": "explore",
+          "target_id": "shifting_library",
+          "location_id": "shifting_library",
+          "completion_criteria": "Reach the library during the alignment event",
+          "rewards": {}
+        },
+        {
+          "id": "navigate_shifting_stacks",
+          "description": "Navigate the constantly changing layout of the library to find the Pre-Shattering Archive",
+          "type": "interact",
+          "target_id": "shifting_stacks",
+          "location_id": "shifting_library",
+          "completion_criteria": "Solve the navigation puzzle of the shifting stacks",
+          "rewards": {}
+        },
+        {
+          "id": "locate_texts",
+          "description": "Find the texts about Resonance stabilization in the Pre-Shattering Archive",
+          "type": "fetch",
+          "target_id": "resonance_codex",
+          "location_id": "pre_shattering_archive",
+          "completion_criteria": "Locate and retrieve the Resonance Codex",
+          "rewards": {}
+        },
+        {
+          "id": "escape_collapse",
+          "description": "Escape the library as the planar alignment ends and sections begin disappearing",
+          "type": "explore",
+          "target_id": "library_entrance",
+          "location_id": "shifting_library",
+          "completion_criteria": "Reach the library entrance with the codex before time runs out",
+          "rewards": {}
+        }
+      ],
+      "rewards": {
+        "xp": 1500,
+        "gold": 300,
+        "items": [
+          "lexicant_cipher",
+          "plane_reader"
+        ]
+      },
+      "prerequisites": []
+    },
+    "merchant_protection": {
+      "id": "merchant_protection",
+      "title": "Valuable Cargo",
+      "description": "The Mercantile Chord is transporting a shipment of rare Resonant Materials between trading hubs and needs protection from bandits and natural hazards.",
+      "giver_id": "mercantile_factor",
+      "level": 3,
+      "objectives": [
+        {
+          "id": "meet_caravan",
+          "description": "Meet with the merchant caravan in Harmonia",
+          "type": "interact",
+          "target_id": "caravan_master",
+          "location_id": "harmonia",
+          "completion_criteria": "Meet and speak with the caravan master",
+          "rewards": {}
+        },
+        {
+          "id": "escort_to_crystalline",
+          "description": "Escort the caravan to the Crystalline Enclave",
+          "type": "escort",
+          "target_id": "merchant_caravan",
+          "location_id": "crystalline_enclave",
+          "completion_criteria": "Safely escort the caravan to its destination",
+          "rewards": {}
+        },
+        {
+          "id": "fend_off_bandits",
+          "description": "Protect the caravan from bandit attacks along the route",
+          "type": "kill",
+          "target_id": "resonance_bandits",
+          "location_id": "",
+          "completion_criteria": "Defeat all bandit groups that attack the caravan",
+          "rewards": {}
+        },
+        {
+          "id": "navigate_flux_zone",
+          "description": "Help the caravan safely navigate through a minor Resonance flux zone",
+          "type": "interact",
+          "target_id": "flux_zone",
+          "location_id": "",
+          "completion_criteria": "Successfully guide the caravan through the flux zone",
+          "rewards": {}
+        },
+        {
+          "id": "delivery_complete",
+          "description": "Ensure the cargo is safely delivered to the Crystalline Enclave",
+          "type": "interact",
+          "target_id": "consortium_representative",
+          "location_id": "crystalline_enclave",
+          "completion_criteria": "Complete delivery to the Consortium representative",
+          "rewards": {}
+        }
+      ],
+      "rewards": {
+        "xp": 750,
+        "gold": 500,
+        "items": [
+          "resonant_trinket"
+        ]
+      },
+      "prerequisites": []
+    },
+    "resonance_touched": {
+      "id": "resonance_touched",
+      "title": "Fragmented Self",
+      "description": "A citizen of Harmonia has returned from a Resonance Event changed, possibly merged with an alternate version of themselves. They're experiencing 'Resonance sickness' and need help integrating their fragmented identity.",
+      "giver_id": "attunement_master",
+      "level": 2,
+      "objectives": [
+        {
+          "id": "meet_patient",
+          "description": "Meet with the Resonance-touched patient in the Attunement Hall",
+          "type": "interact",
+          "target_id": "resonance_touched_citizen",
+          "location_id": "attunement_hall",
+          "completion_criteria": "Meet and speak with the affected citizen",
+          "rewards": {}
+        },
+        {
+          "id": "collect_erdium",
+          "description": "Collect Erdium crystals to help with the reattunement ritual",
+          "type": "fetch",
+          "target_id": "erdium_crystal",
+          "location_id": "echo_woods",
+          "completion_criteria": "Gather the required erdium crystals",
+          "rewards": {}
+        },
+        {
+          "id": "find_memories",
+          "description": "Help the patient recover memories from before the Resonance Event",
+          "type": "explore",
+          "target_id": "memory_locations",
+          "location_id": "harmonia",
+          "completion_criteria": "Find all three memory locations in Harmonia",
+          "rewards": {}
+        },
+        {
+          "id": "perform_ritual",
+          "description": "Assist the Attunement Master in performing a reattunement ritual",
+          "type": "interact",
+          "target_id": "attunement_hall",
+          "location_id": "harmonia",
+          "completion_criteria": "Successfully complete the reattunement ritual",
+          "rewards": {}
+        },
+        {
+          "id": "follow_up",
+          "description": "Check on the patient after a few days to ensure the treatment worked",
+          "type": "interact",
+          "target_id": "resonance_touched_citizen",
+          "location_id": "harmonia",
+          "completion_criteria": "Follow up with the citizen to confirm recovery",
+          "rewards": {}
+        }
+      ],
+      "rewards": {
+        "xp": 500,
+        "gold": 150,
+        "items": [
+          "identity_charm"
+        ]
+      },
+      "prerequisites": []
+    },
+    "551cdb35-a4bb-4b23-b6c1-4d2772947efb": {
+      "id": "551cdb35-a4bb-4b23-b6c1-4d2772947efb",
+      "title": "Whispers of the Ash Plane (Ashen Covenant Recruit)",
+      "description": "The Ashen Elder has tasked you with your first practical Ash Walking ritual. The Covenant needs to find a new, safe migration path, and the Elder believes a long-dead ancestor holds the key within the Ash Plane. You must project your consciousness, seek the ancestral spirit, and glean crucial information to guide your people.",
+      "giver_id": "ashen_elder",
+      "level": 1,
+      "objectives": [
+        {
+          "id": "gather_ritual_ashes",
+          "description": "Gather specific ritual ashes from the designated area near the Ashen Camp.",
+          "type": "gather",
+          "target_id": "ritual_ashes",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Collect the required ritual ashes for the Ash Walking ceremony.",
+          "rewards": {}
+        },
+        {
+          "id": "perform_ash_walking_ritual",
+          "description": "Perform the guided Ash Walking ritual at the sacred altar within the Ashen Camp.",
+          "type": "interact",
+          "target_id": "ash_walking_altar",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Successfully initiate the Ash Walking ritual and project your consciousness.",
+          "rewards": {}
+        },
+        {
+          "id": "seek_ancestral_guidance",
+          "description": "Within the Ash Plane, seek out the ancestral spirit and glean information about a safe migration path.",
+          "type": "explore",
+          "target_id": "ancestral_spirit_echo",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Obtain the cryptic message or vision from the ancestral spirit.",
+          "rewards": {}
+        },
+        {
+          "id": "interpret_ancestral_message",
+          "description": "Return to your body and consult with the Ashen Elder to interpret the ancestral message.",
+          "type": "deliver",
+          "target_id": "ashen_elder",
+          "location_id": "ashen_camp",
+          "completion_criteria": "Discuss the ancestral message with the Ashen Elder to understand its meaning.",
+          "rewards": {}
+        },
+        {
+          "id": "scout_new_migration_path",
+          "description": "Based on the interpreted ancestral guidance, scout the new migration path in Echo Woods.",
+          "type": "explore",
+          "target_id": "migration_path_entrance",
+          "location_id": "echo_woods",
+          "completion_criteria": "Locate and assess the viability of the new migration path as indicated by the ancestor.",
+          "rewards": {}
+        }
+      ],
+      "rewards": {
+        "gold": 50,
+        "items": [
+          "ash_walker_talisman"
+        ],
+        "xp": 200
+      },
+      "prerequisites": []
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Quest definitions for the RPG game world"
+  }
+}

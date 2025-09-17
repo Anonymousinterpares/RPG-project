@@ -1,0 +1,208 @@
+[
+  {
+    "id": "template_sword_short",
+    "name": "Short Sword",
+    "description": "A simple one-handed sword designed for close combat.",
+    "item_type": "weapon",
+    "rarity": "common",
+    "weight": 2.0,
+    "value": 1000,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand",
+      "off_hand"
+    ],
+    "stats": [
+      {
+        "name": "attack_speed",
+        "value": 1.2,
+        "display_name": "Attack Speed"
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "physical_slashing_damage",
+        "dice_notation": "1d6",
+        "description": "Base weapon damage"
+      }
+    ],
+    "is_stackable": false,
+    "durability": 100,
+    "tags": [
+      "weapon",
+      "sword",
+      "metal",
+      "one-handed"
+    ]
+  },
+  {
+    "id": "template_sword_long",
+    "name": "Long Sword",
+    "description": "A longer sword with improved reach and power.",
+    "item_type": "weapon",
+    "rarity": "uncommon",
+    "weight": 3.5,
+    "value": 2500,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand"
+    ],
+    "stats": [
+      {
+        "name": "attack_speed",
+        "value": 0.9,
+        "display_name": "Attack Speed"
+      },
+      {
+        "name": "reach",
+        "value": 1.5,
+        "display_name": "Reach"
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "physical_slashing_damage",
+        "dice_notation": "1d8",
+        "description": "Base weapon damage"
+      }
+    ],
+    "is_stackable": false,
+    "durability": 120,
+    "tags": [
+      "weapon",
+      "sword",
+      "metal",
+      "one-handed"
+    ]
+  },
+  {
+    "id": "template_sword_great",
+    "name": "Great Sword",
+    "description": "A massive two-handed sword capable of dealing devastating blows.",
+    "item_type": "weapon",
+    "rarity": "rare",
+    "weight": 6.0,
+    "value": 5000,
+    "is_equippable": true,
+    "equip_slots": [
+      "two_hand"
+    ],
+    "stats": [
+      {
+        "name": "attack_speed",
+        "value": 0.7,
+        "display_name": "Attack Speed"
+      },
+      {
+        "name": "strength_requirement",
+        "value": 12,
+        "display_name": "Strength Requirement"
+      },
+      {
+        "name": "critical_chance",
+        "value": 5.0,
+        "display_name": "Critical Chance",
+        "is_percentage": true
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "physical_slashing_damage",
+        "dice_notation": "2d6",
+        "description": "Base weapon damage"
+      }
+    ],
+    "is_stackable": false,
+    "durability": 150,
+    "tags": [
+      "weapon",
+      "sword",
+      "metal",
+      "two-handed"
+    ]
+  },
+  {
+    "id": "template_bow_hunting",
+    "name": "Hunting Bow",
+    "description": "A reliable wooden bow for hunting and combat.",
+    "item_type": "weapon",
+    "rarity": "common",
+    "weight": 1.5,
+    "value": 800,
+    "is_equippable": true,
+    "equip_slots": [
+      "two_hand"
+    ],
+    "stats": [
+      {
+        "name": "attack_speed",
+        "value": 1.0,
+        "display_name": "Attack Speed"
+      },
+      {
+        "name": "range",
+        "value": 30,
+        "display_name": "Range"
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "physical_piercing_damage",
+        "dice_notation": "1d6",
+        "description": "Base weapon damage"
+      }
+    ],
+    "is_stackable": false,
+    "durability": 80,
+    "tags": [
+      "weapon",
+      "bow",
+      "wood",
+      "ranged",
+      "two-handed"
+    ]
+  },
+  {
+    "id": "template_dagger_simple",
+    "name": "Simple Dagger",
+    "description": "A small, easily concealable blade for close combat.",
+    "item_type": "weapon",
+    "rarity": "common",
+    "weight": 0.5,
+    "value": 500,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand",
+      "off_hand"
+    ],
+    "stats": [
+      {
+        "name": "attack_speed",
+        "value": 1.8,
+        "display_name": "Attack Speed"
+      },
+      {
+        "name": "critical_chance",
+        "value": 7.5,
+        "display_name": "Critical Chance",
+        "is_percentage": true
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "physical_piercing_damage",
+        "dice_notation": "1d4",
+        "description": "Base weapon damage"
+      }
+    ],
+    "is_stackable": false,
+    "durability": 60,
+    "tags": [
+      "weapon",
+      "dagger",
+      "metal",
+      "one-handed",
+      "concealable"
+    ]
+  }
+]

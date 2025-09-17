@@ -1,0 +1,360 @@
+{
+    "session_id": "e9f38b54-4dad-4423-96ef-09dacee32d92",
+    "created_at": 1745488748.1475418,
+    "last_saved_at": 1745488971.352878,
+    "game_version": "0.1.0",
+    "player": {
+        "name": "Qaa",
+        "race": "Cinderspawn",
+        "path": "Mage",
+        "background": "The Eternal Flame at the center of the Ashen Camp flickers in response to your presence, its heat calling to the embers that constantly regenerate your Cinderspawn form. Fine ash trails behind you as you approach the sacred fire\u2014not the lifeless dust of mundane ash, but living particles infused with ancestral memory and power. The Covenant members give you respectful distance, recognizing a fellow devotee of impermanence despite your origin from the Ashen plane itself.\n\nYour pilgrimage has just begun. The container of ancestral ash secured within your flame-resistant wrappings holds the remains of your progenitor\u2014the one whose final immolation created the spark from which your consciousness formed. Through the sacred ritual of Ash Walking, you've communed with fragments of their memory, but full understanding remains elusive, like embers glimpsed through smoke.\n\nThe pilgrimage map, marked with locations of significant fires across the Nexus plane, will guide your journey. Each site offers an opportunity to perform the rituals that might strengthen your connection to the ancestral knowledge embedded in your very being. The Eternal Flame of the Ashen Camp marks only the first step.\n\nAs you kneel before the fire, you uncork the ember renewal tonic, consuming half and offering the remainder to the flames. Your body's internal heat intensifies, the ember at your core flaring brightly enough that the glow shows through your skin. The sensation is both painful and exhilarating\u2014a reminder that in the philosophy of both the Ashen Covenant and your own people, transformation requires consumption, and rebirth demands destruction.\n\nTomorrow, you will continue your pilgrimage, following the map to the next sacred flame. But tonight, as sparks rise into the darkening sky, you prepare for the ritual that will temporarily separate your consciousness from your body, allowing your awareness to merge with the Eternal Flame and perhaps glimpse the wisdom of all who have surrendered themselves to its purifying heat.",
+        "sex": "Male",
+        "level": 1,
+        "experience": 0,
+        "stats_manager_id": "4aa14969-a370-41c6-acd3-e5ea174dc8f2",
+        "current_location": "Starting Town",
+        "current_district": "Town Square",
+        "inventory_id": null,
+        "equipped_items": {},
+        "active_quests": [],
+        "completed_quests": [],
+        "character_image": null,
+        "current_resolve": 0.0,
+        "active_social_effects": []
+    },
+    "world": {
+        "game_time": 1745488748.1475418,
+        "game_date": "Day 1",
+        "weather": "Clear",
+        "is_day": true,
+        "magical_conditions": {},
+        "global_vars": {},
+        "active_events": []
+    },
+    "conversation_history": [
+        {
+            "role": "gm",
+            "content": "==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, Qaa the Cinderspawn Mage from The Eternal Flame at the center of the Ashen Camp flickers in response to your presence, its heat calling to the embers that constantly regenerate your Cinderspawn form. Fine ash trails behind you as you approach the sacred fire\u2014not the lifeless dust of mundane ash, but living particles infused with ancestral memory and power. The Covenant members give you respectful distance, recognizing a fellow devotee of impermanence despite your origin from the Ashen plane itself.\n\nYour pilgrimage has just begun. The container of ancestral ash secured within your flame-resistant wrappings holds the remains of your progenitor\u2014the one whose final immolation created the spark from which your consciousness formed. Through the sacred ritual of Ash Walking, you've communed with fragments of their memory, but full understanding remains elusive, like embers glimpsed through smoke.\n\nThe pilgrimage map, marked with locations of significant fires across the Nexus plane, will guide your journey. Each site offers an opportunity to perform the rituals that might strengthen your connection to the ancestral knowledge embedded in your very being. The Eternal Flame of the Ashen Camp marks only the first step.\n\nAs you kneel before the fire, you uncork the ember renewal tonic, consuming half and offering the remainder to the flames. Your body's internal heat intensifies, the ember at your core flaring brightly enough that the glow shows through your skin. The sensation is both painful and exhilarating\u2014a reminder that in the philosophy of both the Ashen Covenant and your own people, transformation requires consumption, and rebirth demands destruction.\n\nTomorrow, you will continue your pilgrimage, following the map to the next sacred flame. But tonight, as sparks rise into the darkening sky, you prepare for the ritual that will temporarily separate your consciousness from your body, allowing your awareness to merge with the Eternal Flame and perhaps glimpse the wisdom of all who have surrendered themselves to its purifying heat.!\n\nYour journey begins now...",
+            "timestamp": 1745488748.1495402
+        },
+        {
+            "role": "player",
+            "content": "I've just started a new game as Qaa, a Cinderspawn Mage with a The Eternal Flame at the center of the Ashen Camp flickers in response to your presence, its heat calling to the embers that constantly regenerate your Cinderspawn form. Fine ash trails behind you as you approach the sacred fire\u2014not the lifeless dust of mundane ash, but living particles infused with ancestral memory and power. The Covenant members give you respectful distance, recognizing a fellow devotee of impermanence despite your origin from the Ashen plane itself.\n\nYour pilgrimage has just begun. The container of ancestral ash secured within your flame-resistant wrappings holds the remains of your progenitor\u2014the one whose final immolation created the spark from which your consciousness formed. Through the sacred ritual of Ash Walking, you've communed with fragments of their memory, but full understanding remains elusive, like embers glimpsed through smoke.\n\nThe pilgrimage map, marked with locations of significant fires across the Nexus plane, will guide your journey. Each site offers an opportunity to perform the rituals that might strengthen your connection to the ancestral knowledge embedded in your very being. The Eternal Flame of the Ashen Camp marks only the first step.\n\nAs you kneel before the fire, you uncork the ember renewal tonic, consuming half and offering the remainder to the flames. Your body's internal heat intensifies, the ember at your core flaring brightly enough that the glow shows through your skin. The sensation is both painful and exhilarating\u2014a reminder that in the philosophy of both the Ashen Covenant and your own people, transformation requires consumption, and rebirth demands destruction.\n\nTomorrow, you will continue your pilgrimage, following the map to the next sacred flame. But tonight, as sparks rise into the darkening sky, you prepare for the ritual that will temporarily separate your consciousness from your body, allowing your awareness to merge with the Eternal Flame and perhaps glimpse the wisdom of all who have surrendered themselves to its purifying heat. background. Please introduce me to the game world, my character, and my starting situation. This is the first narrative in the game, so make it welcoming and informative.",
+            "timestamp": 1745488748.1605394
+        },
+        {
+            "role": "gm",
+            "content": "The air crackles with anticipation as you, Qaa, prepare to undertake the sacred ritual. The Eternal Flame dances before you, its light reflecting in the obsidian shards that seem to grow directly from your skin \u2013 a hallmark of your Cinderspawn lineage. The Ashen Camp, a small but resilient settlement built around this perpetual fire, provides a temporary haven before your true pilgrimage begins. The surrounding town square is quiet, save for the gentle crackling of the flame and the distant murmur of townsfolk preparing for the night. You feel a familiar warmth emanating from the container holding your progenitor's ashes, a comforting reminder of the path you've chosen. Tonight, you will attempt to commune with the collective consciousness of those who have become one with the Eternal Flame, seeking guidance and understanding for the journey ahead. You take a deep breath, the scent of ash and embers filling your lungs, and begin the preparations for the ritual.",
+            "timestamp": 1745488754.3561833
+        },
+        {
+            "role": "gm",
+            "content": "The air crackles with anticipation as you, Qaa, prepare to undertake the sacred ritual. The Eternal Flame dances before you, its light reflecting in the obsidian shards that seem to grow directly from your skin \u2013 a hallmark of your Cinderspawn lineage. The Ashen Camp, a small but resilient settlement built around this perpetual fire, provides a temporary haven before your true pilgrimage begins. The surrounding town square is quiet, save for the gentle crackling of the flame and the distant murmur of townsfolk preparing for the night. You feel a familiar warmth emanating from the container holding your progenitor's ashes, a comforting reminder of the path you've chosen. Tonight, you will attempt to commune with the collective consciousness of those who have become one with the Eternal Flame, seeking guidance and understanding for the journey ahead. You take a deep breath, the scent of ash and embers filling your lungs, and begin the preparations for the ritual.",
+            "timestamp": 1745488754.357183
+        },
+        {
+            "role": "gm",
+            "content": "Available commands:\n  currency: Display your current currency.\n  drop: Drop an item from your inventory.\n  equip: Equip an item from your inventory.\n  equipment: Display your currently equipped items.\n  examine: Examine an item in your inventory to learn more about it.\n  help: Display help information for commands.\n  inventory: Display the contents of your inventory, optionally filtered by category.\n  list_saves: List all available saved games.\n  llm: Toggle or check the status of the LLM system.\n  load: Load a saved game state.\n  look: Look around or examine something specific.\n  quit: Exit the game.\n  save: Save the current game state.\n  unequip: Unequip an item from a specific slot or by item name/ID.\n\nType 'help <command>' for more information on a specific command.\n\nDeveloper Commands:\nUse 'help dev' to see available developer commands.",
+            "timestamp": 1745488775.4927526
+        },
+        {
+            "role": "gm",
+            "content": "Available Developer Commands:\n  //start_combat: Start a combat encounter with specified enemies.\n\nType '//<command>' to use a developer command.\nType 'help //command' for more information on a specific developer command.",
+            "timestamp": 1745488795.3713307
+        },
+        {
+            "role": "gm",
+            "content": "what happens?",
+            "timestamp": 1745488911.0362823
+        },
+        {
+            "role": "gm",
+            "content": "The Goblin, with surprising speed, darts forward, its rusty dagger glinting in the dim light. It swings the crude blade in a wide arc, aiming to pierce your defenses.",
+            "timestamp": 1745488921.5072255
+        },
+        {
+            "role": "gm",
+            "content": "I attack",
+            "timestamp": 1745488936.0271475
+        },
+        {
+            "role": "gm",
+            "content": "You focus your inner heat, channeling the embers within you. With a surge of ashen energy, you lash out, a fiery fist aimed directly at the nearest enemy.",
+            "timestamp": 1745488938.6718218
+        }
+    ],
+    "last_command": "//start_combat goblin",
+    "current_mode": "COMBAT",
+    "current_combatants": [
+        "4aa14969-a370-41c6-acd3-e5ea174dc8f2",
+        "746d0ffa-fbcd-4862-8e21-d880b4c72382"
+    ],
+    "current_trade_partner_id": null,
+    "combat_manager": {
+        "id": "41038009-57b2-48be-a940-00812f453700",
+        "entities": {
+            "4aa14969-a370-41c6-acd3-e5ea174dc8f2": {
+                "id": "4aa14969-a370-41c6-acd3-e5ea174dc8f2",
+                "name": "Qaa",
+                "entity_type": "PLAYER",
+                "stats": {
+                    "strength": 10.0,
+                    "dexterity": 10.0,
+                    "constitution": 10.0,
+                    "intelligence": 10.0,
+                    "wisdom": 10.0,
+                    "charisma": 10.0,
+                    "willpower": 10.0,
+                    "insight": 10.0,
+                    "mana": 5.0,
+                    "stamina": 12.0,
+                    "resolve": 10.0,
+                    "max_resolve": 10.0,
+                    "melee_attack": 2.0,
+                    "ranged_attack": 2.0,
+                    "magic_attack": 2.0,
+                    "defense": 10.0,
+                    "magic_defense": 10.0,
+                    "initiative": 0.0,
+                    "carry_capacity": 100.0,
+                    "movement": 30.0
+                },
+                "current_hp": 10.0,
+                "max_hp": 10.0,
+                "current_mp": 0,
+                "max_mp": 0,
+                "current_stamina": 0,
+                "max_stamina": 0,
+                "status_effects": [],
+                "initiative": 6,
+                "position": 0,
+                "description": ""
+            },
+            "746d0ffa-fbcd-4862-8e21-d880b4c72382": {
+                "id": "746d0ffa-fbcd-4862-8e21-d880b4c72382",
+                "name": "Goblin",
+                "entity_type": "ENEMY",
+                "stats": {
+                    "strength": 13.0,
+                    "dexterity": 8.0,
+                    "constitution": 10.0,
+                    "intelligence": 12.0,
+                    "wisdom": 14.0,
+                    "charisma": 8.0,
+                    "willpower": 8.0,
+                    "insight": 14.0,
+                    "mana": 8.0,
+                    "stamina": 12.0,
+                    "resolve": 11.0,
+                    "max_resolve": 11.0,
+                    "melee_attack": 3.0,
+                    "ranged_attack": 1.0,
+                    "magic_attack": 3.0,
+                    "defense": 9.0,
+                    "magic_defense": 12.0,
+                    "initiative": 0.0,
+                    "carry_capacity": 115.0,
+                    "movement": 29.0
+                },
+                "current_hp": 10.0,
+                "max_hp": 10.0,
+                "current_mp": 0,
+                "max_mp": 0,
+                "current_stamina": 0,
+                "max_stamina": 0,
+                "status_effects": [],
+                "initiative": 5,
+                "position": 0,
+                "description": ""
+            }
+        },
+        "turn_order": [
+            "4aa14969-a370-41c6-acd3-e5ea174dc8f2",
+            "746d0ffa-fbcd-4862-8e21-d880b4c72382"
+        ],
+        "current_turn_index": 0,
+        "round_number": 1,
+        "state": "IN_PROGRESS",
+        "combat_log": [
+            "Qaa rolled initiative: 6 (0 + 6)",
+            "Goblin rolled initiative: 5 (0 + 5)",
+            "Combat started! Qaa vs Goblin",
+            "Round 1 begins!",
+            "Turn order: Qaa, Goblin"
+        ],
+        "last_action_results": {}
+    },
+    "character_stats": {
+        "level": 1,
+        "stats": {
+            "STR": {
+                "name": "STR",
+                "base_value": 15.0,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Physical power, affects melee damage and carrying capacity."
+            },
+            "DEX": {
+                "name": "DEX",
+                "base_value": 11.0,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Agility and reflexes, affects ranged attacks, initiative, and dodge."
+            },
+            "CON": {
+                "name": "CON",
+                "base_value": 8.0,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Physical resilience, affects health, stamina, and resistance to poison/disease."
+            },
+            "INT": {
+                "name": "INT",
+                "base_value": 16.0,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Mental acuity, affects spell power and learning ability."
+            },
+            "WIS": {
+                "name": "WIS",
+                "base_value": 14.0,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Intuition and perception, affects magical resistance and willpower."
+            },
+            "CHA": {
+                "name": "CHA",
+                "base_value": 13.0,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Social influence, affects dialogue, prices, and persuasion."
+            },
+            "WIL": {
+                "name": "WIL",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Mental fortitude, resistance to influence and fear."
+            },
+            "INS": {
+                "name": "INS",
+                "base_value": 8,
+                "category": "PRIMARY",
+                "modifiers": [],
+                "description": "Understanding situations, detecting lies, and sensing motives."
+            }
+        },
+        "derived_stats": {
+            "Max Health Points": {
+                "name": "Max Health Points",
+                "base_value": 9.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your maximum hit points."
+            },
+            "Mana Points": {
+                "name": "Mana Points",
+                "base_value": 10.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your magical energy. Required for casting spells."
+            },
+            "Stamina": {
+                "name": "Stamina",
+                "base_value": 12.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your physical energy. Required for special physical actions."
+            },
+            "Max Resolve": {
+                "name": "Max Resolve",
+                "base_value": 8.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your maximum social/mental composure."
+            },
+            "Melee Attack": {
+                "name": "Melee Attack",
+                "base_value": 4.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your ability to hit opponents in melee combat."
+            },
+            "Ranged Attack": {
+                "name": "Ranged Attack",
+                "base_value": 2.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your ability to hit opponents with ranged weapons."
+            },
+            "Magic Attack": {
+                "name": "Magic Attack",
+                "base_value": 5.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your ability to hit opponents with magical attacks."
+            },
+            "Defense": {
+                "name": "Defense",
+                "base_value": 9.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your ability to avoid physical damage."
+            },
+            "Magic Defense": {
+                "name": "Magic Defense",
+                "base_value": 13.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your ability to resist magical effects."
+            },
+            "Initiative": {
+                "name": "Initiative",
+                "base_value": 1.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Determines your turn order in combat."
+            },
+            "Carry Capacity": {
+                "name": "Carry Capacity",
+                "base_value": 125.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "The maximum weight you can carry."
+            },
+            "Movement": {
+                "name": "Movement",
+                "base_value": 30.0,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "How far you can move in combat."
+            },
+            "Health Points": {
+                "name": "Health Points",
+                "base_value": 9,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your hit points. When this reaches zero, you are incapacitated."
+            },
+            "Resolve": {
+                "name": "Resolve",
+                "base_value": 8,
+                "category": "DERIVED",
+                "modifiers": [],
+                "description": "Your social/mental composure. Reduced by stress or social defeats."
+            }
+        },
+        "modifiers": {
+            "modifiers": [],
+            "modifier_groups": []
+        },
+        "status_effects": {
+            "active_effects": {}
+        }
+    },
+    "memory_context": {
+        "version": "0.1.0",
+        "memory_entries": [],
+        "context_state": {}
+    }
+}

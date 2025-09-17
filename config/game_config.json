@@ -1,0 +1,7 @@
+{
+    "version": "0.1.0",
+    "title": "RPG Game",
+    "default_save_slot": "auto",
+    "auto_save_interval": 300,
+    "max_save_slots": 10
+}

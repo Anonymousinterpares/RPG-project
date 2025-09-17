@@ -1,0 +1,719 @@
+# world_configurator/ui/editors/specific_item_editor.py
+"""
+Editor for a specific category of items (e.g., origin_items.json).
+"""
+
+import logging
+import os
+import json
+from typing import Dict, List, Optional, Any, Union
+
+from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtWidgets import (QDialogButtonBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
+    QPushButton, QListWidget, QListWidgetItem, QFormLayout, QComboBox,
+    QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QCheckBox,
+    QDoubleSpinBox, QSpinBox, QTableWidget, QTableWidgetItem, QHeaderView,
+    QInputDialog
+)
+
+from ui.dialogs.base_dialog import BaseDialog
+from utils.file_manager import load_json, save_json, get_project_root
+
+logger = logging.getLogger("world_configurator.ui.specific_item_editor")
+
+# --- Stat Entry Dialog (for item stats) ---
+class ItemStatDialog(BaseDialog):
+    """Dialog for adding/editing an item stat."""
+    def __init__(self, parent=None, stat_data: Optional[Dict[str, Any]] = None):
+        super().__init__(parent)
+        self.setWindowTitle("Edit Item Stat")
+        self.stat_data = stat_data if stat_data else {}
+
+        layout = QFormLayout(self)
+        self.name_edit = QLineEdit(self.stat_data.get("name", ""))
+        self.name_edit.setPlaceholderText("Stat ID (e.g., strength_bonus)")
+        self.value_edit = QLineEdit(str(self.stat_data.get("value", "0"))) # Store as string for QLineEdit
+        self.value_edit.setPlaceholderText("Value (numeric or boolean)")
+        self.display_name_edit = QLineEdit(self.stat_data.get("display_name", ""))
+        self.display_name_edit.setPlaceholderText("Optional display name (e.g., Strength Bonus)")
+        self.is_percentage_check = QCheckBox("Is Percentage?")
+        self.is_percentage_check.setChecked(self.stat_data.get("is_percentage", False))
+
+        layout.addRow("Stat ID:", self.name_edit)
+        layout.addRow("Value:", self.value_edit)
+        layout.addRow("Display Name:", self.display_name_edit)
+        layout.addRow(self.is_percentage_check)
+
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addRow(self.button_box)
+
+    def get_stat_data(self) -> Optional[Dict[str, Any]]:
+        name = self.name_edit.text().strip()
+        value_str = self.value_edit.text().strip()
+        display_name = self.display_name_edit.text().strip()
+        is_percentage = self.is_percentage_check.isChecked()
+
+        if not name or not value_str:
+            QMessageBox.warning(self, "Input Error", "Stat ID and Value are required.")
+            return None
+
+        # Attempt to parse value as float, int, or bool
+        parsed_value: Any
+        try:
+            if '.' in value_str:
+                parsed_value = float(value_str)
+            else:
+                parsed_value = int(value_str)
+        except ValueError:
+            if value_str.lower() == 'true':
+                parsed_value = True
+            elif value_str.lower() == 'false':
+                parsed_value = False
+            else: # Treat as string if not parsable as number/bool
+                parsed_value = value_str
+
+
+        data = {"name": name, "value": parsed_value}
+        if display_name:
+            data["display_name"] = display_name
+        if is_percentage:
+            data["is_percentage"] = True
+        return data
+
+# --- Dice Roll Effect Dialog ---
+class DiceRollEffectDialog(BaseDialog):
+    """Dialog for adding/editing a dice roll effect."""
+    def __init__(self, parent=None, effect_data: Optional[Dict[str, str]] = None):
+        super().__init__(parent)
+        self.setWindowTitle("Edit Dice Roll Effect")
+        self.effect_data = effect_data if effect_data else {}
+
+        layout = QFormLayout(self)
+        self.effect_type_edit = QLineEdit(self.effect_data.get("effect_type", ""))
+        self.effect_type_edit.setPlaceholderText("e.g., physical_slashing_damage")
+        self.dice_notation_edit = QLineEdit(self.effect_data.get("dice_notation", ""))
+        self.dice_notation_edit.setPlaceholderText("e.g., 1d8+2")
+        self.description_edit = QLineEdit(self.effect_data.get("description", ""))
+        self.description_edit.setPlaceholderText("Optional description of the effect")
+
+        layout.addRow("Effect Type:", self.effect_type_edit)
+        layout.addRow("Dice Notation:", self.dice_notation_edit)
+        layout.addRow("Description:", self.description_edit)
+
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addRow(self.button_box)
+
+    def get_effect_data(self) -> Optional[Dict[str, str]]:
+        effect_type = self.effect_type_edit.text().strip()
+        dice_notation = self.dice_notation_edit.text().strip()
+        description = self.description_edit.text().strip()
+
+        if not effect_type or not dice_notation:
+            QMessageBox.warning(self, "Input Error", "Effect Type and Dice Notation are required.")
+            return None
+        return {"effect_type": effect_type, "dice_notation": dice_notation, "description": description}
+
+
+class SpecificItemEditor(QWidget):
+    """
+    Editor for a list of items from a specific JSON file.
+    """
+    data_modified = Signal()
+
+    def __init__(self, item_file_key: str, item_file_path_relative: str, parent: Optional[QWidget] = None):
+        super().__init__(parent)
+        self.item_file_key = item_file_key # e.g., "Starting Items"
+        self.item_file_path_relative = item_file_path_relative
+        self.items_data: List[Dict[str, Any]] = [] # List of item dictionaries
+        self.current_item_index: Optional[int] = None
+
+        self.project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        self.full_item_file_path = os.path.join(self.project_root, self.item_file_path_relative)
+
+        self._setup_ui()
+        self.load_data()
+
+    def _setup_ui(self):
+        main_layout = QHBoxLayout(self)
+        splitter = QSplitter(Qt.Horizontal)
+
+        # Left Panel: Item List
+        left_panel = QFrame()
+        left_panel.setFrameShape(QFrame.StyledPanel)
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.addWidget(QLabel(f"{self.item_file_key} List"))
+        self.item_list_widget = QListWidget()
+        self.item_list_widget.currentItemChanged.connect(self._on_item_selected)
+        left_layout.addWidget(self.item_list_widget)
+        list_buttons_layout = QHBoxLayout()
+        self.add_item_button = QPushButton("Add Item")
+        self.add_item_button.clicked.connect(self._add_item)
+        list_buttons_layout.addWidget(self.add_item_button)
+        self.remove_item_button = QPushButton("Remove Item")
+        self.remove_item_button.clicked.connect(self._remove_item)
+        self.remove_item_button.setEnabled(False)
+        list_buttons_layout.addWidget(self.remove_item_button)
+        left_layout.addLayout(list_buttons_layout)
+        splitter.addWidget(left_panel)
+
+        # Right Panel: Item Details Editor
+        right_panel_scroll = QScrollArea()
+        right_panel_scroll.setWidgetResizable(True)
+        details_widget_container = QWidget() # Container for the form layout
+        right_panel_scroll.setWidget(details_widget_container)
+
+        self.details_form_layout = QFormLayout()
+        self.details_form_layout.setContentsMargins(10,10,10,10)
+        details_widget_container.setLayout(self.details_form_layout) # Set layout on container
+
+
+        # Common Fields (ID, Name, Description, Item Type, Rarity, Weight, Value)
+        self.id_edit = QLineEdit()
+        self.id_edit.setPlaceholderText("Unique item ID")
+        self.details_form_layout.addRow("ID*:", self.id_edit)
+
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("Display name of the item")
+        self.details_form_layout.addRow("Name*:", self.name_edit)
+
+        self.description_edit = QTextEdit()
+        self.description_edit.setPlaceholderText("Detailed description")
+        self.description_edit.setFixedHeight(80)
+        self.details_form_layout.addRow("Description:", self.description_edit)
+
+        self.item_type_combo = QComboBox()
+        item_types = ["armor", "weapon", "shield", "accessory", "consumable", "tool", "container", "document", "key", "material", "treasure", "miscellaneous"]
+        self.item_type_combo.addItems(sorted(item_types))
+        self.details_form_layout.addRow("Item Type:", self.item_type_combo)
+
+        self.rarity_combo = QComboBox()
+        rarities = ["common", "uncommon", "rare", "epic", "legendary", "quest"]
+        self.rarity_combo.addItems(sorted(rarities))
+        self.details_form_layout.addRow("Rarity:", self.rarity_combo)
+
+        self.weight_spin = QDoubleSpinBox()
+        self.weight_spin.setRange(0.0, 1000.0); self.weight_spin.setDecimals(2); self.weight_spin.setSingleStep(0.1)
+        self.details_form_layout.addRow("Weight:", self.weight_spin)
+
+        self.value_spin = QSpinBox()
+        self.value_spin.setRange(0, 1000000); self.value_spin.setSingleStep(10)
+        self.details_form_layout.addRow("Value (base copper):", self.value_spin)
+
+        # Boolean Flags
+        flags_layout = QHBoxLayout()
+        self.is_equippable_check = QCheckBox("Equippable")
+        self.is_consumable_check = QCheckBox("Consumable")
+        self.is_stackable_check = QCheckBox("Stackable")
+        self.is_quest_item_check = QCheckBox("Quest Item")
+        flags_layout.addWidget(self.is_equippable_check)
+        flags_layout.addWidget(self.is_consumable_check)
+        flags_layout.addWidget(self.is_stackable_check)
+        flags_layout.addWidget(self.is_quest_item_check)
+        self.details_form_layout.addRow("Flags:", flags_layout)
+
+        # Conditional Fields
+        self.equip_slots_edit = QLineEdit()
+        self.equip_slots_edit.setPlaceholderText("Comma-separated (e.g., main_hand,chest)")
+        self.details_form_layout.addRow("Equip Slots:", self.equip_slots_edit)
+
+        self.stack_limit_spin = QSpinBox()
+        self.stack_limit_spin.setRange(1, 9999)
+        self.details_form_layout.addRow("Stack Limit:", self.stack_limit_spin)
+
+        self.durability_spin = QSpinBox()
+        self.durability_spin.setRange(0, 1000)
+        self.details_form_layout.addRow("Durability (Max):", self.durability_spin)
+
+        self.current_durability_spin = QSpinBox()
+        self.current_durability_spin.setRange(0,1000)
+        self.details_form_layout.addRow("Current Durability:", self.current_durability_spin)
+
+
+        # Stats Table
+        self.details_form_layout.addRow(QLabel("<b>Item Stats:</b>"))
+        self.stats_table = QTableWidget(0, 3)
+        self.stats_table.setHorizontalHeaderLabels(["Stat ID", "Value", "Display Name"])
+        self.stats_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.stats_table.setFixedHeight(100)
+        self.details_form_layout.addRow(self.stats_table)
+        stats_buttons_layout = QHBoxLayout()
+        self.add_stat_button = QPushButton("Add Stat")
+        self.add_stat_button.clicked.connect(self._add_item_stat)
+        stats_buttons_layout.addWidget(self.add_stat_button)
+        self.remove_stat_button = QPushButton("Remove Stat")
+        self.remove_stat_button.clicked.connect(self._remove_item_stat)
+        stats_buttons_layout.addWidget(self.remove_stat_button)
+        self.details_form_layout.addRow(stats_buttons_layout)
+
+        # Dice Roll Effects Table (for weapons primarily)
+        self.details_form_layout.addRow(QLabel("<b>Dice Roll Effects:</b>"))
+        self.dice_effects_table = QTableWidget(0, 3)
+        self.dice_effects_table.setHorizontalHeaderLabels(["Effect Type", "Dice Notation", "Description"])
+        self.dice_effects_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.dice_effects_table.setFixedHeight(100)
+        self.details_form_layout.addRow(self.dice_effects_table)
+        dice_buttons_layout = QHBoxLayout()
+        self.add_dice_effect_button = QPushButton("Add Dice Effect")
+        self.add_dice_effect_button.clicked.connect(self._add_dice_effect)
+        dice_buttons_layout.addWidget(self.add_dice_effect_button)
+        self.remove_dice_effect_button = QPushButton("Remove Dice Effect")
+        self.remove_dice_effect_button.clicked.connect(self._remove_dice_effect)
+        dice_buttons_layout.addWidget(self.remove_dice_effect_button)
+        self.details_form_layout.addRow(dice_buttons_layout)
+
+
+        # Tags
+        self.tags_edit = QLineEdit()
+        self.tags_edit.setPlaceholderText("Comma-separated tags (e.g., magic, fire, potion)")
+        self.details_form_layout.addRow("Tags:", self.tags_edit)
+
+        # Custom Properties (simple JSON string for now)
+        self.custom_props_edit = QTextEdit()
+        self.custom_props_edit.setPlaceholderText("JSON string for custom properties, e.g., {\"charge_cost\": 5}")
+        self.custom_props_edit.setFixedHeight(60)
+        self.details_form_layout.addRow("Custom Properties (JSON):", self.custom_props_edit)
+
+
+        self.save_item_button = QPushButton("Save Item Changes")
+        self.save_item_button.clicked.connect(self._save_current_item_details)
+        self.details_form_layout.addRow(self.save_item_button)
+
+        splitter.addWidget(right_panel_scroll)
+        splitter.setSizes([250, 550])
+        main_layout.addWidget(splitter)
+
+        self._set_details_enabled(False)
+
+    # --- Data Loading and Saving ---
+    def load_data(self):
+        """Loads item data from the JSON file."""
+        if os.path.exists(self.full_item_file_path):
+            loaded_data = load_json(self.full_item_file_path)
+            if isinstance(loaded_data, list):
+                self.items_data = loaded_data
+            else:
+                logger.error(f"Data in {self.item_file_key} file is not a list. Initializing as empty.")
+                self.items_data = []
+        else:
+            logger.warning(f"{self.item_file_key} file not found at {self.full_item_file_path}. Starting with empty list.")
+            self.items_data = []
+        self._refresh_item_list_widget()
+
+    def save_data(self) -> bool:
+        """Saves all items data to the JSON file."""
+        # Ensure current item details are applied to self.items_data if an item is selected
+        if self.current_item_index is not None and self.current_item_index < len(self.items_data):
+            self._apply_details_to_current_item_data()
+
+        if save_json(self.items_data, self.full_item_file_path):
+            logger.info(f"Saved {self.item_file_key} data to {self.full_item_file_path}")
+            self.data_modified.emit(self.item_file_key)
+            return True
+        else:
+            QMessageBox.critical(self, "Save Error", f"Failed to save {self.item_file_key} data.")
+            return False
+
+    def _refresh_item_list_widget(self):
+        self.item_list_widget.clear()
+        self.items_data.sort(key=lambda x: x.get("name", x.get("id", ""))) # Sort by name, then ID
+        for index, item_dict in enumerate(self.items_data):
+            display_name = f"{item_dict.get('name', 'Unnamed Item')} ({item_dict.get('id', 'No ID')})"
+            list_item = QListWidgetItem(display_name)
+            list_item.setData(Qt.UserRole, index) # Store index in the list
+            self.item_list_widget.addItem(list_item)
+        self._set_details_enabled(False)
+        self.remove_item_button.setEnabled(False)
+
+    # --- UI Callbacks ---
+    @Slot(QListWidgetItem, QListWidgetItem)
+    def _on_item_selected(self, current: Optional[QListWidgetItem], previous: Optional[QListWidgetItem]):
+        if current:
+            # Save previous item's details before loading new one if it was modified
+            if previous and self.current_item_index is not None:
+                 # This check is tricky without a dedicated "modified" flag for the form.
+                 # Forcing apply could overwrite unintended changes if user just clicked around.
+                 # A simpler approach is to rely on the explicit "Save Item Changes" button.
+                 pass
+
+
+            self.current_item_index = current.data(Qt.UserRole)
+            if self.current_item_index is not None and self.current_item_index < len(self.items_data):
+                self._populate_details_from_item_data(self.items_data[self.current_item_index])
+                self._set_details_enabled(True)
+                self.remove_item_button.setEnabled(True)
+            else:
+                self._clear_details()
+                self._set_details_enabled(False)
+                self.remove_item_button.setEnabled(False)
+        else:
+            self.current_item_index = None
+            self._clear_details()
+            self._set_details_enabled(False)
+            self.remove_item_button.setEnabled(False)
+
+    @Slot()
+    def _add_item(self):
+        new_item_id_prefix = self.item_file_key.lower().replace(" ", "_").replace("_templates","")
+        # Generate a unique enough ID
+        new_id_base = f"new_{new_item_id_prefix}_item"
+        new_id_suffix = 1
+        new_id = f"{new_id_base}_{new_id_suffix}"
+        existing_ids = {item.get("id") for item in self.items_data}
+        while new_id in existing_ids:
+            new_id_suffix += 1
+            new_id = f"{new_id_base}_{new_id_suffix}"
+
+        new_item = {"id": new_id, "name": "New Item", "item_type": "miscellaneous"}
+        self.items_data.append(new_item)
+        self._refresh_item_list_widget()
+        # Select the new item
+        for i in range(self.item_list_widget.count()):
+            if self.item_list_widget.item(i).data(Qt.UserRole) == len(self.items_data) - 1:
+                self.item_list_widget.setCurrentRow(i)
+                break
+        self.id_edit.setFocus() # Focus on ID for editing
+        self.data_modified.emit(self.item_file_key)
+
+
+    @Slot()
+    def _remove_item(self):
+        if self.current_item_index is None or not (0 <= self.current_item_index < len(self.items_data)):
+            return
+
+        item_to_remove = self.items_data[self.current_item_index]
+        reply = QMessageBox.question(self, "Remove Item",
+                                     f"Are you sure you want to remove '{item_to_remove.get('name', item_to_remove.get('id'))}'?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            del self.items_data[self.current_item_index]
+            self.current_item_index = None
+            self._refresh_item_list_widget()
+            self._clear_details()
+            self._set_details_enabled(False)
+            self.data_modified.emit(self.item_file_key)
+            self.save_data() # Auto-save after removal
+
+    @Slot()
+    def _save_current_item_details(self):
+        if self.current_item_index is None or not (0 <= self.current_item_index < len(self.items_data)):
+            QMessageBox.warning(self, "No Item Selected", "Please select an item to save.")
+            return
+        
+        item_id = self.id_edit.text().strip()
+        item_name = self.name_edit.text().strip()
+
+        if not item_id:
+            QMessageBox.warning(self, "Validation Error", "Item ID cannot be empty.")
+            self.id_edit.setFocus()
+            return
+        if not item_name:
+            QMessageBox.warning(self, "Validation Error", "Item Name cannot be empty.")
+            self.name_edit.setFocus()
+            return
+
+        # Check for ID uniqueness if ID was changed
+        original_id = self.items_data[self.current_item_index].get("id")
+        if item_id != original_id:
+            for idx, item_data_iter in enumerate(self.items_data):
+                if idx != self.current_item_index and item_data_iter.get("id") == item_id:
+                    QMessageBox.warning(self, "Validation Error", f"Item ID '{item_id}' already exists. Please choose a unique ID.")
+                    self.id_edit.setFocus()
+                    return
+
+        self._apply_details_to_current_item_data()
+        self.save_data() # This will save the whole list to file
+        # Refresh the list item text in case name/ID changed
+        self._refresh_item_list_widget()
+        # Reselect the item
+        for i in range(self.item_list_widget.count()):
+            if self.item_list_widget.item(i).data(Qt.UserRole) == self.current_item_index: # index might shift if sorted by name
+                # find by new ID instead if ID changed
+                if item_id != original_id:
+                    found_by_new_id = False
+                    for new_idx, item_in_list_data in enumerate(self.items_data):
+                        if item_in_list_data.get("id") == item_id:
+                            self.current_item_index = new_idx # update current_item_index
+                            self.item_list_widget.setCurrentRow(new_idx)
+                            found_by_new_id = True
+                            break
+                    if not found_by_new_id:
+                        self.current_item_index = None # Should not happen if ID is unique
+                else: # ID didn't change, reselect by old index (if still valid after sort)
+                    # Re-find by ID to be safe after sort
+                    found_by_id_after_sort = False
+                    for new_idx_after_sort, item_in_list_data_after_sort in enumerate(self.items_data):
+                        if item_in_list_data_after_sort.get("id") == original_id:
+                            self.current_item_index = new_idx_after_sort
+                            self.item_list_widget.setCurrentRow(new_idx_after_sort)
+                            found_by_id_after_sort = True
+                            break
+                    if not found_by_id_after_sort:
+                        self.current_item_index = None
+
+
+    # --- Helper Methods for Detail Management ---
+    def _populate_details_from_item_data(self, item_data: Dict[str, Any]):
+        self.id_edit.setText(item_data.get("id", ""))
+        self.name_edit.setText(item_data.get("name", ""))
+        self.description_edit.setPlainText(item_data.get("description", ""))
+        self.item_type_combo.setCurrentText(item_data.get("item_type", "miscellaneous"))
+        self.rarity_combo.setCurrentText(item_data.get("rarity", "common"))
+        self.weight_spin.setValue(float(item_data.get("weight", 0.0)))
+        self.value_spin.setValue(int(item_data.get("value", 0)))
+
+        self.is_equippable_check.setChecked(bool(item_data.get("is_equippable", False)))
+        self.is_consumable_check.setChecked(bool(item_data.get("is_consumable", False)))
+        self.is_stackable_check.setChecked(bool(item_data.get("is_stackable", False)))
+        self.is_quest_item_check.setChecked(bool(item_data.get("is_quest_item", False)))
+
+        self.equip_slots_edit.setText(", ".join(item_data.get("equip_slots", [])))
+        self.stack_limit_spin.setValue(int(item_data.get("stack_limit", 1)))
+        self.durability_spin.setValue(int(item_data.get("durability", 0)))
+        self.current_durability_spin.setValue(int(item_data.get("current_durability", item_data.get("durability", 0))))
+
+
+        # Populate stats table
+        self.stats_table.setRowCount(0)
+        stats_list = item_data.get("stats", [])
+        if isinstance(stats_list, list):
+            for stat_entry in stats_list:
+                if isinstance(stat_entry, dict):
+                    row_pos = self.stats_table.rowCount()
+                    self.stats_table.insertRow(row_pos)
+                    self.stats_table.setItem(row_pos, 0, QTableWidgetItem(stat_entry.get("name", "")))
+                    self.stats_table.setItem(row_pos, 1, QTableWidgetItem(str(stat_entry.get("value", ""))))
+                    self.stats_table.setItem(row_pos, 2, QTableWidgetItem(stat_entry.get("display_name", "")))
+                    # Store full stat dict in first item for editing
+                    self.stats_table.item(row_pos, 0).setData(Qt.UserRole, stat_entry)
+
+
+        # Populate dice effects table
+        self.dice_effects_table.setRowCount(0)
+        dice_effects_list = item_data.get("dice_roll_effects", [])
+        if isinstance(dice_effects_list, list):
+            for effect_entry in dice_effects_list:
+                if isinstance(effect_entry, dict):
+                    row_pos = self.dice_effects_table.rowCount()
+                    self.dice_effects_table.insertRow(row_pos)
+                    self.dice_effects_table.setItem(row_pos, 0, QTableWidgetItem(effect_entry.get("effect_type", "")))
+                    self.dice_effects_table.setItem(row_pos, 1, QTableWidgetItem(effect_entry.get("dice_notation", "")))
+                    self.dice_effects_table.setItem(row_pos, 2, QTableWidgetItem(effect_entry.get("description", "")))
+                    # Store full effect dict in first item for editing
+                    self.dice_effects_table.item(row_pos, 0).setData(Qt.UserRole, effect_entry)
+
+
+        self.tags_edit.setText(", ".join(item_data.get("tags", [])))
+
+        custom_props = item_data.get("custom_properties", {})
+        try:
+            self.custom_props_edit.setPlainText(json.dumps(custom_props, indent=2) if custom_props else "")
+        except TypeError:
+            self.custom_props_edit.setPlainText("") # Clear if not serializable
+
+        self._update_conditional_field_visibility()
+
+
+    def _apply_details_to_current_item_data(self):
+        if self.current_item_index is None or not (0 <= self.current_item_index < len(self.items_data)):
+            return
+
+        item_data = self.items_data[self.current_item_index]
+
+        item_data["id"] = self.id_edit.text().strip()
+        item_data["name"] = self.name_edit.text().strip()
+        item_data["description"] = self.description_edit.toPlainText().strip()
+        item_data["item_type"] = self.item_type_combo.currentText()
+        item_data["rarity"] = self.rarity_combo.currentText()
+        item_data["weight"] = self.weight_spin.value()
+        item_data["value"] = self.value_spin.value()
+
+        item_data["is_equippable"] = self.is_equippable_check.isChecked()
+        item_data["is_consumable"] = self.is_consumable_check.isChecked()
+        item_data["is_stackable"] = self.is_stackable_check.isChecked()
+        item_data["is_quest_item"] = self.is_quest_item_check.isChecked()
+
+        if item_data["is_equippable"]:
+            item_data["equip_slots"] = [s.strip() for s in self.equip_slots_edit.text().split(',') if s.strip()]
+        else:
+            item_data.pop("equip_slots", None)
+
+        if item_data["is_stackable"]:
+            item_data["stack_limit"] = self.stack_limit_spin.value()
+        else:
+            item_data.pop("stack_limit", None)
+
+        item_data["durability"] = self.durability_spin.value()
+        if item_data["durability"] > 0 : # Only save current_durability if max durability is set
+            item_data["current_durability"] = self.current_durability_spin.value()
+        else:
+            item_data.pop("current_durability", None)
+
+
+        # Stats
+        new_stats = []
+        for r in range(self.stats_table.rowCount()):
+            name = self.stats_table.item(r, 0).text()
+            value_str = self.stats_table.item(r,1).text()
+            display_name = self.stats_table.item(r,2).text()
+            
+            parsed_value: Any
+            try: # Try to parse as number or bool
+                if '.' in value_str: parsed_value = float(value_str)
+                else: parsed_value = int(value_str)
+            except ValueError:
+                if value_str.lower() == 'true': parsed_value = True
+                elif value_str.lower() == 'false': parsed_value = False
+                else: parsed_value = value_str # Keep as string if not number/bool
+
+            stat_entry = {"name": name, "value": parsed_value}
+            if display_name: stat_entry["display_name"] = display_name
+            # Check for is_percentage from original data if editing, or default to false
+            original_stat_data = self.stats_table.item(r,0).data(Qt.UserRole)
+            if isinstance(original_stat_data, dict) and original_stat_data.get("is_percentage"):
+                stat_entry["is_percentage"] = True
+            new_stats.append(stat_entry)
+        item_data["stats"] = new_stats
+
+
+        # Dice Roll Effects
+        new_dice_effects = []
+        for r in range(self.dice_effects_table.rowCount()):
+            effect_type = self.dice_effects_table.item(r,0).text()
+            dice_notation = self.dice_effects_table.item(r,1).text()
+            description = self.dice_effects_table.item(r,2).text()
+            effect_entry = {"effect_type": effect_type, "dice_notation": dice_notation}
+            if description: effect_entry["description"] = description
+            new_dice_effects.append(effect_entry)
+        item_data["dice_roll_effects"] = new_dice_effects
+
+
+        item_data["tags"] = [t.strip() for t in self.tags_edit.text().split(',') if t.strip()]
+
+        try:
+            custom_props_str = self.custom_props_edit.toPlainText().strip()
+            if custom_props_str:
+                item_data["custom_properties"] = json.loads(custom_props_str)
+            elif "custom_properties" in item_data: # If empty string, remove the key
+                del item_data["custom_properties"]
+        except json.JSONDecodeError:
+            QMessageBox.warning(self, "JSON Error", "Invalid JSON in Custom Properties. Changes not saved for this field.")
+            # Optionally, don't save the custom_properties part or revert to original
+            # For now, it will keep the old value if new is invalid and save_json doesn't crash
+
+    def _clear_details(self):
+        self.id_edit.clear()
+        self.name_edit.clear()
+        self.description_edit.clear()
+        self.item_type_combo.setCurrentIndex(0)
+        self.rarity_combo.setCurrentIndex(0)
+        self.weight_spin.setValue(0.0)
+        self.value_spin.setValue(0)
+        self.is_equippable_check.setChecked(False)
+        self.is_consumable_check.setChecked(False)
+        self.is_stackable_check.setChecked(False)
+        self.is_quest_item_check.setChecked(False)
+        self.equip_slots_edit.clear()
+        self.stack_limit_spin.setValue(1)
+        self.durability_spin.setValue(0)
+        self.current_durability_spin.setValue(0)
+        self.stats_table.setRowCount(0)
+        self.dice_effects_table.setRowCount(0)
+        self.tags_edit.clear()
+        self.custom_props_edit.clear()
+        self._update_conditional_field_visibility()
+
+
+    def _set_details_enabled(self, enabled: bool):
+        for i in range(self.details_form_layout.rowCount()):
+            widget_item = self.details_form_layout.itemAt(i, QFormLayout.FieldRole)
+            if widget_item and widget_item.widget():
+                widget_item.widget().setEnabled(enabled)
+            # Also enable labels if needed, though usually they are just for display
+            # label_item = self.details_form_layout.itemAt(i, QFormLayout.LabelRole)
+            # if label_item and label_item.widget():
+            #     label_item.widget().setEnabled(enabled)
+        self.id_edit.setEnabled(enabled) # Ensure ID can be edited when an item is selected
+        if not enabled:
+            self.id_edit.setReadOnly(True) # Read-only if no item selected
+        else:
+            self.id_edit.setReadOnly(False) # Editable if item selected
+
+        self.save_item_button.setEnabled(enabled)
+        if enabled:
+            self._update_conditional_field_visibility()
+        else: # Hide conditional fields if no item is selected
+            self.details_form_layout.labelForField(self.equip_slots_edit).setVisible(False)
+            self.equip_slots_edit.setVisible(False)
+            self.details_form_layout.labelForField(self.stack_limit_spin).setVisible(False)
+            self.stack_limit_spin.setVisible(False)
+
+
+    def _update_conditional_field_visibility(self):
+        """Show/hide fields based on checkbox states."""
+        is_equippable = self.is_equippable_check.isChecked()
+        self.details_form_layout.labelForField(self.equip_slots_edit).setVisible(is_equippable)
+        self.equip_slots_edit.setVisible(is_equippable)
+
+        is_stackable = self.is_stackable_check.isChecked()
+        self.details_form_layout.labelForField(self.stack_limit_spin).setVisible(is_stackable)
+        self.stack_limit_spin.setVisible(is_stackable)
+
+    @Slot()
+    def _add_item_stat(self):
+        dialog = ItemStatDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            stat_data = dialog.get_stat_data()
+            if stat_data:
+                row_pos = self.stats_table.rowCount()
+                self.stats_table.insertRow(row_pos)
+                self.stats_table.setItem(row_pos, 0, QTableWidgetItem(stat_data["name"]))
+                self.stats_table.setItem(row_pos, 1, QTableWidgetItem(str(stat_data["value"])))
+                self.stats_table.setItem(row_pos, 2, QTableWidgetItem(stat_data.get("display_name", "")))
+                self.stats_table.item(row_pos,0).setData(Qt.UserRole, stat_data) # Store for editing
+                self.data_modified.emit(self.item_file_key)
+
+
+    @Slot()
+    def _remove_item_stat(self):
+        current_row = self.stats_table.currentRow()
+        if current_row >= 0:
+            self.stats_table.removeRow(current_row)
+            self.data_modified.emit(self.item_file_key)
+
+    @Slot()
+    def _add_dice_effect(self):
+        dialog = DiceRollEffectDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            effect_data = dialog.get_effect_data()
+            if effect_data:
+                row_pos = self.dice_effects_table.rowCount()
+                self.dice_effects_table.insertRow(row_pos)
+                self.dice_effects_table.setItem(row_pos, 0, QTableWidgetItem(effect_data["effect_type"]))
+                self.dice_effects_table.setItem(row_pos, 1, QTableWidgetItem(effect_data["dice_notation"]))
+                self.dice_effects_table.setItem(row_pos, 2, QTableWidgetItem(effect_data.get("description", "")))
+                self.dice_effects_table.item(row_pos,0).setData(Qt.UserRole, effect_data)
+                self.data_modified.emit(self.item_file_key)
+
+    @Slot()
+    def _remove_dice_effect(self):
+        current_row = self.dice_effects_table.currentRow()
+        if current_row >= 0:
+            self.dice_effects_table.removeRow(current_row)
+            self.data_modified.emit(self.item_file_key)
+
+    def refresh_data(self):
+        """Public method to reload data from file."""
+        self.load_data()
+        # If an item was selected, try to reselect it or select first.
+        if self.current_item_index is not None and self.current_item_index < self.item_list_widget.count():
+            self.item_list_widget.setCurrentRow(self.current_item_index)
+        elif self.item_list_widget.count() > 0:
+            self.item_list_widget.setCurrentRow(0)
+        else:
+            self._clear_details()
+            self._set_details_enabled(False)
