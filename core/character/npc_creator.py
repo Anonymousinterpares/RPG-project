@@ -415,6 +415,15 @@ class NPCCreator:
                 tags.append("communicative:true")
             npc.known_information["tags"] = tags
             npc.known_information["service"] = {"type": "service", "service_type": service_type}
+            # Apply social role variants (guard/official/scholar) as tags
+            social_roles = {
+                "guard": ["role:guard", "duty:watch"],
+                "official": ["role:official"],
+                "scholar": ["role:scholar"],
+            }
+            if service_type in social_roles:
+                tags.extend(social_roles[service_type])
+                npc.known_information["tags"] = tags
             if not name:
                 npc.name = self._generate_semideterministic_name(culture_hint=culture_hint, role_hint=service_type, seed=seed)
             npc.known_information["needs_llm_flavor"] = True

@@ -79,6 +79,154 @@
       "roles_add": ["tank"],
       "abilities_add": ["crystal_barrier", "resonant_shield"],
       "tags_add": ["variant:bulwark"]
+    },
+
+    "concordant_guard": {
+      "id": "concordant_guard",
+      "family_id": "concordant_citizen",
+      "name": "Concordant Guard",
+      "description": "City watch member trained to maintain order in the Concordant cities.",
+      "stat_modifiers": {"defense": {"add": 2}},
+      "roles_add": ["tank", "controller"],
+      "abilities_add": ["resonant_shield", "guard_breaker"],
+      "tags_add": ["duty:watch", "role:guard"]
+    },
+    "concordant_official": {
+      "id": "concordant_official",
+      "family_id": "concordant_citizen",
+      "name": "Concordant Official",
+      "description": "An appointed official who manages civic affairs.",
+      "stat_modifiers": {"hp": {"add": 5}},
+      "roles_add": ["support", "controller"],
+      "abilities_add": ["rally_shout", "chorus_of_clarity"],
+      "tags_add": ["role:official"]
+    },
+    "concordant_scholar": {
+      "id": "concordant_scholar",
+      "family_id": "concordant_citizen",
+      "name": "Concordant Scholar",
+      "description": "A researcher trained at the Resonance Academy.",
+      "stat_modifiers": {"defense": {"add": 1}, "damage": {"add": 1}},
+      "roles_add": ["controller", "support"],
+      "abilities_add": ["planar_harmonization", "chorus_of_clarity"],
+      "tags_add": ["role:scholar"]
+    },
+
+    "verdant_guard": {
+      "id": "verdant_guard",
+      "family_id": "verdant_wanderer",
+      "name": "Verdant Warden",
+      "description": "A warden safeguarding the collective's outposts.",
+      "stat_modifiers": {"hp": {"add": 6}},
+      "roles_add": ["tank", "scout"],
+      "abilities_add": ["thick_hide", "nature_stride"],
+      "tags_add": ["duty:watch", "role:guard"]
+    },
+    "verdant_official": {
+      "id": "verdant_official",
+      "family_id": "verdant_wanderer",
+      "name": "Verdant Envoy",
+      "description": "An envoy facilitating diplomacy and trade.",
+      "stat_modifiers": {"defense": {"add": 1}},
+      "roles_add": ["support"],
+      "abilities_add": ["season_shifting", "harmonic_healing"],
+      "tags_add": ["role:official"]
+    },
+    "verdant_scholar": {
+      "id": "verdant_scholar",
+      "family_id": "verdant_wanderer",
+      "name": "Verdant Scholar",
+      "description": "A lore-keeper versed in seasonal memory.",
+      "roles_add": ["controller", "support"],
+      "abilities_add": ["season_shifting", "green_speech_communication"],
+      "tags_add": ["role:scholar"]
+    },
+
+    "crystalline_guard": {
+      "id": "crystalline_guard",
+      "family_id": "crystalline_adept",
+      "name": "Crystalline Sentinel",
+      "description": "A sentinel trained in facet defense and control.",
+      "stat_modifiers": {"defense": {"add": 3}},
+      "roles_add": ["tank", "controller"],
+      "abilities_add": ["resonant_shield", "calculation_contest"],
+      "tags_add": ["duty:watch", "role:guard"]
+    },
+    "crystalline_official": {
+      "id": "crystalline_official",
+      "family_id": "crystalline_adept",
+      "name": "Crystalline Official",
+      "description": "A coordinator overseeing research and trade.",
+      "roles_add": ["support"],
+      "abilities_add": ["planar_anchor_field", "resonant_shield"],
+      "tags_add": ["role:official"]
+    },
+    "crystalline_scholar": {
+      "id": "crystalline_scholar",
+      "family_id": "crystalline_adept",
+      "name": "Crystalline Scholar",
+      "description": "A scholar specializing in predictive geometry.",
+      "roles_add": ["controller"],
+      "abilities_add": ["calculation_contest"],
+      "tags_add": ["role:scholar"]
+    },
+
+    "ashen_guard": {
+      "id": "ashen_guard",
+      "family_id": "ashen_nomad",
+      "name": "Ashen Guardian",
+      "description": "A guardian of the Covenant's rituals and camps.",
+      "stat_modifiers": {"hp": {"add": 5}},
+      "roles_add": ["tank", "support"],
+      "abilities_add": ["resonant_shield", "spirit_guidance"],
+      "tags_add": ["duty:watch", "role:guard"]
+    },
+    "ashen_official": {
+      "id": "ashen_official",
+      "family_id": "ashen_nomad",
+      "name": "Ashen Elder",
+      "description": "An elder entrusted with community matters.",
+      "roles_add": ["support"],
+      "abilities_add": ["spirit_guidance", "anchor_pulse"],
+      "tags_add": ["role:official"]
+    },
+    "ashen_scholar": {
+      "id": "ashen_scholar",
+      "family_id": "ashen_nomad",
+      "name": "Ashen Scholar",
+      "description": "A scholar of impermanence and ash-walking.",
+      "roles_add": ["controller", "support"],
+      "abilities_add": ["ember_renewal", "dust_keeping"],
+      "tags_add": ["role:scholar"]
+    },
+
+    "tempest_guard": {
+      "id": "tempest_guard",
+      "family_id": "tempest_swashbuckler",
+      "name": "Tempest Harbor Guard",
+      "description": "A quick-acting guard keeping peace in the flux markets.",
+      "stat_modifiers": {"initiative": {"add": 2}},
+      "roles_add": ["skirmisher", "controller"],
+      "abilities_add": ["storm_binding", "rapid_dash"],
+      "tags_add": ["duty:watch", "role:guard"]
+    },
+    "tempest_official": {
+      "id": "tempest_official",
+      "family_id": "tempest_swashbuckler",
+      "name": "Tempest Quartermaster",
+      "description": "A quartermaster organizing crews and cargos.",
+      "roles_add": ["support"],
+      "abilities_add": ["rally_shout"],
+      "tags_add": ["role:official"]
+    },
+    "tempest_scholar": {
+      "id": "tempest_scholar",
+      "family_id": "tempest_swashbuckler",
+      "name": "Tempest Scholar",
+      "description": "A scholar of chance and flow.",
+      "roles_add": ["controller"],
+      "abilities_add": ["chaos_wave"],
+      "tags_add": ["role:scholar"]
     }
   },
   "metadata": {

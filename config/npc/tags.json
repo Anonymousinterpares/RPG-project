@@ -8,7 +8,7 @@
     ],
     "role": [
       "striker", "tank", "controller", "support", "skirmisher", "sniper", "scout",
-      "medic", "pathfinder"
+      "medic", "pathfinder", "guard", "official", "scholar"
     ],
     "plane": [
       "nexus", "verdant", "crystalline", "ashen", "tempest"
