@@ -1,0 +1,27 @@
+{
+  "scaling": {
+    "difficulty": {
+      "story": {"hp": 0.9, "damage": 0.9, "defense": 0.9, "initiative": 1.0},
+      "normal": {"hp": 1.0, "damage": 1.0, "defense": 1.0, "initiative": 1.0},
+      "hard": {"hp": 1.15, "damage": 1.1, "defense": 1.1, "initiative": 1.0},
+      "expert": {"hp": 1.3, "damage": 1.2, "defense": 1.15, "initiative": 1.05}
+    },
+    "player_level_curve": {
+      "hp": {"start_level": 1, "end_level": 20, "curve": "linear", "multiplier": 1.0},
+      "damage": {"start_level": 1, "end_level": 20, "curve": "linear", "multiplier": 1.0},
+      "defense": {"start_level": 1, "end_level": 20, "curve": "linear", "multiplier": 1.0},
+      "initiative": {"start_level": 1, "end_level": 20, "curve": "linear", "multiplier": 1.0}
+    },
+    "encounter_size": {
+      "solo": {"hp": 1.0, "damage": 1.0, "defense": 1.0, "initiative": 1.0},
+      "pack": {"hp": 0.9, "damage": 0.95, "defense": 1.0, "initiative": 1.0},
+      "mixed": {"hp": 0.95, "damage": 1.0, "defense": 1.0, "initiative": 1.0}
+    }
+  },
+  "interaction_flags": {
+    "communicative_defaults": {"humanoid": true, "beast": false, "construct": false, "undead": false},
+    "llm_overrides_allowed": true
+  },
+  "metadata": {"version": "1.0.0", "description": "Baseline generation rules for families-based NPCs."}
+}
+

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc_tags.schema.json",
+  "title": "NPC Tags Catalog",
+  "type": "object",
+  "properties": {
+    "tags": {
+      "type": "object",
+      "description": "Catalog of tag categories to allowed values.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
+        "uniqueItems": true
+      }
+    },
+    "metadata": { "type": "object" }
+  },
+  "required": ["tags"],
+  "additionalProperties": false
+}
+

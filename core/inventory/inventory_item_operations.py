@@ -13,7 +13,11 @@ import copy
 from core.utils.logging_config import get_logger
 from core.inventory.item import Item
 from core.inventory.inventory_base import InventoryBase
-from core.base.state import get_state_manager
+# Lazy getter to avoid circular import during module import time
+# Do not import get_state_manager at module scope; resolve it when called
+def get_state_manager():
+    from core.base.state.state_manager import get_state_manager as _get
+    return _get()
 try:
     from core.game_flow.event_log import record_item_delta
 except Exception:

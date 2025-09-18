@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NPC Tags Schema (Aetheris)",
+  "type": "object",
+  "properties": {
+    "vocabulary": {
+      "type": "object",
+      "properties": {
+        "actor_type": { "type": "array", "items": { "type": "string" } },
+        "threat_tier": { "type": "array", "items": { "type": "string" } },
+        "role": { "type": "array", "items": { "type": "string" } },
+        "biome": { "type": "array", "items": { "type": "string" } },
+        "faction": { "type": "array", "items": { "type": "string" } },
+        "species": { "type": "array", "items": { "type": "string" } },
+        "color": { "type": "array", "items": { "type": "string" } },
+        "temperament": { "type": "array", "items": { "type": "string" } },
+        "elemental": { "type": "array", "items": { "type": "string" } },
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "social_structure": { "type": "array", "items": { "type": "string" } },
+        "alignment": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "metadata": { "type": "object" }
+  },
+  "required": ["vocabulary"]
+}
+

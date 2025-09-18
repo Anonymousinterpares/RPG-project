@@ -1,0 +1,418 @@
+.
+├── config
+│   ├── backup
+│   │   ├── skills_skills_20250912_235959.json
+│   │   ├── skills_skills_20250913_002318.json
+│   │   ├── skills_skills_20250913_002554.json
+│   │   ├── skills_skills_20250913_141551.json
+│   │   ├── skills_skills_20250913_141748.json
+│   │   ├── skills_skills_20250913_180742.json
+│   │   ├── skills_skills_20250913_235905.json
+│   │   ├── skills_skills_20250914_130547.json
+│   │   ├── skills_skills_20250914_131055.json
+│   │   └── skills_skills_20250914_132944.json
+│   ├── character
+│   │   ├── backgrounds.json
+│   │   ├── classes.json
+│   │   ├── npc_templates.json
+│   │   ├── races.json
+│   │   └── stats_config.json
+│   ├── combat
+│   │   └── combat_config.json
+│   ├── game
+│   │   └── base_config.json
+│   ├── items
+│   │   ├── README.md
+│   │   ├── base_armor.json
+│   │   ├── base_armor.json.txt
+│   │   ├── base_weapons.json
+│   │   ├── base_weapons.json.txt
+│   │   ├── consumables.json
+│   │   ├── consumables.json.txt
+│   │   ├── miscellaneous.json
+│   │   ├── miscellaneous.json.txt
+│   │   ├── origin_items.json
+│   │   └── origin_items.json.txt
+│   ├── llm
+│   │   ├── agents
+│   │   │   ├── README.md
+│   │   │   ├── combatnarrator.json
+│   │   │   ├── context_evaluator.json
+│   │   │   ├── narrator.json
+│   │   │   └── rule_checker.json
+│   │   ├── base_config.json
+│   │   └── models.json
+│   ├── world
+│   │   ├── base
+│   │   │   ├── cultures.json
+│   │   │   ├── fundamental_rules.json
+│   │   │   ├── magic_systems.json
+│   │   │   └── world_history.json
+│   │   ├── locations
+│   │   │   └── locations.json
+│   │   └── scenarios
+│   │       ├── origins.json
+│   │       ├── quests.json
+│   │       └── tests.json
+│   ├── README.md
+│   ├── combat_display_settings.json
+│   ├── game_config.json
+│   ├── gui_config.json
+│   ├── llm_config.json
+│   ├── skills.json
+│   └── system_config.json
+├── core
+│   ├── __pycache__
+│   ├── agents
+│   │   ├── __pycache__
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── agent_manager.py
+│   │   ├── base_agent.py
+│   │   ├── combat_narrator.py
+│   │   ├── context_evaluator.py
+│   │   ├── data_retrieval_commands.py
+│   │   ├── narrator.py
+│   │   ├── rule_checker.py
+│   │   ├── social_conflict_agent.py
+│   │   └── trade_agent.py
+│   ├── audio
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   └── tts_manager.py
+│   ├── base
+│   │   ├── __pycache__
+│   │   ├── state
+│   │   │   ├── __pycache__
+│   │   │   ├── __init__.py
+│   │   │   ├── game_state.py
+│   │   │   ├── player_state.py
+│   │   │   ├── state_manager.py
+│   │   │   ├── stats_integration.py
+│   │   │   └── world_state.py
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── commands.py
+│   │   ├── config.py
+│   │   ├── engine.py
+│   │   ├── game_loop.py
+│   │   ├── init_modules.py
+│   │   └── state.py
+│   ├── character
+│   │   ├── __pycache__
+│   │   ├── selected_files_documentation_25.05.2025_22_45_07_output
+│   │   │   └── selected_files_documentation_25.05.2025_22_45_07.txt
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── background_generator.py
+│   │   ├── npc_base.py
+│   │   ├── npc_creator.py
+│   │   ├── npc_generator.py
+│   │   ├── npc_manager.py
+│   │   ├── npc_memory.py
+│   │   ├── npc_persistence.py
+│   │   └── npc_system.py
+│   ├── combat
+│   │   ├── __pycache__
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── action_handlers.py
+│   │   ├── combat_action.py
+│   │   ├── combat_entity.py
+│   │   ├── combat_manager.py
+│   │   ├── dev_commands.py
+│   │   └── enums.py
+│   ├── game_flow
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   ├── command_handlers.py
+│   │   ├── command_router.py
+│   │   ├── event_log.py
+│   │   ├── game_flow_utils.py
+│   │   ├── input_router.py
+│   │   ├── interaction_core.py
+│   │   ├── interaction_processor.py
+│   │   ├── lifecycle.py
+│   │   ├── lifecycle.py.txt
+│   │   ├── mode_transitions.py
+│   │   ├── npc_interaction.py
+│   │   ├── quest_updates.py
+│   │   └── request_handlers.py
+│   ├── interaction
+│   │   ├── __pycache__
+│   │   ├── context_builder.py
+│   │   ├── enums.py
+│   │   ├── social_effects.py
+│   │   └── structured_requests.py
+│   ├── inventory
+│   │   ├── __pycache__
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── currency_manager.py
+│   │   ├── equipment_manager.py
+│   │   ├── inventory_base.py
+│   │   ├── inventory_commands.py
+│   │   ├── inventory_commands_2.py
+│   │   ├── inventory_commands_3.py
+│   │   ├── inventory_item_operations.py
+│   │   ├── inventory_limits.py
+│   │   ├── inventory_manager.py
+│   │   ├── item.py
+│   │   ├── item_effect.py
+│   │   ├── item_enums.py
+│   │   ├── item_factory.py
+│   │   ├── item_manager.py
+│   │   ├── item_modifier.py
+│   │   ├── item_serialization.py
+│   │   ├── item_stat.py
+│   │   ├── item_stat_modifier.py
+│   │   ├── item_template_loader.py
+│   │   ├── item_variation_generator.py
+│   │   ├── narrative_item_creation.py
+│   │   ├── narrative_item_discovery.py
+│   │   ├── narrative_item_manager.py
+│   │   └── narrative_item_mappings.py
+│   ├── llm
+│   │   ├── __pycache__
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── llm_manager.py
+│   │   ├── provider_manager.py
+│   │   ├── settings_cli.py
+│   │   ├── settings_manager.py
+│   │   └── settings_manager_new.py
+│   ├── orchestration
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   ├── combat_orchestrator.py
+│   │   └── events.py
+│   ├── stats
+│   │   ├── __pycache__
+│   │   ├── enums
+│   │   │   ├── __pycache__
+│   │   │   └── __init__.py
+│   │   ├── tests
+│   │   │   ├── __pycache__
+│   │   │   ├── __init__.py
+│   │   │   └── test_stats_manager.py
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── combat_effects.py
+│   │   ├── derived_stats.py
+│   │   ├── enums.py
+│   │   ├── modifier.py
+│   │   ├── modifier_manager.py
+│   │   ├── skill_check.py
+│   │   ├── skill_manager.py
+│   │   ├── stat_allocation.py
+│   │   ├── stat_modifier_info.py
+│   │   ├── stats_base.py
+│   │   └── stats_manager.py
+│   ├── utils
+│   │   ├── __pycache__
+│   │   ├── README.md
+│   │   ├── dice.py
+│   │   ├── dice.py.README.md
+│   │   ├── dotdict.py
+│   │   ├── enhanced_time_manager.py
+│   │   ├── json_utils.py
+│   │   ├── logging_config.TXT
+│   │   ├── logging_config.py
+│   │   ├── save_manager.py
+│   │   ├── save_manager.py.txt
+│   │   └── time_utils.py
+│   ├── README.md
+│   └── __init__.py
+├── gui
+│   ├── __pycache__
+│   ├── components
+│   │   ├── __pycache__
+│   │   ├── README.md
+│   │   ├── character_sheet.py
+│   │   ├── combat_display.py
+│   │   ├── command_input.py
+│   │   ├── game_menu.py
+│   │   ├── game_output.py
+│   │   ├── inventory_panel.py
+│   │   ├── journal_panel.py
+│   │   ├── menu_panel.py
+│   │   ├── right_panel.py
+│   │   ├── skill_check_display.py
+│   │   ├── stat_allocation_widget.py
+│   │   └── status_bar.py
+│   ├── dialogs
+│   │   ├── __pycache__
+│   │   ├── settings
+│   │   │   ├── __pycache__
+│   │   │   ├── __init__.py
+│   │   │   ├── agent_setup_tab.py
+│   │   │   ├── anthropic_tab.py
+│   │   │   ├── background_tab.py
+│   │   │   ├── base_settings_dialog.py
+│   │   │   ├── llm_general_tab.py
+│   │   │   ├── llm_provider_tab.py
+│   │   │   ├── llm_settings_dialog.py
+│   │   │   ├── model_management_widget.py
+│   │   │   ├── provider_tabs.py
+│   │   │   ├── settings_dialog.py
+│   │   │   ├── settings_dialog.txt
+│   │   │   └── style_tab.py
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── base_dialog.py
+│   │   ├── character_creation_dialog.py
+│   │   ├── combat_settings_dialog.py
+│   │   ├── combat_settings_dialog.txt
+│   │   ├── game_over_dialog.py
+│   │   ├── item_info_dialog.py
+│   │   ├── load_game_dialog.py
+│   │   ├── new_game_dialog.py
+│   │   └── save_game_dialog.py
+│   ├── utils
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   ├── init_settings.py
+│   │   └── resource_manager.py
+│   ├── README.md
+│   └── main_window.py
+├── log_viewer_tool
+│   ├── __pycache__
+│   ├── __init__.py
+│   ├── color_delegate.py
+│   ├── color_settings_dialog.py
+│   ├── export_dialog.py
+│   ├── filter_model.py
+│   ├── log_entry.py
+│   ├── log_parser.py
+│   ├── main_window.py
+│   └── settings_manager.py
+├── sound
+│   └── README.md
+├── tests
+│   ├── README.md
+│   ├── __init__.py
+│   └── test_stats_system.py
+├── web
+│   ├── client
+│   │   ├── css
+│   │   │   └── style.css
+│   │   ├── js
+│   │   │   ├── agent-settings.js
+│   │   │   ├── api-client.js
+│   │   │   ├── character-creator.js
+│   │   │   ├── main.js
+│   │   │   ├── model-debug.js
+│   │   │   ├── ui-manager.js
+│   │   │   └── websocket-client.js
+│   │   └── index.html
+│   ├── server
+│   │   ├── __pycache__
+│   │   ├── requirements.txt
+│   │   └── server.py
+│   └── README.md
+├── world_configurator
+│   ├── __pycache__
+│   ├── assistant
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   ├── context.py
+│   │   ├── panel.py
+│   │   ├── patching.py
+│   │   └── prompt_builder.py
+│   ├── config
+│   │   └── skills.json
+│   ├── data
+│   ├── llm
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   ├── client_base.py
+│   │   ├── gemini.py
+│   │   ├── providers_registry.py
+│   │   └── settings.py
+│   ├── models
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   ├── base_models.py
+│   │   ├── item_data_manager.py
+│   │   ├── location_data.py
+│   │   ├── origin_data.py
+│   │   ├── skill_manager.py
+│   │   ├── world_config.py
+│   │   └── world_data.py
+│   ├── selected_files_documentation_31.05.2025_22_40_59_output
+│   │   └── selected_files_documentation_31.05.2025_22_40_59.txt
+│   ├── ui
+│   │   ├── __pycache__
+│   │   ├── dialogs
+│   │   │   ├── __pycache__
+│   │   │   ├── __init__.py
+│   │   │   ├── base_dialog.py
+│   │   │   ├── export_dialog.py
+│   │   │   ├── item_selection_dialog.py
+│   │   │   ├── new_project_dialog.py
+│   │   │   ├── quest_selection_dialog.py
+│   │   │   ├── settings_dialog.py
+│   │   │   └── skill_selection_dialog.py
+│   │   ├── editors
+│   │   │   ├── __pycache__
+│   │   │   ├── SpecificItemEditor.py
+│   │   │   ├── __init__.py
+│   │   │   ├── class_editor.py
+│   │   │   ├── culture_editor.py
+│   │   │   ├── history_editor.py
+│   │   │   ├── item_editor_panel.py
+│   │   │   ├── location_editor.py
+│   │   │   ├── magic_systems_editor.py
+│   │   │   ├── origin_editor.py
+│   │   │   ├── origin_editor.py.txt
+│   │   │   ├── quest_editor.py
+│   │   │   ├── race_editor.py
+│   │   │   └── skills_editor.py
+│   │   ├── __init__.py
+│   │   └── main_window.py
+│   ├── utils
+│   │   ├── __pycache__
+│   │   ├── __init__.py
+│   │   ├── data_validator.py
+│   │   ├── file_manager.py
+│   │   └── logging_setup.py
+│   ├── validators
+│   │   ├── __pycache__
+│   │   └── origins_quests_validator.py
+│   ├── README.md
+│   ├── __init__.py
+│   └── main.py
+├── -
+├── .gitignore
+├── PROJECT_STRUCTURE.MD
+├── README.md
+├── REFACTORING_PLAN.MD
+├── WARP.md
+├── background_refactor_checklist.md
+├── checklist.md
+├── checklist_full.md
+├── combat_flow.md
+├── combat_flow_adjustment_checklist.md
+├── create_color_swatches.py
+├── create_texture.py
+├── create_textures.py
+├── engine_refactor_checklist.md
+├── gameworld_framework.md
+├── generate_project_structure.py
+├── gui_redesign_spec.md
+├── implementation_summary.md
+├── install_world_configurator.bat
+├── main.py
+├── manage_llm_settings.py
+├── mode_transition_plan.md
+├── npc_item_mgmt_combat.md
+├── project_structure.txt
+├── prompt_construction.md
+├── run_gui.py
+├── run_gui.py - Shortcut.lnk
+├── run_log_viewer.py
+├── setup.py
+├── start_server.bat
+├── start_server.py
+├── test_inventory.py
+└── world_configurator.py

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NPC Generation Rules Schema (Aetheris)",
+  "type": "object",
+  "properties": {
+    "scaling": {
+      "type": "object",
+      "properties": {
+        "difficulty": {
+          "type": "object",
+          "properties": {
+            "story": { "$ref": "#/definitions/scalars" },
+            "normal": { "$ref": "#/definitions/scalars" },
+            "hard": { "$ref": "#/definitions/scalars" },
+            "expert": { "$ref": "#/definitions/scalars" }
+          },
+          "additionalProperties": false
+        },
+        "player_level_curve": {
+          "type": "object",
+          "properties": {
+            "hp": { "$ref": "#/definitions/curve_segment" },
+            "damage": { "$ref": "#/definitions/curve_segment" },
+            "defense": { "$ref": "#/definitions/curve_segment" },
+            "initiative": { "$ref": "#/definitions/curve_segment" }
+          },
+          "additionalProperties": false
+        },
+        "encounter_size": {
+          "type": "object",
+          "properties": {
+            "solo": { "$ref": "#/definitions/scalars" },
+            "pack": { "$ref": "#/definitions/scalars" },
+            "mixed": { "$ref": "#/definitions/scalars" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "resonance": {
+      "type": "object",
+      "properties": {
+        "planar_bleed_bonus": { "$ref": "#/definitions/scalars" },
+        "event_modifiers": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/scalars" },
+          "description": "Custom modifiers keyed by event ids (e.g., celestial_alignment)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "interaction_flags": {
+      "type": "object",
+      "properties": {
+        "communicative_defaults": { "type": "object", "additionalProperties": { "type": "boolean" } },
+        "llm_overrides_allowed": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    },
+    "metadata": { "type": "object" }
+  },
+  "required": ["scaling"],
+  "definitions": {
+    "scalars": {
+      "type": "object",
+      "properties": {
+        "hp": { "type": "number", "default": 1.0 },
+        "damage": { "type": "number", "default": 1.0 },
+        "defense": { "type": "number", "default": 1.0 },
+        "initiative": { "type": "number", "default": 1.0 }
+      },
+      "additionalProperties": false
+    },
+    "curve_segment": {
+      "type": "object",
+      "properties": {
+        "start_level": { "type": "integer", "minimum": 1, "default": 1 },
+        "end_level": { "type": "integer", "minimum": 1, "default": 20 },
+        "curve": { "type": "string", "enum": ["linear", "log", "exp", "ease_in", "ease_out"], "default": "linear" },
+        "multiplier": { "type": "number", "default": 1.0 }
+      },
+      "required": ["start_level", "end_level"],
+      "additionalProperties": false
+    }
+  }
+}
+

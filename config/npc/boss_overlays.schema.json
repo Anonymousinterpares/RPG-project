@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NPC Boss Overlays Schema (Aetheris)",
+  "type": "object",
+  "properties": {
+    "overlays": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/overlay"
+      }
+    },
+    "metadata": { "$ref": "#/definitions/metadata" }
+  },
+  "required": ["overlays"],
+  "additionalProperties": false,
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "properties": { "version": {"type":"string"}, "description": {"type":"string"} },
+      "additionalProperties": true
+    },
+    "overlay": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "is_boss": { "type": "boolean", "const": true },
+        "multipliers": {
+          "type": "object",
+          "properties": {
+            "hp": { "type": "number", "minimum": 0.1, "default": 1.5 },
+            "damage": { "type": "number", "minimum": 0.1, "default": 1.25 },
+            "defense": { "type": "number", "minimum": 0.1, "default": 1.25 }
+          },
+          "additionalProperties": { "type": "number" }
+        },
+        "bonus_abilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ability ids added on top of family pools"
+        },
+        "phase_rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "trigger": { "type": "string", "description": "e.g., hp<50%" },
+              "effects": { "type": "array", "items": { "type": "string" } }
+            },
+            "additionalProperties": true
+          },
+          "description": "Optional multi-phase boss behavior"
+        },
+        "reward_policy": {
+          "type": "object",
+          "properties": {
+            "loot_tier_bonus": { "type": "integer", "default": 1 },
+            "xp_multiplier": { "type": "number", "default": 1.5 }
+          },
+          "additionalProperties": false
+        },
+        "metadata": { "$ref": "#/definitions/metadata" }
+      },
+      "required": ["is_boss"],
+      "additionalProperties": false
+    }
+  }
+}
+

@@ -14,7 +14,9 @@ from PySide6.QtCore import QTimer
 from core.base.state.game_state import GameState
 from core.base.state.player_state import PlayerState
 from core.base.state.world_state import WorldState
-from core.character.npc_system import NPCSystem
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from core.character.npc_system import NPCSystem
 from core.character.npc_base import NPCInteractionType
 from core.stats.modifier import ModifierSource, StatModifier, ModifierType
 from core.stats.stats_base import StatType

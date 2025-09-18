@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NPC Roles Schema (Aetheris)",
+  "type": "object",
+  "properties": {
+    "roles": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/role" }
+    },
+    "metadata": { "$ref": "#/definitions/metadata" }
+  },
+  "required": ["roles"],
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "properties": { "version": {"type":"string"}, "description": {"type":"string"} },
+      "additionalProperties": true
+    },
+    "role": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "stat_focus": {
+          "type": "object",
+          "properties": {
+            "hp_weight": { "type": "number", "default": 1.0 },
+            "damage_weight": { "type": "number", "default": 1.0 },
+            "defense_weight": { "type": "number", "default": 1.0 },
+            "initiative_weight": { "type": "number", "default": 1.0 }
+          },
+          "additionalProperties": false
+        },
+        "ability_bias": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Preferred ability tags (e.g., bleed, control, area, song, facet)"
+        },
+        "behavior": {
+          "type": "object",
+          "properties": {
+            "engage_range": { "type": "string", "enum": ["melee", "short", "mid", "long"], "default": "melee" },
+            "focus": { "type": "string", "enum": ["single", "area", "support", "control"], "default": "single" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["id", "name"],
+      "additionalProperties": false
+    }
+  }
+}
+

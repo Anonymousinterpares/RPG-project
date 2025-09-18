@@ -1,0 +1,198 @@
+{
+  "families": {
+    "concordant_citizen": {
+      "id": "concordant_citizen",
+      "name": "Concordant Citizen",
+      "description": "Typical humanoid residents of the Concordant Cities, embodying Harmony, Adaptability, and Knowledge.",
+      "actor_type": "humanoid",
+      "threat_tier": "normal",
+      "allowed_roles": ["striker", "controller", "support"],
+      "planar_bias": ["Nexus"],
+      "cultural_bias": ["concordant"],
+      "biome_bias": ["urban"],
+      "stat_budgets": {
+        "hp": {"min": 20, "max": 50, "curve": "ease_in"},
+        "damage": {"min": 5, "max": 20, "curve": "linear"},
+        "defense": {"min": 5, "max": 15, "curve": "ease_out"},
+        "initiative": {"min": 10, "max": 20, "curve": "linear"}
+      },
+      "ability_pools": {
+        "global": ["harmonic_healing", "resonant_shield", "chorus_of_clarity"],
+        "role_overrides": {
+          "striker": ["dirge_of_despair"],
+          "controller": ["planar_harmonization"],
+          "support": ["song_of_mending", "field_medicine"]
+        }
+      },
+      "default_tags": ["faction:concordant", "plane:nexus", "temperament:pragmatic", "culture:concordant"],
+      "rules": {"require_tags": ["culture:concordant"], "max_abilities": 5, "allowed_overlays": ["default_boss", "cinematic_boss"]},
+      "is_boss_allowed": true
+    },
+    "verdant_wanderer": {
+      "id": "verdant_wanderer",
+      "name": "Verdant Wanderer",
+      "description": "Members of the Verdant Collective closely connected to nature, valuing Symbiosis and Renewal.",
+      "actor_type": "humanoid",
+      "threat_tier": "normal",
+      "allowed_roles": ["scout", "support", "controller"],
+      "planar_bias": ["Verdant"],
+      "cultural_bias": ["verdant"],
+      "biome_bias": ["forest", "wilderness"],
+      "stat_budgets": {
+        "hp": {"min": 15, "max": 40, "curve": "ease_in"},
+        "damage": {"min": 3, "max": 15, "curve": "linear"},
+        "defense": {"min": 3, "max": 12, "curve": "linear"},
+        "initiative": {"min": 12, "max": 25, "curve": "ease_out"}
+      },
+      "ability_pools": {
+        "global": ["harmonic_healing", "green_speech_communication"],
+        "role_overrides": {
+          "scout": ["nature_stride"],
+          "support": ["season_shifting"],
+          "controller": ["planar_harmonization"]
+        }
+      },
+      "default_tags": ["faction:verdant", "plane:verdant", "temperament:patient", "culture:verdant"],
+      "rules": {"require_tags": ["culture:verdant"], "max_abilities": 5, "allowed_overlays": ["default_boss", "alpha_predator"]},
+      "is_boss_allowed": true
+    },
+    "crystalline_adept": {
+      "id": "crystalline_adept",
+      "name": "Crystalline Adept",
+      "description": "Disciplined members of the Crystalline Consortium, masters of geometric precision and Facet Magic.",
+      "actor_type": "humanoid",
+      "threat_tier": "dangerous",
+      "allowed_roles": ["controller", "striker"],
+      "planar_bias": ["Crystalline"],
+      "cultural_bias": ["crystalline"],
+      "biome_bias": ["urban", "research_facility", "laboratory"],
+      "stat_budgets": {
+        "hp": {"min": 30, "max": 70, "curve": "linear"},
+        "damage": {"min": 10, "max": 25, "curve": "ease_out"},
+        "defense": {"min": 10, "max": 30, "curve": "linear"},
+        "initiative": {"min": 8, "max": 15, "curve": "ease_in"}
+      },
+      "ability_pools": {
+        "global": ["facet_barrage", "resonant_shield"],
+        "role_overrides": {
+          "controller": ["calculation_contest"],
+          "striker": ["facet_precision_strike"]
+        }
+      },
+      "default_tags": ["faction:crystalline", "plane:crystalline", "temperament:methodical", "culture:crystalline"],
+      "rules": {"require_tags": ["culture:crystalline"], "max_abilities": 6, "allowed_overlays": ["default_boss", "cinematic_boss"]},
+      "is_boss_allowed": true
+    },
+    "ashen_nomad": {
+      "id": "ashen_nomad",
+      "name": "Ashen Nomad",
+      "description": "Wandering members of The Ashen Covenant, embracing impermanence and spiritual transformation.",
+      "actor_type": "humanoid",
+      "threat_tier": "normal",
+      "allowed_roles": ["scout", "support"],
+      "planar_bias": ["Ashen"],
+      "cultural_bias": ["ashen"],
+      "biome_bias": ["wasteland", "ruins"],
+      "stat_budgets": {
+        "hp": {"min": 25, "max": 55, "curve": "ease_in"},
+        "damage": {"min": 5, "max": 15, "curve": "ease_out"},
+        "defense": {"min": 10, "max": 20, "curve": "linear"},
+        "initiative": {"min": 8, "max": 18, "curve": "linear"}
+      },
+      "ability_pools": {
+        "global": ["ember_renewal", "dust_keeping"],
+        "role_overrides": {
+          "scout": ["possession_exchange"],
+          "support": ["spirit_guidance"]
+        }
+      },
+      "default_tags": ["faction:ashen", "plane:ashen", "temperament:spiritual", "culture:ashen"],
+      "rules": {"require_tags": ["culture:ashen"], "max_abilities": 5, "allowed_overlays": ["default_boss"]},
+      "is_boss_allowed": true
+    },
+    "tempest_swashbuckler": {
+      "id": "tempest_swashbuckler",
+      "name": "Tempest Swashbuckler",
+      "description": "Bold and unpredictable members of The Tempest Flotilla, masters of chaos and rapid adaptation.",
+      "actor_type": "humanoid",
+      "threat_tier": "dangerous",
+      "allowed_roles": ["striker", "skirmisher", "controller"],
+      "planar_bias": ["Tempest"],
+      "cultural_bias": ["tempest"],
+      "biome_bias": ["harbor", "coast"],
+      "stat_budgets": {
+        "hp": {"min": 30, "max": 60, "curve": "ease_out"},
+        "damage": {"min": 8, "max": 22, "curve": "exp"},
+        "defense": {"min": 5, "max": 15, "curve": "ease_in"},
+        "initiative": {"min": 14, "max": 28, "curve": "linear"}
+      },
+      "ability_pools": {
+        "global": ["storm_binding", "resonant_shield"],
+        "role_overrides": {
+          "striker": ["lightning_strike"],
+          "skirmisher": ["rapid_dash"],
+          "controller": ["chaos_wave"]
+        }
+      },
+      "default_tags": ["faction:tempest", "plane:tempest", "temperament:bold", "culture:tempest"],
+      "rules": {"require_tags": ["culture:tempest"], "max_abilities": 6, "allowed_overlays": ["default_boss", "cinematic_boss"]},
+      "is_boss_allowed": true
+    },
+    "verdant_beast": {
+      "id": "verdant_beast",
+      "name": "Verdant Beast",
+      "description": "Wild beasts native to the Verdant plane, embodying natural strength and adaptation.",
+      "actor_type": "beast",
+      "threat_tier": "dangerous",
+      "allowed_roles": ["tank"],
+      "planar_bias": ["Verdant"],
+      "biome_bias": ["forest", "wilderness"],
+      "stat_budgets": {
+        "hp": {"min": 60, "max": 120, "curve": "linear"},
+        "damage": {"min": 12, "max": 30, "curve": "linear"},
+        "defense": {"min": 15, "max": 35, "curve": "ease_in"},
+        "initiative": {"min": 6, "max": 12, "curve": "ease_out"}
+      },
+      "ability_pools": {
+        "global": ["ferocious_bite", "natural_camouflage"],
+        "role_overrides": {
+          "tank": ["thick_hide", "taunting_roar"]
+        }
+      },
+      "default_tags": ["plane:verdant", "temperament:wild"],
+      "rules": {"max_abilities": 3, "allowed_overlays": ["alpha_predator", "default_boss"]},
+      "is_boss_allowed": true
+    },
+    "crystalline_construct": {
+      "id": "crystalline_construct",
+      "name": "Crystalline Construct",
+      "description": "Magically animated constructs formed from Crystalline-plane materials, precise and unyielding.",
+      "actor_type": "construct",
+      "threat_tier": "ferocious",
+      "allowed_roles": ["tank", "controller"],
+      "planar_bias": ["Crystalline"],
+      "biome_bias": ["urban", "laboratory"],
+      "stat_budgets": {
+        "hp": {"min": 80, "max": 150, "curve": "ease_in"},
+        "damage": {"min": 10, "max": 22, "curve": "ease_out"},
+        "defense": {"min": 25, "max": 50, "curve": "linear"},
+        "initiative": {"min": 5, "max": 10, "curve": "linear"}
+      },
+      "ability_pools": {
+        "global": ["facet_barrage", "resonant_shield"],
+        "role_overrides": {
+          "tank": ["crystal_barrier"],
+          "controller": ["facet_precision_strike"]
+        }
+      },
+      "default_tags": ["plane:crystalline", "temperament:reserved"],
+      "rules": {"max_abilities": 5, "allowed_overlays": ["default_boss", "cinematic_boss"]},
+      "is_boss_allowed": true
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Faction and culture-specific NPC family templates for Aetheris."
+  }
+}
+

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc_family.schema.json",
+  "title": "NPC Families",
+  "type": "object",
+  "properties": {
+    "families": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "name", "actor_type", "threat_tier", "stat_budgets"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "actor_type": {
+            "type": "string",
+            "enum": ["humanoid", "beast", "construct", "spirit", "undead", "automaton"]
+          },
+          "threat_tier": {
+            "type": "string",
+            "enum": ["harmless", "easy", "normal", "dangerous", "ferocious", "mythic"]
+          },
+          "allowed_roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "striker",
+                "tank",
+                "controller",
+                "support",
+                "skirmisher",
+                "sniper",
+                "scout"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "planar_bias": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["Nexus", "Verdant", "Crystalline", "Ashen", "Tempest"]
+            },
+            "uniqueItems": true
+          },
+          "cultural_bias": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "biome_bias": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "stat_budgets": {
+            "type": "object",
+            "required": ["hp", "damage", "defense", "initiative"],
+            "properties": {
+              "hp": { "$ref": "#/$defs/range" },
+              "damage": { "$ref": "#/$defs/range" },
+              "defense": { "$ref": "#/$defs/range" },
+              "initiative": { "$ref": "#/$defs/range" }
+            },
+            "additionalProperties": false
+          },
+          "ability_pools": {
+            "type": "object",
+            "properties": {
+              "global": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              },
+              "role_overrides": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "uniqueItems": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "default_tags": { "$ref": "#/$defs/tagsArray" },
+          "rules": {
+            "type": "object",
+            "properties": {
+              "require_tags": { "$ref": "#/$defs/tagsArray" },
+              "forbid_tags": { "$ref": "#/$defs/tagsArray" },
+              "max_abilities": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": true
+          },
+          "is_boss_allowed": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["families"],
+  "additionalProperties": false,
+  "$defs": {
+    "range": {
+      "type": "object",
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "number", "minimum": 0 },
+        "max": { "type": "number", "minimum": 0 },
+        "curve": { "type": "string", "enum": ["linear", "ease_in", "ease_out", "exp"] }
+      },
+      "additionalProperties": false
+    },
+    "tagsArray": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z_]+:[a-z0-9_\\-]+$" },
+      "uniqueItems": true
+    }
+  }
+}
+

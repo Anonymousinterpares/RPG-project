@@ -27,6 +27,18 @@ def _append(game_state, event: Dict[str, Any]) -> None:
         game_state.event_log.append(event)
     except Exception as e:
         logger.warning(f"Failed to append event: {e}")
+        return
+
+    # Phase 1: trigger quest evaluation after appending relevant events
+    try:
+        from core.base.engine import get_game_engine
+        from core.game_flow.quest_updates import process_event_for_quests
+        engine = get_game_engine()
+        if engine is not None:
+            process_event_for_quests(engine, game_state, event)
+    except Exception as e:
+        # Non-fatal: continue
+        logger.debug(f"Quest evaluation hook error (ignored): {e}")
 
 
 def record_enemy_defeated(game_state, *, entity_id: str, template_id: Optional[str], tags: Dict[str, Any], location_id: Optional[str]) -> None:

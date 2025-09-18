@@ -30,6 +30,22 @@ from core.inventory.inventory_commands_3 import (
 # Get module logger
 logger = get_logger("INVENTORY")
 
+# Helper to normalize equipped mapping to item ID
+from typing import Any as _Any
+
+def equipment_item_id(equipped_entry: _Any) -> str:
+    try:
+        # EquipmentManager.equipment returns Item objects
+        from core.inventory.item import Item as _Item
+        if isinstance(equipped_entry, _Item):
+            return equipped_entry.id
+        # For backward/save compatibility if value is an ID string
+        if isinstance(equipped_entry, str):
+            return equipped_entry
+    except Exception:
+        pass
+    return ""
+
 def register_inventory_commands():
     """Register all inventory-related commands with the command processor."""
     command_processor = get_command_processor()
@@ -138,7 +154,7 @@ def inventory_command(game_state: GameState, args: List[str]) -> CommandResult:
     category = args[0].lower() if args else None
     
     # Get all items, filtered if necessary
-    items = inventory.items.values()
+    items = list(inventory.items)
     
     if category:
         # Try to match category to ItemType
@@ -175,8 +191,8 @@ def inventory_command(game_state: GameState, args: List[str]) -> CommandResult:
         
         # Check if item is equipped
         equipped = ""
-        for slot, item_id in inventory.equipment.items():
-            if item_id == item.id:
+        for slot, equipped_item in inventory.equipment.items():
+            if equipped_item and equipment_item_id(equipped_item) == item.id:
                 equipped = f" (Equipped: {slot.value})"
                 break
         

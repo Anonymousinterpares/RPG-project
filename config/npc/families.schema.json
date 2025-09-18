@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NPC Families Schema (Aetheris)",
+  "type": "object",
+  "properties": {
+    "families": {
+      "type": "object",
+      "description": "Map of family_id → family definition",
+      "additionalProperties": {
+        "$ref": "#/definitions/family"
+      }
+    },
+    "metadata": { "$ref": "#/definitions/metadata" }
+  },
+  "required": ["families"],
+  "additionalProperties": false,
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "family": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "actor_type": {
+          "type": "string",
+          "description": "Broad category of entity",
+          "enum": ["beast", "humanoid", "undead", "construct", "elemental", "spirit"]
+        },
+        "threat_tier": {
+          "type": "string",
+          "enum": ["harmless", "easy", "normal", "dangerous", "ferocious", "mythic"]
+        },
+        "allowed_roles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Role ids allowed for this family (see roles.json)"
+        },
+        "planar_bias": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Verdant", "Crystalline", "Ashen", "Tempest", "Nexus"]
+          },
+          "description": "Planes this family most commonly aligns with"
+        },
+        "cultural_bias": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["concordant", "verdant", "crystalline", "ashen", "tempest"]
+          },
+          "description": "Preferred cultures (usually for humanoids)"
+        },
+        "biome_bias": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Preferred biomes/regions (free-form; e.g., forest, urban, ruins)"
+        },
+        "stat_budgets": {
+          "type": "object",
+          "description": "Numeric envelopes for generated stats (scaled by context)",
+          "properties": {
+            "hp": { "$ref": "#/definitions/range_curve" },
+            "damage": { "$ref": "#/definitions/range_curve" },
+            "defense": { "$ref": "#/definitions/range_curve" },
+            "initiative": { "$ref": "#/definitions/range_curve" }
+          },
+          "additionalProperties": { "$ref": "#/definitions/range_curve" }
+        },
+        "ability_pools": {
+          "type": "object",
+          "properties": {
+            "global": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Ability ids available to all roles"
+            },
+            "role_overrides": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "description": "Map role_id → ability ids specific to that role"
+            }
+          },
+          "additionalProperties": false
+        },
+        "default_tags": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z_]+:[a-z0-9_]+$" },
+          "description": "Tags applied to all variants from this family (key:value)"
+        },
+        "rules": {
+          "type": "object",
+          "properties": {
+            "require_tags": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z_]+:[a-z0-9_]+$" }
+            },
+            "forbid_tags": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z_]+:[a-z0-9_]+$" }
+            },
+            "max_abilities": { "type": "integer", "minimum": 0 },
+            "allowed_overlays": { "type": "array", "items": { "type": "string" } },
+            "notes": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "is_boss_allowed": { "type": "boolean", "default": true },
+        "metadata": { "$ref": "#/definitions/metadata" }
+      },
+      "required": ["actor_type", "threat_tier"],
+      "additionalProperties": false
+    },
+    "range_curve": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "curve": { "type": "string", "enum": ["linear", "ease_in", "ease_out", "log", "exp"], "default": "linear" }
+      },
+      "required": ["min", "max"],
+      "additionalProperties": false
+    }
+  }
+}
+

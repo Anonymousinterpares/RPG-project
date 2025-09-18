@@ -1,0 +1,344 @@
+{
+  "families": {
+    "beast_harmless_base": {
+      "id": "beast_harmless_base",
+      "name": "Harmless Beast (Base)",
+      "description": "Small or docile creatures with minimal combat capability. Ambient wildlife or tutorial encounters.",
+      "actor_type": "beast",
+      "threat_tier": "harmless",
+      "allowed_roles": ["skirmisher", "support"],
+      "planar_bias": ["Verdant", "Nexus"],
+      "cultural_bias": [],
+      "biome_bias": ["forest", "meadow", "farm", "wetland"],
+      "stat_budgets": {
+        "hp": {"min": 6, "max": 12},
+        "damage": {"min": 1, "max": 3},
+        "defense": {"min": 0, "max": 2},
+        "initiative": {"min": 1, "max": 3}
+      },
+      "ability_pools": {
+        "global": ["flee_instinct", "evade"],
+        "role_overrides": {
+          "skirmisher": ["claw_swipe_weak"],
+          "support": ["startle_cry"]
+        }
+      },
+      "default_tags": ["actor_type:beast", "threat_tier:harmless", "communicative:false", "temperament:docile"],
+      "rules": {
+        "require_tags": [],
+        "forbid_tags": ["is_boss:true"],
+        "max_abilities": 2,
+        "allowed_overlays": [],
+        "notes": "Used for ambient encounters and narrative flavor."
+      },
+      "is_boss_allowed": false
+    },
+    "beast_easy_base": {
+      "id": "beast_easy_base",
+      "name": "Easy Beast (Base)",
+      "description": "Weak predators or defensive beasts; suitable for low-level skirmishes.",
+      "actor_type": "beast",
+      "threat_tier": "easy",
+      "allowed_roles": ["skirmisher", "striker"],
+      "planar_bias": ["Verdant", "Nexus"],
+      "cultural_bias": [],
+      "biome_bias": ["forest", "hills", "ruins"],
+      "stat_budgets": {
+        "hp": {"min": 10, "max": 18},
+        "damage": {"min": 2, "max": 5},
+        "defense": {"min": 1, "max": 4},
+        "initiative": {"min": 2, "max": 5}
+      },
+      "ability_pools": {
+        "global": ["claw_swipe", "bite"],
+        "role_overrides": {
+          "skirmisher": ["pounce", "evade"],
+          "striker": ["maul", "rend_armor"]
+        }
+      },
+      "default_tags": ["actor_type:beast", "threat_tier:easy", "communicative:false"],
+      "rules": {
+        "require_tags": [],
+        "forbid_tags": ["is_boss:true"],
+        "max_abilities": 3,
+        "allowed_overlays": ["default_boss", "cinematic_boss", "alpha_predator"]
+      },
+      "is_boss_allowed": true
+    },
+    "beast_normal_base": {
+      "id": "beast_normal_base",
+      "name": "Normal Beast (Base)",
+      "description": "Baseline formidable beasts with pack behaviors or solid solo presence.",
+      "actor_type": "beast",
+      "threat_tier": "normal",
+      "allowed_roles": ["skirmisher", "striker", "tank"],
+      "planar_bias": ["Verdant", "Nexus"],
+      "cultural_bias": [],
+      "biome_bias": ["forest", "mountain", "cave", "ruins"],
+      "stat_budgets": {
+        "hp": {"min": 18, "max": 32},
+        "damage": {"min": 4, "max": 9},
+        "defense": {"min": 3, "max": 7},
+        "initiative": {"min": 3, "max": 6}
+      },
+      "ability_pools": {
+        "global": ["claw_swipe", "bite", "howl_pack"],
+        "role_overrides": {
+          "skirmisher": ["pounce", "evade"],
+          "striker": ["maul", "frenzy"],
+          "tank": ["thick_hide", "taunting_roar"]
+        }
+      },
+      "default_tags": ["actor_type:beast", "threat_tier:normal", "communicative:false"],
+      "rules": {
+        "require_tags": [],
+        "forbid_tags": [],
+        "max_abilities": 4,
+        "allowed_overlays": ["default_boss", "cinematic_boss", "alpha_predator"]
+      },
+      "is_boss_allowed": true
+    },
+    "beast_dangerous_base": {
+      "id": "beast_dangerous_base",
+      "name": "Dangerous Beast (Base)",
+      "description": "High-threat predators or territorial guardians; spike encounters.",
+      "actor_type": "beast",
+      "threat_tier": "dangerous",
+      "allowed_roles": ["skirmisher", "striker", "tank"],
+      "planar_bias": ["Verdant", "Ashen"],
+      "cultural_bias": [],
+      "biome_bias": ["forest", "swamp", "cave", "bleed_zone"],
+      "stat_budgets": {
+        "hp": {"min": 28, "max": 45},
+        "damage": {"min": 7, "max": 13},
+        "defense": {"min": 6, "max": 10},
+        "initiative": {"min": 4, "max": 7}
+      },
+      "ability_pools": {
+        "global": ["claw_swipe", "bite", "howl_pack", "rend_armor"],
+        "role_overrides": {
+          "skirmisher": ["pounce", "camouflage"],
+          "striker": ["maul", "frenzy", "bleeding_bite"],
+          "tank": ["thick_hide", "terrifying_roar"]
+        }
+      },
+      "default_tags": ["actor_type:beast", "threat_tier:dangerous", "communicative:false"],
+      "rules": {
+        "require_tags": [],
+        "forbid_tags": [],
+        "max_abilities": 5,
+        "allowed_overlays": ["default_boss", "cinematic_boss", "alpha_predator"]
+      },
+      "is_boss_allowed": true
+    },
+    "beast_ferocious_base": {
+      "id": "beast_ferocious_base",
+      "name": "Ferocious Beast (Base)",
+      "description": "Elite apex predators or planar-hardened beasts; high complexity and damage.",
+      "actor_type": "beast",
+      "threat_tier": "ferocious",
+      "allowed_roles": ["skirmisher", "striker", "tank"],
+      "planar_bias": ["Verdant", "Tempest", "Ashen"],
+      "cultural_bias": [],
+      "biome_bias": ["forest", "mountain", "bleed_zone", "planar_overlap"],
+      "stat_budgets": {
+        "hp": {"min": 40, "max": 65},
+        "damage": {"min": 10, "max": 18},
+        "defense": {"min": 8, "max": 13},
+        "initiative": {"min": 5, "max": 9}
+      },
+      "ability_pools": {
+        "global": ["claw_swipe", "bite", "howl_pack", "rend_armor", "trample", "tail_sweep"],
+        "role_overrides": {
+          "skirmisher": ["pounce", "camouflage", "tempest_dash"],
+          "striker": ["maul", "frenzy", "bleeding_bite"],
+          "tank": ["thick_hide", "terrifying_roar", "crystalline_barrier"]
+        }
+      },
+      "default_tags": ["actor_type:beast", "threat_tier:ferocious", "communicative:false"],
+      "rules": {"max_abilities": 6, "allowed_overlays": ["default_boss", "cinematic_boss", "alpha_predator"]},
+      "is_boss_allowed": true
+    },
+    "beast_mythic_base": {
+      "id": "beast_mythic_base",
+      "name": "Mythic Beast (Base)",
+      "description": "Legendary or near-legendary beasts often touched by Resonance and Luminary fragments.",
+      "actor_type": "beast",
+      "threat_tier": "mythic",
+      "allowed_roles": ["striker", "tank", "controller"],
+      "planar_bias": ["Verdant", "Tempest", "Ashen", "Crystalline"],
+      "cultural_bias": [],
+      "biome_bias": ["planar_overlap", "bleed_zone", "ancient_site"],
+      "stat_budgets": {
+        "hp": {"min": 60, "max": 100},
+        "damage": {"min": 15, "max": 25},
+        "defense": {"min": 12, "max": 18},
+        "initiative": {"min": 6, "max": 10}
+      },
+      "ability_pools": {
+        "global": ["claw_swipe", "bite", "howl_pack", "rend_armor", "trample", "tail_sweep", "verdant_thorns", "tempest_bolt", "ash_grasp", "facet_shard", "resonant_blast"],
+        "role_overrides": {
+          "striker": ["frenzy", "bleeding_bite", "maul"],
+          "tank": ["thick_hide", "terrifying_roar", "crystalline_barrier"],
+          "controller": ["dirge_of_despair", "chorus_of_clarity", "planar_anchor_field"]
+        }
+      },
+      "default_tags": ["actor_type:beast", "threat_tier:mythic", "communicative:false"],
+      "rules": {"max_abilities": 7, "allowed_overlays": ["default_boss", "cinematic_boss", "alpha_predator"]},
+      "is_boss_allowed": true
+    },
+
+    "humanoid_easy_base": {
+      "id": "humanoid_easy_base",
+      "name": "Easy Humanoid (Base)",
+      "description": "Low-level bandits, trainees, or civilians pressed into combat.",
+      "actor_type": "humanoid",
+      "threat_tier": "easy",
+      "allowed_roles": ["skirmisher", "support"],
+      "planar_bias": ["Nexus"],
+      "cultural_bias": ["concordant", "ashen", "verdant", "crystalline", "tempest"],
+      "biome_bias": ["urban", "road", "outpost"],
+      "stat_budgets": {
+        "hp": {"min": 12, "max": 20},
+        "damage": {"min": 2, "max": 5},
+        "defense": {"min": 2, "max": 5},
+        "initiative": {"min": 2, "max": 5}
+      },
+      "ability_pools": {
+        "global": ["light_attack", "guard_breaker"],
+        "role_overrides": {
+          "skirmisher": ["throw_net", "smoke_bomb"],
+          "support": ["rally_shout"]
+        }
+      },
+      "default_tags": ["actor_type:humanoid", "communicative:true"],
+      "rules": {"max_abilities": 3, "allowed_overlays": ["alpha_predator", "default_boss"]},
+      "is_boss_allowed": true
+    },
+    "humanoid_normal_base": {
+      "id": "humanoid_normal_base",
+      "name": "Normal Humanoid (Base)",
+      "description": "Standard soldiers, bandits, and competent adventurers.",
+      "actor_type": "humanoid",
+      "threat_tier": "normal",
+      "allowed_roles": ["striker", "tank", "controller", "support", "sniper"],
+      "planar_bias": ["Nexus"],
+      "cultural_bias": ["concordant", "verdant", "crystalline", "ashen", "tempest"],
+      "biome_bias": ["urban", "road", "outpost", "forest", "ruins"],
+      "stat_budgets": {
+        "hp": {"min": 20, "max": 35},
+        "damage": {"min": 4, "max": 10},
+        "defense": {"min": 4, "max": 9},
+        "initiative": {"min": 3, "max": 7}
+      },
+      "ability_pools": {
+        "global": ["light_attack", "power_strike", "guard_breaker"],
+        "role_overrides": {
+          "striker": ["backstab", "flurry"],
+          "tank": ["shield_wall", "taunt"],
+          "controller": ["suppressive_shot", "smoke_bomb"],
+          "support": ["rally_shout", "field_medicine"],
+          "sniper": ["aimed_shot", "crippling_shot"]
+        }
+      },
+      "default_tags": ["actor_type:humanoid", "communicative:true"],
+      "rules": {"max_abilities": 5},
+      "is_boss_allowed": true
+    },
+    "humanoid_dangerous_base": {
+      "id": "humanoid_dangerous_base",
+      "name": "Dangerous Humanoid (Base)",
+      "description": "Elite squads, veteran fighters, or talented casters; may incorporate planar specializations.",
+      "actor_type": "humanoid",
+      "threat_tier": "dangerous",
+      "allowed_roles": ["striker", "tank", "controller", "support", "sniper"],
+      "planar_bias": ["Nexus", "Crystalline", "Tempest", "Ashen", "Verdant"],
+      "cultural_bias": ["concordant", "crystalline", "ashen", "verdant", "tempest"],
+      "biome_bias": ["urban", "ruins", "bleed_zone", "outpost"],
+      "stat_budgets": {
+        "hp": {"min": 30, "max": 50},
+        "damage": {"min": 7, "max": 14},
+        "defense": {"min": 7, "max": 12},
+        "initiative": {"min": 4, "max": 8}
+      },
+      "ability_pools": {
+        "global": ["power_strike", "guard_breaker", "smoke_bomb", "suppressive_shot"],
+        "role_overrides": {
+          "striker": ["backstab", "flurry", "bleeding_bite"],
+          "tank": ["shield_wall", "taunt", "crystalline_barrier"],
+          "controller": ["dirge_of_despair", "anchor_pulse", "tempest_bolt"],
+          "support": ["rally_shout", "field_medicine", "chorus_of_clarity"],
+          "sniper": ["aimed_shot", "crippling_shot", "facet_shard"]
+        }
+      },
+      "default_tags": ["actor_type:humanoid", "communicative:true"],
+      "rules": {"max_abilities": 6},
+      "is_boss_allowed": true
+    },
+    "humanoid_ferocious_base": {
+      "id": "humanoid_ferocious_base",
+      "name": "Ferocious Humanoid (Base)",
+      "description": "Top-tier champions with strong planar or cultural specialization.",
+      "actor_type": "humanoid",
+      "threat_tier": "ferocious",
+      "allowed_roles": ["striker", "tank", "controller", "support", "sniper"],
+      "planar_bias": ["Nexus", "Crystalline", "Ashen", "Tempest", "Verdant"],
+      "cultural_bias": ["concordant", "crystalline", "ashen", "verdant", "tempest"],
+      "biome_bias": ["urban", "planar_overlap", "bleed_zone", "ruins"],
+      "stat_budgets": {
+        "hp": {"min": 45, "max": 70},
+        "damage": {"min": 10, "max": 18},
+        "defense": {"min": 9, "max": 15},
+        "initiative": {"min": 5, "max": 9}
+      },
+      "ability_pools": {
+        "global": ["power_strike", "guard_breaker", "smoke_bomb", "suppressive_shot", "anchor_pulse", "facet_shard"],
+        "role_overrides": {
+          "striker": ["flurry", "backstab", "tempest_dash"],
+          "tank": ["shield_wall", "taunt", "crystalline_barrier"],
+          "controller": ["dirge_of_despair", "planar_anchor_field", "verdant_thorns"],
+          "support": ["rally_shout", "field_medicine", "chorus_of_clarity"],
+          "sniper": ["aimed_shot", "crippling_shot", "resonant_blast"]
+        }
+      },
+      "default_tags": ["actor_type:humanoid", "communicative:true"],
+      "rules": {"max_abilities": 7},
+      "is_boss_allowed": true
+    },
+    "humanoid_mythic_base": {
+      "id": "humanoid_mythic_base",
+      "name": "Mythic Humanoid (Base)",
+      "description": "Legendary figures influenced by Luminary fragments; rare and narrative-defining.",
+      "actor_type": "humanoid",
+      "threat_tier": "mythic",
+      "allowed_roles": ["striker", "tank", "controller", "support", "sniper"],
+      "planar_bias": ["Nexus", "Crystalline", "Ashen", "Tempest", "Verdant"],
+      "cultural_bias": ["concordant", "crystalline", "ashen", "verdant", "tempest"],
+      "biome_bias": ["planar_overlap", "ancient_site", "bleed_zone"],
+      "stat_budgets": {
+        "hp": {"min": 65, "max": 110},
+        "damage": {"min": 15, "max": 26},
+        "defense": {"min": 12, "max": 18},
+        "initiative": {"min": 6, "max": 10}
+      },
+      "ability_pools": {
+        "global": ["power_strike", "guard_breaker", "smoke_bomb", "suppressive_shot", "anchor_pulse", "facet_shard", "resonant_blast", "planar_anchor_field"],
+        "role_overrides": {
+          "striker": ["flurry", "backstab", "tempest_dash"],
+          "tank": ["shield_wall", "taunt", "crystalline_barrier"],
+          "controller": ["dirge_of_despair", "verdant_thorns", "ash_grasp"],
+          "support": ["rally_shout", "field_medicine", "chorus_of_clarity"],
+          "sniper": ["aimed_shot", "crippling_shot", "resonant_blast"]
+        }
+      },
+      "default_tags": ["actor_type:humanoid", "threat_tier:mythic", "communicative:true"],
+      "rules": {"max_abilities": 8},
+      "is_boss_allowed": true
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "NPC family definitions for Aetheris (rule-driven, planar-aware)"
+  }
+}
+

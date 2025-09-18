@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NPC Abilities Schema (Aetheris)",
+  "type": "object",
+  "properties": {
+    "abilities": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/ability" }
+    },
+    "metadata": { "$ref": "#/definitions/metadata" }
+  },
+  "required": ["abilities"],
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "properties": { "version": {"type":"string"}, "description": {"type":"string"} },
+      "additionalProperties": true
+    },
+    "effect": {
+      "type": "object",
+      "properties": {
+        "target_type": { "type": "string", "enum": ["caster", "target", "area"] },
+        "effect_type": { "type": "string", "enum": ["damage", "healing", "stat_modification", "status_effect", "summon", "utility"] },
+        "value": { "type": "number" },
+        "stat_affected": { "type": "string" },
+        "status_effect": { "type": "string" },
+        "duration": { "type": "integer", "minimum": 0 },
+        "dice_notation": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["target_type", "effect_type"],
+      "additionalProperties": true
+    },
+    "ability": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "mana_cost": { "type": "number", "minimum": 0 },
+        "cooldown": { "type": "integer", "minimum": 0, "default": 0 },
+        "casting_time": { "type": "string" },
+        "range": { "type": "string" },
+        "target": { "type": "string", "enum": ["self", "single", "area", "multiple"] },
+        "level": { "type": "integer", "minimum": 0 },
+        "components": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "effects": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/effect" }
+        }
+      },
+      "required": ["id", "name", "effects"],
+      "additionalProperties": true
+    }
+  }
+}
+

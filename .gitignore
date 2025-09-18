@@ -43,3 +43,7 @@ config/llm/providers.json
 *.png
 *.gif
 images
+.git
+config/**/backup/
+saves
+logs

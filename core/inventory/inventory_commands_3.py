@@ -65,12 +65,9 @@ def equipment_command(game_state: GameState, args: List[str]) -> CommandResult:
     
     # Group equipment slots by category
     equipment_categories = {
-        "Weapons": [EquipmentSlot.MAIN_HAND, EquipmentSlot.OFF_HAND],
-        "Armor": [EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, 
-                 EquipmentSlot.SHOULDERS, EquipmentSlot.ARMS, EquipmentSlot.HANDS, EquipmentSlot.WAIST],
-        "Accessories": [EquipmentSlot.NECK, EquipmentSlot.BACK, EquipmentSlot.FINGER_1, 
-                       EquipmentSlot.FINGER_2, EquipmentSlot.WRIST, EquipmentSlot.TRINKET_1, 
-                       EquipmentSlot.TRINKET_2]
+        "Weapons": [EquipmentSlot.MAIN_HAND, EquipmentSlot.OFF_HAND, EquipmentSlot.TWO_HAND, EquipmentSlot.RANGED, EquipmentSlot.AMMUNITION],
+        "Armor": [EquipmentSlot.HEAD, EquipmentSlot.SHOULDERS, EquipmentSlot.ARMS, EquipmentSlot.WRISTS, EquipmentSlot.HANDS, EquipmentSlot.CHEST, EquipmentSlot.WAIST, EquipmentSlot.LEGS, EquipmentSlot.FEET],
+        "Accessories": [EquipmentSlot.NECK, EquipmentSlot.BACK, EquipmentSlot.FINGER_1, EquipmentSlot.FINGER_2, EquipmentSlot.TRINKET_1, EquipmentSlot.TRINKET_2]
     }
     
     result_lines = ["Your Equipment:"]
@@ -80,30 +77,30 @@ def equipment_command(game_state: GameState, args: List[str]) -> CommandResult:
         result_lines.append(f"\n{category}:")
         
         for slot in slots:
-            item_id = inventory.equipment.get(slot)
-            if item_id:
-                item = inventory.get_item(item_id)
-                if item:
-                    # Show item rarity and stats if known
-                    stats_str = ""
-                    known_stats = [stat for stat in item.stats 
-                                  if f"stat_{stat.name}" in item.known_properties]
-                    
-                    if known_stats:
-                        stats = []
-                        for stat in known_stats:
-                            stats.append(f"{stat.name.capitalize()}: {stat.value}")
-                        stats_str = f" ({', '.join(stats)})"
-                    
-                    # Show durability if known
-                    durability_str = ""
-                    if item.durability > 0 and "durability" in item.known_properties:
-                        durability_percent = (item.current_durability / item.durability) * 100
+            equipped = inventory.equipment.get(slot)
+            item = equipped if equipped is not None else None
+            if item:
+                # Show item rarity and stats if known
+                stats_str = ""
+                known_stats = [stat for stat in item.stats 
+                               if f"stat_{stat.name}" in item.known_properties]
+                
+                if known_stats:
+                    stats = []
+                    for stat in known_stats:
+                        stats.append(f"{stat.name.capitalize()}: {stat.value}")
+                    stats_str = f" ({', '.join(stats)})"
+                
+                # Show durability if known
+                durability_str = ""
+                if getattr(item, "durability", None) and "durability" in item.known_properties:
+                    try:
+                        durability_percent = (float(item.current_durability or item.durability) / float(item.durability)) * 100
                         durability_str = f" [{durability_percent:.1f}%]"
-                    
-                    result_lines.append(f"  {slot.value}: {item.name} ({item.rarity.value}){stats_str}{durability_str}")
-                else:
-                    result_lines.append(f"  {slot.value}: ERROR - Item not found")
+                    except Exception:
+                        pass
+                
+                result_lines.append(f"  {slot.value}: {item.name} ({item.rarity.value}){stats_str}{durability_str}")
             else:
                 result_lines.append(f"  {slot.value}: Empty")
     

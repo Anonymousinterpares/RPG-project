@@ -1,0 +1,57 @@
+{
+  "tags": {
+    "actor_type": [
+      "humanoid", "beast", "construct", "spirit", "undead", "automaton"
+    ],
+    "threat_tier": [
+      "harmless", "easy", "normal", "dangerous", "ferocious", "mythic"
+    ],
+    "role": [
+      "striker", "tank", "controller", "support", "skirmisher", "sniper", "scout",
+      "medic", "pathfinder"
+    ],
+    "plane": [
+      "nexus", "verdant", "crystalline", "ashen", "tempest"
+    ],
+    "culture": [
+      "concordant", "verdant", "crystalline", "ashen", "tempest"
+    ],
+    "faction": [
+      "concordant", "verdant", "crystalline", "ashen", "tempest"
+    ],
+    "temperament": [
+      "pragmatic", "patient", "methodical", "spiritual", "bold", "wild", "reserved", "docile"
+    ],
+    "duty": [
+      "watch"
+    ],
+    "specialization": [
+      "predictive_geometry", "spirit_keeping"
+    ],
+    "style": [
+      "duelist"
+    ],
+    "rank": [
+      "alpha"
+    ],
+    "variant": [
+      "bulwark"
+    ],
+    "communicative": [
+      "true", "false"
+    ],
+    "is_boss": [
+      "true", "false"
+    ],
+    "biome": [
+      "urban", "research_facility", "laboratory", "forest", "wilderness", "wasteland",
+      "ruins", "harbor", "coast", "meadow", "farm", "wetland", "hills", "mountain",
+      "cave", "bleed_zone", "planar_overlap", "road", "outpost", "swamp", "ancient_site"
+    ]
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Tag catalog for NPC families and variants."
+  }
+}
+

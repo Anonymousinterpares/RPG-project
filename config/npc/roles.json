@@ -1,0 +1,81 @@
+{
+  "roles": {
+    "striker": {
+      "id": "striker",
+      "name": "Striker",
+      "description": "Single-target damage focus.",
+      "stat_focus": {"hp_weight": 0.9, "damage_weight": 1.2, "defense_weight": 1.0, "initiative_weight": 1.1},
+      "ability_bias": ["damage", "burst"],
+      "behavior": {"engage_range": "melee", "focus": "single"}
+    },
+    "tank": {
+      "id": "tank",
+      "name": "Tank",
+      "description": "Durability and control.",
+      "stat_focus": {"hp_weight": 1.2, "damage_weight": 0.9, "defense_weight": 1.3, "initiative_weight": 0.9},
+      "ability_bias": ["taunt", "defense"],
+      "behavior": {"engage_range": "melee", "focus": "control"}
+    },
+    "controller": {
+      "id": "controller",
+      "name": "Controller",
+      "description": "Battlefield control and debuffs.",
+      "stat_focus": {"hp_weight": 1.0, "damage_weight": 1.0, "defense_weight": 1.0, "initiative_weight": 1.0},
+      "ability_bias": ["control", "debuff"],
+      "behavior": {"engage_range": "mid", "focus": "control"}
+    },
+    "support": {
+      "id": "support",
+      "name": "Support",
+      "description": "Healing and buffs.",
+      "stat_focus": {"hp_weight": 1.0, "damage_weight": 0.9, "defense_weight": 1.0, "initiative_weight": 1.0},
+      "ability_bias": ["healing", "buff"],
+      "behavior": {"engage_range": "mid", "focus": "support"}
+    },
+    "skirmisher": {
+      "id": "skirmisher",
+      "name": "Skirmisher",
+      "description": "Hit-and-run.",
+      "stat_focus": {"hp_weight": 1.0, "damage_weight": 1.1, "defense_weight": 1.0, "initiative_weight": 1.1},
+      "ability_bias": ["mobility"],
+      "behavior": {"engage_range": "melee", "focus": "single"}
+    },
+    "sniper": {
+      "id": "sniper",
+      "name": "Sniper",
+      "description": "Long-range precision.",
+      "stat_focus": {"hp_weight": 0.9, "damage_weight": 1.2, "defense_weight": 0.9, "initiative_weight": 1.0},
+      "ability_bias": ["ranged", "precision"],
+      "behavior": {"engage_range": "long", "focus": "single"}
+    },
+    "scout": {
+      "id": "scout",
+      "name": "Scout",
+      "description": "Speed and reconnaissance.",
+      "stat_focus": {"hp_weight": 0.9, "damage_weight": 1.0, "defense_weight": 1.0, "initiative_weight": 1.2},
+      "ability_bias": ["mobility", "vision"],
+      "behavior": {"engage_range": "short", "focus": "single"}
+    },
+    "medic": {
+      "id": "medic",
+      "name": "Medic",
+      "description": "Field medicine specialist.",
+      "stat_focus": {"hp_weight": 1.0, "damage_weight": 0.9, "defense_weight": 1.0, "initiative_weight": 1.0},
+      "ability_bias": ["healing"],
+      "behavior": {"engage_range": "mid", "focus": "support"}
+    },
+    "pathfinder": {
+      "id": "pathfinder",
+      "name": "Pathfinder",
+      "description": "Traversal and ambush.",
+      "stat_focus": {"hp_weight": 1.0, "damage_weight": 1.0, "defense_weight": 1.0, "initiative_weight": 1.1},
+      "ability_bias": ["mobility", "terrain"],
+      "behavior": {"engage_range": "short", "focus": "single"}
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Minimal role definitions to support families pools"
+  }
+}
+

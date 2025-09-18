@@ -1,0 +1,18 @@
+{
+  "entities": {
+    "white_wolf": {
+      "aliases": [
+        "white_wolf",
+        "wolf_white",
+        "white-wolf",
+        "albino_wolf",
+        "snow_wolf"
+      ]
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Alias mappings for entities to support normalization in quests/evidence. Extend freely."
+  }
+}
+

@@ -15,6 +15,14 @@ from enum import Enum, auto
 from core.utils.logging_config import get_logger
 from core.base.config import get_config
 
+# Load environment variables from .env if present (applies to GUI and web server contexts)
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    # dotenv is optional; continue without failing if not available
+    pass
+
 # Import LLM provider libraries
 try:
     import openai
@@ -94,7 +102,7 @@ class ProviderManager:
     
     def _load_provider_settings(self) -> Dict[str, Any]:
         """
-        Load provider settings from configuration files.
+        Load provider settings from configuration files, then override with environment variables.
         
         Returns:
             Dictionary of provider settings.
@@ -158,6 +166,34 @@ class ProviderManager:
                 logger.info(f"Created default provider settings file: {providers_file}")
             except Exception as e:
                 logger.error(f"Error creating default provider settings file: {e}")
+        
+        # Override with environment variables if present (prefers env over file)
+        env_overrides: Dict[str, Dict[str, Optional[str]]] = {
+            "openai": {
+                "api_key": os.getenv("OPENAI_API_KEY"),
+                "organization": os.getenv("OPENAI_ORG") or os.getenv("OPENAI_ORGANIZATION"),
+                "api_base": os.getenv("OPENAI_API_BASE") or os.getenv("OPENAI_BASE_URL"),
+            },
+            "google": {
+                "api_key": os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"),
+            },
+            "openrouter": {
+                "api_key": os.getenv("OPENROUTER_API_KEY"),
+                "api_base": os.getenv("OPENROUTER_API_BASE"),
+            },
+            "anthropic": {
+                "api_key": os.getenv("ANTHROPIC_API_KEY"),
+            },
+        }
+        
+        for provider, fields in env_overrides.items():
+            if provider not in default_settings:
+                default_settings[provider] = {}
+            for key, value in fields.items():
+                if value and isinstance(value, str) and value.strip():
+                    default_settings[provider][key] = value.strip()
+                    # Don't log secrets; only note which provider field came from env
+                    logger.debug(f"Using environment value for {provider}.{key}")
         
         return default_settings
     

@@ -271,12 +271,85 @@ class NPCSystem:
         Returns:
             The created enemy NPC
         """
-        npc = self.creator.create_enemy(
-            name=name,
-            enemy_type=enemy_type,
-            level=level,
-            location=location
-        )
+        # Phase 1 families integration: if system.npc_generation_mode == 'families',
+        # interpret enemy_type as a family_id and generate via the families-based generator.
+        try:
+            from core.base.config import get_config
+            cfg = get_config()
+            mode = (cfg.get("system.npc_generation_mode", "legacy") or "legacy").lower()
+        except Exception:
+            mode = "legacy"
+
+        if mode == "families":
+            try:
+                from core.character.npc_family_generator import NPCFamilyGenerator
+                fam_gen = NPCFamilyGenerator()
+                # Parse overlay syntax: id::overlay_id or id+boss (maps to default_boss)
+                raw = enemy_type
+                overlay_id = None
+                target_id = raw
+                if isinstance(raw, str) and "::" in raw:
+                    parts = raw.split("::", 1)
+                    target_id, overlay_id = parts[0], parts[1] or None
+                elif isinstance(raw, str) and raw.endswith("+boss"):
+                    target_id = raw[:-5]
+                    overlay_id = overlay_id or "default_boss"
+
+                # Resolve: if target_id matches a known variant, use variant; else treat as family
+                var = getattr(fam_gen, "get_variant", None)
+                fam = getattr(fam_gen, "get_family", None)
+                used_variant = False
+                # Pull difficulty/encounter_size from config if available
+                try:
+                    from core.base.config import get_config
+                    cfg = get_config()
+                    difficulty = (cfg.get("game.difficulty", "normal") or "normal")
+                    encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
+                except Exception:
+                    difficulty = "normal"
+                    encounter_size = "solo"
+
+                if callable(var) and var(target_id):
+                    npc = fam_gen.generate_npc_from_variant(
+                        variant_id=target_id,
+                        name=name,
+                        location=location,
+                        level=level,
+                        overlay_id=overlay_id,
+                        difficulty=difficulty,
+                        encounter_size=encounter_size
+                    )
+                    used_variant = True
+                else:
+                    # fallback to family
+                    npc = fam_gen.generate_npc_from_family(
+                        family_id=target_id,
+                        name=name,
+                        location=location,
+                        level=level,
+                        overlay_id=overlay_id,
+                        difficulty=difficulty,
+                        encounter_size=encounter_size
+                    )
+                logger.debug(f"Families-based generation succeeded (variant={used_variant}) for id='{target_id}' overlay='{overlay_id}' diff='{difficulty}' enc='{encounter_size}'")
+            except Exception as e:
+                logger.error(f"Families-based NPC generation failed for id='{enemy_type}': {e}", exc_info=True)
+                # Fallback to legacy if families fail
+                npc = self.creator.create_enemy(
+                    name=name,
+                    enemy_type=enemy_type,
+                    level=level,
+                    location=location
+                )
+        else:
+            # Legacy path
+            npc = self.creator.create_enemy(
+                name=name,
+                enemy_type=enemy_type,
+                level=level,
+                location=location
+            )
+
         # Register in direct storage for fallback access
         if npc:
             self.register_npc(npc)

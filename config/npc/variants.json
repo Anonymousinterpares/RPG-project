@@ -1,0 +1,89 @@
+{
+  "variants": {
+    "concordant_medic": {
+      "id": "concordant_medic",
+      "family_id": "concordant_citizen",
+      "name": "Concordant Medic",
+      "description": "Support-focused citizen trained in field medicine and harmonic mending.",
+      "stat_modifiers": {"hp": {"add": 5}, "defense": {"add": 2}},
+      "roles_add": ["support"],
+      "abilities_add": ["field_medicine", "song_of_mending"],
+      "tags_add": ["role:medic"]
+    },
+    "concordant_enforcer": {
+      "id": "concordant_enforcer",
+      "family_id": "concordant_citizen",
+      "name": "Concordant Enforcer",
+      "description": "City watch specialist trained for crowd control.",
+      "stat_modifiers": {"hp": {"add": 10}, "damage": {"add": 3}},
+      "roles_add": ["controller", "tank"],
+      "abilities_add": ["resonant_shield", "suppressive_shot"],
+      "tags_add": ["duty:watch"]
+    },
+    "verdant_pathfinder": {
+      "id": "verdant_pathfinder",
+      "family_id": "verdant_wanderer",
+      "name": "Verdant Pathfinder",
+      "description": "Fast scouts who traverse difficult terrain with ease.",
+      "stat_modifiers": {"initiative": {"add": 4}},
+      "roles_add": ["scout", "skirmisher"],
+      "abilities_add": ["nature_stride", "camouflage"],
+      "tags_add": ["role:pathfinder"]
+    },
+    "crystalline_calculator": {
+      "id": "crystalline_calculator",
+      "family_id": "crystalline_adept",
+      "name": "Crystalline Calculator",
+      "description": "An adept specializing in predictive geometry and control fields.",
+      "stat_modifiers": {"defense": {"add": 3}, "damage": {"mul": 1.1}},
+      "roles_add": ["controller"],
+      "abilities_add": ["calculation_contest", "planar_anchor_field"],
+      "tags_add": ["specialization:predictive_geometry"]
+    },
+    "ashen_binder": {
+      "id": "ashen_binder",
+      "family_id": "ashen_nomad",
+      "name": "Ashen Binder",
+      "description": "Spiritualists who anchor wandering spirits.",
+      "stat_modifiers": {"hp": {"add": 8}},
+      "roles_add": ["support", "controller"],
+      "abilities_add": ["spirit_guidance", "anchor_pulse"],
+      "tags_add": ["specialization:spirit_keeping"]
+    },
+    "tempest_duelist": {
+      "id": "tempest_duelist",
+      "family_id": "tempest_swashbuckler",
+      "name": "Tempest Duelist",
+      "description": "Single-target burst expert riding the edge of chaos.",
+      "stat_modifiers": {"damage": {"mul": 1.15}},
+      "roles_add": ["striker"],
+      "abilities_add": ["lightning_strike", "flurry"],
+      "tags_add": ["style:duelist"]
+    },
+    "verdant_alpha": {
+      "id": "verdant_alpha",
+      "family_id": "verdant_beast",
+      "name": "Verdant Alpha",
+      "description": "A dominant specimen; thicker hide and rallying presence.",
+      "stat_modifiers": {"hp": {"mul": 1.2}, "defense": {"add": 4}},
+      "roles_add": ["tank"],
+      "abilities_add": ["taunting_roar"],
+      "tags_add": ["rank:alpha"]
+    },
+    "crystalline_bulwark": {
+      "id": "crystalline_bulwark",
+      "family_id": "crystalline_construct",
+      "name": "Crystalline Bulwark",
+      "description": "A defensive construct with reinforced barrier matrices.",
+      "stat_modifiers": {"hp": {"add": 20}, "defense": {"mul": 1.2}},
+      "roles_add": ["tank"],
+      "abilities_add": ["crystal_barrier", "resonant_shield"],
+      "tags_add": ["variant:bulwark"]
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Variants layered on top of faction/base families."
+  }
+}
+

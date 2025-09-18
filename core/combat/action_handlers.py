@@ -191,6 +191,19 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(defeat_msg)
                 queued_events_this_handler = True
                 current_result_detail["target_defeated"] = True
+
+                # Record defeat event for quest evaluation (Phase 1)
+                try:
+                    game_state = engine._state_manager.current_state
+                    if game_state is not None:
+                        from core.game_flow.event_log import record_enemy_defeated
+                        # Use target.name as template_id fallback; include combat_name as tag hint
+                        template_id = getattr(target, 'name', None) or getattr(target, 'combat_name', None)
+                        tags = {"combat_name": getattr(target, 'combat_name', None)}
+                        record_enemy_defeated(game_state, entity_id=str(target.id), template_id=str(template_id) if template_id else None, tags=tags, location_id=None)
+                except Exception as e_log:
+                    logger.debug(f"Failed to record defeat event: {e_log}")
+
                 # Delay removing the entity from active combat until after defeat text using an orchestrated state update
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
                     type=DisplayEventType.APPLY_ENTITY_STATE_UPDATE,

@@ -10,6 +10,7 @@ import logging
 import json
 import os
 from typing import Dict, Any
+from core.base.config import get_config
 
 from gui.dialogs.base_dialog import BaseDialog
 from gui.dialogs.settings.style_tab import StyleTab
@@ -265,12 +266,20 @@ class SettingsDialog(BaseDialog):
         # Create form layout for settings
         form_layout = QFormLayout()
 
-        # Create difficulty setting
+        # Create difficulty setting (aligned with families generation rules)
         self.difficulty_combo = QComboBox()
-        self.difficulty_combo.addItem("Easy")
+        self.difficulty_combo.addItem("Story")
         self.difficulty_combo.addItem("Normal")
         self.difficulty_combo.addItem("Hard")
+        self.difficulty_combo.addItem("Expert")
         form_layout.addRow("Difficulty:", self.difficulty_combo)
+
+        # Encounter size setting
+        self.encounter_combo = QComboBox()
+        self.encounter_combo.addItem("Solo")
+        self.encounter_combo.addItem("Pack")
+        self.encounter_combo.addItem("Mixed")
+        form_layout.addRow("Encounter Size:", self.encounter_combo)
 
         # Create auto-save interval setting
         self.autosave_spin = QSpinBox()
@@ -356,12 +365,38 @@ class SettingsDialog(BaseDialog):
         if isinstance(sound_enabled, str): sound_enabled = sound_enabled.lower() == "true"
         self.sound_enabled_check.setChecked(sound_enabled)
 
-        # Load gameplay settings (unchanged)
+        # Load gameplay settings
+        # Map legacy values if needed ("Easy" -> "Story")
         difficulty = self.settings.value("gameplay/difficulty", "Normal")
+        if difficulty == "Easy":
+            difficulty = "Story"
+        found = False
         for i in range(self.difficulty_combo.count()):
             if self.difficulty_combo.itemText(i) == difficulty:
                 self.difficulty_combo.setCurrentIndex(i)
+                found = True
                 break
+        if not found:
+            # Default to Normal if unmatched
+            for i in range(self.difficulty_combo.count()):
+                if self.difficulty_combo.itemText(i) == "Normal":
+                    self.difficulty_combo.setCurrentIndex(i)
+                    break
+
+        encounter = self.settings.value("gameplay/encounter_size", "Solo")
+        found_e = False
+        for i in range(self.encounter_combo.count()):
+            if self.encounter_combo.itemText(i) == encounter:
+                self.encounter_combo.setCurrentIndex(i)
+                found_e = True
+                break
+        if not found_e:
+            # Default to Solo
+            for i in range(self.encounter_combo.count()):
+                if self.encounter_combo.itemText(i) == "Solo":
+                    self.encounter_combo.setCurrentIndex(i)
+                    break
+
         self.autosave_spin.setValue(int(self.settings.value("gameplay/autosave_interval", 0)))
         tutorial_enabled = self.settings.value("gameplay/tutorial_enabled", True)
         if isinstance(tutorial_enabled, str): tutorial_enabled = tutorial_enabled.lower() == "true"
@@ -436,10 +471,24 @@ class SettingsDialog(BaseDialog):
         self.settings.setValue("sound/effects_volume", self.effects_volume_spin.value())
         self.settings.setValue("sound/enabled", self.sound_enabled_check.isChecked())
 
-        # Save gameplay settings (unchanged)
+        # Save gameplay settings
         self.settings.setValue("gameplay/difficulty", self.difficulty_combo.currentText())
+        self.settings.setValue("gameplay/encounter_size", self.encounter_combo.currentText())
         self.settings.setValue("gameplay/autosave_interval", self.autosave_spin.value())
         self.settings.setValue("gameplay/tutorial_enabled", self.tutorial_check.isChecked())
+
+        # Reflect gameplay settings into in-memory GameConfig for immediate effect
+        try:
+            cfg = get_config()
+            cfg._config_data.setdefault("game", {})
+            # Map UI labels to config tokens expected by generator
+            diff_map = {"Story": "story", "Normal": "normal", "Hard": "hard", "Expert": "expert"}
+            enc_map = {"Solo": "solo", "Pack": "pack", "Mixed": "mixed"}
+            cfg._config_data["game"]["difficulty"] = diff_map.get(self.difficulty_combo.currentText(), "normal")
+            cfg._config_data["game"]["encounter_size"] = enc_map.get(self.encounter_combo.currentText(), "solo")
+        except Exception:
+            # Non-fatal if config is unavailable here
+            pass
 
         # Save dev mode
         self.settings.setValue("dev/enabled", self.dev_mode_checkbox.isChecked())

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc_variant.schema.json",
+  "title": "NPC Variants",
+  "type": "object",
+  "properties": {
+    "variants": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "family_id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "family_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "stat_modifiers": {
+            "type": "object",
+            "properties": {
+              "hp": { "$ref": "#/$defs/numMod" },
+              "damage": { "$ref": "#/$defs/numMod" },
+              "defense": { "$ref": "#/$defs/numMod" },
+              "initiative": { "$ref": "#/$defs/numMod" }
+            },
+            "additionalProperties": false
+          },
+          "roles_add": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "roles_remove": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "abilities_add": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "abilities_remove": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "tags_add": { "$ref": "#/$defs/tagsArray" },
+          "tags_remove": { "$ref": "#/$defs/tagsArray" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": { "type": "object" }
+  },
+  "required": ["variants"],
+  "additionalProperties": false,
+  "$defs": {
+    "numMod": {
+      "type": "object",
+      "properties": {
+        "add": { "type": "number" },
+        "mul": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "tagsArray": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z_]+:[a-z0-9_\\-]+$" },
+      "uniqueItems": true
+    }
+  }
+}
+

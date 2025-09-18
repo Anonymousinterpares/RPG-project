@@ -64,6 +64,7 @@ class EquipmentSlot(str, Enum):
     HEAD = "head"
     NECK = "neck"
     SHOULDERS = "shoulders"
+    ARMS = "arms"
     CHEST = "chest"
     BACK = "back"
     WRISTS = "wrists"

@@ -45,7 +45,18 @@ class GameConfig:
         "races": os.path.join("character", "races.json"),
         "origins": os.path.join("world", "scenarios", "origins.json"),
         "quests": os.path.join("world", "scenarios", "quests.json"),
-        "locations": os.path.join("world", "locations", "locations.json")
+        "locations": os.path.join("world", "locations", "locations.json"),
+        "aliases": os.path.join("world", "aliases.json"),
+        # New NPC configuration domains (families system)
+        "npc_families": os.path.join("npc", "families.json"),
+        "npc_families_factions": os.path.join("npc", "families_factions.json"),
+        "npc_variants": os.path.join("npc", "variants.json"),
+        "npc_tags": os.path.join("npc", "tags.json"),
+        "npc_roles": os.path.join("npc", "roles.json"),
+        "npc_abilities": os.path.join("npc", "abilities.json"),
+        "npc_boss_overlays": os.path.join("npc", "boss_overlays.json"),
+        "npc_generation_rules": os.path.join("npc", "generation_rules.json"),
+        "npc_entity_aliases": os.path.join("aliases", "entities.json"),
     }
 
     # Configurations loaded from files
@@ -148,6 +159,12 @@ class GameConfig:
                  logger.debug(f"Extracted 'locations' key content for domain '{domain}'.")
                  if not isinstance(self._config_data[domain], dict):
                       logger.warning(f"Loaded 'locations' data for domain '{domain}' is not a dictionary. Check file structure.")
+                      self._config_data[domain] = {}
+            # Aliases domain may or may not have top-level 'aliases' key; accept either
+            elif domain == "aliases" and isinstance(loaded_data, dict):
+                 self._config_data[domain] = loaded_data.get("aliases", loaded_data)
+                 if not isinstance(self._config_data[domain], dict):
+                      logger.warning(f"Loaded 'aliases' data for domain '{domain}' is not a dictionary. Check file structure.")
                       self._config_data[domain] = {}
             else:
                 # Default behavior: store the entire loaded data
