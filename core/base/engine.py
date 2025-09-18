@@ -102,6 +102,24 @@ class GameEngine(QObject):
         self._game_loop.add_tick_callback(self._handle_tick_callback)
         
         self._auto_save_interval = self._config.get("game.auto_save_interval", 300)  
+
+        # Apply QSettings gameplay values (difficulty, encounter_size) into config if present
+        try:
+            from PySide6.QtCore import QSettings
+            s = QSettings("RPGGame", "Settings")
+            diff_ui = s.value("gameplay/difficulty", None)
+            enc_ui = s.value("gameplay/encounter_size", None)
+            # Map UI values to tokens used by generator
+            diff_map = {"Story": "story", "Normal": "normal", "Hard": "hard", "Expert": "expert"}
+            enc_map = {"Solo": "solo", "Pack": "pack", "Mixed": "mixed"}
+            if diff_ui:
+                self._config._config_data.setdefault("game", {})
+                self._config._config_data["game"]["difficulty"] = diff_map.get(diff_ui, "normal")
+            if enc_ui:
+                self._config._config_data.setdefault("game", {})
+                self._config._config_data["game"]["encounter_size"] = enc_map.get(enc_ui, "solo")
+        except Exception:
+            pass
         
         register_inventory_commands()
         

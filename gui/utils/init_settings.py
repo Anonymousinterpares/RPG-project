@@ -66,6 +66,8 @@ def init_default_settings():
     # Initialize gameplay settings if they don't exist
     if not settings.contains("gameplay/difficulty"):
         settings.setValue("gameplay/difficulty", "Normal")
+    if not settings.contains("gameplay/encounter_size"):
+        settings.setValue("gameplay/encounter_size", "Solo")
 
     if not settings.contains("gameplay/autosave_interval"):
         settings.setValue("gameplay/autosave_interval", 0)

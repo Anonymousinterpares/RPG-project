@@ -24,11 +24,15 @@ def attempt_enrich_npc_flavor(npc) -> None:
     if not llm_enabled:
         return
 
+    # Prefer using the existing engine AgentManager pipeline
     try:
-        from core.agents.agent_manager import get_agent_manager
-        am = get_agent_manager()
+        from core.base.engine import get_game_engine
+        engine = get_game_engine()
+        game_state = engine.state_manager.current_state if engine and hasattr(engine, 'state_manager') else None
+        if not engine or not engine._agent_manager or not game_state:
+            return
     except Exception as e:
-        logger.warning(f"LLM agent manager unavailable: {e}")
+        logger.warning(f"LLM engine/manager unavailable: {e}")
         return
 
     # Build a compact structured prompt reflecting rules and context
@@ -40,42 +44,30 @@ def attempt_enrich_npc_flavor(npc) -> None:
     location = flavor_ctx.get("location")
     kind = flavor_ctx.get("kind")
 
-    system_directives = (
-        "You are enriching NPC flavor for a deterministic RPG system. Follow rules strictly:\n"
-        "- Keep descriptions concise and lore-consistent.\n"
-        "- No spoilers or meta.\n"
-        "- Social NPCs are usually not bosses (is_boss:false), but if context strongly supports it, suggest a hidden leadership flavor; engine validates boss overlays.\n"
-        "- Use culturally appropriate tone.\n"
-        "- Provide a short backstory (1–3 sentences) that fits tags and location.\n"
+    # Construct a user prompt text; engine will pass it to AgentManager
+    policy = (
+        "Rules: concise, lore-consistent; no meta; social NPCs usually not bosses, but if context suggests a hidden leader, hint subtly; engine validates overlays; cultural tone.\n"
+    )
+    need_desc = not bool(getattr(npc, "description", None))
+    need_back = not bool(ki.get("backstory"))
+    if not need_desc and not need_back:
+        return
+
+    prompt = (
+        f"Enrich NPC flavor. {policy}"
+        f"DATA: name={npc.name!r} family_id={family_id!r} tags={tags} culture={culture!r} location={location!r} kind={kind!r}.\n"
+        f"Please return a short description and a short backstory."
     )
 
-    user_request = {
-        "name": npc.name,
-        "family_id": family_id,
-        "tags": tags,
-        "culture": culture,
-        "location": location,
-        "kind": kind,
-        "need_description": not bool(getattr(npc, "description", None)),
-        "need_backstory": not bool(ki.get("backstory")),
-    }
-
     try:
-        # Use a generic agent call; adapt to your agent schema as needed
-        res = am.simple_completion(
-            system=system_directives,
-            user=("Enrich the following NPC with a brief in-world description and a short backstory.\n"
-                  f"DATA: {user_request}"),
-            max_tokens=180,
-        )
-        text = (res or "").strip()
+        text, commands = engine._agent_manager.process_input(game_state=game_state, player_input=prompt)
+        text = (text or "").strip()
         if not text:
             return
-        # Simple extraction: split into two paragraphs if possible
         parts = [p.strip() for p in text.split("\n\n") if p.strip()]
-        if user_request["need_description"] and parts:
+        if need_desc and parts:
             npc.description = parts[0][:240]
-        if user_request["need_backstory"]:
+        if need_back:
             backstory = parts[1] if len(parts) > 1 else (parts[0] if parts else "")
             if backstory:
                 ki["backstory"] = backstory[:480]
