@@ -157,11 +157,16 @@ class NPCCreator:
             # Determine culture hint from location (optional)
             culture_hint = None
             try:
+                seed = f"merchant|{location or ''}|{shop_type}|{name or ''}"
                 if location:
-                    culture_hint = cfg.get(f"locations.{location}.culture")
+                    # Prefer culture_mix if present
+                    mix = cfg.get(f"locations.{location}.culture_mix")
+                    if isinstance(mix, dict) and mix:
+                        culture_hint = self._choose_from_weighted_map(mix, seed)
+                    else:
+                        culture_hint = cfg.get(f"locations.{location}.culture")
             except Exception:
                 pass
-            seed = f"merchant|{location or ''}|{shop_type}|{name or ''}"
             family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
 
             # Difficulty/encounter from config
@@ -204,6 +209,12 @@ class NPCCreator:
                 "location": location,
                 "family_id": family_id,
             }
+            # Attempt LLM flavor enrichment (graceful on failure)
+            try:
+                from core.character.npc_flavor import attempt_enrich_npc_flavor
+                attempt_enrich_npc_flavor(npc)
+            except Exception:
+                pass
             # Persist merchants
             npc.is_persistent = True
             self.npc_manager.add_npc(npc)
@@ -256,11 +267,15 @@ class NPCCreator:
             fam_gen = NPCFamilyGenerator()
             culture_hint = None
             try:
+                seed = f"quest_giver|{location or ''}|{quest_type}|{name or ''}"
                 if location:
-                    culture_hint = cfg.get(f"locations.{location}.culture")
+                    mix = cfg.get(f"locations.{location}.culture_mix")
+                    if isinstance(mix, dict) and mix:
+                        culture_hint = self._choose_from_weighted_map(mix, seed)
+                    else:
+                        culture_hint = cfg.get(f"locations.{location}.culture")
             except Exception:
                 pass
-            seed = f"quest_giver|{location or ''}|{quest_type}|{name or ''}"
             family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
 
             difficulty = (cfg.get("game.difficulty", "normal") or "normal")
@@ -298,6 +313,11 @@ class NPCCreator:
                 "location": location,
                 "family_id": family_id,
             }
+            try:
+                from core.character.npc_flavor import attempt_enrich_npc_flavor
+                attempt_enrich_npc_flavor(npc)
+            except Exception:
+                pass
             npc.is_persistent = True
             self.npc_manager.add_npc(npc)
             return npc
@@ -348,11 +368,15 @@ class NPCCreator:
             fam_gen = NPCFamilyGenerator()
             culture_hint = None
             try:
+                seed = f"service|{location or ''}|{service_type}|{name or ''}"
                 if location:
-                    culture_hint = cfg.get(f"locations.{location}.culture")
+                    mix = cfg.get(f"locations.{location}.culture_mix")
+                    if isinstance(mix, dict) and mix:
+                        culture_hint = self._choose_from_weighted_map(mix, seed)
+                    else:
+                        culture_hint = cfg.get(f"locations.{location}.culture")
             except Exception:
                 pass
-            seed = f"service|{location or ''}|{service_type}|{name or ''}"
             family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
 
             difficulty = (cfg.get("game.difficulty", "normal") or "normal")
@@ -388,6 +412,11 @@ class NPCCreator:
                 "location": location,
                 "family_id": family_id,
             }
+            try:
+                from core.character.npc_flavor import attempt_enrich_npc_flavor
+                attempt_enrich_npc_flavor(npc)
+            except Exception:
+                pass
             npc.is_persistent = True
             self.npc_manager.add_npc(npc)
             return npc
@@ -483,6 +512,26 @@ class NPCCreator:
         return new_npc, True
 
     # ---- Helpers ----
+    def _choose_from_weighted_map(self, weights: dict, seed: str) -> Optional[str]:
+        """Deterministically choose a key from a {key: weight} mapping."""
+        import hashlib, random as _random
+        if not isinstance(weights, dict) or not weights:
+            return None
+        items = [(k, float(v)) for k, v in weights.items() if isinstance(v, (int, float)) and float(v) > 0]
+        if not items:
+            return None
+        rng = _random.Random()
+        h = hashlib.md5(seed.encode("utf-8")).digest()
+        rng.seed(int.from_bytes(h, byteorder="big", signed=False))
+        total = sum(w for _, w in items)
+        pick = rng.random() * total
+        acc = 0.0
+        for k, w in items:
+            acc += w
+            if pick <= acc:
+                return k
+        return items[-1][0]
+
     def _generate_semideterministic_name(self, culture_hint: Optional[str], role_hint: Optional[str], seed: str) -> str:
         """Generate a semi-deterministic name using legacy pools as guidance.
         Combines culture/role hints to pick a pool, then selects name parts using a seeded RNG.
