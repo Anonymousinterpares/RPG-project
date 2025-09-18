@@ -67,6 +67,68 @@ class NPCFamilyGenerator:
     def get_overlay(self, overlay_id: str) -> Optional[Dict[str, Any]]:
         return self._overlays.get(overlay_id)
 
+    def choose_humanoid_family(self, culture_hint: Optional[str] = None, location: Optional[str] = None, seed: Optional[str] = None) -> Optional[str]:
+        """Choose a humanoid family deterministically using a weighted distribution.
+
+        Rules:
+        - If culture_hint provided: 80% weight distributed evenly among humanoid families whose
+          cultural_bias includes culture_hint; 20% weight among other humanoid families.
+        - If no culture_hint: uniform among all humanoid families.
+        - Deterministic selection using the provided seed (string); if None, random.
+        """
+        import hashlib, random as _random
+        # Collect humanoid families
+        humanoids: Dict[str, Dict[str, Any]] = {
+            fid: fam for fid, fam in self._families.items()
+            if (fam.get("actor_type") == "humanoid")
+        }
+        if not humanoids:
+            return None
+        favored: Dict[str, Dict[str, Any]] = {}
+        others: Dict[str, Dict[str, Any]] = {}
+        if culture_hint:
+            for fid, fam in humanoids.items():
+                cb = fam.get("cultural_bias") or []
+                if isinstance(cb, list) and culture_hint in cb:
+                    favored[fid] = fam
+                else:
+                    others[fid] = fam
+        else:
+            others = humanoids
+
+        # Build weighted list
+        weights: Dict[str, float] = {}
+        if favored:
+            w_fav_each = 0.8 / max(1, len(favored))
+            for fid in favored:
+                weights[fid] = weights.get(fid, 0.0) + w_fav_each
+            w_oth_each = 0.2 / max(1, len(others))
+            for fid in others:
+                weights[fid] = weights.get(fid, 0.0) + w_oth_each
+        else:
+            # Uniform among all humanoids
+            w_each = 1.0 / max(1, len(others))
+            for fid in others:
+                weights[fid] = w_each
+
+        # Deterministic RNG
+        rnd = _random.Random()
+        if seed is not None:
+            h = hashlib.md5(seed.encode("utf-8")).digest()
+            rnd.seed(int.from_bytes(h, byteorder="big", signed=False))
+        # Weighted choice
+        fids = list(weights.keys())
+        cumulative = []
+        total = 0.0
+        for fid in fids:
+            total += float(weights[fid])
+            cumulative.append(total)
+        pick = rnd.random() * total
+        for idx, cutoff in enumerate(cumulative):
+            if pick <= cutoff:
+                return fids[idx]
+        return fids[-1] if fids else None
+
     def _apply_scaling(self, values: Tuple[float, float, float, float], level: int, encounter_size: str = "solo", difficulty: str = "normal") -> Tuple[float, float, float, float]:
         """Apply generation rules scaling (difficulty, level curves, encounter size) to (hp, dmg, def, init)."""
         hp, dmg, df, ini = values

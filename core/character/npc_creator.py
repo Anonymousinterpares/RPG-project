@@ -10,6 +10,7 @@ from datetime import datetime
 from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
 from core.character.npc_generator import NPCGenerator
 from core.character.npc_manager import NPCManager
+from core.base.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,72 @@ class NPCCreator:
         elif not description:
             description = f"A {shop_type} merchant offering goods for sale."
         
-        # Create the merchant NPC
+        # Families-mode path for non-combat NPCs
+        try:
+            cfg = get_config()
+            mode = (cfg.get("system.npc_generation_mode", "legacy") or "legacy").lower()
+        except Exception:
+            mode = "legacy"
+
+        if mode == "families":
+            from core.character.npc_family_generator import NPCFamilyGenerator
+            fam_gen = NPCFamilyGenerator()
+            # Determine culture hint from location (optional)
+            culture_hint = None
+            try:
+                if location:
+                    culture_hint = cfg.get(f"locations.{location}.culture")
+            except Exception:
+                pass
+            seed = f"merchant|{location or ''}|{shop_type}|{name or ''}"
+            family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
+
+            # Difficulty/encounter from config
+            difficulty = (cfg.get("game.difficulty", "normal") or "normal")
+            encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
+
+            npc = fam_gen.generate_npc_from_family(
+                family_id=family_id,
+                name=name,
+                location=location,
+                level=1,
+                overlay_id=None,
+                difficulty=difficulty,
+                encounter_size=encounter_size,
+            )
+            # Adjust for commerce context
+            npc.npc_type = NPCType.MERCHANT
+            npc.relationship = NPCRelationship.NEUTRAL
+            if not npc.description:
+                npc.description = description or (f"A {shop_type} merchant.")
+            # Ensure communicative tag and record commerce metadata
+            if npc.known_information is None:
+                npc.known_information = {}
+            tags = list(npc.known_information.get("tags", []) or [])
+            if "communicative:true" not in tags:
+                tags.append("communicative:true")
+            npc.known_information["tags"] = tags
+            npc.known_information["service"] = {"type": "merchant", "shop_type": shop_type}
+
+            # Semi-deterministic naming if not provided
+            if not name:
+                npc.name = self._generate_semideterministic_name(culture_hint=culture_hint, role_hint="merchant", seed=seed)
+
+            # Mark for LLM flavor (description/backstory) to be enriched later by orchestrated flow
+            npc.known_information["needs_llm_flavor"] = True
+            npc.known_information["flavor_context"] = {
+                "kind": "commerce",
+                "shop_type": shop_type,
+                "culture": culture_hint,
+                "location": location,
+                "family_id": family_id,
+            }
+            # Persist merchants
+            npc.is_persistent = True
+            self.npc_manager.add_npc(npc)
+            return npc
+
+        # Legacy path fallback
         return self.create_npc(
             interaction_type=NPCInteractionType.COMMERCE,
             name=name,
@@ -151,7 +217,7 @@ class NPCCreator:
             relationship=NPCRelationship.NEUTRAL,
             location=location,
             description=description,
-            occupation=f"{shop_type.capitalize()} Merchant",
+            occupation=f"{shop_type}.capitalize() Merchant",
             is_persistent=True  # Merchants are typically persistent
         )
     
@@ -178,7 +244,65 @@ class NPCCreator:
         elif not description:
             description = f"Someone looking for help with a {quest_type} task."
         
-        # Create the quest giver NPC
+        # Families-mode path
+        try:
+            cfg = get_config()
+            mode = (cfg.get("system.npc_generation_mode", "legacy") or "legacy").lower()
+        except Exception:
+            mode = "legacy"
+
+        if mode == "families":
+            from core.character.npc_family_generator import NPCFamilyGenerator
+            fam_gen = NPCFamilyGenerator()
+            culture_hint = None
+            try:
+                if location:
+                    culture_hint = cfg.get(f"locations.{location}.culture")
+            except Exception:
+                pass
+            seed = f"quest_giver|{location or ''}|{quest_type}|{name or ''}"
+            family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
+
+            difficulty = (cfg.get("game.difficulty", "normal") or "normal")
+            encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
+
+            npc = fam_gen.generate_npc_from_family(
+                family_id=family_id,
+                name=name,
+                location=location,
+                level=1,
+                overlay_id=None,
+                difficulty=difficulty,
+                encounter_size=encounter_size,
+            )
+            npc.npc_type = NPCType.QUEST_GIVER
+            npc.relationship = NPCRelationship.NEUTRAL
+            if not npc.description:
+                npc.description = description or ("A potential quest giver.")
+            if npc.known_information is None:
+                npc.known_information = {}
+            tags = list(npc.known_information.get("tags", []) or [])
+            if "communicative:true" not in tags:
+                tags.append("communicative:true")
+            if "quest_giver:true" not in tags:
+                tags.append("quest_giver:true")
+            npc.known_information["tags"] = tags
+            npc.known_information["quest"] = {"role": "giver", "type": quest_type}
+            if not name:
+                npc.name = self._generate_semideterministic_name(culture_hint=culture_hint, role_hint="quest_giver", seed=seed)
+            npc.known_information["needs_llm_flavor"] = True
+            npc.known_information["flavor_context"] = {
+                "kind": "quest",
+                "quest_type": quest_type,
+                "culture": culture_hint,
+                "location": location,
+                "family_id": family_id,
+            }
+            npc.is_persistent = True
+            self.npc_manager.add_npc(npc)
+            return npc
+
+        # Legacy fallback
         return self.create_npc(
             interaction_type=NPCInteractionType.QUEST,
             name=name,
@@ -212,7 +336,63 @@ class NPCCreator:
         elif not description:
             description = f"A {service_type} offering services."
         
-        # Create the service NPC
+        # Families-mode path
+        try:
+            cfg = get_config()
+            mode = (cfg.get("system.npc_generation_mode", "legacy") or "legacy").lower()
+        except Exception:
+            mode = "legacy"
+
+        if mode == "families":
+            from core.character.npc_family_generator import NPCFamilyGenerator
+            fam_gen = NPCFamilyGenerator()
+            culture_hint = None
+            try:
+                if location:
+                    culture_hint = cfg.get(f"locations.{location}.culture")
+            except Exception:
+                pass
+            seed = f"service|{location or ''}|{service_type}|{name or ''}"
+            family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
+
+            difficulty = (cfg.get("game.difficulty", "normal") or "normal")
+            encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
+
+            npc = fam_gen.generate_npc_from_family(
+                family_id=family_id,
+                name=name,
+                location=location,
+                level=1,
+                overlay_id=None,
+                difficulty=difficulty,
+                encounter_size=encounter_size,
+            )
+            npc.npc_type = NPCType.SERVICE
+            npc.relationship = NPCRelationship.NEUTRAL
+            if not npc.description:
+                npc.description = description or (f"A {service_type} offering services.")
+            if npc.known_information is None:
+                npc.known_information = {}
+            tags = list(npc.known_information.get("tags", []) or [])
+            if "communicative:true" not in tags:
+                tags.append("communicative:true")
+            npc.known_information["tags"] = tags
+            npc.known_information["service"] = {"type": "service", "service_type": service_type}
+            if not name:
+                npc.name = self._generate_semideterministic_name(culture_hint=culture_hint, role_hint=service_type, seed=seed)
+            npc.known_information["needs_llm_flavor"] = True
+            npc.known_information["flavor_context"] = {
+                "kind": "service",
+                "service_type": service_type,
+                "culture": culture_hint,
+                "location": location,
+                "family_id": family_id,
+            }
+            npc.is_persistent = True
+            self.npc_manager.add_npc(npc)
+            return npc
+
+        # Legacy fallback
         return self.create_npc(
             interaction_type=NPCInteractionType.SERVICE,
             name=name,
@@ -301,3 +481,50 @@ class NPCCreator:
         )
         
         return new_npc, True
+
+    # ---- Helpers ----
+    def _generate_semideterministic_name(self, culture_hint: Optional[str], role_hint: Optional[str], seed: str) -> str:
+        """Generate a semi-deterministic name using legacy pools as guidance.
+        Combines culture/role hints to pick a pool, then selects name parts using a seeded RNG.
+        """
+        import hashlib, random as _random
+        from typing import List
+        rng = _random.Random()
+        h = hashlib.md5(seed.encode("utf-8")).digest()
+        rng.seed(int.from_bytes(h, byteorder="big", signed=False))
+
+        pools = {}
+        try:
+            cfg = get_config()
+            pools = cfg.get("npc_legacy_templates.name_pools") or {}
+        except Exception:
+            pools = {}
+        # Pick a pool name based on hints
+        candidates: List[str] = []
+        if role_hint == "merchant" and "merchant" in pools:
+            candidates.append("merchant")
+        if culture_hint == "concordant" and "generic" in pools:
+            candidates.append("generic")
+        if "fantasy" in pools:
+            candidates.append("fantasy")
+        if not candidates and pools:
+            candidates = list(pools.keys())
+        pool_key = rng.choice(candidates) if candidates else None
+        pool = pools.get(pool_key, {}) if pool_key else {}
+
+        # Choose gender list semi-randomly
+        gender_key = rng.choice(["male", "female"]) if pool else None
+        first_list = list(pool.get(gender_key, []) or []) if gender_key else []
+        last_list = list(pool.get("surname", []) or []) if pool else []
+
+        def pick(lst: List[str], fallback: str) -> str:
+            return lst[rng.randrange(len(lst))] if lst else fallback
+
+        first = pick(first_list, "Alex")
+        last = pick(last_list, "Smith")
+
+        # Light pattern variation: sometimes add a short suffix to first name deterministically
+        suffixes = ["an", "el", "is", "on", "ar", "ia"]
+        if rng.random() < 0.3:
+            first = first + rng.choice(suffixes)
+        return f"{first} {last}"

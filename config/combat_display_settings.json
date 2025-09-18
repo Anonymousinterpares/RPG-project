@@ -1,5 +1,5 @@
 {
-    "background_image": "ComfyUI_00146_.png",
+    "background_image": "unnamed.png",
     "font_family": "Segoe UI",
     "font_size": 9,
     "font_size_player_name_offset": 1,
@@ -15,7 +15,10 @@
     "color_log_header": "#ececec",
     "color_log_default": "#ececec",
     "color_log_combat_event": "#ececec",
+    "color_log_system_message": "#FFFF00",
+    "color_log_narrative": "#FFD700",
     "color_log_group_bg": "#111111",
+    "color_log_text_bg": "rgba(25, 25, 25, 0.85)",
     "color_status_text": "#ffffff",
     "color_round_text": "#ffffff",
     "color_groupbox_title_text": "#ffffff",
@@ -43,8 +46,9 @@
     "color_resolve_bar_chunk": "#555500",
     "color_progressbar_text": "#ffffff",
     "color_progressbar_bg": "#CCCCCC",
+    "gradual_text_combat_log": true,
+    "display_text_speed_delay": 30,
     "color_log_background": "#000000",
-    "color_log_text_bg": "rgba(25, 25, 25, 0.85)",
     "color_groupbox_title": "#333333",
     "display_text_speed_delay_combat": 5
 }

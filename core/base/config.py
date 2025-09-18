@@ -57,6 +57,8 @@ class GameConfig:
         "npc_boss_overlays": os.path.join("npc", "boss_overlays.json"),
         "npc_generation_rules": os.path.join("npc", "generation_rules.json"),
         "npc_entity_aliases": os.path.join("aliases", "entities.json"),
+        # Legacy NPC templates for name pools (read-only, temporary during migration)
+        "npc_legacy_templates": os.path.join("character", "npc_templates.json"),
     }
 
     # Configurations loaded from files
