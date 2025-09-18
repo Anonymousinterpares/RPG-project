@@ -165,6 +165,11 @@ class NPCCreator:
                         culture_hint = self._choose_from_weighted_map(mix, seed)
                     else:
                         culture_hint = cfg.get(f"locations.{location}.culture")
+                if not culture_hint:
+                    # Global default mix if available
+                    mix_def = cfg.get("location_defaults.culture_mix")
+                    if isinstance(mix_def, dict) and mix_def:
+                        culture_hint = self._choose_from_weighted_map(mix_def, seed)
             except Exception:
                 pass
             family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
@@ -274,6 +279,10 @@ class NPCCreator:
                         culture_hint = self._choose_from_weighted_map(mix, seed)
                     else:
                         culture_hint = cfg.get(f"locations.{location}.culture")
+                if not culture_hint:
+                    mix_def = cfg.get("location_defaults.culture_mix")
+                    if isinstance(mix_def, dict) and mix_def:
+                        culture_hint = self._choose_from_weighted_map(mix_def, seed)
             except Exception:
                 pass
             family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
@@ -375,6 +384,10 @@ class NPCCreator:
                         culture_hint = self._choose_from_weighted_map(mix, seed)
                     else:
                         culture_hint = cfg.get(f"locations.{location}.culture")
+                if not culture_hint:
+                    mix_def = cfg.get("location_defaults.culture_mix")
+                    if isinstance(mix_def, dict) and mix_def:
+                        culture_hint = self._choose_from_weighted_map(mix_def, seed)
             except Exception:
                 pass
             family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
@@ -542,13 +555,50 @@ class NPCCreator:
         h = hashlib.md5(seed.encode("utf-8")).digest()
         rng.seed(int.from_bytes(h, byteorder="big", signed=False))
 
+        # Try culture-aware names.json first
+        try:
+            cfg = get_config()
+            names = cfg.get("npc_names.cultures") or {}
+            culture = culture_hint or "generic"
+            spec = names.get(culture) or names.get("generic")
+            if spec:
+                # Build first and last name from syllables and patterns
+                import re
+                def build_from_spec(spec_local):
+                    pats = spec_local.get("patterns") or ["FN LN"]
+                    pat = pats[min(len(pats)-1, rng.randrange(len(pats)))]
+                    def gen_first():
+                        s = spec_local.get("first_syllables", ["al","an","ar","el","ia"])    
+                        n = max(1, min(3, int(rng.random()*3)+1))
+                        return "".join(rng.choice(s) for _ in range(n)).capitalize()
+                    def gen_last():
+                        pref = spec_local.get("last_prefixes", [""])
+                        suff = spec_local.get("last_suffixes", ["son","wood","wright","smith"]) 
+                        core = spec_local.get("last_cores", ["stone","light","river","storm"]) 
+                        form = rng.randrange(3)
+                        if form == 0:
+                            return (rng.choice(core)+rng.choice(suff)).capitalize()
+                        elif form == 1:
+                            return (rng.choice(pref)+rng.choice(core)).capitalize()
+                        else:
+                            return (rng.choice(core)).capitalize()
+                    fn = gen_first()
+                    ln = gen_last()
+                    return pat.replace("FN", fn).replace("LN", ln)
+                name = build_from_spec(spec)
+                # Ensure simple validation
+                allowed = spec.get("allowed_chars", "^[A-Za-z' -]+$")
+                if re.match(allowed, name):
+                    return name
+        except Exception:
+            pass
+        # Fallback to legacy name pools
         pools = {}
         try:
             cfg = get_config()
             pools = cfg.get("npc_legacy_templates.name_pools") or {}
         except Exception:
             pools = {}
-        # Pick a pool name based on hints
         candidates: List[str] = []
         if role_hint == "merchant" and "merchant" in pools:
             candidates.append("merchant")
@@ -560,19 +610,13 @@ class NPCCreator:
             candidates = list(pools.keys())
         pool_key = rng.choice(candidates) if candidates else None
         pool = pools.get(pool_key, {}) if pool_key else {}
-
-        # Choose gender list semi-randomly
         gender_key = rng.choice(["male", "female"]) if pool else None
         first_list = list(pool.get(gender_key, []) or []) if gender_key else []
         last_list = list(pool.get("surname", []) or []) if pool else []
-
         def pick(lst: List[str], fallback: str) -> str:
             return lst[rng.randrange(len(lst))] if lst else fallback
-
         first = pick(first_list, "Alex")
         last = pick(last_list, "Smith")
-
-        # Light pattern variation: sometimes add a short suffix to first name deterministically
         suffixes = ["an", "el", "is", "on", "ar", "ia"]
         if rng.random() < 0.3:
             first = first + rng.choice(suffixes)

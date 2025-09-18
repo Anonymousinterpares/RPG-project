@@ -46,7 +46,7 @@ def attempt_enrich_npc_flavor(npc) -> None:
 
     # Construct a user prompt text; engine will pass it to AgentManager
     policy = (
-        "Rules: concise, lore-consistent; no meta; social NPCs usually not bosses, but if context suggests a hidden leader, hint subtly; engine validates overlays; cultural tone.\n"
+        "Rules: concise, lore-consistent; no meta; do not provide hints or spoilers; respect cultural tone.\n"
     )
     need_desc = not bool(getattr(npc, "description", None))
     need_back = not bool(ki.get("backstory"))

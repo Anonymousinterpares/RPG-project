@@ -1,0 +1,57 @@
+{
+  "cultures": {
+    "generic": {
+      "patterns": ["FN LN"],
+      "first_syllables": ["al","an","ar","el","ia","ro","li","ma","tha","dor","gal","vin","mi"],
+      "last_prefixes": ["", "bel", "wood", "stone", "fair", "silver", "gold"],
+      "last_cores": ["river", "brook", "storm", "light", "helm", "wright", "smith", "walker", "binder", "seeker"],
+      "last_suffixes": ["son", "ton", "ford", "field", "ward", "shire", "mont"],
+      "allowed_chars": "^[A-Za-z' -]+$"
+    },
+    "concordant": {
+      "patterns": ["FN LN"],
+      "first_syllables": ["ha","ri","mo","ni","ev","ca","le","sa","ta","ver","na","ra"],
+      "last_prefixes": ["har","con","lyr","mel","ver"],
+      "last_cores": ["trace","tone","clar","song","weave","lore"],
+      "last_suffixes": ["son","en","al","ir","is"],
+      "allowed_chars": "^[A-Za-z' -]+$"
+    },
+    "verdant": {
+      "patterns": ["FN LN"],
+      "first_syllables": ["ver","da","sy","li","mo","fi","gre","thy","al"],
+      "last_prefixes": ["leaf","bloom","root","moss","fern"],
+      "last_cores": ["runner","weaver","keeper","singer","tender"],
+      "last_suffixes": ["", "son", "is"],
+      "allowed_chars": "^[A-Za-z' -]+$"
+    },
+    "crystalline": {
+      "patterns": ["FN LN"],
+      "first_syllables": ["crys","lin","ka","the","cal","ra","ge"],
+      "last_prefixes": ["facet","angle","prism","ray","grid"],
+      "last_cores": ["binder","mind","field","trace","solve"],
+      "last_suffixes": ["", "en", "is"],
+      "allowed_chars": "^[A-Za-z' -]+$"
+    },
+    "ashen": {
+      "patterns": ["FN LN"],
+      "first_syllables": ["ash","ka","mor","na","ser","vel","thol"],
+      "last_prefixes": ["ember","dust","cinder","urn","shade"],
+      "last_cores": ["keeper","walker","binder","vow","song"],
+      "last_suffixes": ["", "son", "ir"],
+      "allowed_chars": "^[A-Za-z' -]+$"
+    },
+    "tempest": {
+      "patterns": ["FN LN"],
+      "first_syllables": ["tem","ves","zar","kai","lin","ar","nor"],
+      "last_prefixes": ["storm","gale","wake","sail","mast"],
+      "last_cores": ["runner","breaker","caller","born","turn"],
+      "last_suffixes": ["", "son", "er"],
+      "allowed_chars": "^[A-Za-z' -]+$"
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Culture-aware name generation guidance for LLM and deterministic generator."
+  }
+}
+

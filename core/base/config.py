@@ -59,6 +59,10 @@ class GameConfig:
         "npc_entity_aliases": os.path.join("aliases", "entities.json"),
         # Legacy NPC templates for name pools (read-only, temporary during migration)
         "npc_legacy_templates": os.path.join("character", "npc_templates.json"),
+        # Names guidance for LLM and generator
+        "npc_names": os.path.join("npc", "names.json"),
+        # World location defaults (e.g., culture mix)
+        "location_defaults": os.path.join("world", "locations", "defaults.json"),
     }
 
     # Configurations loaded from files

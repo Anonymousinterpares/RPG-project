@@ -1,0 +1,14 @@
+{
+  "culture_mix": {
+    "concordant": 0.5,
+    "verdant": 0.2,
+    "crystalline": 0.15,
+    "ashen": 0.1,
+    "tempest": 0.05
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Default cultural mixture applied to locations that don't specify culture_mix."
+  }
+}
+
