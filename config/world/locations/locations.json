@@ -7,6 +7,7 @@
       "type": "city",
       "region": "Central Nexus",
       "culture_id": "concordant",
+      "culture_mix": {"concordant": 0.8, "verdant": 0.1, "crystalline": 0.05, "tempest": 0.05},
       "population": 80000,
       "features": [
         {
@@ -63,6 +64,7 @@
       "type": "outpost",
       "region": "Western Nexus",
       "culture_id": "verdant",
+      "culture_mix": {"verdant": 0.8, "concordant": 0.1, "crystalline": 0.05, "tempest": 0.05},
       "population": 350,
       "features": [
         {
@@ -110,6 +112,7 @@
       "type": "outpost",
       "region": "Eastern Nexus",
       "culture_id": "crystalline",
+      "culture_mix": {"crystalline": 0.8, "concordant": 0.1, "verdant": 0.05, "tempest": 0.05},
       "population": 275,
       "features": [
         {
@@ -157,6 +160,7 @@
       "type": "forest",
       "region": "Northwestern Nexus",
       "culture_id": "",
+      "culture_mix": {"verdant": 0.6, "concordant": 0.2, "ashen": 0.2},
       "population": 0,
       "features": [
         {
@@ -203,6 +207,7 @@
       "type": "settlement",
       "region": "Northern Nexus",
       "culture_id": "ashen",
+      "culture_mix": {"ashen": 0.8, "concordant": 0.1, "verdant": 0.1},
       "population": 120,
       "features": [
         {
@@ -250,6 +255,7 @@
       "type": "harbor",
       "region": "Southern Nexus",
       "culture_id": "tempest",
+      "culture_mix": {"tempest": 0.8, "concordant": 0.1, "verdant": 0.1},
       "population": 800,
       "features": [
         {
