@@ -540,11 +540,11 @@
       "objectives": [
         {
           "id": "O1",
-          "description": "Defeat test_wolf_alpha.",
+          "description": "Defeat a wolf (test).",
           "type": "kill",
-          "target_id": "test_wolf_alpha",
-          "location_id": "test_area",
-          "completion_criteria": "Eliminate the test_wolf_alpha.",
+          "target_id": "wolf",
+          "location_id": "harmonia",
+          "completion_criteria": "Eliminate the wolf",
           "rewards": {},
           "mandatory": true
         }

@@ -1,0 +1,380 @@
+{
+  "meta": {
+    "mode": "families",
+    "difficulty": "normal",
+    "encounter_size": "solo"
+  },
+  "non_combat": [
+    {
+      "name": "Alaric Windrider",
+      "npc_type": "MERCHANT",
+      "relationship": "NEUTRAL",
+      "location": "harmonia",
+      "family_id": "humanoid_ferocious_base",
+      "role": "striker",
+      "abilities_count": 7,
+      "is_boss": false,
+      "tags": [
+        "actor_type:humanoid",
+        "communicative:true"
+      ],
+      "stats": {
+        "HP": "9/9",
+        "Defense": 14,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Arthur Johnson",
+      "npc_type": "QUEST_GIVER",
+      "relationship": "NEUTRAL",
+      "location": "harmonia",
+      "family_id": "humanoid_dangerous_base",
+      "role": "striker",
+      "abilities_count": 6,
+      "is_boss": false,
+      "tags": [
+        "actor_type:humanoid",
+        "communicative:true",
+        "quest_giver:true"
+      ],
+      "stats": {
+        "HP": "8/8",
+        "Defense": 13,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Naveréla MI Weave",
+      "npc_type": "SERVICE",
+      "relationship": "NEUTRAL",
+      "location": "harmonia",
+      "family_id": "humanoid_normal_base",
+      "role": "striker",
+      "abilities_count": 5,
+      "is_boss": false,
+      "tags": [
+        "actor_type:humanoid",
+        "communicative:true"
+      ],
+      "stats": {
+        "HP": "8/8",
+        "Defense": 13,
+        "Initiative": 5
+      }
+    },
+    {
+      "name": "Morganael Windrider",
+      "npc_type": "MERCHANT",
+      "relationship": "NEUTRAL",
+      "location": "verdant_embassy",
+      "family_id": "humanoid_mythic_base",
+      "role": "striker",
+      "abilities_count": 8,
+      "is_boss": false,
+      "tags": [
+        "actor_type:humanoid",
+        "threat_tier:mythic",
+        "communicative:true"
+      ],
+      "stats": {
+        "HP": "12/12",
+        "Defense": 17,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Aldric Dawnforge",
+      "npc_type": "QUEST_GIVER",
+      "relationship": "NEUTRAL",
+      "location": "verdant_embassy",
+      "family_id": "humanoid_mythic_base",
+      "role": "striker",
+      "abilities_count": 8,
+      "is_boss": false,
+      "tags": [
+        "actor_type:humanoid",
+        "threat_tier:mythic",
+        "communicative:true",
+        "quest_giver:true"
+      ],
+      "stats": {
+        "HP": "10/10",
+        "Defense": 15,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Aldric Moonshadow",
+      "npc_type": "SERVICE",
+      "relationship": "NEUTRAL",
+      "location": "verdant_embassy",
+      "family_id": "verdant_wanderer",
+      "role": "scout",
+      "abilities_count": 3,
+      "is_boss": false,
+      "tags": [
+        "faction:verdant",
+        "plane:verdant",
+        "temperament:patient",
+        "culture:verdant",
+        "communicative:true"
+      ],
+      "stats": {
+        "HP": "8/8",
+        "Defense": 13,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Theka Binder",
+      "npc_type": "MERCHANT",
+      "relationship": "NEUTRAL",
+      "location": "crystalline_enclave",
+      "family_id": "humanoid_normal_base",
+      "role": "striker",
+      "abilities_count": 5,
+      "is_boss": false,
+      "tags": [
+        "actor_type:humanoid",
+        "communicative:true"
+      ],
+      "stats": {
+        "HP": "8/8",
+        "Defense": 13,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Darius Stonehelm",
+      "npc_type": "QUEST_GIVER",
+      "relationship": "NEUTRAL",
+      "location": "crystalline_enclave",
+      "family_id": "humanoid_mythic_base",
+      "role": "striker",
+      "abilities_count": 8,
+      "is_boss": false,
+      "tags": [
+        "actor_type:humanoid",
+        "threat_tier:mythic",
+        "communicative:true",
+        "quest_giver:true"
+      ],
+      "stats": {
+        "HP": "12/12",
+        "Defense": 17,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Linthe MI Solve",
+      "npc_type": "SERVICE",
+      "relationship": "NEUTRAL",
+      "location": "crystalline_enclave",
+      "family_id": "crystalline_adept",
+      "role": "controller",
+      "abilities_count": 3,
+      "is_boss": false,
+      "tags": [
+        "faction:crystalline",
+        "plane:crystalline",
+        "temperament:methodical",
+        "culture:crystalline",
+        "communicative:true"
+      ],
+      "stats": {
+        "HP": "12/12",
+        "Defense": 17,
+        "Initiative": 6
+      }
+    }
+  ],
+  "combat": [
+    {
+      "name": "Normal Beast (Base)",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "harmonia",
+      "family_id": "beast_normal_base",
+      "role": "skirmisher",
+      "abilities_count": 4,
+      "is_boss": false,
+      "tags": [
+        "actor_type:beast",
+        "threat_tier:normal",
+        "communicative:false"
+      ],
+      "stats": {
+        "HP": "14/14",
+        "Defense": 13,
+        "Initiative": 5
+      }
+    },
+    {
+      "name": "Normal Beast (Base)",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "harmonia",
+      "family_id": "beast_normal_base",
+      "role": "skirmisher",
+      "abilities_count": 4,
+      "is_boss": true,
+      "tags": [
+        "actor_type:beast",
+        "threat_tier:normal",
+        "communicative:false"
+      ],
+      "stats": {
+        "HP": "11/11",
+        "Defense": 11,
+        "Initiative": 3
+      }
+    },
+    {
+      "name": "Concordant Medic",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "harmonia",
+      "family_id": "concordant_citizen",
+      "role": "striker",
+      "abilities_count": 5,
+      "is_boss": false,
+      "tags": [
+        "faction:concordant",
+        "plane:nexus",
+        "temperament:pragmatic",
+        "culture:concordant",
+        "role:medic"
+      ],
+      "stats": {
+        "HP": "20/20",
+        "Defense": 15,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Easy Beast (Base)",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "verdant_embassy",
+      "family_id": "beast_easy_base",
+      "role": "skirmisher",
+      "abilities_count": 3,
+      "is_boss": false,
+      "tags": [
+        "actor_type:beast",
+        "threat_tier:easy",
+        "communicative:false"
+      ],
+      "stats": {
+        "HP": "14/14",
+        "Defense": 12,
+        "Initiative": 4
+      }
+    },
+    {
+      "name": "Normal Beast (Base)",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "verdant_embassy",
+      "family_id": "beast_normal_base",
+      "role": "skirmisher",
+      "abilities_count": 4,
+      "is_boss": true,
+      "tags": [
+        "actor_type:beast",
+        "threat_tier:normal",
+        "communicative:false"
+      ],
+      "stats": {
+        "HP": "11/11",
+        "Defense": 12,
+        "Initiative": 4
+      }
+    },
+    {
+      "name": "Verdant Pathfinder",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "verdant_embassy",
+      "family_id": "verdant_wanderer",
+      "role": "scout",
+      "abilities_count": 4,
+      "is_boss": false,
+      "tags": [
+        "faction:verdant",
+        "plane:verdant",
+        "temperament:patient",
+        "culture:verdant",
+        "role:pathfinder"
+      ],
+      "stats": {
+        "HP": "8/8",
+        "Defense": 13,
+        "Initiative": 6
+      }
+    },
+    {
+      "name": "Easy Beast (Base)",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "crystalline_enclave",
+      "family_id": "beast_easy_base",
+      "role": "skirmisher",
+      "abilities_count": 3,
+      "is_boss": false,
+      "tags": [
+        "actor_type:beast",
+        "threat_tier:easy",
+        "communicative:false"
+      ],
+      "stats": {
+        "HP": "8/8",
+        "Defense": 13,
+        "Initiative": 5
+      }
+    },
+    {
+      "name": "Normal Beast (Base)",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "crystalline_enclave",
+      "family_id": "beast_normal_base",
+      "role": "skirmisher",
+      "abilities_count": 4,
+      "is_boss": true,
+      "tags": [
+        "actor_type:beast",
+        "threat_tier:normal",
+        "communicative:false"
+      ],
+      "stats": {
+        "HP": "17/17",
+        "Defense": 12,
+        "Initiative": 4
+      }
+    },
+    {
+      "name": "Concordant Medic",
+      "npc_type": "ENEMY",
+      "relationship": "HOSTILE",
+      "location": "crystalline_enclave",
+      "family_id": "concordant_citizen",
+      "role": "striker",
+      "abilities_count": 5,
+      "is_boss": false,
+      "tags": [
+        "faction:concordant",
+        "plane:nexus",
+        "temperament:pragmatic",
+        "culture:concordant",
+        "role:medic"
+      ],
+      "stats": {
+        "HP": "17/17",
+        "Defense": 14,
+        "Initiative": 6
+      }
+    }
+  ]
+}

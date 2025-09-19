@@ -31,8 +31,26 @@ class ReferenceResolver:
 
     def _get_domain_aliases(self, domain: str) -> Dict[str, List[str]]:
         try:
+            # Primary global aliases
             data = self._config.get("aliases", {})
             dom = data.get(domain, {}) if isinstance(data, dict) else {}
+            # Optional NPC entity-specific aliases (config/aliases/entities.json)
+            if domain == "entities":
+                npc_aliases = self._config.get("npc_entity_aliases.entities", {}) or {}
+                # Merge npc_entity_aliases into dom (prefer explicitly provided lists)
+                if isinstance(npc_aliases, dict):
+                    for k, v in npc_aliases.items():
+                        key = str(k).lower()
+                        if key not in dom:
+                            dom[key] = v
+                        else:
+                            # Merge lists if both exist
+                            try:
+                                existing = dom.get(key, [])
+                                if isinstance(existing, list) and isinstance(v, list):
+                                    dom[key] = list({*map(str, existing), *map(str, v)})
+                            except Exception:
+                                pass
             # Normalize to list[str]
             out: Dict[str, List[str]] = {}
             for k, v in (dom or {}).items():

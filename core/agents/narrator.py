@@ -98,71 +98,76 @@ class NarratorAgent(BaseAgent):
         {{
         "narrative": "Your descriptive text about the situation and the player's attempted action goes here. Describe the lead-up to any requested checks or state changes.",
         "requests": [
-            // Optional: Include zero or more structured requests based on player intent ONLY IF in NARRATIVE mode or if the action requires a check/change regardless of mode.
-            // --- Example 1: Skill Check Request ---
             {{
             "action": "request_skill_check",
             "actor_id": "{player_id}",
-            "skill_name": "LOCKPICKING", // Use skill enum names if available (e.g., LOCKPICKING, PERCEPTION, STEALTH, PERSUASION, ATHLETICS)
-            "stat_name": "DEXTERITY", // Primary stat for the skill
-            "target_actor_id": null, // Optional: Target ID
-            "difficulty_class": 14, // Optional: Estimated DC
+            "skill_name": "LOCKPICKING",
+            "stat_name": "DEXTERITY",
+            "target_actor_id": null,
+            "difficulty_class": 14,
             "modifiers": {{}},
             "context": "Player attempting to pick the chest lock."
             }},
-            // --- Example 2: State Change Request (e.g. for Stamina Regeneration) ---
             {{
             "action": "request_state_change",
-            "target_entity": "{player_id}", // Target ID (player for self-regeneration)
-            "attribute": "stamina", // The stat to change
-            "change_type": "add", // 'add' to current stamina
-            "value": 5, // Amount to regenerate, decided by you based on context
+            "target_entity": "{player_id}",
+            "attribute": "stamina",
+            "change_type": "add",
+            "value": 5,
             "context": "Player recovered some stamina after a brief rest."
             }},
-            // --- Example 3: Mode Transition Request (CRITICAL for starting combat/trade etc.) ---
             {{
             "action": "request_mode_transition",
-            "target_mode": "COMBAT", // Target mode (COMBAT, TRADE, SOCIAL_CONFLICT, NARRATIVE)
-            "origin_mode": "NARRATIVE", // Current mode
+            "target_mode": "COMBAT",
+            "origin_mode": "NARRATIVE",
             "reason": "Player initiated attack on guard.",
-            "target_entity_id": "guard_1", // Optional: Target entity ID
-            "surprise": false // Optional: True if surprise attack
+            "target_entity_id": "guard_1",
+            "surprise": false,
+            "enemy_template": "beast_easy_base",
+            "enemy_count": 1,
+            "enemy_level": 1,
+            "spawn_hints": {{
+              "actor_type": "beast",
+              "threat_tier": "easy",
+              "species_tags": ["wolf"],
+              "role_hint": "skirmisher",
+              "is_boss": false,
+              "overlay": null
             }},
-            // --- Example 3b: Inventory Change (Pick up / stash / drop item) ---
+            "additional_context": {{
+              "original_intent": "I lunge at the wolf and start a fight."
+            }}
+            }},
             {{
             "action": "request_state_change",
             "target_entity": "{player_id}",
             "attribute": "inventory",
-            "change_type": "add", // use "remove" for dropping/stashing away from inventory
-            "item_template": "test_apple", // or use "template_id" or "item_id" when known
+            "change_type": "add",
+            "item_template": "test_apple",
             "quantity": 1,
             "context": "Player picks up an apple and puts it in the backpack."
             }},
-            // --- Example 4: Data Retrieval Request ---
-            // Use this ONLY if the player *directly* asks for specific info.
             {{
             "action": "request_data_retrieval",
-            "data_type": "inventory" // Or "stats", "quests", "location_info"
+            "data_type": "inventory"
             }},
-            // --- Example 5: Quest Objective Update (semantic cases only) ---
             {{
             "action": "request_quest_update",
             "quest_id": "the-first-exchange",
             "objective_id": "step-2",
-            "new_status": "completed", // "completed" | "failed"
-            "confidence": 0.85, // 0..1; only high-confidence proposals
+            "new_status": "completed",
+            "confidence": 0.85,
             "evidence": [
-              {{"type": "flag", "key": "elder.message_deciphered"}},
-              {{"type": "dialogue", "id": "elder_03_line_17"}}
+              {{ "type": "flag", "key": "elder.message_deciphered" }},
+              {{ "type": "dialogue", "id": "elder_03_line_17" }}
             ]
             }},
-            // --- Example 6: Quest Status Change (rare; typically derived from objectives) ---
             {{
             "action": "request_quest_status",
             "quest_id": "the-first-exchange",
-            "new_status": "abandoned", // "active" | "completed" | "failed" | "abandoned"
+            "new_status": "abandoned",
             "confidence": 0.9,
-            "evidence": [ {{"type": "flag", "key": "player.abandon_confirmed"}} ]
+            "evidence": [ {{ "type": "flag", "key": "player.abandon_confirmed" }} ]
             }}
         ]
         }}
@@ -174,6 +179,11 @@ class NarratorAgent(BaseAgent):
         - **NARRATIVE Mode Focus:** When mode is NARRATIVE, actively look for intents requiring skill checks, state changes, or mode transitions.
         - **Stamina Regeneration (NARRATIVE Mode):** If the 'System Note' indicates player stamina is not full, evaluate if context (time passed, player actions) warrants regeneration. If yes, include a `request_state_change` for 'stamina' with a positive 'value' and narrate briefly (e.g., "You feel somewhat refreshed."). If not appropriate, omit this request.
         - **Mode Transitions:** If player input clearly initiates combat ("attack", "fight"), trade ("trade", "buy", "sell"), or social conflict ("confront", "intimidate"), YOU MUST include a `request_mode_transition` in the `requests` list.
+        - **Spawn Hints for COMBAT (Optional):** When requesting COMBAT, include a compact spawn specification only if needed:
+          * Prefer setting `enemy_template` to a known family/variant id (e.g., `beast_easy_base`, `verdant_alpha`).
+          * If you do not know a valid id, include `spawn_hints` with `actor_type`, `threat_tier`, and optional `species_tags`, `role_hint`, `is_boss`, `overlay`.
+          * Also include `additional_context.original_intent` containing the exact natural language phrase that triggered combat.
+          * Keep this section minimal and structured; do not dump lists or catalogs.
         - **Skill Checks:** Identify verbs implying effort/uncertainty ("try", "attempt", "search", "sneak", "persuade"). Infer the skill (e.g., `LOCKPICKING`, `PERCEPTION`, `STEALTH`, `PERSUASION`). Use `skill_name` from the available skill list.
         - **State Changes:** Identify direct actions ("drink potion", "give item", "pull lever"). Infer target, attribute, change type, value.
         - **Data Retrieval:** Only use `request_data_retrieval` if the player *explicitly asks* for their stats, inventory, quests, etc. Do not guess. If used, the `narrative` should usually be empty or very brief (e.g., "Checking your inventory...").

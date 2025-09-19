@@ -71,6 +71,22 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
     enemy_level = request.get("enemy_level", 1) # Keep level/count in case template is used later
     enemy_count = request.get("enemy_count", 1)
 
+    # Optional compact spawn hints (from NarratorAgent)
+    spawn_hints = request.get("spawn_hints") or {}
+    # Normalize keys
+    if isinstance(spawn_hints, dict):
+        actor_type_hint = str(spawn_hints.get("actor_type", "")).lower() or None
+        threat_tier_hint = str(spawn_hints.get("threat_tier", "")).lower() or None
+        is_boss_hint = bool(spawn_hints.get("is_boss", False))
+        overlay_hint = spawn_hints.get("overlay")
+        species_tags = spawn_hints.get("species_tags") if isinstance(spawn_hints.get("species_tags"), list) else []
+    else:
+        actor_type_hint = None
+        threat_tier_hint = None
+        is_boss_hint = False
+        overlay_hint = None
+        species_tags = []
+
     # Get NPC System (Ensuring it exists or creating fallback)
     npc_system = None
     state_manager = get_state_manager()
@@ -89,6 +105,38 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
 
     # --- Resolve Target NPC ---
     target_npc = None
+
+    # If no explicit target NPC and we have a spawn intent without a template,
+    # resolve a default family/variant id when families mode is enabled.
+    if not target_entity_id_or_name and not enemy_template and (actor_type_hint or threat_tier_hint or species_tags):
+        try:
+            from core.base.config import get_config
+            cfg = get_config()
+            mode = (cfg.get("system.npc_generation_mode", "legacy") or "legacy").lower()
+        except Exception:
+            mode = "legacy"
+        if mode == "families":
+            # Normalize tier and actor_type
+            valid_tiers = ["harmless", "easy", "normal", "dangerous", "ferocious", "mythic"]
+            tier = threat_tier_hint if threat_tier_hint in valid_tiers else "normal"
+            atype = actor_type_hint if actor_type_hint in ["beast", "humanoid"] else None
+            # If no actor_type provided, infer from species tags and reason keywords
+            if not atype:
+                keywords = (species_tags or []) + [str(request.get("reason", ""))]
+                kstr = " ".join([k.lower() for k in keywords])
+                if any(w in kstr for w in ["wolf", "hound", "dog", "boar", "bear", "lion", "beast"]):
+                    atype = "beast"
+                elif any(h in kstr for h in ["bandit", "guard", "soldier", "human", "goblin", "thug", "brigand"]):
+                    atype = "humanoid"
+            if atype:
+                computed_id = f"{atype}_{tier}_base"
+                # If boss, prefer using overlay via +boss unless overlay id explicitly provided
+                if is_boss_hint and not overlay_hint:
+                    enemy_template = f"{computed_id}+boss"
+                elif overlay_hint:
+                    enemy_template = f"{computed_id}::{overlay_hint}"
+                else:
+                    enemy_template = computed_id
     if target_entity_id_or_name:
         # Try finding by ID/Name using the utility function first
         participant = get_participant_by_id(game_state, target_entity_id_or_name)
@@ -153,7 +201,9 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
     elif enemy_template and npc_system: # If we didn't have a target, but have a template
         logger.info(f"Creating {enemy_count} enemies from template '{enemy_template}' (Level {enemy_level})")
         for i in range(enemy_count):
-            enemy_name = f"{enemy_template.capitalize()} {i+1}" if enemy_count > 1 else enemy_template.capitalize()
+            # Use a readable name even when template is a family id
+            base_label = enemy_template.replace("_base", "").replace("_", " ")
+            enemy_name = f"{base_label.title()} {i+1}" if enemy_count > 1 else base_label.title()
             try:
                 player_location = getattr(game_state.player, 'current_location', 'unknown_location')
                 if not player_location:

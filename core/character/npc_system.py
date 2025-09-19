@@ -295,6 +295,19 @@ class NPCSystem:
                     target_id = raw[:-5]
                     overlay_id = overlay_id or "default_boss"
 
+                # Heuristic resolution: if neither family nor variant match, map common nouns to defaults
+                def _heuristic_map_unknown(label: str, lvl: int) -> Optional[str]:
+                    if not label:
+                        return None
+                    key = label.lower().strip()
+                    # Beasts
+                    if any(w in key for w in ["wolf", "hound", "dog", "boar", "bear", "lion", "beast"]):
+                        return "beast_normal_base" if lvl >= 2 else "beast_easy_base"
+                    # Humanoids
+                    if any(w in key for w in ["bandit", "guard", "soldier", "thug", "brigand", "human"]):
+                        return "humanoid_easy_base" if lvl <= 2 else "humanoid_normal_base"
+                    return None
+
                 # Resolve: if target_id matches a known variant, use variant; else treat as family
                 var = getattr(fam_gen, "get_variant", None)
                 fam = getattr(fam_gen, "get_family", None)
@@ -308,6 +321,21 @@ class NPCSystem:
                 except Exception:
                     difficulty = "normal"
                     encounter_size = "solo"
+
+                # If unknown id, try heuristic mapping before generating
+                try:
+                    fam_exists = callable(fam) and bool(fam(target_id))
+                except Exception:
+                    fam_exists = False
+                try:
+                    var_exists = callable(var) and bool(var(target_id))
+                except Exception:
+                    var_exists = False
+                if not fam_exists and not var_exists:
+                    mapped = _heuristic_map_unknown(target_id, level)
+                    if mapped:
+                        logger.info(f"Heuristic resolution: mapping '{target_id}' -> '{mapped}' for families generation")
+                        target_id = mapped
 
                 if callable(var) and var(target_id):
                     npc = fam_gen.generate_npc_from_variant(
