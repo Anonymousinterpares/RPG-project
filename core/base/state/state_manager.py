@@ -170,6 +170,14 @@ class StateManager:
             from core.stats.stats_manager import get_stats_manager
             self._stats_manager = get_stats_manager()
             
+            # Ensure the singleton StatsManager starts from a clean slate for the new game
+            try:
+                if hasattr(self._stats_manager, 'reset_for_new_game'):
+                    self._stats_manager.reset_for_new_game()
+                    logger.info("StatsManager reset to a clean state for new game.")
+            except Exception as e_reset:
+                logger.warning(f"Failed to fully reset StatsManager for new game: {e_reset}")
+            
             # Add comprehensive logging
             logger.info(f"Stats manager initialized for player {player_name}")
             
@@ -535,13 +543,14 @@ class StateManager:
                                 target_display=DisplayTarget.COMBAT_LOG,
                                 gradual_visual_display=False,
                                 tts_eligible=False,
-                                source_step='REHYDRATE_FROM_SAVE'
+                                source_step='REHYDRATE_FROM_SAVE',
+                                metadata={"session_id": self._current_state.session_id if self._current_state else None}
                             )
-                            # Schedule enqueue asynchronously to avoid processing during load call stack
+                            # Option A: enqueue synchronously to avoid cross-session leakage/race
                             try:
-                                QTimer.singleShot(0, lambda se=set_event: engine._combat_orchestrator.add_event_to_queue(se))
-                            except Exception:
                                 engine._combat_orchestrator.add_event_to_queue(set_event)
+                            except Exception as e_enq:
+                                logger.warning(f"Failed to enqueue COMBAT_LOG_SET_HTML synchronously: {e_enq}")
                         # Additionally, sync the player's resource bars (HP/MP/Stamina) via Phase 2 UI events
                         try:
                             from core.stats.stats_base import DerivedStatType
@@ -560,13 +569,15 @@ class StateManager:
                                     ev_hp = DisplayEvent(
                                         type=DisplayEventType.UI_BAR_UPDATE_PHASE2,
                                         content={},
-                                        metadata={"entity_id": player_entity_id, "bar_type": "hp", "final_new_value": hp_cur, "max_value": hp_max},
-                                        target_display=DisplayTarget.COMBAT_LOG
+                                        metadata={"entity_id": player_entity_id, "bar_type": "hp", "final_new_value": hp_cur, "max_value": hp_max, "session_id": self._current_state.session_id if self._current_state else None},
+                                        target_display=DisplayTarget.COMBAT_LOG,
+                                        source_step='REHYDRATE_FROM_SAVE'
                                     )
+                                    # Option A: enqueue synchronously
                                     try:
-                                        QTimer.singleShot(0, lambda e=ev_hp: engine._combat_orchestrator.add_event_to_queue(e))
-                                    except Exception:
                                         engine._combat_orchestrator.add_event_to_queue(ev_hp)
+                                    except Exception:
+                                        pass
                                 except Exception:
                                     pass
                                 try:
@@ -575,13 +586,15 @@ class StateManager:
                                     ev_st = DisplayEvent(
                                         type=DisplayEventType.UI_BAR_UPDATE_PHASE2,
                                         content={},
-                                        metadata={"entity_id": player_entity_id, "bar_type": "stamina", "final_new_value": stam_cur, "max_value": stam_max},
-                                        target_display=DisplayTarget.COMBAT_LOG
+                                        metadata={"entity_id": player_entity_id, "bar_type": "stamina", "final_new_value": stam_cur, "max_value": stam_max, "session_id": self._current_state.session_id if self._current_state else None},
+                                        target_display=DisplayTarget.COMBAT_LOG,
+                                        source_step='REHYDRATE_FROM_SAVE'
                                     )
+                                    # Option A: enqueue synchronously
                                     try:
-                                        QTimer.singleShot(0, lambda e=ev_st: engine._combat_orchestrator.add_event_to_queue(e))
-                                    except Exception:
                                         engine._combat_orchestrator.add_event_to_queue(ev_st)
+                                    except Exception:
+                                        pass
                                 except Exception:
                                     pass
                                 try:
@@ -590,13 +603,15 @@ class StateManager:
                                     ev_mp = DisplayEvent(
                                         type=DisplayEventType.UI_BAR_UPDATE_PHASE2,
                                         content={},
-                                        metadata={"entity_id": player_entity_id, "bar_type": "mana", "final_new_value": mana_cur, "max_value": mana_max},
-                                        target_display=DisplayTarget.COMBAT_LOG
+                                        metadata={"entity_id": player_entity_id, "bar_type": "mana", "final_new_value": mana_cur, "max_value": mana_max, "session_id": self._current_state.session_id if self._current_state else None},
+                                        target_display=DisplayTarget.COMBAT_LOG,
+                                        source_step='REHYDRATE_FROM_SAVE'
                                     )
+                                    # Option A: enqueue synchronously
                                     try:
-                                        QTimer.singleShot(0, lambda e=ev_mp: engine._combat_orchestrator.add_event_to_queue(e))
-                                    except Exception:
                                         engine._combat_orchestrator.add_event_to_queue(ev_mp)
+                                    except Exception:
+                                        pass
                                 except Exception:
                                     pass
                         except Exception as e_syncbars:

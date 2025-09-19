@@ -121,6 +121,18 @@ class CombatManager:
 
     def process_combat_step(self, engine): # Engine is received here
         """Processes the current step and triggers the next one if appropriate."""
+        # Guard: ignore callbacks on an inactive/old manager (e.g., after New Game)
+        try:
+            state_manager = getattr(engine, '_state_manager', None)
+            current_state = state_manager.current_state if state_manager else None
+            active_cm = getattr(current_state, 'combat_manager', None) if current_state else None
+            if active_cm is not self:
+                logger.info("CombatManager.process_combat_step invoked on inactive manager. Ignoring callback.")
+                return
+        except Exception:
+            # If we cannot verify, proceed cautiously
+            pass
+        
         max_steps = 20 
         steps_processed = 0
         while steps_processed < max_steps:

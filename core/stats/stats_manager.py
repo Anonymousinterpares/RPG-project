@@ -832,6 +832,65 @@ class StatsManager(QObject):
         probability = calculate_success_chance(stat_value, difficulty, advantage, disadvantage)
         return probability
 
+    def reset_for_new_game(self) -> None:
+        """
+        Fully reset this StatsManager for a fresh game session.
+
+        - Clears all modifiers and status effects
+        - Resets level to 1
+        - Reinitializes primary and derived stats to defaults
+        - Ensures current resource values (HP/Resolve/Mana/Stamina) are set to their maxima
+        Emits a single stats_changed signal at the end.
+        """
+        try:
+            # Clear modifiers and status effects first, to avoid influencing reinit calculations
+            if hasattr(self, 'modifier_manager') and self.modifier_manager:
+                self.modifier_manager.clear_all_modifiers()
+            if hasattr(self, 'status_effect_manager') and self.status_effect_manager:
+                self.status_effect_manager.clear_all_effects()
+        except Exception:
+            # Best effort; continue reset regardless
+            pass
+
+        # Reset level
+        self.level = 1
+
+        # Reinitialize stats dictionaries
+        self.stats = {}
+        self.derived_stats = {}
+        # Primary then derived (derived depends on primary)
+        self._initialize_primary_stats()
+        self._initialize_derived_stats()
+
+        # Ensure resource currents are exactly max after any internal clamping
+        try:
+            resource_pairs = [
+                (DerivedStatType.HEALTH, DerivedStatType.MAX_HEALTH),
+                (DerivedStatType.RESOLVE, DerivedStatType.MAX_RESOLVE),
+                (DerivedStatType.MANA, DerivedStatType.MAX_MANA),
+                (DerivedStatType.STAMINA, DerivedStatType.MAX_STAMINA),
+            ]
+            for cur_stat, max_stat in resource_pairs:
+                max_val = self.get_stat_value(max_stat)
+                # Use internal setter for proper clamping and signaling consistency (we'll emit once below)
+                if cur_stat in self.derived_stats:
+                    self.derived_stats[cur_stat].base_value = max_val
+                else:
+                    # Initialize if missing
+                    self.derived_stats[cur_stat] = Stat(
+                        name=cur_stat, base_value=max_val, category=StatCategory.DERIVED,
+                        description=self._get_stat_description(cur_stat)
+                    )
+        except Exception:
+            # Non-fatal: if anything goes wrong, the current values will still be sensible
+            pass
+
+        # Emit consolidated stats_changed after reset
+        try:
+            self.stats_changed.emit(self.get_all_stats())
+        except Exception:
+            pass
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to a dictionary for serialization."""
         return {

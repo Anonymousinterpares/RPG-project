@@ -803,16 +803,16 @@ class NarratorAgent(BaseAgent):
                 }
 
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse LLM response as JSON: {e}\nRaw response: {llm_response_content}")
+                logger.warning(f"Narrator: JSON decode failed; using raw text as narrative. Error: {e}")
                 # Fallback: Treat the whole response as narrative, no requests
                 agent_output: AgentOutput = {
-                    "narrative": f"[Narrator Error: Could not parse LLM response] {llm_response_content}",
+                    "narrative": llm_response_content.strip(),
                     "requests": []
                 }
             except ValueError as e:
-                logger.error(f"Invalid AgentOutput structure from LLM: {e}\nParsed structure: {parsed_output}")
+                logger.warning(f"Narrator: Invalid AgentOutput structure; using raw text as narrative. Error: {e}")
                 agent_output: AgentOutput = {
-                    "narrative": f"[Narrator Error: Invalid structure] {parsed_output.get('narrative', llm_response_content)}",
+                    "narrative": (parsed_output.get('narrative', llm_response_content).strip() if isinstance(parsed_output, dict) else str(llm_response_content).strip()),
                     "requests": []
                 }
 

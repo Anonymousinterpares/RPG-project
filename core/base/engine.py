@@ -225,6 +225,41 @@ class GameEngine(QObject):
                 except Exception as e:
                     logger.warning(f"Error resetting agent state: {e}")
         
+        # Reset any lingering post-combat flags and orchestrator state prior to creating the new game state
+        try:
+            self._waiting_for_closing_narrative_display = False
+            self._post_combat_finalization_in_progress = False
+            if hasattr(self, '_combat_orchestrator') and self._combat_orchestrator:
+                try:
+                    self._combat_orchestrator.set_combat_manager(None)
+                except Exception:
+                    pass
+                self._combat_orchestrator.clear_queue_and_reset_flags()
+                # Explicitly clear Combat Log UI to avoid any stale content from prior session
+                try:
+                    from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+                    clear_event = DisplayEvent(
+                        type=DisplayEventType.COMBAT_LOG_SET_HTML,
+                        content="",
+                        role='system',
+                        target_display=DisplayTarget.COMBAT_LOG,
+                        gradual_visual_display=False,
+                        tts_eligible=False,
+                        source_step='NEW_GAME_RESET'
+                    )
+                    self._combat_orchestrator.add_event_to_queue(clear_event)
+                except Exception:
+                    pass
+            # Clear NPCSystem memory so name-based lookups (e.g., 'wolf_1') do not reuse stale NPCs from previous session
+            try:
+                if hasattr(self, '_npc_system') and self._npc_system:
+                    self._npc_system.clear_all_npcs()
+                    logger.info("NPCSystem cleared for new game session.")
+            except Exception as npce:
+                logger.warning(f"Failed to clear NPCSystem for new game: {npce}")
+        except Exception as e:
+            logger.warning(f"Error resetting orchestrator/flags before new game: {e}")
+
         # Create new game state - this will be passed to lifecycle.start_new_game
         # We don't want to create a new one there as well
         game_state = self._state_manager.create_new_game(

@@ -80,6 +80,26 @@ class CombatOutputOrchestrator(QObject):
 
     def add_event_to_queue(self, event: DisplayEvent):
         """Adds a DisplayEvent to the processing queue."""
+        # Guard against stale rehydrate events crossing session boundaries
+        try:
+            engine = self.engine_ref() if self.engine_ref else None
+            if engine and getattr(event, 'source_step', None) == 'REHYDRATE_FROM_SAVE':
+                # Accept only if session_id matches current state's session
+                expected = None
+                try:
+                    meta = getattr(event, 'metadata', None) or {}
+                    expected = meta.get('session_id')
+                except Exception:
+                    expected = None
+                curr_state = getattr(engine, '_state_manager', None).current_state if engine and hasattr(engine, '_state_manager') else None
+                curr_sess = getattr(curr_state, 'session_id', None) if curr_state else None
+                if expected is not None and curr_sess is not None and expected != curr_sess:
+                    logger.info("Dropping stale REHYDRATE_FROM_SAVE event due to session_id mismatch.")
+                    return
+        except Exception:
+            # Non-fatal: if guard fails, proceed to enqueue (better to over-show than crash)
+            pass
+
         self.event_queue.append(event)
         logger.debug(f"Event added to queue: {event}. Queue size: {len(self.event_queue)}")
         if not self.is_processing_event and not self.inter_step_delay_timer.isActive():
@@ -111,6 +131,25 @@ class CombatOutputOrchestrator(QObject):
 
         # --- ECFA Fix: Use a local variable for the event being processed ---
         event_being_processed = self.event_queue.popleft()
+        # Guard again at processing time against stale rehydrate events that were enqueued before a session change
+        try:
+            engine = self.engine_ref() if self.engine_ref else None
+            if engine and getattr(event_being_processed, 'source_step', None) == 'REHYDRATE_FROM_SAVE':
+                meta = getattr(event_being_processed, 'metadata', None) or {}
+                expected = meta.get('session_id')
+                curr_state = getattr(engine, '_state_manager', None).current_state if engine and hasattr(engine, '_state_manager') else None
+                curr_sess = getattr(curr_state, 'session_id', None) if curr_state else None
+                if expected is not None and curr_sess is not None and expected != curr_sess:
+                    logger.info("Skipping processing of stale REHYDRATE_FROM_SAVE event due to session_id mismatch.")
+                    # Immediately move on to next event
+                    self.is_processing_event = False
+                    self.current_event_id_for_signals = None
+                    # Recurse to process next event quickly
+                    self._process_next_event_from_queue()
+                    return
+        except Exception:
+            pass
+
         self.current_event_id_for_signals = event_being_processed.event_id # Store ID for slots to check
         # Track the current event object for timing decisions later
         self.current_event = event_being_processed

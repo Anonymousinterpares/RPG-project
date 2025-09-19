@@ -534,7 +534,7 @@
     "TEST_Q02": {
       "id": "TEST_Q02",
       "title": "Q02 – Defeat the Test Wolf",
-      "description": "Defeat the test_wolf_alpha.",
+      "description": "Defeat the wolf",
       "giver_id": "test_proctor",
       "level": 1,
       "objectives": [
@@ -552,7 +552,7 @@
       "rewards": {
         "xp": 0,
         "gold": 0,
-        "items": []
+        "items": "[]"
       },
       "prerequisites": []
     },

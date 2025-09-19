@@ -1687,6 +1687,48 @@ class MainWindow(QMainWindow):
         
         logger.info(f"Starting new game with resolved data: Name={player_name}, Race={race}, Path={path}, OriginID={origin_id}, Sex={sex}, LLM={use_llm}, Stats={custom_stats is not None}")
 
+        # Pre-clear any previous session UI and orchestrator state if starting a new game during an ongoing session
+        try:
+            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator:
+                # Detach any existing CombatManager and clear queued events
+                try:
+                    self.game_engine._combat_orchestrator.set_combat_manager(None)
+                except Exception:
+                    pass
+                self.game_engine._combat_orchestrator.clear_queue_and_reset_flags()
+        except Exception as e:
+            logger.warning(f"Failed to clear orchestrator state before starting new game: {e}")
+        # Ensure any lingering closing-narrative wait flag is reset
+        try:
+            if hasattr(self.game_engine, '_waiting_for_closing_narrative_display'):
+                self.game_engine._waiting_for_closing_narrative_display = False
+        except Exception:
+            pass
+        # Clear visible outputs to avoid mixing old content
+        try:
+            self.game_output.clear()
+        except Exception as e:
+            logger.warning(f"Failed to clear GameOutputWidget before starting new game: {e}")
+        try:
+            self.combat_display.clear_display()
+        except Exception as e:
+            logger.warning(f"Failed to clear CombatDisplay before starting new game: {e}")
+        # Clear right panel widgets to avoid stale state
+        try:
+            if hasattr(self.right_panel, 'journal_panel'):
+                self.right_panel.journal_panel.clear_all()
+            if hasattr(self.right_panel, 'inventory_panel') and hasattr(self.right_panel.inventory_panel, 'clear'):
+                try:
+                    self.right_panel.inventory_panel.clear()
+                except Exception:
+                    pass
+            if hasattr(self.right_panel, 'character_sheet') and hasattr(self.right_panel.character_sheet, '_clear_stat_displays'):
+                self.right_panel.character_sheet._clear_stat_displays()
+        except Exception as e:
+            logger.warning(f"Failed to clear right panel widgets before starting new game: {e}")
+        # Reset last submitted command tracking
+        self._last_submitted_command = None
+
         self.game_engine.start_new_game(
             player_name=player_name, 
             race=race, 
