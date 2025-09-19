@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (
     QPushButton, QHBoxLayout, QTabWidget, QWidget,
     QCheckBox, QComboBox, QSpinBox, QFileDialog
 )
+import os
+from utils.file_manager import get_config_dir, load_json, save_json
 
 from ui.dialogs.base_dialog import BaseDialog
 
@@ -153,6 +155,27 @@ class SettingsDialog(BaseDialog):
         llm_layout.addLayout(self._form_row("Model:", self.model_combo))
         llm_layout.addLayout(self._form_row("API Key:", self.api_key_edit))
         llm_layout.addStretch()
+
+        # NPC Generation tab (Developer)
+        self.npc_tab = QWidget()
+        self.tab_widget.addTab(self.npc_tab, "NPC Generation")
+        npc_layout = QVBoxLayout(self.npc_tab)
+
+        # Mode
+        self.npc_mode_combo = QComboBox()
+        self.npc_mode_combo.addItems(["families", "legacy"])  # order: prefer new system
+        npc_layout.addLayout(self._form_row("Generation Mode:", self.npc_mode_combo))
+
+        # Difficulty and Encounter options populated from generation_rules.json
+        self.npc_difficulty_combo = QComboBox()
+        self.npc_encounter_combo = QComboBox()
+        self._populate_generation_options()
+        npc_layout.addLayout(self._form_row("Default Difficulty:", self.npc_difficulty_combo))
+        npc_layout.addLayout(self._form_row("Default Encounter Size:", self.npc_encounter_combo))
+        npc_layout.addStretch()
+
+        # Initialize values from game/system config
+        self._load_npc_generation_settings()
         
         # Buttons
         buttons = QHBoxLayout()
@@ -175,6 +198,51 @@ class SettingsDialog(BaseDialog):
         row.addWidget(QLabel(label))
         row.addWidget(widget)
         return row
+    
+    def _populate_generation_options(self) -> None:
+        """Load difficulty and encounter keys from npc/generation_rules.json."""
+        try:
+            cfg_dir = get_config_dir()
+            rules_path = os.path.join(cfg_dir, "npc", "generation_rules.json")
+            rules = load_json(rules_path) or {}
+            scaling = rules.get("scaling", {}) or {}
+            diffs = list((scaling.get("difficulty", {}) or {}).keys())
+            encs = list((scaling.get("encounter_size", {}) or {}).keys())
+            # Reasonable defaults if empty
+            if not diffs:
+                diffs = ["story", "normal", "hard", "expert"]
+            if not encs:
+                encs = ["solo", "pack", "mixed"]
+            self.npc_difficulty_combo.clear(); self.npc_difficulty_combo.addItems(diffs)
+            self.npc_encounter_combo.clear(); self.npc_encounter_combo.addItems(encs)
+        except Exception as e:
+            logger.warning(f"Failed to load generation rules options: {e}")
+            self.npc_difficulty_combo.clear(); self.npc_difficulty_combo.addItems(["normal"])
+            self.npc_encounter_combo.clear(); self.npc_encounter_combo.addItems(["solo"])    
+    
+    def _load_npc_generation_settings(self) -> None:
+        """Initialize UI from system_config.json and game_config.json."""
+        try:
+            cfg_dir = get_config_dir()
+            # system
+            sys_path = os.path.join(cfg_dir, "system_config.json")
+            sys_data = load_json(sys_path) or {}
+            mode = (sys_data.get("npc_generation_mode") or "legacy")
+            if mode not in ["families", "legacy"]:
+                mode = "legacy"
+            self.npc_mode_combo.setCurrentText(mode)
+            # game
+            game_path = os.path.join(cfg_dir, "game_config.json")
+            game_data = load_json(game_path) or {}
+            diff = (game_data.get("difficulty") or "normal")
+            enc = (game_data.get("encounter_size") or "solo")
+            # If values not in options, leave current selection
+            if self.npc_difficulty_combo.findText(diff) >= 0:
+                self.npc_difficulty_combo.setCurrentText(diff)
+            if self.npc_encounter_combo.findText(enc) >= 0:
+                self.npc_encounter_combo.setCurrentText(enc)
+        except Exception as e:
+            logger.warning(f"Failed to load NPC generation settings: {e}")
     
     def _browse_game_path(self):
         """Open file dialog to select the game path."""
@@ -212,6 +280,24 @@ class SettingsDialog(BaseDialog):
             provider_keys=provider_keys,
         )
         save_llm_settings(s)
+
+        # Persist NPC generation settings to game/system config
+        try:
+            cfg_dir = get_config_dir()
+            # system_config.json
+            sys_path = os.path.join(cfg_dir, "system_config.json")
+            sys_data = load_json(sys_path) or {}
+            sys_data["npc_generation_mode"] = self.npc_mode_combo.currentText()
+            save_json(sys_data, sys_path)
+            # game_config.json
+            game_path = os.path.join(cfg_dir, "game_config.json")
+            game_data = load_json(game_path) or {}
+            game_data["difficulty"] = self.npc_difficulty_combo.currentText()
+            game_data["encounter_size"] = self.npc_encounter_combo.currentText()
+            save_json(game_data, game_path)
+        except Exception as e:
+            logger.error(f"Failed to save NPC generation settings: {e}")
+
         self.accept()
     
     def get_settings(self) -> dict:
