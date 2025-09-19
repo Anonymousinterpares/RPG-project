@@ -108,17 +108,71 @@ class NPCCreator:
         Returns:
             The newly created enemy NPC
         """
-        # Generate the enemy
+        # Families-mode path
+        try:
+            cfg = get_config()
+            mode = (cfg.get("system.npc_generation_mode", "legacy") or "legacy").lower()
+        except Exception:
+            mode = "legacy"
+
+        if mode == "families":
+            from core.character.npc_family_generator import NPCFamilyGenerator
+            fam_gen = NPCFamilyGenerator()
+            # Parse overlay syntax: id::overlay_id or id+boss
+            raw = enemy_type
+            overlay_id = None
+            target_id = raw
+            if isinstance(raw, str) and "::" in raw:
+                parts = raw.split("::", 1)
+                target_id, overlay_id = parts[0], parts[1] or None
+            elif isinstance(raw, str) and raw.endswith("+boss"):
+                target_id = raw[:-5]
+                overlay_id = overlay_id or "default_boss"
+
+            # Pull difficulty/encounter_size from config if available
+            try:
+                difficulty = (cfg.get("game.difficulty", "normal") or "normal")
+                encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
+            except Exception:
+                difficulty = "normal"
+                encounter_size = "solo"
+
+            # Use variant if exists, else family
+            used_variant = False
+            if callable(getattr(fam_gen, "get_variant", None)) and fam_gen.get_variant(target_id):
+                npc = fam_gen.generate_npc_from_variant(
+                    variant_id=target_id,
+                    name=name,
+                    location=location,
+                    level=level,
+                    overlay_id=overlay_id,
+                    difficulty=difficulty,
+                    encounter_size=encounter_size,
+                )
+                used_variant = True
+            else:
+                npc = fam_gen.generate_npc_from_family(
+                    family_id=target_id,
+                    name=name,
+                    location=location,
+                    level=level,
+                    overlay_id=overlay_id,
+                    difficulty=difficulty,
+                    encounter_size=encounter_size,
+                )
+            # Add to manager and return
+            self.npc_manager.add_npc(npc)
+            return npc
+
+        # Legacy path fallback
         npc = self.npc_generator.generate_enemy_npc(
             name=name,
             enemy_type=enemy_type,
             level=level,
             location=location
         )
-        
         # Add to manager
         self.npc_manager.add_npc(npc)
-        
         return npc
     
     def create_merchant(self,

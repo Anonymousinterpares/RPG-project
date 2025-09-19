@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 from typing import Any, Dict, Optional, Tuple
 
 from core.base.config import get_config
@@ -241,7 +242,7 @@ class NPCFamilyGenerator:
             raise ValueError(f"Family '{family_id}' not found")
 
         fam_name = fam.get("name", family_id.replace("_", " ").title())
-        npc_name = name or fam_name
+        npc_name = name or self._maybe_generate_name_from_culture(fam, location) or fam_name
 
         # Budgets
         # Enforce overlay allowance
@@ -370,6 +371,105 @@ class NPCFamilyGenerator:
             f"HP={desired_hp:.0f}/{max_hp:.0f} DEF~{sm.get_stat_value(DerivedStatType.DEFENSE):.0f} INIT~{sm.get_stat_value(DerivedStatType.INITIATIVE):.0f}"
         )
         return npc
+
+    # ---- Name generation helpers ----
+    def _maybe_generate_name_from_culture(self, fam: Dict[str, Any], location: Optional[str]) -> Optional[str]:
+        """Generate a culture-aware name for humanoids if possible.
+        Uses config/npc/names.json and location culture or defaults. Returns None if not applicable.
+        """
+        try:
+            if (fam.get("actor_type") or "").lower() != "humanoid":
+                return None
+            # Determine culture hint
+            culture = None
+            try:
+                loc_id = (location or "").strip()
+                if loc_id:
+                    mix = self._config.get(f"locations.{loc_id}.culture_mix") or {}
+                    if isinstance(mix, dict) and mix:
+                        culture = self._choose_from_weighted_map(mix, seed=f"name|{loc_id}|{fam.get('id','')}|{fam.get('name','')}")
+                    else:
+                        culture = self._config.get(f"locations.{loc_id}.culture")
+                if not culture:
+                    mix_def = self._config.get("location_defaults.culture_mix") or {}
+                    if isinstance(mix_def, dict) and mix_def:
+                        culture = self._choose_from_weighted_map(mix_def, seed=f"name|default|{fam.get('id','')}")
+            except Exception:
+                culture = None
+            names = self._config.get("npc_names.cultures") or {}
+            spec = names.get(culture) or names.get("generic") or {}
+            if not spec:
+                return None
+            # Build name using tokens (FN, FN2, MI, LN, LN2)
+            pats = spec.get("patterns") or ["FN LN"]
+            pattern = random.choice(pats)
+            fn = self._gen_first(spec)
+            fn2 = self._gen_first(spec)
+            if fn2 == fn:
+                for _ in range(2):
+                    alt = self._gen_first(spec)
+                    if alt != fn:
+                        fn2 = alt
+                        break
+            ln = self._gen_last(spec)
+            ln2 = self._gen_last(spec)
+            if ln2 == ln:
+                for _ in range(2):
+                    alt = self._gen_last(spec)
+                    if alt != ln:
+                        ln2 = alt
+                        break
+            mi = (fn2[0:1].upper() + ".") if fn2 else "X."
+            token_map = {"FN2": fn2, "FN": fn, "LN2": ln2, "LN": ln, "MI": mi}
+            name = re.sub(r"\b(FN2|FN|LN2|LN|MI)\b", lambda m: token_map.get(m.group(0), m.group(0)), pattern).strip()
+            name = " ".join(p for p in name.split(" ") if p)
+            allowed = spec.get("allowed_chars", "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$")
+            if not allowed.startswith("^"):
+                allowed = "^" + allowed
+            if not allowed.endswith("$"):
+                allowed = allowed + "$"
+            try:
+                if not re.fullmatch(allowed, name):
+                    name = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ' -]", "", name)
+            except re.error:
+                pass
+            return name
+        except Exception:
+            return None
+
+    def _gen_first(self, spec: Dict[str, Any]) -> str:
+        syllables = spec.get("first_syllables") or ["al","an","ar","el","ia","ro","li","ma","tha"]
+        k = 2 if random.random() < 0.75 else 3
+        parts = [random.choice(syllables) for _ in range(k)]
+        s = "".join(parts)
+        return s.capitalize()
+
+    def _gen_last(self, spec: Dict[str, Any]) -> str:
+        prefixes = spec.get("last_prefixes") or ["stone", "silver", "gold", "fair", "wood"]
+        cores = spec.get("last_cores") or ["smith", "walker", "binder", "seeker", "wright"]
+        suffixes = spec.get("last_suffixes") or ["", "son", "ton", "ford", "field"]
+        p = random.choice(prefixes) if prefixes else ""
+        c = random.choice(cores) if cores else ""
+        s = random.choice(suffixes) if suffixes else ""
+        ln = f"{p}{c}{s}" if (p or c or s) else "Name"
+        return ln[:1].upper() + ln[1:]
+
+    def _choose_from_weighted_map(self, weights: dict, seed: str) -> Optional[str]:
+        import hashlib
+        rnd = random.Random()
+        h = hashlib.md5(seed.encode("utf-8")).digest()
+        rnd.seed(int.from_bytes(h, byteorder="big", signed=False))
+        items = [(k, float(v)) for k, v in weights.items() if isinstance(v, (int, float)) and float(v) > 0]
+        if not items:
+            return None
+        total = sum(w for _, w in items)
+        pick = rnd.random() * total
+        acc = 0.0
+        for k, w in items:
+            acc += w
+            if pick <= acc:
+                return k
+        return items[-1][0] if items else None
 
     def generate_npc_from_variant(
         self,
