@@ -101,6 +101,10 @@ class ExportDialog(BaseDialog):
         self.chk_magic_systems.setChecked(True)
         self.components_layout.addWidget(self.chk_magic_systems)
 
+        self.chk_names = QCheckBox("Names")
+        self.chk_names.setChecked(True)
+        self.components_layout.addWidget(self.chk_names)
+
         layout.addWidget(components_group)
 
         # Select all/none buttons
@@ -146,6 +150,7 @@ class ExportDialog(BaseDialog):
         self.chk_origins.setChecked(True)
         self.chk_quests.setChecked(True)
         self.chk_magic_systems.setChecked(True)
+        self.chk_names.setChecked(True)
 
     def _select_none(self):
         """Deselect all components."""
@@ -161,6 +166,7 @@ class ExportDialog(BaseDialog):
         self.chk_origins.setChecked(False)
         self.chk_quests.setChecked(False)
         self.chk_magic_systems.setChecked(False)
+        self.chk_names.setChecked(False)
 
     def get_export_options(self) -> dict:
         """
@@ -180,6 +186,7 @@ class ExportDialog(BaseDialog):
             "origins": self.chk_origins.isChecked(),
             "quests": self.chk_quests.isChecked(),
             "magic_systems": self.chk_magic_systems.isChecked(),
+            "names": self.chk_names.isChecked(),
         }
         # Add item categories to options - NEW
         from ..editors.item_editor_panel import ITEM_CATEGORIES as ITEM_CATS_FOR_EXPORT_GET

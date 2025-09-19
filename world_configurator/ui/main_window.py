@@ -28,6 +28,7 @@ from .editors.history_editor import HistoryEditor
 from .editors.origin_editor import OriginEditor
 from .editors.quest_editor import QuestEditor
 from .editors.magic_systems_editor import MagicSystemsEditor
+from .editors.names_editor import NamesEditor
 from .editors.class_editor import ClassEditor
 from .editors.race_editor import RaceEditor
 # Removed BackgroundEditor import
@@ -197,6 +198,11 @@ class MainWindow(QMainWindow):
         self.magic_systems_editor.set_magic_system_manager(self.world_config.magic_system_manager)
         self.tab_widget.addTab(self.magic_systems_editor, "Magic Systems")
 
+        # Names editor (npc/names.json)
+        self.names_editor = NamesEditor()
+        self.names_editor.set_manager(self.world_config.names_manager)
+        self.tab_widget.addTab(self.names_editor, "Names")
+
         # Connect modified signals
         self.culture_editor.culture_modified.connect(self.on_data_modified)
         self.race_editor.race_modified.connect(self.on_data_modified)
@@ -208,6 +214,8 @@ class MainWindow(QMainWindow):
         self.origin_editor.origin_modified.connect(self.on_data_modified)
         self.quest_editor.quest_modified.connect(self.on_data_modified)
         self.magic_systems_editor.magic_system_modified.connect(self.on_data_modified)
+        if hasattr(self, 'names_editor'):
+            self.names_editor.names_modified.connect(self.on_data_modified)
 
         logger.debug("Editor tabs created")
     def setup_actions(self):
@@ -378,6 +386,8 @@ class MainWindow(QMainWindow):
         self.origin_editor.refresh()
         self.quest_editor.refresh()
         self.magic_systems_editor._refresh_system_list()
+        if hasattr(self, 'names_editor'):
+            self.names_editor.refresh()
 
         # Update window title
         self.update_window_title()
@@ -834,6 +844,12 @@ class MainWindow(QMainWindow):
                         json_data_str = f"File not found: {active_item_file_path}"
                 else:
                     json_data_str = "No item category selected in the Items editor."
+            elif data_type == "Names" and hasattr(self.world_config, 'names_manager') and self.world_config.names_manager:
+                try:
+                    data_dict = self.world_config.names_manager.data or {}
+                    json_data_str = json.dumps(data_dict, indent=2)
+                except Exception as e:
+                    json_data_str = f"Error reading names data: {e}"
             else:
                 return None, "No active editor or data source found for this tab."
         except Exception as e:

@@ -7,8 +7,13 @@
       "type": "city",
       "region": "Central Nexus",
       "culture_id": "concordant",
-      "culture_mix": {"concordant": 0.8, "verdant": 0.1, "crystalline": 0.05, "tempest": 0.05},
       "population": 80000,
+      "culture_mix": {
+        "concordant": 0.8,
+        "verdant": 0.1,
+        "crystalline": 0.05,
+        "tempest": 0.05
+      },
       "features": [
         {
           "name": "The Harmonic Spire",
@@ -64,8 +69,13 @@
       "type": "outpost",
       "region": "Western Nexus",
       "culture_id": "verdant",
-      "culture_mix": {"verdant": 0.8, "concordant": 0.1, "crystalline": 0.05, "tempest": 0.05},
       "population": 350,
+      "culture_mix": {
+        "verdant": 0.8,
+        "concordant": 0.1,
+        "crystalline": 0.05,
+        "tempest": 0.05
+      },
       "features": [
         {
           "name": "The Living Council Chamber",
@@ -112,8 +122,13 @@
       "type": "outpost",
       "region": "Eastern Nexus",
       "culture_id": "crystalline",
-      "culture_mix": {"crystalline": 0.8, "concordant": 0.1, "verdant": 0.05, "tempest": 0.05},
       "population": 275,
+      "culture_mix": {
+        "crystalline": 0.8,
+        "concordant": 0.1,
+        "verdant": 0.05,
+        "tempest": 0.05
+      },
       "features": [
         {
           "name": "The Calculation Chamber",
@@ -160,8 +175,12 @@
       "type": "forest",
       "region": "Northwestern Nexus",
       "culture_id": "",
-      "culture_mix": {"verdant": 0.6, "concordant": 0.2, "ashen": 0.2},
       "population": 0,
+      "culture_mix": {
+        "verdant": 0.6,
+        "concordant": 0.2,
+        "ashen": 0.2
+      },
       "features": [
         {
           "name": "The Whispering Grove",
@@ -207,8 +226,12 @@
       "type": "settlement",
       "region": "Northern Nexus",
       "culture_id": "ashen",
-      "culture_mix": {"ashen": 0.8, "concordant": 0.1, "verdant": 0.1},
       "population": 120,
+      "culture_mix": {
+        "ashen": 0.8,
+        "concordant": 0.1,
+        "verdant": 0.1
+      },
       "features": [
         {
           "name": "The Ancestor Fire",
@@ -255,8 +278,12 @@
       "type": "harbor",
       "region": "Southern Nexus",
       "culture_id": "tempest",
-      "culture_mix": {"tempest": 0.8, "concordant": 0.1, "verdant": 0.1},
       "population": 800,
+      "culture_mix": {
+        "tempest": 0.8,
+        "concordant": 0.1,
+        "verdant": 0.1
+      },
       "features": [
         {
           "name": "The Flux Market",
@@ -305,6 +332,7 @@
       "region": "Planar Overlap",
       "culture_id": "",
       "population": 20,
+      "culture_mix": {},
       "features": [
         {
           "name": "The Lexicant Hall",
@@ -351,6 +379,7 @@
       "region": "Planar Border",
       "culture_id": "",
       "population": 50,
+      "culture_mix": {},
       "features": [
         {
           "name": "Reality Fault",
@@ -397,6 +426,7 @@
       "region": "Variable",
       "culture_id": "",
       "population": 0,
+      "culture_mix": {},
       "features": [
         {
           "name": "The Contract Circle",
@@ -434,6 +464,7 @@
       "region": "Dev",
       "culture_id": "concordant",
       "population": 0,
+      "culture_mix": {},
       "features": [],
       "connections": [],
       "npcs": []

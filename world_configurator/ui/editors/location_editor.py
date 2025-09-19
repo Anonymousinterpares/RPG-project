@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
-    QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox
+    QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox, QDoubleSpinBox
 )
 
 from models.base_models import Location, LocationConnection, LocationFeature
@@ -390,6 +390,71 @@ class LocationEditor(QWidget):
         
         self.details_layout.addLayout(connections_buttons)
         
+        # Culture Mix Override Section
+        cm_label = QLabel("Culture Mix (Override for this Location)")
+        cm_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(cm_label)
+        
+        cm_controls = QHBoxLayout()
+        self.cm_culture_combo = QComboBox()
+        self.cm_weight_spin = QDoubleSpinBox()
+        self.cm_weight_spin.setRange(0.0, 1.0)
+        self.cm_weight_spin.setSingleStep(0.05)
+        self.cm_add_btn = QPushButton("Add/Update")
+        self.cm_add_btn.clicked.connect(self._cm_add_update)
+        cm_controls.addWidget(QLabel("Culture:"))
+        cm_controls.addWidget(self.cm_culture_combo)
+        cm_controls.addWidget(QLabel("Weight:"))
+        cm_controls.addWidget(self.cm_weight_spin)
+        cm_controls.addWidget(self.cm_add_btn)
+        self.details_layout.addLayout(cm_controls)
+        
+        self.cm_list = QListWidget()
+        self.cm_list.setMinimumHeight(100)
+        self.details_layout.addWidget(self.cm_list)
+        cm_buttons = QHBoxLayout()
+        self.cm_remove_btn = QPushButton("Remove")
+        self.cm_remove_btn.clicked.connect(self._cm_remove)
+        self.cm_clear_btn = QPushButton("Clear Override")
+        self.cm_clear_btn.clicked.connect(self._cm_clear)
+        cm_buttons.addWidget(self.cm_remove_btn)
+        cm_buttons.addWidget(self.cm_clear_btn)
+        self.details_layout.addLayout(cm_buttons)
+        
+        # Global Culture Mix Defaults Section
+        gcm_label = QLabel("Global Culture Mix Defaults")
+        gcm_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.details_layout.addWidget(gcm_label)
+        
+        gcm_controls = QHBoxLayout()
+        self.gcm_culture_edit = QLineEdit()
+        self.gcm_culture_edit.setPlaceholderText("culture id (e.g., concordant)")
+        self.gcm_weight_spin = QDoubleSpinBox()
+        self.gcm_weight_spin.setRange(0.0, 1.0)
+        self.gcm_weight_spin.setSingleStep(0.05)
+        self.gcm_add_btn = QPushButton("Add/Update Default")
+        self.gcm_add_btn.clicked.connect(self._gcm_add_update)
+        gcm_controls.addWidget(self.gcm_culture_edit)
+        gcm_controls.addWidget(QLabel("Weight:"))
+        gcm_controls.addWidget(self.gcm_weight_spin)
+        gcm_controls.addWidget(self.gcm_add_btn)
+        self.details_layout.addLayout(gcm_controls)
+        
+        self.gcm_list = QListWidget()
+        self.gcm_list.setMinimumHeight(100)
+        self.details_layout.addWidget(self.gcm_list)
+        gcm_buttons = QHBoxLayout()
+        self.gcm_remove_btn = QPushButton("Remove Default")
+        self.gcm_remove_btn.clicked.connect(self._gcm_remove)
+        self.gcm_load_btn = QPushButton("Load Defaults File")
+        self.gcm_load_btn.clicked.connect(self._gcm_load)
+        self.gcm_save_btn = QPushButton("Save Defaults File")
+        self.gcm_save_btn.clicked.connect(self._gcm_save)
+        gcm_buttons.addWidget(self.gcm_remove_btn)
+        gcm_buttons.addWidget(self.gcm_load_btn)
+        gcm_buttons.addWidget(self.gcm_save_btn)
+        self.details_layout.addLayout(gcm_buttons)
+        
         # Save button
         save_layout = QHBoxLayout()
         save_layout.addStretch()
@@ -423,6 +488,12 @@ class LocationEditor(QWidget):
         self.culture_manager = culture_manager
         self._refresh_location_list()
         self._populate_culture_combo()
+        # Populate culture combo for culture mix editor
+        self.cm_culture_combo.clear()
+        for culture_id, culture in self.culture_manager.cultures.items():
+            self.cm_culture_combo.addItem(culture.name, culture_id)
+        # Load global defaults
+        self._gcm_load()
     
     def _populate_culture_combo(self) -> None:
         """Populate the culture combo box from the culture manager."""
@@ -558,6 +629,8 @@ class LocationEditor(QWidget):
                 item.setData(Qt.UserRole, connection)
                 self.connections_list.addItem(item)
             
+            # Load culture mix override
+            self._cm_refresh_list()
             # Enable controls
             self._enable_details()
             self.save_btn.setEnabled(False)  # Initially not modified
@@ -657,6 +730,8 @@ class LocationEditor(QWidget):
             connection = item.data(Qt.UserRole)
             self.current_location.connections.append(connection)
         
+        # Save culture mix from UI to model
+        self._cm_save_from_list()
         # Update location in manager
         self.location_manager.add_location(self.current_location)
         
@@ -858,6 +933,58 @@ class LocationEditor(QWidget):
         # Log
         logger.debug(f"Removed feature: {feature.name}")
     
+    def _cm_refresh_list(self) -> None:
+        self.cm_list.clear()
+        if not self.current_location:
+            return
+        mix = getattr(self.current_location, 'culture_mix', {}) or {}
+        for cid, weight in mix.items():
+            item = QListWidgetItem(f"{cid}: {weight:.2f}")
+            item.setData(Qt.UserRole, (cid, weight))
+            self.cm_list.addItem(item)
+    
+    def _cm_add_update(self) -> None:
+        if not self.current_location:
+            return
+        cid = self.cm_culture_combo.currentData()
+        weight = float(self.cm_weight_spin.value())
+        # Update or add in the list
+        # Find existing
+        found_row = -1
+        for i in range(self.cm_list.count()):
+            c, _ = self.cm_list.item(i).data(Qt.UserRole)
+            if c == cid:
+                found_row = i
+                break
+        item_text = f"{cid}: {weight:.2f}"
+        if found_row >= 0:
+            self.cm_list.item(found_row).setText(item_text)
+            self.cm_list.item(found_row).setData(Qt.UserRole, (cid, weight))
+        else:
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.UserRole, (cid, weight))
+            self.cm_list.addItem(item)
+        self.save_btn.setEnabled(True)
+    
+    def _cm_remove(self) -> None:
+        row = self.cm_list.currentRow()
+        if row >= 0:
+            self.cm_list.takeItem(row)
+            self.save_btn.setEnabled(True)
+    
+    def _cm_clear(self) -> None:
+        self.cm_list.clear()
+        self.save_btn.setEnabled(True)
+    
+    def _cm_save_from_list(self) -> None:
+        if not self.current_location:
+            return
+        mix: Dict[str, float] = {}
+        for i in range(self.cm_list.count()):
+            cid, weight = self.cm_list.item(i).data(Qt.UserRole)
+            mix[cid] = float(weight)
+        self.current_location.culture_mix = mix
+    
     def _get_available_locations(self) -> Dict[str, str]:
         """Get a dictionary of available target locations."""
         locations = {}
@@ -957,6 +1084,60 @@ class LocationEditor(QWidget):
             
             # Log
             logger.debug(f"Edited connection to: {target_name}")
+    
+    def _gcm_load(self) -> None:
+        # Load defaults from config/world/locations/defaults.json
+        from utils.file_manager import get_world_config_dir, load_json, save_json
+        try:
+            path = os.path.join(get_world_config_dir(), "locations", "defaults.json")
+            data = load_json(path) or {}
+            mix = (data.get("culture_mix") or {})
+            self.gcm_list.clear()
+            for cid, weight in mix.items():
+                item = QListWidgetItem(f"{cid}: {float(weight):.2f}")
+                item.setData(Qt.UserRole, (cid, float(weight)))
+                self.gcm_list.addItem(item)
+        except Exception:
+            self.gcm_list.clear()
+    
+    def _gcm_save(self) -> None:
+        from utils.file_manager import get_world_config_dir, save_json
+        path = os.path.join(get_world_config_dir(), "locations", "defaults.json")
+        mix: Dict[str, float] = {}
+        for i in range(self.gcm_list.count()):
+            cid, weight = self.gcm_list.item(i).data(Qt.UserRole)
+            mix[cid] = float(weight)
+        data = {"culture_mix": mix, "metadata": {"version": "1.0.0", "description": "Default cultural mixture"}}
+        if save_json(data, path):
+            QMessageBox.information(self, "Saved", "Global culture mix defaults saved.")
+        else:
+            QMessageBox.critical(self, "Error", "Failed to save culture mix defaults.")
+    
+    def _gcm_add_update(self) -> None:
+        cid = self.gcm_culture_edit.text().strip()
+        weight = float(self.gcm_weight_spin.value())
+        if not cid:
+            return
+        # Update or add
+        found = -1
+        for i in range(self.gcm_list.count()):
+            c, _ = self.gcm_list.item(i).data(Qt.UserRole)
+            if c == cid:
+                found = i
+                break
+        item_text = f"{cid}: {weight:.2f}"
+        if found >= 0:
+            self.gcm_list.item(found).setText(item_text)
+            self.gcm_list.item(found).setData(Qt.UserRole, (cid, weight))
+        else:
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.UserRole, (cid, weight))
+            self.gcm_list.addItem(item)
+    
+    def _gcm_remove(self) -> None:
+        row = self.gcm_list.currentRow()
+        if row >= 0:
+            self.gcm_list.takeItem(row)
     
     def _remove_connection(self) -> None:
         """Remove the selected location connection."""

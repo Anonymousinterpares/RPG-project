@@ -171,6 +171,7 @@ class Location(BaseModel):
     region: str = ""
     culture_id: str = ""
     population: int = 0
+    culture_mix: Dict[str, float] = field(default_factory=dict)
     features: List[LocationFeature] = field(default_factory=list)
     connections: List[LocationConnection] = field(default_factory=list)
     npcs: List[str] = field(default_factory=list)  # IDs of important NPCs

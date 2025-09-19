@@ -1,52 +1,321 @@
 {
   "cultures": {
     "generic": {
-      "patterns": ["FN LN"],
-      "first_syllables": ["al","an","ar","el","ia","ro","li","ma","tha","dor","gal","vin","mi"],
-      "last_prefixes": ["", "bel", "wood", "stone", "fair", "silver", "gold"],
-      "last_cores": ["river", "brook", "storm", "light", "helm", "wright", "smith", "walker", "binder", "seeker"],
-      "last_suffixes": ["son", "ton", "ford", "field", "ward", "shire", "mont"],
-      "allowed_chars": "^[A-Za-z' -]+$"
+      "patterns": [
+        "FN LN",
+        "FN MI LN",
+        "FN LN-LN2",
+        "FN FN2 LN"
+      ],
+      "first_syllables": [
+        "al",
+        "an",
+        "ar",
+        "el",
+        "ia",
+        "ro",
+        "li",
+        "ma",
+        "tha",
+        "dor",
+        "gal",
+        "vin",
+        "mi",
+        "ál",
+        "éla",
+        "íra",
+        "óth",
+        "úri",
+        "åke",
+        "æla",
+        "öri",
+        "ça",
+        "ñor"
+      ],
+      "last_prefixes": [
+        "bel",
+        "wood",
+        "stone",
+        "fair",
+        "silver",
+        "gold"
+      ],
+      "last_cores": [
+        "river",
+        "brook",
+        "storm",
+        "light",
+        "helm",
+        "wright",
+        "smith",
+        "walker",
+        "binder",
+        "seeker",
+        "björn",
+        "gård",
+        "ström"
+      ],
+      "last_suffixes": [
+        "son",
+        "ton",
+        "ford",
+        "field",
+        "ward",
+        "shire",
+        "mont",
+        "sson",
+        "sen",
+        "dóttir"
+      ],
+      "allowed_chars": "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"
     },
     "concordant": {
-      "patterns": ["FN LN"],
-      "first_syllables": ["ha","ri","mo","ni","ev","ca","le","sa","ta","ver","na","ra"],
-      "last_prefixes": ["har","con","lyr","mel","ver"],
-      "last_cores": ["trace","tone","clar","song","weave","lore"],
-      "last_suffixes": ["son","en","al","ir","is"],
-      "allowed_chars": "^[A-Za-z' -]+$"
+      "patterns": [
+        "FN LN",
+        "FN MI LN",
+        "FN FN2 LN",
+        "FN LN-LN2"
+      ],
+      "first_syllables": [
+        "ha",
+        "ri",
+        "mo",
+        "ni",
+        "ev",
+        "ca",
+        "le",
+        "sa",
+        "ta",
+        "ver",
+        "na",
+        "ra",
+        "éla",
+        "mé",
+        "lé",
+        "ré",
+        "ïa",
+        "ôl",
+        "çel",
+        "ña"
+      ],
+      "last_prefixes": [
+        "har",
+        "con",
+        "lyr",
+        "mel",
+        "ver",
+        "ré",
+        "clar",
+        "son"
+      ],
+      "last_cores": [
+        "trace",
+        "tone",
+        "clar",
+        "song",
+        "weave",
+        "lore",
+        "réson",
+        "mélod",
+        "claré"
+      ],
+      "last_suffixes": [
+        "son",
+        "en",
+        "al",
+        "ir",
+        "is",
+        "é",
+        "ón"
+      ],
+      "allowed_chars": "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"
     },
     "verdant": {
-      "patterns": ["FN LN"],
-      "first_syllables": ["ver","da","sy","li","mo","fi","gre","thy","al"],
-      "last_prefixes": ["leaf","bloom","root","moss","fern"],
-      "last_cores": ["runner","weaver","keeper","singer","tender"],
-      "last_suffixes": ["", "son", "is"],
-      "allowed_chars": "^[A-Za-z' -]+$"
+      "patterns": [
+        "FN LN",
+        "FN MI LN",
+        "FN LN-LN2"
+      ],
+      "first_syllables": [
+        "ver",
+        "da",
+        "sy",
+        "li",
+        "mo",
+        "fi",
+        "gre",
+        "thy",
+        "al",
+        "faë",
+        "brí",
+        "mór",
+        "séa",
+        "lö",
+        "grün",
+        "ár"
+      ],
+      "last_prefixes": [
+        "leaf",
+        "bloom",
+        "root",
+        "moss",
+        "fern",
+        "grove",
+        "green"
+      ],
+      "last_cores": [
+        "runner",
+        "weaver",
+        "keeper",
+        "singer",
+        "tender",
+        "brière",
+        "bríar",
+        "flöwer"
+      ],
+      "last_suffixes": [
+        "son",
+        "is",
+        "ár"
+      ],
+      "allowed_chars": "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"
     },
     "crystalline": {
-      "patterns": ["FN LN"],
-      "first_syllables": ["crys","lin","ka","the","cal","ra","ge"],
-      "last_prefixes": ["facet","angle","prism","ray","grid"],
-      "last_cores": ["binder","mind","field","trace","solve"],
-      "last_suffixes": ["", "en", "is"],
-      "allowed_chars": "^[A-Za-z' -]+$"
+      "patterns": [
+        "FN LN",
+        "FN MI LN",
+        "FN LN-LN2"
+      ],
+      "first_syllables": [
+        "crys",
+        "lin",
+        "ka",
+        "the",
+        "cal",
+        "ra",
+        "ge",
+        "crÿs",
+        "gé",
+        "áx",
+        "öx"
+      ],
+      "last_prefixes": [
+        "facet",
+        "angle",
+        "prism",
+        "ray",
+        "grid",
+        "crystal",
+        "shard"
+      ],
+      "last_cores": [
+        "binder",
+        "mind",
+        "field",
+        "trace",
+        "solve",
+        "géode",
+        "ôptic",
+        "lÿte"
+      ],
+      "last_suffixes": [
+        "en",
+        "is",
+        "é"
+      ],
+      "allowed_chars": "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"
     },
     "ashen": {
-      "patterns": ["FN LN"],
-      "first_syllables": ["ash","ka","mor","na","ser","vel","thol"],
-      "last_prefixes": ["ember","dust","cinder","urn","shade"],
-      "last_cores": ["keeper","walker","binder","vow","song"],
-      "last_suffixes": ["", "son", "ir"],
-      "allowed_chars": "^[A-Za-z' -]+$"
+      "patterns": [
+        "FN LN",
+        "FN MI LN",
+        "FN LN-LN2"
+      ],
+      "first_syllables": [
+        "ash",
+        "ka",
+        "mor",
+        "na",
+        "ser",
+        "vel",
+        "thol",
+        "mór",
+        "sé",
+        "ál",
+        "drá",
+        "vël"
+      ],
+      "last_prefixes": [
+        "ember",
+        "dust",
+        "cinder",
+        "urn",
+        "shade",
+        "sable",
+        "smoke"
+      ],
+      "last_cores": [
+        "keeper",
+        "walker",
+        "binder",
+        "vow",
+        "song",
+        "séar",
+        "mórn",
+        "cóal"
+      ],
+      "last_suffixes": [
+        "son",
+        "ir",
+        "ár"
+      ],
+      "allowed_chars": "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"
     },
     "tempest": {
-      "patterns": ["FN LN"],
-      "first_syllables": ["tem","ves","zar","kai","lin","ar","nor"],
-      "last_prefixes": ["storm","gale","wake","sail","mast"],
-      "last_cores": ["runner","breaker","caller","born","turn"],
-      "last_suffixes": ["", "son", "er"],
-      "allowed_chars": "^[A-Za-z' -]+$"
+      "patterns": [
+        "FN LN",
+        "FN MI LN",
+        "FN LN-LN2"
+      ],
+      "first_syllables": [
+        "tem",
+        "ves",
+        "zar",
+        "kai",
+        "lin",
+        "ar",
+        "nor",
+        "sé",
+        "rá",
+        "mór",
+        "áe",
+        "ödr"
+      ],
+      "last_prefixes": [
+        "storm",
+        "gale",
+        "wake",
+        "sail",
+        "mast",
+        "squall",
+        "tide"
+      ],
+      "last_cores": [
+        "runner",
+        "breaker",
+        "caller",
+        "born",
+        "turn",
+        "fûri",
+        "brisé",
+        "róar"
+      ],
+      "last_suffixes": [
+        "son",
+        "er",
+        "ón"
+      ],
+      "allowed_chars": "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"
     }
   },
   "metadata": {
@@ -54,4 +323,3 @@
     "description": "Culture-aware name generation guidance for LLM and deterministic generator."
   }
 }
-
