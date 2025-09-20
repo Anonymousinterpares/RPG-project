@@ -551,10 +551,16 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        if not is_ui_generated_command:
-            self.game_output.append_player_message(command)
-        else:
-            logger.info(f"UI-generated command '{command}' will not be echoed in GameOutputWidget.")
+        # Echo player input only in narrative mode; suppress in combat mode
+        try:
+            state = self.game_engine.state_manager.current_state
+            if not is_ui_generated_command and (not state or state.current_mode != InteractionMode.COMBAT):
+                self.game_output.append_player_message(command)
+            else:
+                logger.info("Suppressing player echo in GameOutputWidget (combat mode or UI-generated command).")
+        except Exception:
+            if not is_ui_generated_command:
+                self.game_output.append_player_message(command)
             
         self._last_submitted_command = command # Still store it to prevent potential echoes from engine if it's re-output
         
@@ -657,6 +663,14 @@ class MainWindow(QMainWindow):
             logger.info(f"LIFECYCLE_DEBUG: Routing GM message to game_output.append_gm_message with gradual=True")
             self.game_output.append_gm_message(content, gradual=True) # Allow GM narrative to be gradual
         elif role == "player":
+            # Do not echo player messages to narrative output while in COMBAT
+            try:
+                state = self.game_engine.state_manager.current_state
+                if state and state.current_mode == InteractionMode.COMBAT:
+                    logger.info("Skipping player role output to GameOutputWidget because we're in COMBAT mode.")
+                    return
+            except Exception:
+                pass
             # This path should be rare now, as player input is directly echoed then processed.
             # This will only catch player output if it's *not* the last submitted command.
             self.game_output.append_player_message(content, gradual=False)

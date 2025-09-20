@@ -587,7 +587,8 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
         return current_result_detail
 
     try:
-        flee_dc, situational_modifier, modifier_reasons = _determine_flee_parameters(manager, performer)
+        # Pass the actual GameState rather than CombatManager to parameter determination
+        flee_dc, situational_modifier, modifier_reasons = _determine_flee_parameters(engine._state_manager.current_state, performer)
 
         check_result = performer_stats_manager.perform_skill_check(
             stat_type=StatType.DEXTERITY, 

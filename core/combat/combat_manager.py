@@ -1345,6 +1345,33 @@ class CombatManager:
                             normalized_skill = normalize_action_type(skill_name)
                             combat_action_type = action_type_map.get(normalized_skill, ActionType.OTHER)
                         
+                        # Bridge: infer FLEE or SURRENDER from intent/context even if LLM didn't return ideal request
+                        intent_lower = (self._current_intent or "").lower()
+                        context_lower = str(action_request.get("context", "")).lower()
+                        # Detect surrender intent and convert to mode transition immediately
+                        if any(tok in intent_lower for tok in ["surrender", "yield", "give up"]) or any(tok in context_lower for tok in ["surrender", "yield", "give up"]):
+                            from core.game_flow.mode_transitions import _handle_transition_request
+                            req = {
+                                "action": "request_mode_transition",
+                                "target_mode": "NARRATIVE",
+                                "origin_mode": "COMBAT",
+                                "reason": "surrender",
+                                "additional_context": {"original_intent": self._current_intent, "narrative_context": agent_output.get("narrative", "")},
+                            }
+                            _handle_transition_request(engine, game_state, req, player_entity.id)
+                            if game_state.current_mode != InteractionMode.COMBAT:
+                                self.current_step = CombatStep.ENDING_COMBAT
+                            else:
+                                self.current_step = CombatStep.APPLYING_STATUS_EFFECTS
+                            # Already handled as transition path
+                            self.waiting_for_display_completion = True
+                            return
+                        # Detect flee intent and convert to FleeAction mechanics
+                        if combat_action_type == ActionType.OTHER:
+                            flee_tokens = ["flee", "escape", "run", "retreat", "disengage"]
+                            if any(tok in intent_lower for tok in flee_tokens) or any(tok in context_lower for tok in flee_tokens) or (skill_name and normalize_action_type(skill_name) in ["ATHLETICS", "ACROBATICS"] and any(tok in intent_lower for tok in flee_tokens)):
+                                combat_action_type = ActionType.FLEE
+                        
                         target_internal_id = None
                         target_combat_name_req = action_request.get("target_actor_id")
                         if target_combat_name_req:
@@ -1358,7 +1385,7 @@ class CombatManager:
                             self._pending_action = SpellAction(performer_id=player_id, spell_name=normalized_skill_for_action_name, target_ids=[target_internal_id] if target_internal_id else [], cost_mp=float(action_request.get("cost_mp", 5.0)), dice_notation=action_request.get("dice_notation", "1d8"))
                         elif combat_action_type == ActionType.DEFEND:
                             self._pending_action = DefendAction(performer_id=player_id)
-                        elif combat_action_type == ActionType.FLEE: # Explicit FleeAction if CombatNarrator suggests it
+                        elif combat_action_type == ActionType.FLEE: # Explicit or inferred FleeAction
                             self._pending_action = FleeAction(performer_id=player_id)
                         elif combat_action_type == ActionType.ITEM:
                             item_name_from_skill = skill_name 

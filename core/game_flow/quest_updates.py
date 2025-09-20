@@ -7,6 +7,8 @@ from __future__ import annotations
 from typing import Dict, Any, Tuple, Optional, List
 
 from core.utils.logging_config import get_logger
+from core.base.config import get_config
+import re
 
 # Event log recorders
 try:
@@ -30,7 +32,51 @@ except Exception:  # fallback if not yet available
     EV_INTERACTION = "InteractionCompleted"
     EV_FLAG_SET = "FlagSet"
 
-logger = get_logger("QUEST_UPDATES")
+logger = get_logger("QUESTS")
+
+# Developer-verbose quest logging toggle (read from config)
+
+def _dev_quest_verbose() -> bool:
+    """Return True if developer quest logs should be shown in the UI.
+    Checks config dev.quest_verbose first; falls back to QSettings dev/enabled or dev/quest_verbose.
+    """
+    try:
+        cfg = get_config()
+        val = cfg.get("dev.quest_verbose", None)
+        if isinstance(val, bool):
+            return val
+    except Exception:
+        pass
+    # Fallback to QSettings (GUI toggle)
+    try:
+        from PySide6.QtCore import QSettings
+        s = QSettings("RPGGame", "Settings")
+        # Respect dedicated quest verbose flag if set; otherwise use dev/enabled as a coarse switch
+        if s.contains("dev/quest_verbose"):
+            return bool(s.value("dev/quest_verbose", False, type=bool))
+        return bool(s.value("dev/enabled", False, type=bool))
+    except Exception:
+        return False
+
+
+def _queue_dev(engine, text: str) -> None:
+    """Queue a dev quest message to MAIN_GAME_OUTPUT if dev.quest_verbose is enabled."""
+    if not _dev_quest_verbose():
+        return
+    try:
+        from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+        engine._combat_orchestrator.add_event_to_queue(
+            DisplayEvent(
+                type=DisplayEventType.SYSTEM_MESSAGE,
+                content=f"[DEV][QUEST] {text}",
+                target_display=DisplayTarget.MAIN_GAME_OUTPUT,
+                gradual_visual_display=False,
+                tts_eligible=False,
+            )
+        )
+    except Exception:
+        # Swallow errors to avoid impacting gameplay
+        pass
 
 # --- Minimal DSL evaluator ---
 
@@ -103,16 +149,27 @@ def _build_signals(game_state) -> Dict[str, Any]:
     visited_ids: List[str] = []
     try:
         log = getattr(game_state, 'event_log', []) or []
-        # Include both entity_id and template_id for defeated
+        # Include template_id, entity_id, and normalized combat names for defeated
         for ev in log:
             et = ev.get('type')
             if et == EV_ENEMY_DEFEATED:
                 eid = ev.get('entity_id'); tid = ev.get('template_id')
-                if tid: defeated_ids.append(str(tid))
-                if eid: defeated_ids.append(str(eid))
+                tags = ev.get('tags', {}) or {}
+                cname = str(tags.get('combat_name', '') or '').strip()
+                # Lowercase all candidates
+                if tid:
+                    defeated_ids.append(str(tid).lower())
+                if eid:
+                    defeated_ids.append(str(eid).lower())
+                if cname:
+                    defeated_ids.append(cname.lower())
+                    # Base name by stripping trailing _<digits>
+                    base = re.sub(r'_[0-9]+$', '', cname.lower())
+                    if base and base != cname.lower():
+                        defeated_ids.append(base)
             elif et == EV_LOCATION_VISITED:
                 lid = ev.get('location_id')
-                if lid: visited_ids.append(str(lid))
+                if lid: visited_ids.append(str(lid).lower())
     except Exception:
         pass
 
@@ -444,7 +501,24 @@ def _eval_condition_for_quest(dsl: Any, signals: Dict[str, Any], q: Dict[str, An
 
 # --- Automatic evaluation on events (Phase 1) ---
 
-def _evaluate_and_update_all(engine, game_state) -> None:
+def _derive_dsl_from_objective(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Derive a minimal DSL from basic objective fields when none is provided."""
+    try:
+        otype = (obj.get('type') or '').lower()
+        target = obj.get('target_id') or obj.get('target')
+        if otype == 'kill' and target:
+            return {'defeated': target}
+        if otype == 'fetch' and target:
+            return {'inventory_has': {'item_id': target, 'count': int(obj.get('count', 1))}}
+        if otype in ('explore', 'visit') and target:
+            return {'visited': target}
+        # Interaction/objectives without clear deterministic signals remain semantic-only
+        return None
+    except Exception:
+        return None
+
+
+def _evaluate_and_update_all(engine, game_state, objective_type_filter: Optional[List[str]] = None) -> None:
     """Evaluate all quest objectives using the DSL and update statuses.
     Non-regressive: once completed/failed, we do not regress here.
     """
@@ -462,13 +536,64 @@ def _evaluate_and_update_all(engine, game_state) -> None:
             for obj in (q.get('objectives') or []):
                 if not isinstance(obj, dict):
                     continue
+                # Optional filter by objective type (event-driven bucketing)
+                if objective_type_filter:
+                    otype = str(obj.get('type', '')).lower()
+                    if otype not in [t.lower() for t in objective_type_filter]:
+                        continue
                 # Skip if already terminal
                 if obj.get('completed') or obj.get('failed'):
                     continue
+                # DEV: log objective scan line
+                if _dev_quest_verbose():
+                    try:
+                        _queue_dev(engine, f"Check objective q='{qid}' id='{obj.get('id')}' type='{obj.get('type')}' target='{obj.get('target_id')}'")
+                    except Exception:
+                        pass
+                # Ensure activation_time is set when we first see the objective
+                try:
+                    if 'activation_time' not in obj or obj.get('activation_time') is None:
+                        obj['activation_time'] = getattr(game_state.world, 'game_time', 0.0)
+                except Exception:
+                    pass
+                # Time-based failure via time_limit_s
+                try:
+                    time_limit = obj.get('time_limit_s')
+                    if time_limit is not None:
+                        activation = float(obj.get('activation_time', getattr(game_state.world, 'game_time', 0.0)))
+                        now = getattr(game_state.world, 'game_time', 0.0)
+                        if now >= activation + float(time_limit):
+                            obj['failed'] = True
+                            obj['completed'] = False
+                            try:
+                                record_objective_status(game_state, quest_id=qid, objective_id=str(obj.get('id')), new_status='failed')
+                            except Exception:
+                                pass
+                            changed = True
+                            # No further evaluation if failed by time
+                            continue
+                except Exception:
+                    pass
+                # Completion DSL
                 dsl = obj.get('condition_dsl')
+                # Derive a minimal DSL when not provided for basic objective types
                 if dsl is None:
-                    continue  # semantic-only; skip auto
+                    dsl = _derive_dsl_from_objective(obj)
+                    if _dev_quest_verbose() and dsl is not None:
+                        try:
+                            _queue_dev(engine, f"Derived DSL for objective '{obj.get('id')}' -> {dsl}")
+                        except Exception:
+                            pass
+                    if dsl is None:
+                        continue  # semantic-only; skip auto when still None
                 ev = _eval_condition_dsl(dsl, signals)
+                # Dev-verbose: log evaluation result per objective and a small defeated snapshot
+                if _dev_quest_verbose():
+                    try:
+                        defeated_snapshot = signals.get('defeated', [])[:6]
+                        _queue_dev(engine, f"Objective eval: id='{obj.get('id')}', desc='{obj.get('description','')}', result={ev}, defeated~={defeated_snapshot}")
+                    except Exception:
+                        pass
                 if ev is True:
                     obj['completed'] = True; obj['failed'] = False
                     try:
@@ -478,6 +603,11 @@ def _evaluate_and_update_all(engine, game_state) -> None:
                     changed = True
             if changed:
                 _recompute_quest_status(engine, q)
+                if _dev_quest_verbose():
+                    try:
+                        _queue_dev(engine, f"Quest '{q.get('title','')}' status recomputed: {q.get('status')}")
+                    except Exception:
+                        pass
         except Exception as e:
             logger.warning(f"Quest evaluation error for {qid}: {e}")
 
@@ -488,11 +618,131 @@ def process_event_for_quests(engine, game_state, event: Dict[str, Any]) -> None:
     """
     try:
         et = event.get('type')
+        # Suppress noisy dev logs during startup before quests are activated
+        try:
+            journal = getattr(game_state, 'journal', {}) or {}
+            quests = journal.get('quests', {}) if isinstance(journal, dict) else {}
+            quests_empty = not bool(quests)
+        except Exception:
+            quests_empty = True
+        if quests_empty:
+            # No quests to evaluate yet; skip dev logs and evaluation safely
+            return
+        if _dev_quest_verbose():
+            try:
+                _queue_dev(engine, f"Quest evaluation triggered by event: {et}")
+            except Exception:
+                pass
+        # Map events to objective type filters (bucketing)
+        type_map = {
+            EV_ENEMY_DEFEATED: ["kill"],
+            EV_ITEM_DELTA: ["fetch"],
+            EV_LOCATION_VISITED: ["explore", "visit"],
+            EV_DIALOGUE: ["interact"],
+            EV_INTERACTION: ["interact"],
+            EV_FLAG_SET: ["flag"],
+        }
+        filt = type_map.get(et)
         if et in (EV_ENEMY_DEFEATED, EV_ITEM_DELTA, EV_LOCATION_VISITED, EV_DIALOGUE, EV_INTERACTION, EV_FLAG_SET,):
-            _evaluate_and_update_all(engine, game_state)
+            # DEV: show event normalization snapshot for EnemyDefeated
+            if _dev_quest_verbose() and et == EV_ENEMY_DEFEATED:
+                try:
+                    tid = (event.get('template_id') or '')
+                    tags = event.get('tags', {}) or {}
+                    cname = str(tags.get('combat_name', '') or '')
+                    tid_l = tid.lower() if tid else ''
+                    cname_l = cname.lower() if cname else ''
+                    base = re.sub(r'_[0-9]+$', '', cname_l) if cname_l else ''
+                    _queue_dev(engine, f"EnemyDefeated norm: template_id='{tid_l}', combat_name='{cname_l}', base='{base}'")
+                except Exception:
+                    pass
+            # Evaluate only relevant objectives
+            if _dev_quest_verbose():
+                try:
+                    filt_str = ",".join(filt) if filt else "all"
+                    from collections import Counter
+                    journal = getattr(game_state, 'journal', {}) or {}
+                    quests = journal.get('quests', {}) if isinstance(journal, dict) else {}
+                    total = 0
+                    types = []
+                    for _, q in quests.items():
+                        for obj in (q.get('objectives') or []):
+                            if isinstance(obj, dict):
+                                types.append(str(obj.get('type','')).lower())
+                                total += 1
+                    counts = dict(Counter(types))
+                    _queue_dev(engine, f"Objective scan: total={total}, types={counts}, filter={filt_str}")
+                except Exception:
+                    pass
+            _evaluate_and_update_all(engine, game_state, objective_type_filter=filt)
+            # Optional LLM fallback for near-match kill objectives
+            try:
+                if et == EV_ENEMY_DEFEATED and get_config().get("quests.llm_fallback.enabled", False):
+                    _attempt_llm_fallback_for_kill(engine, game_state, event)
+            except Exception:
+                pass
     except Exception as e:
         logger.warning(f"process_event_for_quests failed: {e}")
 
+
+# --- LLM Fallback (Last Resort) ---
+
+def _attempt_llm_fallback_for_kill(engine, game_state, event: Dict[str, Any]) -> None:
+    """As a last resort, ask the LLM to confirm if a 'kill' objective is satisfied given a near match.
+    Debounced implicitly by only running once per EnemyDefeated event.
+    """
+    try:
+        # Extract normalized labels from event
+        tid = (event.get('template_id') or '')
+        tags = event.get('tags', {}) or {}
+        cname = str(tags.get('combat_name', '') or '')
+        tid_l = tid.lower() if tid else ''
+        cname_l = cname.lower() if cname else ''
+        base = re.sub(r'_[0-9]+$', '', cname_l) if cname_l else ''
+        if not (tid_l or base or cname_l):
+            return
+        # Iterate active quests and kill objectives that are not completed/failed
+        journal = getattr(game_state, 'journal', {}) or {}
+        quests = journal.get('quests', {}) if isinstance(journal, dict) else {}
+        for qid, q in quests.items():
+            for obj in (q.get('objectives') or []):
+                if not isinstance(obj, dict):
+                    continue
+                if obj.get('completed') or obj.get('failed'):
+                    continue
+                if str(obj.get('type','')).lower() != 'kill':
+                    continue
+                label = str(obj.get('target_id') or '').lower()
+                if not label:
+                    continue
+                # Near match heuristic
+                if label in (tid_l, base, cname_l):
+                    # Ask LLM once for confirmation
+                    try:
+                        from core.game_flow.interaction_core import process_with_llm
+                        prompt = (
+                            "You are verifying a quest objective.\n"
+                            f"Objective: defeat '{label}'.\n"
+                            f"Recent event: enemy defeated with template_id='{tid_l}', combat_name='{cname_l}'.\n"
+                            "Question: Has the objective been satisfied?\n"
+                            "Reply with exactly one word: YES or NO."
+                        )
+                        result = process_with_llm(game_state, prompt)
+                        if getattr(result, 'is_success', False) and isinstance(result.message, str):
+                            ans = result.message.strip().lower()
+                            if ans.startswith('yes'):
+                                obj['completed'] = True; obj['failed'] = False
+                                try:
+                                    record_objective_status(game_state, quest_id=qid, objective_id=str(obj.get('id')), new_status='completed')
+                                except Exception:
+                                    pass
+                                _recompute_quest_status(engine, q)
+                                if _dev_quest_verbose():
+                                    _queue_dev(engine, f"LLM fallback confirmed completion for kill objective '{obj.get('id')}'.")
+                    except Exception as e:
+                        logger.warning(f"LLM fallback error: {e}")
+    except Exception as e:
+        logger.warning(f"fallback_for_kill failed: {e}")
 
 # --- Apply quest status from LLM ---
 
@@ -544,4 +794,42 @@ def apply_quest_status_from_llm(engine, game_state, payload: Dict[str, Any]) -> 
         return False, 'Reopening quests not allowed by default'
 
     return False, 'Unhandled quest status'
+
+# --- Time-based processing on tick ---
+
+def process_time_for_quests(engine, game_state) -> None:
+    """Checks time-based failure conditions (deadlines) on tick.
+    Lightweight scan of active objectives that have time_limit_s.
+    """
+    try:
+        journal = getattr(game_state, 'journal', {}) or {}
+        quests = journal.get('quests', {}) if isinstance(journal, dict) else {}
+        now = getattr(game_state.world, 'game_time', 0.0)
+        any_changed = False
+        for qid, q in quests.items():
+            changed_q = False
+            for obj in (q.get('objectives') or []):
+                if not isinstance(obj, dict):
+                    continue
+                if obj.get('completed') or obj.get('failed'):
+                    continue
+                time_limit = obj.get('time_limit_s')
+                if time_limit is None:
+                    continue
+                activation = float(obj.get('activation_time', now))
+                if now >= activation + float(time_limit):
+                    obj['failed'] = True
+                    obj['completed'] = False
+                    try:
+                        record_objective_status(game_state, quest_id=qid, objective_id=str(obj.get('id')), new_status='failed')
+                    except Exception:
+                        pass
+                    changed_q = True
+                    any_changed = True
+            if changed_q:
+                _recompute_quest_status(engine, q)
+        if any_changed and _dev_quest_verbose():
+            _queue_dev(engine, "Processed time-based objective failures on tick.")
+    except Exception as e:
+        logger.warning(f"process_time_for_quests error: {e}")
 

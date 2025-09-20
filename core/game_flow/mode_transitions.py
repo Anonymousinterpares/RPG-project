@@ -472,8 +472,22 @@ def _handle_transition_request(engine: 'GameEngine', game_state: 'GameState', re
                 narrative_result = "Your attempt to leave combat was unsuccessful."
                 transition_successful = False
         else:
-            narrative_result = "System Error: Combat manager missing during flee/surrender attempt."
-            transition_successful = False
+            # Guard: if engine is already waiting for the orchestrated closing narrative, do not intervene.
+            try:
+                if hasattr(engine, '_waiting_for_closing_narrative_display') and engine._waiting_for_closing_narrative_display:
+                    logger.info("Mode transition request received after combat finalize begun; ignoring extra transition and message.")
+                    narrative_result = ""  # No extra message; finalization flow will handle narrative
+                    transition_successful = True
+                else:
+                    logger.warning("Origin mode is COMBAT but CombatManager is missing. Treating as already concluded; switching to NARRATIVE.")
+                    game_state.set_interaction_mode(InteractionMode.NARRATIVE)
+                    narrative_result = "You are no longer in combat."
+                    transition_successful = True
+            except Exception:
+                logger.warning("Guard failed; applying safe fallback to NARRATIVE.")
+                game_state.set_interaction_mode(InteractionMode.NARRATIVE)
+                narrative_result = "You are no longer in combat."
+                transition_successful = True
 
     elif origin_mode == InteractionMode.NARRATIVE and target_mode == InteractionMode.TRADE:
         narrative_result = _initiate_trade_transition(engine, game_state, request, effective_actor_id)
@@ -601,9 +615,21 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
 
 
     if game_state.current_mode == InteractionMode.COMBAT:
-        logger.warning("Attempted to initiate combat while already in COMBAT mode.")
-        # game_state.is_transitioning_to_combat = False # Should be handled by caller if transition fails overall
-        return "System Warning: Already in combat." # Return message to caller
+        # If there is no active/in-progress CombatManager, force reset to NARRATIVE and continue
+        try:
+            from core.combat.enums import CombatState
+            cm = getattr(game_state, 'combat_manager', None)
+            if not cm or getattr(cm, 'state', None) != CombatState.IN_PROGRESS:
+                logger.warning("Current mode is COMBAT but no active in-progress CombatManager. Forcing reset to NARRATIVE and continuing with new combat.")
+                game_state.set_interaction_mode(InteractionMode.NARRATIVE)
+            else:
+                logger.warning("Attempted to initiate combat while already in COMBAT mode.")
+                # game_state.is_transitioning_to_combat = False # Should be handled by caller if transition fails overall
+                return "System Warning: Already in combat." # Return message to caller
+        except Exception:
+            # On any error determining CM state, be conservative and block duplicate combat
+            logger.warning("Error checking CombatManager state while already in COMBAT mode. Blocking duplicate initiation.")
+            return "System Warning: Already in combat."
 
     if game_state.combat_manager:
         logger.warning("Clearing existing CombatManager before initiating new combat.")

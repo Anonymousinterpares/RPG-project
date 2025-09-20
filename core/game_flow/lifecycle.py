@@ -168,13 +168,20 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
                             is_optional = "(o)" in text_lower if isinstance(desc_text, str) else False
                             # If 'mandatory' explicitly given, use it; otherwise infer from tags
                             is_mandatory = (mandatory if isinstance(mandatory, bool) else ("(m)" in text_lower or not is_optional))
-                            built_objectives.append({
+
+                            # Build hydrated objective entry with all relevant fields for evaluation
+                            hydrated_obj = {
                                 "id": oid,
                                 "description": desc_text,
                                 "completed": False,
                                 "failed": False,
                                 "mandatory": bool(is_mandatory),
-                            })
+                            }
+                            if isinstance(obj, dict):
+                                for k in ["type", "target_id", "location_id", "completion_criteria", "condition_dsl", "time_limit_s", "fail_if"]:
+                                    if k in obj:
+                                        hydrated_obj[k] = obj[k]
+                            built_objectives.append(hydrated_obj)
 
                         title = qdef.get("title", qid)
                         game_state.journal["quests"][qid] = {
@@ -251,9 +258,10 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
                     started_events = locals().get('started_events', [])
                 except Exception:
                     started_events = []
-                for qid_title in started_events:
-                    qid, title = qid_title
-                    msg = f"Quest Started: {title}"
+                # Consolidate all started quests into a single instant system line
+                titles = [title for _, title in started_events] if started_events else []
+                if titles:
+                    msg = "Quests started: " + "; ".join(titles)
                     engine._combat_orchestrator.add_event_to_queue(
                         DisplayEvent(
                             type=DisplayEventType.SYSTEM_MESSAGE,
@@ -274,8 +282,9 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
         engine._output("gm", "The world awaits your command...")
         # With LLM disabled, we can emit quest start messages immediately afterwards (no gradual display to wait for)
         try:
-            for qid, title in locals().get('started_events', []):
-                engine._output("system", f"Quest Started: {title}")
+            titles = [title for _, title in locals().get('started_events', [])]
+            if titles:
+                engine._output("system", "Quests started: " + "; ".join(titles))
         except Exception:
             pass
         
@@ -546,3 +555,11 @@ def handle_tick(engine: 'GameEngine', elapsed_game_time: float) -> None:
     if engine._auto_save_timer >= engine._auto_save_interval:
         engine._auto_save_timer = 0
         save_game(engine, auto_save=True) # Call the save_game function in this module
+
+    # Process time-based quest deadlines
+    try:
+        if engine._state_manager and engine._state_manager.current_state:
+            from core.game_flow.quest_updates import process_time_for_quests
+            process_time_for_quests(engine, engine._state_manager.current_state)
+    except Exception as e:
+        logger.warning(f"Tick quest deadline processing failed: {e}")

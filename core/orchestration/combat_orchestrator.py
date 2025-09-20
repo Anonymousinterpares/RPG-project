@@ -412,6 +412,11 @@ class CombatOutputOrchestrator(QObject):
                             QTimer.singleShot(0, engine._finalize_combat_transition_if_needed)
             except Exception as e:
                 logger.error(f"Error scheduling automatic post-combat finalization: {e}", exc_info=True)
+            # Always notify engine that orchestrator is idle so it can clear any waiting flags
+            try:
+                self.resume_combat_manager.emit()
+            except Exception:
+                pass
 
 
     def _signal_combat_manager_resume(self) -> bool:
