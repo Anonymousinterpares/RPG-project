@@ -227,8 +227,8 @@ class CombatOutputOrchestrator(QObject):
                         logger.error("CombatManager reference missing; cannot apply resource update.")
             except Exception as e:
                 logger.error(f"Error applying entity resource update: {e}", exc_info=True)
-            # Immediately mark complete for this non-visual event
-            self.is_processing_event = False
+            # Event-based completion for this non-visual event: keep is_processing_event True so completion advances queue
+            logger.debug(f"APPLY_ENTITY_RESOURCE_UPDATE done for {event_being_processed.event_id}; advancing queue")
             self._check_event_processing_complete(event_being_processed.event_id)
             return
 
@@ -250,7 +250,8 @@ class CombatOutputOrchestrator(QObject):
                     logger.warning("Cannot apply entity state update; missing CombatManager or entity.")
             except Exception as e:
                 logger.error(f"Error applying entity state update: {e}", exc_info=True)
-            self.is_processing_event = False
+            # Event-based completion for this non-visual event: keep is_processing_event True so completion advances queue
+            logger.debug(f"APPLY_ENTITY_STATE_UPDATE done for {event_being_processed.event_id}; advancing queue")
             self._check_event_processing_complete(event_being_processed.event_id)
             return
 

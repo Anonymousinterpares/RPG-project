@@ -1172,7 +1172,17 @@ class CombatDisplay(QWidget):
             self.log_text.setTextCursor(cursor) 
             self.log_text.ensureCursorVisible()
             if not getattr(self, '_suppress_visual_complete', False):
+                logger.info(f"CombatDisplay: immediate display complete; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
                 self.visualDisplayComplete.emit() # --- ECFA Change: Emit signal ---
+                # Event-based direct notify to orchestrator as well
+                try:
+                    from core.base.engine import get_game_engine
+                    eng = get_game_engine()
+                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                        logger.debug(f"CombatDisplay: immediate direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
+                        eng._combat_orchestrator._handle_visual_display_complete()
+                except Exception:
+                    pass
             self._process_next_pending_log_message()
             return
 
@@ -1225,9 +1235,18 @@ class CombatDisplay(QWidget):
             self._is_gradual_log_active = False
             self._gradual_log_iterator = None
             self._gradual_log_format = None
-            logger.debug("Gradual log display finished for one segment.")
+            logger.info(f"CombatDisplay: gradual display finished; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
             if not getattr(self, '_suppress_visual_complete', False):
                 self.visualDisplayComplete.emit() 
+                # Event-based direct notify to orchestrator as well
+                try:
+                    from core.base.engine import get_game_engine
+                    eng = get_game_engine()
+                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                        logger.debug(f"CombatDisplay: gradual direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
+                        eng._combat_orchestrator._handle_visual_display_complete()
+                except Exception:
+                    pass
             self._process_next_pending_log_message()
 
         except Exception as e:
@@ -1238,7 +1257,17 @@ class CombatDisplay(QWidget):
             if self._gradual_log_timer and self._gradual_log_timer.isActive():
                 self._gradual_log_timer.stop()
             if not getattr(self, '_suppress_visual_complete', False):
+                logger.info(f"CombatDisplay: gradual error path; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
                 self.visualDisplayComplete.emit() 
+                # Event-based direct notify to orchestrator as well
+                try:
+                    from core.base.engine import get_game_engine
+                    eng = get_game_engine()
+                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                        logger.debug(f"CombatDisplay: error direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
+                        eng._combat_orchestrator._handle_visual_display_complete()
+                except Exception:
+                    pass
             self._pending_log_messages.clear() 
             self._process_next_pending_log_message() # Process queue even on error
 
@@ -1361,11 +1390,18 @@ class CombatDisplay(QWidget):
             
         self.visualDisplayComplete.emit()
 
-    def append_orchestrated_event_content(self, event_content: str, event_role: str, is_gradual: bool):
+    def append_orchestrated_event_content(self, event_content: str, event_role: str, is_gradual: bool, event_id: Optional[str] = None):
         """
         Appends orchestrated event content to the combat log, using CombatDisplay's
         own settings for color formatting.
         """
+        # Track current event id for logging/diagnostics
+        try:
+            self._current_text_event_id = event_id
+            logger.info(f"CombatDisplay: render string event id={event_id} gradual={bool(is_gradual)} len={len(event_content) if isinstance(event_content, str) else 'N/A'}")
+        except Exception:
+            pass
+        
         # Hide [DEV] lines unless dev mode is enabled
         try:
             if isinstance(event_content, str) and event_content.strip().startswith("[DEV]"):
@@ -1373,6 +1409,15 @@ class CombatDisplay(QWidget):
                 if not settings.value("dev/enabled", False, type=bool):
                     # Consider visual complete so orchestrator does not stall
                     self.visualDisplayComplete.emit()
+                    # Also directly notify orchestrator in case signal path is disrupted
+                    try:
+                        from core.base.engine import get_game_engine
+                        eng = get_game_engine()
+                        if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                            logger.debug(f"CombatDisplay: Direct notify orchestrator complete for DEV-suppressed id={event_id}")
+                            eng._combat_orchestrator._handle_visual_display_complete()
+                    except Exception:
+                        pass
                     return
         except Exception:
             pass

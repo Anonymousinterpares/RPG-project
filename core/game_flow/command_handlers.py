@@ -400,6 +400,67 @@ def _handle_state_change(engine: 'GameEngine', game_state: 'GameState', args: Li
             logger.exception("STATE_CHANGE inventory error")
             return CommandResult.error(f"Inventory state change error: {e}")
 
+    elif attribute == "location":
+        # Developer-only direct location change for test convenience
+        try:
+            from PySide6.QtCore import QSettings
+            q = QSettings("RPGGame", "Settings")
+            dev_enabled = bool(q.value("dev/enabled", False, type=bool) or q.value("dev/quest_verbose", False, type=bool))
+        except Exception:
+            dev_enabled = False
+
+        location_id = str(payload.get("value") or payload.get("location") or "").strip()
+        logger.debug(f"STATE_CHANGE location requested -> '{location_id}', dev_enabled={dev_enabled}")
+
+        if not location_id:
+            return CommandResult.invalid("STATE_CHANGE location: missing 'value'.")
+
+        if not dev_enabled:
+            explanation = None
+            try:
+                if hasattr(engine, "_rule_checker") and engine._rule_checker is not None:
+                    from core.agents.base_agent import AgentContext
+                    from core.interaction.context_builder import ContextBuilder
+                    from core.interaction.enums import InteractionMode
+                    ctx = ContextBuilder().build_context(game_state, InteractionMode.NARRATIVE, actor_id="player")
+                    validation_input = f"STATE_CHANGE location -> {location_id} (request denied in normal play)"
+                    agent_ctx = AgentContext(
+                        game_state=ctx,
+                        player_state=ctx.get("player", {}),
+                        world_state={
+                            "location": ctx.get("location"),
+                            "time_of_day": ctx.get("time_of_day"),
+                            "environment": ctx.get("environment"),
+                        },
+                        player_input=validation_input,
+                        conversation_history=getattr(game_state, "conversation_history", []),
+                        relevant_memories=[],
+                        additional_context=ctx,
+                    )
+                    is_valid, reason = engine._rule_checker.validate_action(agent_ctx)
+                    if not is_valid and reason:
+                        explanation = reason
+            except Exception:
+                pass
+            if not explanation:
+                explanation = "developer-only teleportation is disabled in normal play"
+            return CommandResult.failure(f"This action is not permitted - {explanation}.")
+
+        try:
+            game_state.player.current_location = location_id
+            if hasattr(game_state, "world"):
+                game_state.world.current_location = location_id
+            try:
+                from core.game_flow.event_log import record_location_visited
+                record_location_visited(game_state, location_id=location_id)
+            except Exception:
+                pass
+            logger.info(f"STATE_CHANGE location applied (dev): {location_id}")
+            return CommandResult.success(f"Location set to {location_id} (dev).")
+        except Exception as e:
+            logger.exception("STATE_CHANGE location error")
+            return CommandResult.error(f"Failed to change location: {e}")
+
     # Non-inventory attributes: acknowledge but do not apply mechanics here unless explicitly supported
     return CommandResult.invalid(f"STATE_CHANGE not supported for attribute '{attribute}'.")
 def process_llm_command(engine: 'GameEngine', command: str, args: List[str], game_state: 'GameState') -> CommandResult:

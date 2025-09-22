@@ -1255,7 +1255,7 @@ class CharacterSheetWidget(QScrollArea):
         if new_value_preview is None or max_value is None:
             logging.error(f"CharacterSheet: Missing new_value_preview or max_value for player phase 1 of {internal_ui_key}")
             return
-
+        
         current_bar_visual_value = bar.value() 
         
         display_name_match = re.match(r"([^:]+):", label.text())
@@ -1272,6 +1272,17 @@ class CharacterSheetWidget(QScrollArea):
             "max_value": max_value,
             "phase1_preview_value": current_bar_visual_value 
         }
+
+        # Signal orchestrator completion to avoid stalls when no CombatEntityWidget animation handles it
+        try:
+            from core.base.engine import get_game_engine
+            from PySide6.QtCore import QTimer
+            eng = get_game_engine()
+            if eng and hasattr(eng, "_combat_orchestrator"):
+                logger.debug("CharacterSheet: Signaling orchestrator visual completion for Phase 1 player bar update")
+                QTimer.singleShot(0, eng._combat_orchestrator._handle_visual_display_complete)
+        except Exception:
+            pass
 
     @Slot(str, dict)
     def player_resource_bar_update_phase2(self, bar_type_key: str, update_data: Dict[str, Any]):
@@ -1327,6 +1338,17 @@ class CharacterSheetWidget(QScrollArea):
 
         logger.debug(f"CharacterSheet: Player {internal_ui_key} bar finalized to {final_value}/{max_val}")
         logging.info(f"CharacterSheet (Phase2 player): set {internal_ui_key} to {final_value}/{max_val}")
+
+        # Signal orchestrator completion to avoid stalls when CharacterSheet handles the update without a CombatEntityWidget animation
+        try:
+            from core.base.engine import get_game_engine
+            from PySide6.QtCore import QTimer
+            eng = get_game_engine()
+            if eng and hasattr(eng, "_combat_orchestrator"):
+                logger.debug("CharacterSheet: Signaling orchestrator visual completion for Phase 2 player bar update")
+                QTimer.singleShot(0, eng._combat_orchestrator._handle_visual_display_complete)
+        except Exception:
+            pass
 
     @Slot(QPoint, EquipmentSlot, str)
     def _handle_equipped_item_context_menu(self, global_pos: QPoint, slot: EquipmentSlot, item_id: str):

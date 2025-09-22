@@ -603,6 +603,26 @@ class MainWindow(QMainWindow):
         self.combat_command_input.setEnabled(True)
         self.narrative_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
         self.combat_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
+
+    def _complete_if_same_event(self, event_id: str) -> None:
+        """If the orchestrator is still waiting on this exact event, complete it.
+        This guards against UI paths that failed to emit completion and prevents stalls.
+        """
+        try:
+            orch = getattr(self.game_engine, '_combat_orchestrator', None)
+            if orch is None:
+                return
+            # Only complete if we are still on the same event and waiting for visual
+            if getattr(orch, 'is_processing_event', False) and getattr(orch, 'is_waiting_for_visual', False):
+                current_id = getattr(orch, 'current_event_id_for_signals', None)
+                if current_id == event_id:
+                    logger.warning(f"Safety net: Completing UI_BAR_UPDATE event {event_id} to avoid stall.")
+                    try:
+                        orch._handle_visual_display_complete()
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.debug(f"_complete_if_same_event guard failed: {e}")
     
     def _set_processing_state(self, is_processing):
         """Update UI to show processing state."""
@@ -1485,33 +1505,50 @@ class MainWindow(QMainWindow):
             if state and state.player:
                  player_id = getattr(state.player, 'id', getattr(state.player, 'stats_manager_id', None))
 
+            player_bar_updated = False
             if entity_id == player_id and self.right_panel and self.right_panel.character_sheet:
-                if event.type == DisplayEventType.UI_BAR_UPDATE_PHASE1:
-                    self.right_panel.character_sheet.player_resource_bar_update_phase1(bar_type, event.metadata)
-                elif event.type == DisplayEventType.UI_BAR_UPDATE_PHASE2:
-                    self.right_panel.character_sheet.player_resource_bar_update_phase2(bar_type, event.metadata)
+                try:
+                    if event.type == DisplayEventType.UI_BAR_UPDATE_PHASE1:
+                        self.right_panel.character_sheet.player_resource_bar_update_phase1(bar_type, event.metadata)
+                        player_bar_updated = True
+                    elif event.type == DisplayEventType.UI_BAR_UPDATE_PHASE2:
+                        self.right_panel.character_sheet.player_resource_bar_update_phase2(bar_type, event.metadata)
+                        player_bar_updated = True
+                except Exception as e:
+                    logger.error(f"Error updating CharacterSheet for player bar update: {e}", exc_info=True)
 
             # Update CombatEntityWidget in CombatDisplay
             entity_widget_combat_display = self.combat_display.entity_widgets.get(entity_id)
             logger.info(f"CombatDisplay widget exists for entity? {bool(entity_widget_combat_display)}")
+            animation_invoked = False
             if entity_widget_combat_display:
-                if hasattr(entity_widget_combat_display, f"animate_{event.type.name.lower()}"):
-                    getattr(entity_widget_combat_display, f"animate_{event.type.name.lower()}")(event.metadata)
-            
-            # UI_BAR_UPDATE events often complete their "visual" part quickly by calling orchestrator.
-            # If _handle_visual_display_complete wasn't called by the widget, call it here.
-            # However, CombatEntityWidget.animate_... methods *do* call it.
-            # CharacterSheet player_resource_bar_update methods DO NOT currently call it.
-            # For CharacterSheet updates, the "visual" part is effectively done after its method runs.
-            # Additionally: if the target CombatEntityWidget is missing (e.g., loading mid-combat),
-            # proactively signal completion to prevent the orchestrator from stalling.
-            if not entity_widget_combat_display:
+                method_name = f"animate_{event.type.name.lower()}"
+                try:
+                    if hasattr(entity_widget_combat_display, method_name):
+                        getattr(entity_widget_combat_display, method_name)(event.metadata)
+                        animation_invoked = True
+                    else:
+                        logger.warning(f"CombatEntityWidget missing method {method_name} for entity {entity_id}. Will complete event to prevent stall.")
+                except Exception as e:
+                    logger.error(f"Error invoking {method_name} on CombatEntityWidget for entity {entity_id}: {e}", exc_info=True)
+
+            # If no animation method was invoked, or if widget is missing, proactively complete to avoid stall
+            if (not entity_widget_combat_display) or (not animation_invoked):
                  if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
                     try:
                         QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
                     except Exception:
                         self.game_engine._combat_orchestrator._handle_visual_display_complete()
-                 logger.warning(f"UI_BAR_UPDATE for entity {entity_id} but no CombatEntityWidget found. Signalled completion to avoid stall.")
+                 if not entity_widget_combat_display:
+                     logger.warning(f"UI_BAR_UPDATE for entity {entity_id} but no CombatEntityWidget found. Signalled completion to avoid stall.")
+                 else:
+                     logger.info(f"UI_BAR_UPDATE fallback completion invoked (no animation) for entity {entity_id}.")
+
+            # Final safety net: if the orchestrator is still processing this same event shortly after, complete it
+            try:
+                QTimer.singleShot(10, lambda ev_id=event.event_id: self._complete_if_same_event(ev_id))
+            except Exception:
+                pass
 
 
         elif event.type == DisplayEventType.TURN_ORDER_UPDATE:
@@ -1541,10 +1578,13 @@ class MainWindow(QMainWindow):
             # No need to explicitly call visual completion; orchestrator doesn't wait for this type
         elif isinstance(event.content, str): # For NARRATIVE_*, SYSTEM_MESSAGE
             if target_widget == self.combat_display:
+                # Log event routing for diagnostics
+                logger.info(f"MainWindow: Routing string event to CombatDisplay id={event.event_id} type={event.type.name} gradual={bool(event.gradual_visual_display)}")
                 self.combat_display.append_orchestrated_event_content(
                     event_content=event.content,
                     event_role=event.role or "system",
-                    is_gradual=event.gradual_visual_display
+                    is_gradual=event.gradual_visual_display,
+                    event_id=event.event_id
                 )
             elif target_widget == self.game_output:
                 text_format = None 
