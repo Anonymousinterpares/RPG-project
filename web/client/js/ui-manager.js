@@ -696,8 +696,9 @@ class UiManager {
                         const r = target.getBoundingClientRect();
                         // Always update hover box position
                         Object.assign(this._inspHover.style, { left:`${r.left}px`, top:`${r.top}px`, width:`${r.width}px`, height:`${r.height}px` });
-                        // Only re-render content when target changes and not editing
+                        // Only re-render content when target changes and not editing/locked
                         if (this._inspEditing) return;
+                        if (this._editorSelected) return; // locked via right-click
                         if (this._inspLastTarget !== target) {
                             this._inspLastTarget = target;
                             renderInspector(target);
@@ -710,11 +711,39 @@ class UiManager {
                 };
             }
             document.addEventListener('mousemove', this._inspHandler);
+            // Right-click to lock inspector editing on element (independent of resize/move modes)
+            if (!this._inspContextHandler) {
+                this._inspContextHandler = (ev)=>{
+                    try {
+                        const t = ev.target;
+                        if (!t || t.closest('#layout-inspector')) return;
+                        // If right-clicked on overlay frame, ignore
+                        if (t.closest && t.closest('#layout-resize-overlay')) return;
+                        if (!this.isEditableTarget(t)) return;
+                        ev.preventDefault();
+                        this._editorSelected = t;
+                        this._selectionSet = [t];
+                        this._inspLastTarget = t;
+                        renderInspector(t);
+                        this.renderInspectorForSelected();
+                    } catch {}
+                };
+            }
+            document.addEventListener('contextmenu', this._inspContextHandler);
+            if (!this._inspUnlockHandler) {
+                this._inspUnlockHandler = (ev)=>{
+                    const inside = ev.target && (ev.target.closest('#layout-inspector'));
+                    if (!inside) { this._editorSelected = null; /* unlock editing */ }
+                };
+            }
+            document.addEventListener('click', this._inspUnlockHandler);
         } else {
             if (this._inspHandler) document.removeEventListener('mousemove', this._inspHandler);
+            if (this._inspContextHandler) document.removeEventListener('contextmenu', this._inspContextHandler);
+            if (this._inspUnlockHandler) document.removeEventListener('click', this._inspUnlockHandler);
             const h = document.getElementById('layout-hover-overlay'); if (h) h.remove();
             const p = document.getElementById('layout-inspector'); if (p) p.remove();
-            this._inspLastTarget = null; this._inspEditing = false;
+            this._inspLastTarget = null; this._inspEditing = false; this._editorSelected = null;
         }
     }
 
@@ -745,14 +774,34 @@ class UiManager {
         return true;
     }
 
+    // Build a stable CSS selector that is reproducible across reloads
+    getStableSelector(el) {
+        if (!el) return null;
+        if (el.id) return `#${el.id}`;
+        const parts = [];
+        let node = el;
+        while (node && node !== document.body && node !== document.documentElement) {
+            if (node.id) { parts.unshift(`#${node.id}`); break; }
+            const parent = node.parentElement;
+            if (!parent) break;
+            const tag = node.tagName.toLowerCase();
+            // nth-of-type to avoid class name dependence
+            const siblingsOfType = Array.from(parent.children).filter(ch => ch.tagName === node.tagName);
+            const index = siblingsOfType.indexOf(node) + 1;
+            parts.unshift(`${tag}:nth-of-type(${index})`);
+            if (parent.classList && (parent.classList.contains('game-frame') || parent.classList.contains('app-container'))) {
+                parts.unshift(parent.classList.contains('game-frame') ? '.game-frame' : '.app-container');
+                break;
+            }
+            node = parent;
+        }
+        return parts.join(' > ');
+    }
+
     getUniqueSelectorFor(el) {
         if (!el) return null;
         if (!this.isEditableTarget(el)) return null;
-        if (el.id) return `#${el.id}`;
-        // Ensure a stable selector by assigning a dev data key if needed
-        let key = el.getAttribute('data-dev-key');
-        if (!key) { key = Math.random().toString(36).slice(2); el.setAttribute('data-dev-key', key); }
-        return `[data-dev-key="${key}"]`;
+        return this.getStableSelector(el);
     }
 
     persistElementStyle(el) {
@@ -830,7 +879,26 @@ class UiManager {
                 Object.assign(this._resizeOverlay.style, { left:`${rb.left}px`, top:`${rb.top}px`, width:`${rb.width}px`, height:`${rb.height}px`, display:'block' });
                 // Show controls only when a selection is locked
                 const showControls = !!(this._selectionSet && this._selectionSet.length);
-                const tb = this._resizeOverlay.querySelector('.toolbar'); if (tb) tb.style.display = showControls ? 'flex' : 'none';
+                const tb = this._resizeOverlay.querySelector('.toolbar'); if (tb) {
+                    tb.style.display = showControls ? 'flex' : 'none';
+                    if (showControls) {
+                        // Keep toolbar always on-screen using fixed positioning
+                        try {
+                            tb.style.position = 'fixed';
+                            const tbw = tb.offsetWidth || 120;
+                            const tbh = tb.offsetHeight || 28;
+                            const pad = 8;
+                            let left = Math.max(pad, Math.min(window.innerWidth - tbw - pad, rb.left));
+                            // Prefer above the box, otherwise place below
+                            let top = rb.top - tbh - 6;
+                            if (top < pad) top = Math.min(window.innerHeight - tbh - pad, rb.top + rb.height + 6);
+                            tb.style.left = `${Math.round(left)}px`;
+                            tb.style.top = `${Math.round(top)}px`;
+                            tb.style.right = 'auto';
+                            tb.style.bottom = 'auto';
+                        } catch {}
+                    }
+                }
                 const showHandles = showControls && !!this._resizeHandlesEnabled;
                 this._resizeOverlay.querySelectorAll('.handle').forEach(h=> h.style.display = showHandles ? 'block' : 'none');
                 const ds = this._resizeOverlay.querySelector('.drag-surface');
@@ -1060,11 +1128,41 @@ class UiManager {
         };
     }
 
+    // Collect a full snapshot of editable elements, including computed transform if present
+    collectAllEditableStyles() {
+        const props = ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform','fontSize','fontFamily','fontWeight','textAlign','lineHeight','color','backgroundColor','paddingTop','paddingRight','paddingBottom','paddingLeft'];
+        const map = {};
+        try {
+            const all = Array.from(document.body.querySelectorAll('*'));
+            for (const el of all) {
+                if (!this.isEditableTarget(el)) continue;
+                const selector = this.getUniqueSelectorFor(el);
+                if (!selector) continue;
+                const styles = {};
+                const cs = getComputedStyle(el);
+                for (const k of props) {
+                    let v = el.style[k];
+                    if (!v || v === '') {
+                        // If not set inline, capture computed for robustness (fonts/colors/padding/line-height/position, etc.)
+                        if (k === 'transform') {
+                            const ct = cs.transform; if (ct && ct !== 'none') v = ct;
+                        } else {
+                            const cv = cs[k]; if (cv && cv !== '' && cv !== 'initial' && cv !== 'auto' && cv !== 'normal' && cv !== 'none') v = cv;
+                        }
+                    }
+                    if (v && v !== '') styles[k] = v;
+                }
+                if (Object.keys(styles).length > 0) map[selector] = styles;
+            }
+        } catch (e) { /* ignore */ }
+        return map;
+    }
+
     saveCurrentLayoutSnapshot() {
         try {
             const vars = this.getCurrentLayoutVariables();
-            const stylesRaw = localStorage.getItem('rpg_element_styles');
-            const payload = { vars, element_styles: stylesRaw ? JSON.parse(stylesRaw) : {}, saved_at: Date.now() };
+            const element_styles = this.collectAllEditableStyles();
+            const payload = { vars, element_styles, saved_at: Date.now() };
             localStorage.setItem('rpg_layout_saved', JSON.stringify(payload));
         } catch (e) { console.warn('saveCurrentLayoutSnapshot failed', e); }
     }
@@ -1079,7 +1177,7 @@ class UiManager {
                     Object.entries(map).forEach(([selector, styles])=>{
                         try {
                             document.querySelectorAll(selector).forEach(el=>{
-                                ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ el.style[k] = ''; });
+                                ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform','fontSize','fontFamily','fontWeight','textAlign','lineHeight','color','backgroundColor','paddingTop','paddingRight','paddingBottom','paddingLeft'].forEach(k=>{ el.style[k] = ''; });
                             });
                         } catch { /* ignore */ }
                     });
@@ -1112,7 +1210,7 @@ class UiManager {
             const selector = this.getUniqueSelectorFor(el);
             if (!selector) return;
             snap[selector] = {};
-            ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ if (el.style[k]) snap[selector][k] = el.style[k]; });
+            ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform','fontSize','fontFamily','fontWeight','textAlign','lineHeight','color','backgroundColor','paddingTop','paddingRight','paddingBottom','paddingLeft'].forEach(k=>{ if (el.style[k]) snap[selector][k] = el.style[k]; });
         });
         return snap;
     }
@@ -1139,7 +1237,7 @@ class UiManager {
             (this._pendingAction.elements||[]).forEach(sel=>{
                 document.querySelectorAll(sel).forEach(el=>{
                     after[sel] = after[sel] || {};
-                    ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ if (el.style[k]) after[sel][k] = el.style[k]; });
+                    ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform','fontSize','fontFamily','fontWeight','textAlign','lineHeight','color','backgroundColor','paddingTop','paddingRight','paddingBottom','paddingLeft'].forEach(k=>{ if (el.style[k]) after[sel][k] = el.style[k]; });
                 });
             });
             const action = { label: this._pendingAction.label, before: this._pendingAction.before, after };
@@ -1200,12 +1298,23 @@ class UiManager {
             const map = saved.element_styles || {};
             localStorage.setItem('rpg_element_styles', JSON.stringify(map));
             // Clear inline styles for known edited elements and reapply
-            try { Object.keys(map).forEach(sel=>{ document.querySelectorAll(sel).forEach(el=>{ ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ el.style[k]=''; }); }); }); } catch(e) {}
+            try { Object.keys(map).forEach(sel=>{ document.querySelectorAll(sel).forEach(el=>{ ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform','fontSize','fontFamily','fontWeight','textAlign','lineHeight','color','backgroundColor','paddingTop','paddingRight','paddingBottom','paddingLeft'].forEach(k=>{ el.style[k]=''; }); }); }); } catch(e) {}
             Object.entries(map).forEach(([selector, styles])=>{ try { document.querySelectorAll(selector).forEach(el=>{ Object.assign(el.style, styles||{}); }); } catch(e) {} });
             this.applySavedLayoutSettings();
             if (this._updateOverlayRef) this._updateOverlayRef();
             this.showNotification('Layout restored from saved snapshot','success');
         } catch (e) { console.warn('restoreFromSavedLayoutSnapshot failed', e); this.showNotification('Failed to restore layout','error'); }
+    }
+
+    rgbToHex(rgb) {
+        try {
+            if (!rgb) return '#000000';
+            if (rgb.startsWith('#')) return rgb;
+            const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+            if (!m) return '#000000';
+            const toHex = (n)=> ('0'+(parseInt(n,10)||0).toString(16)).slice(-2);
+            return `#${toHex(m[1])}${toHex(m[2])}${toHex(m[3])}`;
+        } catch { return '#000000'; }
     }
 
     renderInspectorForSelected() {
@@ -1222,13 +1331,48 @@ class UiManager {
             // Append editor controls if not already present
             if (!this._inspPanel.querySelector('#insp-el-width')) {
                 this._inspPanel.innerHTML = base + `
-                    <hr style="opacity:0.4;margin:6px 0;">
-                    <div style="font-weight:bold;margin-bottom:4px;">Selected: ${tag}${id}${cls}</div>
-                    <div class="insp-row"><label for="insp-el-width">Width:</label><input type="number" id="insp-el-width" min="50" max="2000" step="1" value="${w}"><span>px</span></div>
-                    <div class="insp-row"><label for="insp-el-height">Height:</label><input type="number" id="insp-el-height" min="30" max="2000" step="1" value="${h}"><span>px</span></div>
-                    <div class="insp-row"><label for="insp-el-maxh">MaxH:</label><input type="number" id="insp-el-maxh" min="0" max="4000" step="10" value="${mh==='none'?0:parseInt(mh,10)||0}"><span>px</span></div>
-                    <div class="insp-row"><label for="insp-el-over">Overflow:</label><input type="text" id="insp-el-over" value="${ov}"></div>
-                    <div class="insp-row"><button id="insp-el-reset" class="cancel-btn">Reset</button></div>
+                    <hr style=\"opacity:0.4;margin:6px 0;\">
+                    <div style=\"font-weight:bold;margin-bottom:4px;\">Selected: ${tag}${id}${cls}</div>
+                    <div class=\"insp-row\"><label for=\"insp-el-width\">Width:</label><input type=\"number\" id=\"insp-el-width\" min=\"50\" max=\"2000\" step=\"1\" value=\"${w}\"><span>px</span></div>
+                    <div class=\"insp-row\"><label for=\"insp-el-height\">Height:</label><input type=\"number\" id=\"insp-el-height\" min=\"30\" max=\"2000\" step=\"1\" value=\"${h}\"><span>px</span></div>
+                    <div class=\"insp-row\"><label for=\"insp-el-maxh\">MaxH:</label><input type=\"number\" id=\"insp-el-maxh\" min=\"0\" max=\"4000\" step=\"10\" value=\"${mh==='none'?0:parseInt(mh,10)||0}\"><span>px</span></div>
+                    <div class=\"insp-row\"><label for=\"insp-el-over\">Overflow:</label><input type=\"text\" id=\"insp-el-over\" value=\"${ov}\"></div>
+                    <div class=\"insp-row\"><button id=\"insp-el-reset\" class=\"cancel-btn\">Reset</button></div>
+                    <hr style=\"opacity:0.3;margin:6px 0;\">
+                    <div style=\"font-weight:bold;margin-bottom:4px;\">Typography & Colors</div>
+                    <div class=\"insp-row\"><label for=\"insp-font-size\">Font Size:</label><input type=\"number\" id=\"insp-font-size\" min=\"8\" max=\"64\" step=\"1\" value=\"${parseInt(cs.fontSize,10)||14}\"><span>px</span></div>
+                    <div class=\"insp-row\"><label for=\"insp-font-family\">Font:</label><input type=\"text\" id=\"insp-font-family\" list=\"font-family-list\" value=\"${(cs.fontFamily||'').replace(/\"/g,'&quot;')}\"></div>
+                    <datalist id=\"font-family-list\">${[
+                        "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+                        "Segoe UI, Tahoma, Geneva, Verdana, sans-serif",
+                        "Roboto, system-ui, -apple-system, Segoe UI, sans-serif",
+                        "Inter, system-ui, -apple-system, Segoe UI, sans-serif",
+                        "Open Sans, Segoe UI, Verdana, sans-serif",
+                        "Lato, Segoe UI, Verdana, sans-serif",
+                        "Montserrat, Segoe UI, Verdana, sans-serif",
+                        "Nunito, Segoe UI, Verdana, sans-serif",
+                        "Poppins, Segoe UI, Verdana, sans-serif",
+                        "Garamond, 'Palatino Linotype', Palatino, serif",
+                        "Georgia, 'Times New Roman', Times, serif",
+                        "Times New Roman, Times, serif",
+                        "Palatino Linotype, Book Antiqua, Palatino, serif",
+                        "Trebuchet MS, Helvetica, sans-serif",
+                        "Lucida Grande, Lucida Sans Unicode, Lucida Sans, Geneva, Verdana, sans-serif",
+                        "Courier New, Courier, monospace",
+                        "Consolas, 'Liberation Mono', Menlo, monospace"
+                    ].map(f=>`<option value=\"${f.replace(/\"/g,'&quot;')}\"></option>`).join('')}</datalist>
+                    <div class=\"insp-row\"><label for=\"insp-font-weight\">Weight:</label><select id=\"insp-font-weight\"><option value=\"normal\">normal</option><option value=\"bold\">bold</option><option value=\"100\">100</option><option value=\"200\">200</option><option value=\"300\">300</option><option value=\"400\">400</option><option value=\"500\">500</option><option value=\"600\">600</option><option value=\"700\">700</option><option value=\"800\">800</option><option value=\"900\">900</option></select></div>
+                    <div class=\"insp-row\"><label for=\"insp-text-align\">Text Align:</label><select id=\"insp-text-align\"><option value=\"left\">left</option><option value=\"center\">center</option><option value=\"right\">right</option></select></div>
+                    <div class=\"insp-row\"><label for=\"insp-line-height\">Line Height:</label><input type=\"number\" id=\"insp-line-height\" min=\"0\" max=\"400\" step=\"1\" value=\"${parseInt(cs.lineHeight,10)||0}\"><span>px</span></div>
+                    <div class=\"insp-row\"><label for=\"insp-color\">Text Color:</label><input type=\"color\" id=\"insp-color\" value=\"${this.rgbToHex(cs.color||'#000000')}\"></div>
+                    <div class=\"insp-row\"><label for=\"insp-bgcolor\">Background:</label><input type=\"color\" id=\"insp-bgcolor\" value=\"${this.rgbToHex(cs.backgroundColor||'#000000')}\"></div>
+                    <div class=\"insp-row\"><label>Padding:</label>
+                        <input type=\"number\" id=\"insp-pad-top\" style=\"width:60px\" value=\"${parseInt(cs.paddingTop,10)||0}\" title=\"Top\"> 
+                        <input type=\"number\" id=\"insp-pad-right\" style=\"width:60px\" value=\"${parseInt(cs.paddingRight,10)||0}\" title=\"Right\"> 
+                        <input type=\"number\" id=\"insp-pad-bottom\" style=\"width:60px\" value=\"${parseInt(cs.paddingBottom,10)||0}\" title=\"Bottom\"> 
+                        <input type=\"number\" id=\"insp-pad-left\" style=\"width:60px\" value=\"${parseInt(cs.paddingLeft,10)||0}\" title=\"Left\">
+                        <span>px</span>
+                    </div>
                 `;
                 const wI = this._inspPanel.querySelector('#insp-el-width');
                 const hI = this._inspPanel.querySelector('#insp-el-height');
@@ -1238,12 +1382,24 @@ class UiManager {
                 const bind = (elInput, cssProp, parse=(v)=>v+"px")=>{
                     if (!elInput) return; 
                     elInput.addEventListener('focusin', ()=>{ this.beginEditorAction('insp-edit', [el]); });
-                    elInput.addEventListener('input', ()=>{ let v = elInput.value; if (cssProp==='maxHeight' && (v===0 || v==='0')) { el.style.maxHeight = ''; } else { el.style[cssProp] = (cssProp==='overflowY')? v : `${parseInt(v,10)||0}px`; } this.persistElementStyle(el); });
+                    elInput.addEventListener('input', ()=>{ let v = elInput.value; if (cssProp==='maxHeight' && (v===0 || v==='0')) { el.style.maxHeight = ''; } else { el.style[cssProp] = (cssProp==='overflowY' || cssProp==='fontFamily' || cssProp==='fontWeight' || cssProp==='textAlign' || cssProp==='color' || cssProp==='backgroundColor')? v : `${parseInt(v,10)||0}px`; } this.persistElementStyle(el); });
                     elInput.addEventListener('focusout', ()=>{ this.commitEditorAction(); });
                 };
                 bind(wI,'width'); bind(hI,'height'); bind(mI,'maxHeight');
                 if (oI) { oI.addEventListener('focusin', ()=>{ this.beginEditorAction('insp-edit', [el]); }); oI.addEventListener('input', ()=>{ el.style.overflowY = oI.value||''; this.persistElementStyle(el); }); oI.addEventListener('focusout', ()=>{ this.commitEditorAction(); }); }
                 if (resetBtn) resetBtn.addEventListener('click', ()=>{ this.beginEditorAction('insp-reset', [el]); el.style.width=''; el.style.height=''; el.style.maxHeight=''; el.style.overflowY=''; this.persistElementStyle(el); this.commitEditorAction(); });
+                // Typography & colors bindings
+                const fsI = this._inspPanel.querySelector('#insp-font-size'); bind(fsI,'fontSize');
+                const ffI = this._inspPanel.querySelector('#insp-font-family'); bind(ffI,'fontFamily');
+                const fwI = this._inspPanel.querySelector('#insp-font-weight'); if (fwI) { fwI.value = cs.fontWeight || 'normal'; bind(fwI,'fontWeight'); }
+                const taI = this._inspPanel.querySelector('#insp-text-align'); if (taI) { taI.value = cs.textAlign || 'left'; bind(taI,'textAlign'); }
+                const lhI = this._inspPanel.querySelector('#insp-line-height'); bind(lhI,'lineHeight');
+                const colorI = this._inspPanel.querySelector('#insp-color'); if (colorI) { colorI.addEventListener('input', ()=>{ el.style.color = colorI.value; this.persistElementStyle(el); }); }
+                const bgI = this._inspPanel.querySelector('#insp-bgcolor'); if (bgI) { bgI.addEventListener('input', ()=>{ el.style.backgroundColor = bgI.value; this.persistElementStyle(el); }); }
+                const ptI = this._inspPanel.querySelector('#insp-pad-top'); bind(ptI,'paddingTop');
+                const prI = this._inspPanel.querySelector('#insp-pad-right'); bind(prI,'paddingRight');
+                const pbI = this._inspPanel.querySelector('#insp-pad-bottom'); bind(pbI,'paddingBottom');
+                const plI = this._inspPanel.querySelector('#insp-pad-left'); bind(plI,'paddingLeft');
             }
         } catch (e) { /* ignore */ }
     }
