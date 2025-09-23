@@ -55,9 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const playerName = document.getElementById('new-player-name').value.trim();
         const race = document.getElementById('character-race-select').value;
         const characterClass = document.getElementById('character-class-select').value;
-        const background = document.getElementById('character-background-select').value;
+        const originLabel = document.getElementById('character-background-select').value;
+        const seedEl = document.getElementById('character-backstory-seed');
+        const background = (seedEl && seedEl.value && seedEl.value.trim()) ? seedEl.value.trim() : originLabel;
         const sex = document.getElementById('character-sex-select').value;
         const useLLM = document.getElementById('character-llm-toggle').checked;
+        const stats = (window.CharacterCreator && typeof window.CharacterCreator.getAllocatedStats==='function') ? window.CharacterCreator.getAllocatedStats() : null;
         
         // Get selected icon if available
         let characterIcon = null;
@@ -68,6 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
+        // Determine selected origin_id from option dataset if available
+        let originId = null;
+        try {
+            const originSelect = document.getElementById('character-background-select');
+            if (originSelect && originSelect.selectedOptions && originSelect.selectedOptions.length > 0) {
+                originId = originSelect.selectedOptions[0].getAttribute('data-origin-id') || null;
+            }
+        } catch (e) { /* ignore */ }
         // Create the new game with all parameters
         createNewGame(playerName, {
             race: race,
@@ -75,7 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
             background: background,
             sex: sex,
             characterImage: characterIcon,
-            useLLM: useLLM
+            useLLM: useLLM,
+            origin_id: originId,
+            stats
         });
     });
     
@@ -113,6 +126,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // LLM button opens settings to LLM tab
+    const llmBtn = document.getElementById('llm-btn');
+    if (llmBtn) {
+        llmBtn.addEventListener('click', async () => {
+            uiManager.openModal('settings');
+            try { await uiManager.loadLLMSettings(); } catch {}
+            // switch to llm tab
+            uiManager.switchTab('llm-settings');
+        });
+    }
+
+    // Exit button
+    const exitBtn = document.getElementById('exit-btn');
+    if (exitBtn) {
+        exitBtn.addEventListener('click', async () => {
+            try { await apiClient.endSession(); } catch {}
+            uiManager.disableCommandInput();
+            uiManager.addMessage('Session ended.', 'system');
+        });
+    }
+
     // Command submission
     document.getElementById('send-command-btn').addEventListener('click', () => {
         sendCommand();
@@ -212,6 +246,8 @@ async function createNewGame(playerName, options = {}) {
         
         // Enable input
         uiManager.enableCommandInput();
+        // Refresh full UI (right panel + status)
+        uiManager.refreshUI();
         
         // Add welcome message
         uiManager.addMessage(`Welcome, ${playerName} the ${characterRace} ${characterClass}! Your adventure begins...`, 'game');
@@ -273,6 +309,8 @@ function connectWebSocket(sessionId) {
     
     // Set up WebSocket event handlers BEFORE connecting
     webSocketClient.on('game_state', (data) => {
+        // Update status and right panel on push
+        uiManager.refreshUI();
         console.log('Received game state update');
         updateGameState(data);
     });
@@ -313,6 +351,19 @@ function connectWebSocket(sessionId) {
         uiManager.addMessage('Connected to game server.', 'system');
     });
     
+    // Live UI updates from server events
+    webSocketClient.on('stats_changed', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
+    webSocketClient.on('turn_order_update', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
+    webSocketClient.on('ui_bar_update_phase1', (data) => { try { uiManager.updateResourceBarPhase1(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
+    webSocketClient.on('ui_bar_update_phase2', (data) => { try { uiManager.updateResourceBarPhase2(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
+    webSocketClient.on('narrative', (data) => {
+        try {
+            const role = (data && data.role) || 'system';
+            const text = (data && data.text) || '';
+            uiManager.addMessage(text, role === 'system' ? 'system' : 'game');
+        } catch (e) { console.warn(e); }
+    });
+    webSocketClient.on('journal_updated', ()=>{ try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
     // Connect WebSocket only after setting up all handlers
     webSocketClient.connect(id);
 }
@@ -347,6 +398,8 @@ async function sendCommand() {
         
         // Handle result only if it came from HTTP response
         if (result.source === 'http_response') {
+            // Refresh UI after command
+            uiManager.refreshUI();
             handleCommandResult(result);
         }
         

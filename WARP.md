@@ -79,6 +79,8 @@ Docstrings: All new classes and public methods MUST have clear, concise docstrin
 folders to be ignored:
 backup, .pytest_cache, .vscode, __pycache__, tests, web, images, log_viewer_tool, world_configurator.egg-info
 
+"refer to the content of root_causes.MD file from the project root to avoid making same mistakes"
+
 important directories:
 project root: D:\coding\RPG project\latest version
 directory with all JSON config files: \config (many subfolders)

@@ -31,7 +31,7 @@ print(f"Project root: {project_root}")
 print(f"Python path: {sys.path}")
 
 # FastAPI imports
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Body
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from starlette.responses import JSONResponse
@@ -54,6 +54,9 @@ active_sessions: Dict[str, GameEngine] = {}
 
 # Active WebSocket connections - mapping session_id to list of WebSocket connections
 websocket_connections: Dict[str, List[WebSocket]] = {}
+
+# Session listeners to allow disconnecting/cleanup per session
+session_listeners: Dict[str, Dict[str, Any]] = {}
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
@@ -117,36 +120,55 @@ async def root():
 
 # Helper function to scan for character icons
 def get_character_icons():
-    """Scan for character icons in the images/character_icons directory."""
-    # Set up the character icons directory path
+    """Scan for character icons in the images/character_icons directory (flat)."""
     icons_dir = os.path.join(project_root, "images", "character_icons")
-    
-    # Create the directory if it doesn't exist
     os.makedirs(icons_dir, exist_ok=True)
-    
-    # List of supported image extensions
-    supported_extensions = [".png", ".jpg", ".jpeg", ".gif"]
-    
-    # Scan for icon files
+    supported_extensions = [".png", ".jpg", ".jpeg", ".gif", ".svg"]
     icons = []
-    for filename in os.listdir(icons_dir):
-        # Check if the file has a supported extension
-        if any(filename.lower().endswith(ext) for ext in supported_extensions):
-            # Build the path and URL
-            file_path = os.path.join(icons_dir, filename)
-            # URL path used by the web client to access the icon
-            url_path = f"/images/character_icons/{filename}"
-            
-            icons.append({
-                "filename": filename,
-                "path": file_path,
-                "url": url_path
-            })
-    
-    # Sort the icons by filename
-    icons.sort(key=lambda x: x["filename"])
-    
+    try:
+        for filename in os.listdir(icons_dir):
+            if any(filename.lower().endswith(ext) for ext in supported_extensions):
+                file_path = os.path.join(icons_dir, filename)
+                url_path = f"/images/character_icons/{filename}"
+                icons.append({"filename": filename, "path": file_path, "url": url_path})
+    except Exception:
+        pass
+    icons.sort(key=lambda x: x["filename"]) 
     return icons
+
+def get_character_icons_filtered(race: Optional[str], class_name: Optional[str], sex: Optional[str]):
+    """Scan for icons in subfolder images/character_icons/<Race_Class> and filter by sex keywords."""
+    from pathlib import Path
+    safe_race = (race or "").replace(" ", "_")
+    safe_class = (class_name or "").replace(" ", "_")
+    base_dir = Path(project_root) / "images" / "character_icons"
+    subdir = base_dir / f"{safe_race}_{safe_class}"
+    supported = {".png", ".jpg", ".jpeg", ".gif", ".svg"}
+    results: List[Dict[str, str]] = []
+    if not safe_race or not safe_class:
+        return results
+    try:
+        if not subdir.exists():
+            return results
+        sex_l = (sex or "").lower()
+        for p in sorted(subdir.iterdir()):
+            if p.is_file() and p.suffix.lower() in supported:
+                name_lower = p.stem.lower()
+                contains_male = "male" in name_lower
+                contains_female = "female" in name_lower
+                include = False
+                if sex_l == "male":
+                    include = contains_male and not contains_female
+                elif sex_l == "female":
+                    include = contains_female
+                else:
+                    include = contains_male or contains_female
+                if include:
+                    rel = f"/images/character_icons/{safe_race}_{safe_class}/{p.name}"
+                    results.append({"filename": p.name, "path": str(p), "url": rel})
+    except Exception as e:
+        logger.warning(f"Error scanning filtered character icons: {e}")
+    return results
 
 # Mount images directory for character icons
 try:
@@ -166,10 +188,12 @@ class NewGameRequest(BaseModel):
     player_name: str = Field(..., description="Name of the player character")
     race: str = Field(default="Human", description="Race of the player character")
     path: str = Field(default="Wanderer", description="Class/path of the player character")
-    background: str = Field(default="Commoner", description="Background of the player character")
+    background: str = Field(default="Commoner", description="Background/backstory seed (Origin description)")
     sex: str = Field(default="Male", description="Sex/gender of the player character")
     character_image: Optional[str] = Field(None, description="Path to character portrait image")
     use_llm: bool = Field(default=True, description="Whether to enable LLM functionality for this game")
+    origin_id: Optional[str] = Field(default=None, description="Selected Origin ID")
+    stats: Optional[Dict[str, int]] = Field(default=None, description="Allocated base stats mapping (e.g., {'STR':12,...})")
     
 # Model for session information
 class SessionInfo(BaseModel):
@@ -196,6 +220,51 @@ class SaveGameRequest(BaseModel):
 # Model for load game request
 class LoadGameRequest(BaseModel):
     save_id: str  # ID of the save to load
+
+# UI State response models (lightweight)
+class UIResourceBar(BaseModel):
+    current: float
+    max: float
+
+class UIPlayerHeader(BaseModel):
+    name: str
+    race: str
+    path: str
+    level: int = 1
+    experience_current: int = 0
+    experience_max: int = 100
+    sex: Optional[str] = None
+    portrait_url: Optional[str] = None
+
+class UIStatEntry(BaseModel):
+    name: str
+    value: float
+    base_value: float
+
+class UIEquipmentEntry(BaseModel):
+    slot: str
+    item_id: Optional[str] = None
+    item_name: Optional[str] = None
+
+class UIStatusEffectEntry(BaseModel):
+    name: str
+    duration: Optional[int] = None
+
+class UIStateResponse(BaseModel):
+    mode: str
+    location: Optional[str] = None
+    time: Optional[str] = None
+    player: UIPlayerHeader
+    resources: Dict[str, UIResourceBar]
+    primary_stats: Dict[str, UIStatEntry]
+    derived_stats: Dict[str, UIStatEntry]
+    social_stats: Dict[str, UIStatEntry]
+    other_stats: Dict[str, UIStatEntry]
+    status_effects: List[UIStatusEffectEntry] = []
+    equipment: List[UIEquipmentEntry] = []
+    turn_order: List[str] = []
+    initiative: Optional[float] = None
+    journal: Dict[str, Any] = {}
     
 # Model for save information
 class SaveInfo(BaseModel):
@@ -375,40 +444,101 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         await ConnectionManager.disconnect(websocket, session_id)
 
 # API endpoints
+
+# Helper to attach engine listeners for a session
+def _attach_engine_listeners(session_id: str, engine: GameEngine):
+    """Attach engine signals to websocket broadcast for the given session."""
+    # Clean existing listeners
+    try:
+        if session_id in session_listeners:
+            lst = session_listeners.pop(session_id)
+            # Attempt to disconnect prior connections if present
+            try:
+                if lst.get('stats_conn') and engine.state_manager.stats_manager:
+                    engine.state_manager.stats_manager.stats_changed.disconnect(lst['stats_conn'])
+            except Exception:
+                pass
+            try:
+                if lst.get('orch_conn'):
+                    engine.orchestrated_event_to_ui.disconnect(lst['orch_conn'])
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    def _emit_ws(payload: dict):
+        try:
+            asyncio.create_task(ConnectionManager.send_update(session_id, payload))
+        except Exception as e:
+            logger.warning(f"WS emit failed: {e}")
+
+    # Stats changed -> broadcast
+    def on_stats_changed(stats_data):
+        _emit_ws({"type": "stats_changed", "data": stats_data})
+    stats_conn = None
+    try:
+        if engine.state_manager and engine.state_manager.stats_manager:
+            engine.state_manager.stats_manager.stats_changed.connect(on_stats_changed)
+            stats_conn = on_stats_changed
+    except Exception as e:
+        logger.warning(f"Failed connecting stats_changed listener: {e}")
+
+    # Orchestrated events -> broadcast specific types
+    from core.orchestration.events import DisplayEvent, DisplayEventType
+    def on_orchestrated_event(event_obj):
+        try:
+            if not isinstance(event_obj, DisplayEvent):
+                return
+            t = event_obj.type
+            # Map to websocket event types
+            if t == DisplayEventType.TURN_ORDER_UPDATE:
+                _emit_ws({"type": "turn_order_update", "data": event_obj.content})
+            elif t == DisplayEventType.UI_BAR_UPDATE_PHASE1:
+                _emit_ws({"type": "ui_bar_update_phase1", "data": event_obj.metadata or {}})
+            elif t == DisplayEventType.UI_BAR_UPDATE_PHASE2:
+                _emit_ws({"type": "ui_bar_update_phase2", "data": event_obj.metadata or {}})
+            elif t == DisplayEventType.COMBAT_LOG_SET_HTML:
+                _emit_ws({"type": "combat_log_set_html", "data": {"html": event_obj.content}})
+            elif t in (DisplayEventType.SYSTEM_MESSAGE, DisplayEventType.NARRATIVE_GENERAL, DisplayEventType.NARRATIVE_ATTEMPT, DisplayEventType.NARRATIVE_IMPACT):
+                _emit_ws({"type": "narrative", "data": {"role": event_obj.role or "system", "text": event_obj.content, "gradual": bool(event_obj.gradual_visual_display)}})
+            # else: ignore other internal events
+        except Exception as e:
+            logger.warning(f"Error handling orchestrated event for WS: {e}")
+    orch_conn = None
+    try:
+        engine.orchestrated_event_to_ui.connect(on_orchestrated_event)
+        orch_conn = on_orchestrated_event
+    except Exception as e:
+        logger.warning(f"Failed connecting orchestrator listener: {e}")
+
+    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn}
+
 @app.post("/api/new_game", response_model=SessionInfo)
 async def create_new_game(request: NewGameRequest):
     """Create a new game session."""
     try:
         session_id = str(uuid.uuid4())
         engine = GameEngine()
-        
-        # Initialize with the provided parameters
-        engine.initialize(
-            new_game=True, 
+        # Start new game using full parameters
+        engine.start_new_game(
             player_name=request.player_name,
             race=request.race,
             path=request.path,
             background=request.background,
             sex=request.sex,
             character_image=request.character_image,
-            use_llm=request.use_llm
+            stats=request.stats,
+            origin_id=request.origin_id
         )
-        
-        # Log LLM status
-        logger.info(f"LLM {'enabled' if engine._use_llm else 'disabled'} for new game session")
-        
+        # Toggle LLM
+        engine.set_llm_enabled(request.use_llm)
         # Store in active sessions
         active_sessions[session_id] = engine
-        
-        # Initialize WebSocket connections list
         websocket_connections[session_id] = []
-        
+        # Attach listeners for this session
+        _attach_engine_listeners(session_id, engine)
         logger.info(f"Created new game session {session_id} for player {request.player_name}")
-        
-        # Get game state for more detailed response
         state = engine.state_manager.state
-        
-        # Prepare detailed response
         return SessionInfo(
             session_id=session_id,
             player_name=request.player_name,
@@ -558,7 +688,11 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
             }
         }
         
-        # Send update to WebSocket clients
+        # Attach listeners (in case engine was recreated/reset by load) and send update
+        try:
+            _attach_engine_listeners(session_id, engine)
+        except Exception:
+            pass
         asyncio.create_task(ConnectionManager.send_update(session_id, {
             "type": "game_loaded",
             "data": response_data
@@ -575,6 +709,268 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error loading game: {str(e)}"
         )
+
+@app.get("/api/ui/state/{session_id}", response_model=UIStateResponse)
+async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_engine)):
+    """Aggregate UI state for the right panel and status bar to mimic Py GUI."""
+    try:
+        state = engine.state_manager.state
+        if not state:
+            raise HTTPException(status_code=404, detail="No active state")
+
+        # Player header
+        player = state.player
+        sm = engine.state_manager.stats_manager
+        level = getattr(sm, 'level', 1) if sm else 1
+        header = UIPlayerHeader(
+            name=getattr(player, 'name', 'Unknown'),
+            race=getattr(player, 'race', 'Unknown'),
+            path=getattr(player, 'path', 'Unknown'),
+            level=level,
+            sex=getattr(player, 'sex', None),
+            experience_current=0,
+            experience_max=100,
+            portrait_url=getattr(player, 'character_image', None)
+        )
+
+        # Resources
+        resources: Dict[str, UIResourceBar] = {}
+        if sm:
+            from core.stats.stats_base import DerivedStatType
+            def rb(current_t, max_t):
+                cur = sm.get_current_stat_value(current_t)
+                mx = sm.get_stat_value(max_t)
+                return UIResourceBar(current=cur, max=mx)
+            resources['health'] = rb(DerivedStatType.HEALTH, DerivedStatType.MAX_HEALTH)
+            resources['mana'] = rb(DerivedStatType.MANA, DerivedStatType.MAX_MANA)
+            resources['stamina'] = rb(DerivedStatType.STAMINA, DerivedStatType.MAX_STAMINA)
+
+        # Stats
+        primary_stats: Dict[str, UIStatEntry] = {}
+        derived_stats: Dict[str, UIStatEntry] = {}
+        social_stats: Dict[str, UIStatEntry] = {}
+        other_stats: Dict[str, UIStatEntry] = {}
+        if sm:
+            all_stats = sm.get_all_stats()
+            for key, data in (all_stats.get('primary') or {}).items():
+                primary_stats[key] = UIStatEntry(name=str(data.get('name', key)), value=float(data.get('value', 0)), base_value=float(data.get('base_value', 0)))
+            for key, data in (all_stats.get('combat') or {}).items():
+                derived_stats[key] = UIStatEntry(name=str(data.get('name', key)), value=float(data.get('value', 0)), base_value=float(data.get('base_value', 0)))
+            for key, data in (all_stats.get('social') or {}).items():
+                social_stats[key] = UIStatEntry(name=str(data.get('name', key)), value=float(data.get('value', 0)), base_value=float(data.get('base_value', 0)))
+            for key, data in (all_stats.get('other') or {}).items():
+                other_stats[key] = UIStatEntry(name=str(data.get('name', key)), value=float(data.get('value', 0)), base_value=float(data.get('base_value', 0)))
+
+        # Status effects
+        status_effects: List[UIStatusEffectEntry] = []
+        if sm and hasattr(sm, 'get_status_effects'):
+            for eff in sm.get_status_effects():
+                try:
+                    status_effects.append(UIStatusEffectEntry(name=getattr(eff, 'name', 'Effect'), duration=getattr(eff, 'remaining_turns', None)))
+                except Exception:
+                    continue
+
+        # Equipment
+        from core.inventory.item_manager import get_inventory_manager
+        inv = get_inventory_manager()
+        equipment_entries: List[UIEquipmentEntry] = []
+        try:
+            eq = getattr(inv, 'equipment', {})
+            for slot, item_id in eq.items():
+                slot_name = slot.value if hasattr(slot, 'value') else str(slot)
+                item_name = None
+                if item_id:
+                    item = inv.get_item(item_id)
+                    item_name = getattr(item, 'name', None)
+                equipment_entries.append(UIEquipmentEntry(slot=slot_name, item_id=item_id, item_name=item_name))
+        except Exception:
+            pass
+
+        # Mode, location, time
+        mode = getattr(state.current_mode, 'name', str(getattr(state, 'current_mode', 'NARRATIVE')))
+        location = getattr(player, 'current_location', None)
+        game_time = state.game_time.get_formatted_time() if getattr(state, 'game_time', None) else None
+
+        # Combat info (basic)
+        turn_order: List[str] = []
+        initiative = None
+        try:
+            cm = getattr(state, 'combat_manager', None)
+            if cm and mode == 'COMBAT':
+                # If combat manager exposes turn order list of names
+                order = getattr(cm, 'turn_order', [])
+                turn_order = [str(getattr(e, 'name', e)) for e in order] if isinstance(order, list) else []
+                initiative = None
+        except Exception:
+            pass
+
+        journal = getattr(state, 'journal', {}) or {}
+
+        return UIStateResponse(
+            mode=mode,
+            location=location,
+            time=game_time,
+            player=header,
+            resources=resources,
+            primary_stats=primary_stats,
+            derived_stats=derived_stats,
+            social_stats=social_stats,
+            other_stats=other_stats,
+            status_effects=status_effects,
+            equipment=equipment_entries,
+            turn_order=turn_order,
+            initiative=initiative,
+            journal=journal,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error building UI state: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error building UI state")
+
+
+@app.get("/api/inventory/{session_id}")
+async def get_inventory_state(session_id: str, engine: GameEngine = Depends(get_game_engine)):
+    """Return inventory listing, equipped flags, and currency/weight."""
+    try:
+        from core.inventory.item_manager import get_inventory_manager
+        inv = get_inventory_manager()
+        items = []
+        for item in getattr(inv, 'items', []):
+            try:
+                items.append({
+                    'id': item.id,
+                    'name': item.name,
+                    'type': item.item_type.value if hasattr(item.item_type, 'value') else str(item.item_type),
+                    'description': getattr(item, 'description', ''),
+                    'count': getattr(item, 'quantity', 1),
+                    'equipped': bool(inv.is_item_equipped(item.id))
+                })
+            except Exception:
+                continue
+        currency = getattr(inv, 'currency', None)
+        money = {'gold': 0, 'silver': 0, 'copper': 0}
+        if currency:
+            money['gold'] = getattr(currency, 'gold', 0)
+            money['silver'] = getattr(currency, 'silver', 0)
+            total_copper = getattr(currency, '_copper', 0)
+            cps = getattr(currency, '_copper_per_silver', 100)
+            money['copper'] = total_copper % cps
+        current_weight = getattr(inv, 'get_current_weight', lambda: 0.0)()
+        weight_limit = getattr(inv, 'weight_limit', 0.0)
+        return {
+            'items': items,
+            'currency': money,
+            'weight': {'current': current_weight, 'max': weight_limit}
+        }
+    except Exception as e:
+        logger.error(f"Inventory state error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Inventory state error")
+
+
+class InventoryActionRequest(BaseModel):
+    item_id: Optional[str] = None
+
+    slot: Optional[str] = None
+@app.post("/api/inventory/equip/{session_id}")
+async def api_inventory_equip(session_id: str, req: InventoryActionRequest, engine: GameEngine = Depends(get_game_engine)):
+    if not req.item_id:
+        raise HTTPException(status_code=400, detail="item_id required")
+    # Use command router like the desktop GUI does
+    slot_part = f" {req.slot}" if req.slot else ""
+    result = engine.process_command(f"equip {req.item_id}{slot_part}")
+    return {
+        'status': result.status.name,
+        'message': result.message,
+        'state_updated': True
+    }
+
+@app.post("/api/inventory/unequip/{session_id}")
+async def api_inventory_unequip(session_id: str, req: InventoryActionRequest, engine: GameEngine = Depends(get_game_engine)):
+    if not req.slot and not req.item_id:
+        raise HTTPException(status_code=400, detail="slot or item_id required")
+    arg = req.slot or req.item_id
+    result = engine.process_command(f"unequip {arg}")
+    return {'status': result.status.name, 'message': result.message, 'state_updated': True}
+
+@app.post("/api/inventory/use/{session_id}")
+async def api_inventory_use(session_id: str, req: InventoryActionRequest, engine: GameEngine = Depends(get_game_engine)):
+    if not req.item_id:
+        raise HTTPException(status_code=400, detail="item_id required")
+    result = engine.process_command(f"use {req.item_id}")
+    return {'status': result.status.name, 'message': result.message, 'state_updated': True}
+
+@app.post("/api/inventory/drop/{session_id}")
+async def api_inventory_drop(session_id: str, req: InventoryActionRequest, engine: GameEngine = Depends(get_game_engine)):
+    if not req.item_id:
+        raise HTTPException(status_code=400, detail="item_id required")
+    result = engine.process_command(f"drop {req.item_id}")
+    return {'status': result.status.name, 'message': result.message, 'state_updated': True}
+
+
+# Item details endpoint for Examine dialog
+@app.get("/api/items/{session_id}/{item_id}")
+async def get_item_details(session_id: str, item_id: str, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        from core.inventory.item_manager import get_inventory_manager
+        inv = get_inventory_manager()
+        item = inv.get_item(item_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        # Build a rich detail dict
+        def to_name(val):
+            try:
+                return val.name if hasattr(val, 'name') else str(val)
+            except Exception:
+                return str(val)
+        details: Dict[str, Any] = {
+            'id': getattr(item, 'id', None),
+            'name': getattr(item, 'name', '?'),
+            'item_type': getattr(getattr(item, 'item_type', None), 'value', str(getattr(item, 'item_type', '?'))),
+            'description': getattr(item, 'description', ''),
+            'weight': getattr(item, 'weight', None),
+            'value': getattr(item, 'value', None),
+            'quantity': getattr(item, 'quantity', 1),
+            'is_stackable': getattr(item, 'is_stackable', False),
+            'stack_limit': getattr(item, 'stack_limit', None),
+            'durability': getattr(item, 'durability', None),
+            'current_durability': getattr(item, 'current_durability', None),
+            'equip_slots': [getattr(s, 'value', str(s)) for s in (getattr(item, 'equip_slots', []) or [])],
+            'rarity': getattr(getattr(item, 'rarity', None), 'value', None),
+            'tags': list(getattr(item, 'tags', []) or []),
+            'custom_properties': dict(getattr(item, 'custom_properties', {}) or {}),
+            'known_properties': list(getattr(item, 'known_properties', []) or []),
+        }
+        # Stats/effects if present
+        stats_list = []
+        try:
+            for st in getattr(item, 'stats', []) or []:
+                stats_list.append({
+                    'name': getattr(st, 'name', None),
+                    'display_name': getattr(st, 'display_name', None),
+                    'value': getattr(st, 'value', None),
+                    'is_percentage': getattr(st, 'is_percentage', False)
+                })
+        except Exception:
+            pass
+        details['stats'] = stats_list
+        dice_list = []
+        try:
+            for eff in getattr(item, 'dice_roll_effects', []) or []:
+                dice_list.append({
+                    'dice_notation': getattr(eff, 'dice_notation', None),
+                    'effect_type': getattr(eff, 'effect_type', None),
+                    'description': getattr(eff, 'description', None)
+                })
+        except Exception:
+            pass
+        details['dice_roll_effects'] = dice_list
+        return details
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting item details: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error getting item details")
 
 @app.get("/api/list_saves")
 async def list_saves():
@@ -620,6 +1016,22 @@ async def end_session(session_id: str, engine: GameEngine = Depends(get_game_eng
         # Remove from active sessions
         if session_id in active_sessions:
             del active_sessions[session_id]
+        # Disconnect listeners
+        try:
+            if session_id in session_listeners:
+                lst = session_listeners.pop(session_id)
+                if lst.get('stats_conn') and engine.state_manager.stats_manager:
+                    try:
+                        engine.state_manager.stats_manager.stats_changed.disconnect(lst['stats_conn'])
+                    except Exception:
+                        pass
+                if lst.get('orch_conn'):
+                    try:
+                        engine.orchestrated_event_to_ui.disconnect(lst['orch_conn'])
+                    except Exception:
+                        pass
+        except Exception:
+            pass
         
         # Remove WebSocket connections
         if session_id in websocket_connections:
@@ -798,21 +1210,250 @@ async def toggle_llm(session_id: str, request: ToggleLLMRequest, engine: GameEng
             detail=f"Error toggling LLM: {str(e)}"
         )
 
+@app.get("/api/ui/backgrounds")
+async def list_ui_backgrounds():
+    """List available GUI backgrounds (PNG/GIF) so the web UI can mirror Py GUI."""
+    bg_dir = os.path.join(project_root, "images", "gui", "background")
+    try:
+        files = [f for f in os.listdir(bg_dir) if f.lower().endswith((".png", ".gif"))]
+        files.sort()
+    except Exception:
+        files = []
+    return {"backgrounds": files}
+
 @app.get("/api/character-icons")
 async def get_all_character_icons():
-    """Get a list of all available character icons."""
+    """Get a list of all available character icons (flat list)."""
     try:
         icons = get_character_icons()
-        return {
-            "status": "success",
-            "icons": icons
-        }
+        return {"status": "success", "icons": icons}
     except Exception as e:
         logger.error(f"Error getting character icons: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting character icons: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error getting character icons: {str(e)}")
+
+@app.get("/api/character-icons/filter")
+async def get_filtered_character_icons(race: str = Query(...), path: str = Query(...), sex: str = Query("Other")):
+    """Get a filtered list of character icons by race/class/sex subfolder and filename tags."""
+    try:
+        icons = get_character_icons_filtered(race, path, sex)
+        return {"status": "success", "icons": icons}
+    except Exception as e:
+        logger.error(f"Error getting filtered icons: {e}")
+        raise HTTPException(status_code=500, detail="Error getting filtered icons")
+
+# --- Config endpoints ---
+from core.base.config import get_config as _get_config_singleton
+
+@app.get("/api/config/races")
+async def api_config_races():
+    try:
+        cfg = _get_config_singleton()
+        races = cfg.get_all("races") or {}
+        names = sorted([data.get('name', rid) for rid, data in races.items()])
+        return {"races": races, "names": names}
+    except Exception as e:
+        logger.error(f"Error reading races config: {e}")
+        raise HTTPException(status_code=500, detail="Error reading races config")
+
+@app.get("/api/config/classes")
+async def api_config_classes():
+    try:
+        cfg = _get_config_singleton()
+        classes = cfg.get_all("classes") or {}
+        names = sorted([data.get('name', cid) for cid, data in classes.items()])
+        return {"classes": classes, "names": names}
+    except Exception as e:
+        logger.error(f"Error reading classes config: {e}")
+        raise HTTPException(status_code=500, detail="Error reading classes config")
+
+@app.get("/api/config/origins")
+async def api_config_origins():
+    try:
+        cfg = _get_config_singleton()
+        origins = cfg.get_all("origins") or {}
+        # Return as list for convenience + dict form
+        origin_list = list(origins.values())
+        origin_list.sort(key=lambda x: x.get('name', ''))
+        return {"origins": origins, "list": origin_list}
+    except Exception as e:
+        logger.error(f"Error reading origins config: {e}")
+        raise HTTPException(status_code=500, detail="Error reading origins config")
+
+# --- Stats endpoints ---
+@app.get("/api/stats/all/{session_id}")
+async def api_stats_all(session_id: str, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        sm = engine.state_manager.stats_manager
+        if not sm:
+            raise HTTPException(status_code=404, detail="Stats manager not available")
+        return sm.get_all_stats()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting all stats: {e}")
+        raise HTTPException(status_code=500, detail="Error getting stats")
+
+class StatModifiersQuery(BaseModel):
+    stat: str
+
+@app.get("/api/stats/modifiers/{session_id}")
+async def api_stat_modifiers(session_id: str, stat: str = Query(...), engine: GameEngine = Depends(get_game_engine)):
+    try:
+        sm = engine.state_manager.stats_manager
+        if not sm:
+            raise HTTPException(status_code=404, detail="Stats manager not available")
+        from core.stats.stats_base import StatType, DerivedStatType
+        stat_key = stat.strip().upper()
+        stat_enum = None
+        try:
+            stat_enum = StatType[stat_key]
+        except KeyError:
+            try:
+                stat_enum = DerivedStatType[stat_key]
+            except KeyError:
+                raise HTTPException(status_code=400, detail=f"Unknown stat '{stat}'")
+        mods = sm.modifier_manager.get_modifiers_for_stat(stat_enum)
+        # Convert modifiers to dicts if they have to_dict
+        out = []
+        for m in mods:
+            try:
+                out.append(m.to_dict())
+            except Exception:
+                # Basic projection
+                out.append({
+                    "id": getattr(m, 'id', None),
+                    "source": getattr(m, 'source_name', ''),
+                    "value": getattr(m, 'value', 0),
+                    "is_percentage": getattr(m, 'is_percentage', False),
+                    "duration": getattr(m, 'duration', None)
+                })
+        return {"stat": stat_key, "modifiers": out}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting stat modifiers: {e}")
+        raise HTTPException(status_code=500, detail="Error getting modifiers")
+
+# --- Journal endpoints ---
+class JournalCharacterUpdate(BaseModel):
+    text: str
+
+class JournalObjectiveStatus(BaseModel):
+    quest_id: str
+    objective_id: str
+    completed: Optional[bool] = None
+    failed: Optional[bool] = None
+
+class JournalAbandonRequest(BaseModel):
+    quest_id: str
+
+class JournalNoteRequest(BaseModel):
+    text: str
+
+@app.get("/api/journal/{session_id}")
+async def api_get_journal(session_id: str, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        st = engine.state_manager.state
+        return getattr(st, 'journal', {}) or {}
+    except Exception as e:
+        logger.error(f"Error getting journal: {e}")
+        raise HTTPException(status_code=500, detail="Error getting journal")
+
+@app.post("/api/journal/character/{session_id}")
+async def api_update_journal_character(session_id: str, req: JournalCharacterUpdate, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        st = engine.state_manager.state
+        if not hasattr(st, 'journal') or st.journal is None:
+            st.journal = {"character": "", "quests": {}, "notes": []}
+        st.journal["character"] = req.text or ""
+        # Broadcast simple journal update
+        asyncio.create_task(ConnectionManager.send_update(session_id, {"type": "journal_updated", "data": st.journal}))
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error updating journal character: {e}")
+        raise HTTPException(status_code=500, detail="Error updating journal character")
+
+@app.post("/api/journal/objective_status/{session_id}")
+async def api_update_objective_status(session_id: str, req: JournalObjectiveStatus, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        st = engine.state_manager.state
+        if not hasattr(st, 'journal') or st.journal is None:
+            st.journal = {"character": "", "quests": {}, "notes": []}
+        q = st.journal.setdefault("quests", {}).get(req.quest_id)
+        if not q:
+            raise HTTPException(status_code=404, detail="Quest not found")
+        # Update objective
+        for o in q.get("objectives", []):
+            if o.get("id") == req.objective_id:
+                if req.completed is not None:
+                    o["completed"] = bool(req.completed)
+                    if req.completed:
+                        o["failed"] = False
+                if req.failed is not None:
+                    o["failed"] = bool(req.failed)
+                    if req.failed:
+                        o["completed"] = False
+                break
+        asyncio.create_task(ConnectionManager.send_update(session_id, {"type": "journal_updated", "data": st.journal}))
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating objective status: {e}")
+        raise HTTPException(status_code=500, detail="Error updating objective status")
+
+@app.post("/api/journal/abandon/{session_id}")
+async def api_abandon_quest(session_id: str, req: JournalAbandonRequest, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        st = engine.state_manager.state
+        if not hasattr(st, 'journal') or st.journal is None:
+            st.journal = {"character": "", "quests": {}, "notes": []}
+        q = st.journal.setdefault("quests", {}).get(req.quest_id)
+        if not q:
+            raise HTTPException(status_code=404, detail="Quest not found")
+        q["status"] = "failed"
+        q["abandoned"] = True
+        asyncio.create_task(ConnectionManager.send_update(session_id, {"type": "journal_updated", "data": st.journal}))
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error abandoning quest: {e}")
+        raise HTTPException(status_code=500, detail="Error abandoning quest")
+
+@app.post("/api/journal/add_note/{session_id}")
+async def api_add_journal_note(session_id: str, req: JournalNoteRequest, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        st = engine.state_manager.state
+        if not hasattr(st, 'journal') or st.journal is None:
+            st.journal = {"character": "", "quests": {}, "notes": []}
+        notes = st.journal.setdefault("notes", [])
+        note = {"id": str(uuid.uuid4()), "text": req.text or "", "created_at": datetime.now().isoformat()}
+        notes.append(note)
+        asyncio.create_task(ConnectionManager.send_update(session_id, {"type": "journal_updated", "data": st.journal}))
+        return {"status": "success", "note": note}
+    except Exception as e:
+        logger.error(f"Error adding note: {e}")
+        raise HTTPException(status_code=500, detail="Error adding note")
+
+@app.delete("/api/journal/delete_note/{session_id}/{note_id}")
+async def api_delete_journal_note(session_id: str, note_id: str, engine: GameEngine = Depends(get_game_engine)):
+    try:
+        st = engine.state_manager.state
+        if not hasattr(st, 'journal') or st.journal is None:
+            st.journal = {"character": "", "quests": {}, "notes": []}
+        notes = st.journal.setdefault("notes", [])
+        before = len(notes)
+        notes[:] = [n for n in notes if str(n.get('id')) != str(note_id)]
+        if len(notes) == before:
+            raise HTTPException(status_code=404, detail="Note not found")
+        asyncio.create_task(ConnectionManager.send_update(session_id, {"type": "journal_updated", "data": st.journal}))
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting note: {e}")
+        raise HTTPException(status_code=500, detail="Error deleting note")
 
 # Run server directly with: uvicorn server:app --reload
 if __name__ == "__main__":

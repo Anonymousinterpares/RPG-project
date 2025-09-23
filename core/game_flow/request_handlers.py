@@ -268,6 +268,65 @@ def _process_state_change_request(engine: 'GameEngine', game_state: 'GameState',
             else:
                 change_narrative = f"System Error: Invalid status effect name '{value}'."
 
+        elif attribute == "location":
+            # Developer-only direct location change to support testing visit/explore objectives.
+            try:
+                # Check Developer Mode via QSettings (GUI)
+                from PySide6.QtCore import QSettings
+                q = QSettings("RPGGame", "Settings")
+                dev_enabled = bool(q.value("dev/enabled", False, type=bool) or q.value("dev/quest_verbose", False, type=bool))
+            except Exception:
+                dev_enabled = False
+
+            location_id = str(value) if value is not None else ""
+
+            if not dev_enabled:
+                # Attempt to get an explanation from the RuleChecker; if none, fall back to a simple message.
+                explanation = None
+                try:
+                    if hasattr(engine, '_rule_checker') and engine._rule_checker is not None:
+                        from core.agents.base_agent import AgentContext
+                        from core.interaction.context_builder import ContextBuilder
+                        from core.interaction.enums import InteractionMode
+                        context_dict = ContextBuilder().build_context(game_state, InteractionMode.NARRATIVE, actor_id=effective_actor_id)
+                        validation_input = f"STATE_CHANGE location -> {location_id} (request denied in normal play)"
+                        agent_ctx = AgentContext(
+                            game_state=context_dict,
+                            player_state=context_dict.get('player', {}),
+                            world_state={
+                                'location': context_dict.get('location'),
+                                'time_of_day': context_dict.get('time_of_day'),
+                                'environment': context_dict.get('environment')
+                            },
+                            player_input=validation_input,
+                            conversation_history=game_state.conversation_history if hasattr(game_state, 'conversation_history') else [],
+                            relevant_memories=[],
+                            additional_context=context_dict
+                        )
+                        is_valid, reason = engine._rule_checker.validate_action(agent_ctx)
+                        if not is_valid and reason:
+                            explanation = reason
+                except Exception:
+                    pass
+                if not explanation:
+                    explanation = "developer-only teleportation is disabled in normal play"
+                return f"This action is not permitted - {explanation}."
+
+            # Developer mode enabled: apply direct location change and record visit event.
+            try:
+                game_state.player.current_location = location_id
+                if hasattr(game_state, 'world'):
+                    game_state.world.current_location = location_id
+                try:
+                    from core.game_flow.event_log import record_location_visited
+                    record_location_visited(game_state, location_id=location_id)
+                except Exception:
+                    pass
+                change_applied = True
+                change_narrative = f"Location set to {location_id} (dev)."
+            except Exception as e:
+                change_narrative = f"System Error: Failed to change location to '{location_id}' ({e})."
+
         # Add Social Effect / Remove Social Effect (These might need specific logic if not handled by StatsManager)
         # elif attribute == "add_social_effect":
         #      # TODO: Implement social effect handling, potentially on NPC state or a dedicated system

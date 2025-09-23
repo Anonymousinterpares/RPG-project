@@ -145,7 +145,9 @@ class ApiClient {
                 background: settings.background,
                 sex: settings.sex,
                 character_image: settings.characterImage,
-                use_llm: settings.useLLM
+                use_llm: settings.useLLM,
+                origin_id: settings.origin_id || null,
+                stats: settings.stats || null
             };
             
             const response = await fetch(this.buildUrl('new_game'), {
@@ -405,6 +407,38 @@ class ApiClient {
         }
     }
 
+    /** Filtered character icons by race/class/sex */
+    async getFilteredCharacterIcons(race, path, sex='Other') {
+        try {
+            const params = new URLSearchParams({ race, path, sex });
+            const response = await fetch(this.buildUrl(`character-icons/filter?${params.toString()}`), {
+                method: 'GET', headers: this.getHeaders()
+            });
+            if (!response.ok) throw new Error('Failed to get filtered character icons');
+            return await response.json();
+        } catch (e) {
+            console.error('Get filtered icons error:', e);
+            throw e;
+        }
+    }
+
+    /** Config endpoints */
+    async getConfigRaces() {
+        const r = await fetch(this.buildUrl('config/races'), { headers: this.getHeaders() });
+        if (!r.ok) throw new Error('Failed to load races');
+        return await r.json();
+    }
+    async getConfigClasses() {
+        const r = await fetch(this.buildUrl('config/classes'), { headers: this.getHeaders() });
+        if (!r.ok) throw new Error('Failed to load classes');
+        return await r.json();
+    }
+    async getConfigOrigins() {
+        const r = await fetch(this.buildUrl('config/origins'), { headers: this.getHeaders() });
+        if (!r.ok) throw new Error('Failed to load origins');
+        return await r.json();
+    }
+
     /**
      * Check if the server is available
      */
@@ -421,6 +455,105 @@ class ApiClient {
             console.error('Server check error:', error);
             return false;
         }
+    }
+    /** Fetch detailed UI state for the right panel and status bar */
+    async getUIState() {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`ui/state/${this.sessionId}`), { headers: this.getHeaders() });
+        if (!resp.ok) throw new Error('Failed to fetch UI state');
+        return await resp.json();
+    }
+
+    /** Fetch inventory listing/currency/weight */
+    async getInventory() {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`inventory/${this.sessionId}`), { headers: this.getHeaders() });
+        if (!resp.ok) throw new Error('Failed to fetch inventory');
+        return await resp.json();
+    }
+
+    async equipItem(itemId, slot = null) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`inventory/equip/${this.sessionId}`), {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ item_id: itemId, slot })
+        });
+        if (!resp.ok) throw new Error('Failed to equip');
+        return await resp.json();
+    }
+
+    async unequip(slotOrItemId) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`inventory/unequip/${this.sessionId}`), {
+            method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ slot: slotOrItemId, item_id: slotOrItemId })
+        });
+        if (!resp.ok) throw new Error('Failed to unequip');
+        return await resp.json();
+    }
+
+    async useItem(itemId) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`inventory/use/${this.sessionId}`), {
+            method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ item_id: itemId })
+        });
+        if (!resp.ok) throw new Error('Failed to use item');
+        return await resp.json();
+    }
+
+    async dropItem(itemId) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`inventory/drop/${this.sessionId}`), {
+            method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ item_id: itemId })
+        });
+        if (!resp.ok) throw new Error('Failed to drop item');
+        return await resp.json();
+    }
+
+    // Journal endpoints
+    async updateJournalCharacter(text) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`journal/character/${this.sessionId}`), { method:'POST', headers: this.getHeaders(), body: JSON.stringify({ text }) });
+        if (!resp.ok) throw new Error('Failed to save character notes');
+        return await resp.json();
+    }
+    async updateObjectiveStatus(quest_id, objective_id, payload) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const body = { quest_id, objective_id };
+        if (typeof payload.completed === 'boolean') body.completed = payload.completed;
+        if (typeof payload.failed === 'boolean') body.failed = payload.failed;
+        const resp = await fetch(this.buildUrl(`journal/objective_status/${this.sessionId}`), { method:'POST', headers: this.getHeaders(), body: JSON.stringify(body) });
+        if (!resp.ok) throw new Error('Failed to update objective');
+        return await resp.json();
+    }
+    async abandonQuest(quest_id) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`journal/abandon/${this.sessionId}`), { method:'POST', headers: this.getHeaders(), body: JSON.stringify({ quest_id }) });
+        if (!resp.ok) throw new Error('Failed to abandon quest');
+        return await resp.json();
+    }
+
+    async addJournalNote(text) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`journal/add_note/${this.sessionId}`), { method:'POST', headers: this.getHeaders(), body: JSON.stringify({ text }) });
+        if (!resp.ok) throw new Error('Failed to add note');
+        return await resp.json();
+    }
+    async deleteJournalNote(noteId) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`journal/delete_note/${this.sessionId}/${encodeURIComponent(noteId)}`), { method:'DELETE', headers: this.getHeaders() });
+        if (!resp.ok) throw new Error('Failed to delete note');
+        return await resp.json();
+    }
+
+    /** Get stat modifiers for a specific stat key (e.g., 'STR', 'MELEE_ATTACK') */
+    async getStatModifiers(statKey) {
+        if (!this.sessionId) throw new Error('No active game session');
+        const resp = await fetch(this.buildUrl(`stats/modifiers/${this.sessionId}?stat=${encodeURIComponent(statKey)}`), {
+            method: 'GET', headers: this.getHeaders()
+        });
+        if (!resp.ok) throw new Error('Failed to get stat modifiers');
+        return await resp.json();
     }
 }
 

@@ -19,6 +19,13 @@ class WebSocketClient {
             'command_result': [],
             'game_loaded': [],
             'time_update': [],
+            'stats_changed': [],
+            'turn_order_update': [],
+            'ui_bar_update_phase1': [],
+            'ui_bar_update_phase2': [],
+            'combat_log_set_html': [],
+            'narrative': [],
+            'journal_updated': [],
             'error': []
         };
         

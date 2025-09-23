@@ -10,38 +10,63 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header with game info -->
-        <header class="game-header">
-            <div class="game-title">RPG Adventure</div>
-            <div class="game-info">
-                <div id="player-info">Player: <span id="player-name">-</span> | Level: <span id="player-level">1</span></div>
-                <div id="location-info">Location: <span id="current-location">-</span></div>
-                <div id="time-info">Time: <span id="game-time">-</span></div>
-            </div>
-            <div class="menu-buttons">
-                <button id="new-game-btn" class="menu-btn"><i class="fas fa-plus"></i> New Game</button>
-                <button id="save-game-btn" class="menu-btn"><i class="fas fa-save"></i> Save Game</button>
-                <button id="load-game-btn" class="menu-btn"><i class="fas fa-folder-open"></i> Load Game</button>
-                <button id="settings-btn" class="menu-btn"><i class="fas fa-cog"></i> Settings</button>
-            </div>
-        </header>
-
-        <!-- Main game area -->
-        <main class="game-content">
-            <!-- Game output area -->
-            <div class="game-output" id="game-output">
-                <div class="welcome-message">
-                    <h2>Welcome to RPG Adventure</h2>
-                    <p>Start a new game or load a saved game to begin your adventure.</p>
+        <div class="game-frame">
+            <div class="banner-bar">
+                <div class="title-banner">
+                    <img id="title-banner" src="/images/gui/title_banner.png" alt="Title Banner">
+                </div>
+                <div class="music-controls">
+                    <button class="music-btn" title="Play/Pause"><img src="/images/gui/music_play.png" alt="Play"></button>
+                    <button class="music-btn" title="Next"><img src="/images/gui/music_next.png" alt="Next"></button>
+                    <button class="music-btn" title="Volume"><img src="/images/gui/music_volume.png" alt="Volume"></button>
                 </div>
             </div>
 
-            <!-- Command input area -->
-            <div class="command-input-container">
-                <input type="text" id="command-input" class="command-input" placeholder="Enter a command..." disabled>
-                <button id="send-command-btn" class="send-command-btn" disabled><i class="fas fa-paper-plane"></i></button>
-            </div>
-        </main>
+            <aside class="left-menu">
+                <div class="menu-buttons">
+                    <button id="new-game-btn" class="menu-btn"><i class="fas fa-plus"></i> New Game</button>
+                    <button id="save-game-btn" class="menu-btn"><i class="fas fa-save"></i> Save Game</button>
+                    <button id="load-game-btn" class="menu-btn"><i class="fas fa-folder-open"></i> Load Game</button>
+                    <button id="settings-btn" class="menu-btn"><i class="fas fa-cog"></i> Settings</button>
+                    <button id="llm-btn" class="menu-btn">LLM</button>
+                    <button id="exit-btn" class="menu-btn">Exit</button>
+                </div>
+            </aside>
+
+            <section class="center-stack">
+                <div class="game-output" id="game-output">
+                    <div class="welcome-message">
+                        <h2>Welcome to RPG Adventure</h2>
+                        <p>Start a new game or load a saved game to begin your adventure.</p>
+                    </div>
+                </div>
+                <div class="command-input-container">
+                    <input type="text" id="command-input" class="command-input" placeholder="Enter a command..." disabled>
+                    <button id="send-command-btn" class="send-command-btn" disabled><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </section>
+
+            <aside class="right-panel">
+                <div class="right-tabs">
+                    <div class="tab-buttons small-tabs">
+                        <button class="rp-tab-btn active" data-tab="tab-character">Character</button>
+                        <button class="rp-tab-btn" data-tab="tab-inventory">Inventory</button>
+                        <button class="rp-tab-btn" data-tab="tab-journal">Journal</button>
+                    </div>
+                    <div class="tab-content">
+                        <div class="rp-tab-pane active" id="tab-character"><div class="placeholder">Character panel</div></div>
+                        <div class="rp-tab-pane" id="tab-inventory"><div class="placeholder">Inventory panel</div></div>
+                        <div class="rp-tab-pane" id="tab-journal"><div class="placeholder">Journal panel</div></div>
+                    </div>
+                </div>
+            </aside>
+
+            <footer class="status-bar">
+                <div class="status-text">
+                    Location: <span id="current-location">-</span> | Time: <span id="game-time">-</span> | Player: <span id="player-name">-</span> (Lv <span id="player-level">1</span>)
+                </div>
+            </footer>
+        </div>
 
         <!-- Modals -->
         <!-- New Game Modal -->
@@ -52,80 +77,105 @@
                     <span class="close-modal">&times;</span>
                 </div>
                 <div class="modal-body">
-                    <div class="character-creator-container">
-                        <div class="character-info-section">
-                            <div class="form-group">
-                                <label for="new-player-name">Character Name:</label>
-                                <input type="text" id="new-player-name" placeholder="Enter your character name">
+                        <div class="cc-tabs"><button class="cc-tab-btn active" data-step="basic">1. Basic Info</button><button class="cc-tab-btn" data-step="origin">2. Origin</button><button class="cc-tab-btn" data-step="stats">3. Stats</button></div>
+                        <div class="cc-step" data-step="basic">
+                        <div class="character-creator-container">
+                            <div class="character-info-section">
+                                <div class="form-group">
+                                    <label for="new-player-name">Character Name:</label>
+                                    <input type="text" id="new-player-name" placeholder="Enter your character name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="character-race-select">Race:</label>
+                                    <select id="character-race-select"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="character-class-select">Class:</label>
+                                    <select id="character-class-select"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="character-background-select">Origin:</label>
+                                    <select id="character-background-select"><option value="">-- Select an Origin ---</option></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="character-sex-select">Sex:</label>
+                                    <select id="character-sex-select">
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="character-llm-toggle" checked>
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-label">Enable LLM for this game</span>
+                                    </label>
+                                </div>
+                                <!-- Hidden input for selected icon path -->
+                                <input type="hidden" id="character-icon-input">
                             </div>
-                            <div class="form-group">
-                                <label for="character-race-select">Race:</label>
-                                <select id="character-race-select">
-                                    <option value="Human">Human</option>
-                                    <option value="Elf">Elf</option>
-                                    <option value="Dwarf">Dwarf</option>
-                                    <option value="Halfling">Halfling</option>
-                                    <option value="Orc">Orc</option>
-                                </select>
+                            <div class="character-icon-section">
+                                <label>Character Portrait:</label>
+                                <div class="icon-display-container">
+                                    <div id="character-icon-display" class="icon-display">
+                                        <div class="loading-icons">Loading icons...</div>
+                                    </div>
+                                    <div class="icon-controls">
+                                        <button id="prev-icon-button" class="icon-nav-btn"><i class="fas fa-arrow-left"></i></button>
+                                        <span id="icon-counter">0 / 0</span>
+                                        <button id="next-icon-button" class="icon-nav-btn"><i class="fas fa-arrow-right"></i></button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="character-class-select">Class:</label>
-                                <select id="character-class-select">
-                                    <option value="Wanderer">Wanderer</option>
-                                    <option value="Warrior">Warrior</option>
-                                    <option value="Mage">Mage</option>
-                                    <option value="Rogue">Rogue</option>
-                                    <option value="Cleric">Cleric</option>
-                                    <option value="Ranger">Ranger</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="character-background-select">Background:</label>
-                                <select id="character-background-select">
-                                    <option value="Commoner">Commoner</option>
-                                    <option value="Noble">Noble</option>
-                                    <option value="Merchant">Merchant</option>
-                                    <option value="Soldier">Soldier</option>
-                                    <option value="Scholar">Scholar</option>
-                                    <option value="Criminal">Criminal</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="character-sex-select">Sex:</label>
-                                <select id="character-sex-select">
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="character-llm-toggle" checked>
-                                    <span class="toggle-slider"></span>
-                                    <span class="toggle-label">Enable LLM for this game</span>
-                                </label>
-                            </div>
-                            <!-- Hidden input for selected icon path -->
-                            <input type="hidden" id="character-icon-input">
                         </div>
-                        <div class="character-icon-section">
-                            <label>Character Portrait:</label>
-                            <div class="icon-display-container">
-                                <div id="character-icon-display" class="icon-display">
-                                    <div class="loading-icons">Loading icons...</div>
+                        </div>
+                        <div class="cc-step" data-step="origin" style="display:none">
+                        <div class="origin-and-backstory">
+                            <div class="origin-details-card">
+                                <h3>Origin Details</h3>
+                                <div class="form-group">
+                                    <label>Description:</label>
+                                    <div id="origin-description" class="origin-text">Select an Origin to see details.</div>
                                 </div>
-                                <div class="icon-controls">
-                                    <button id="prev-icon-button" class="icon-nav-btn"><i class="fas fa-arrow-left"></i></button>
-                                    <span id="icon-counter">0 / 0</span>
-                                    <button id="next-icon-button" class="icon-nav-btn"><i class="fas fa-arrow-right"></i></button>
+                                <div class="form-group">
+                                    <label>Skill Proficiencies:</label>
+                                    <div id="origin-skills" class="origin-text">-</div>
                                 </div>
+                                <div class="form-group">
+                                    <label>Origin Traits:</label>
+                                    <div id="origin-traits" class="origin-text">-</div>
+                                </div>
+                            </div>
+                            <div class="origin-backstory-card">
+                                <h3>Character Backstory (Seed)</h3>
+                                <div class="form-group">
+                                    <label>Edit the text below (loaded from Origin) to guide LLM background generation:</label>
+                                    <textarea id="character-backstory-seed" rows="8" placeholder="Select an Origin to load starting text..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                        <div class="cc-step" data-step="stats" style="display:none">
+                            <div class="cc-stats">
+                                <div class="cc-stats-header">
+                                    <div id="cc-stats-rc-display"></div>
+                                    <div class="cc-points-remaining">Points Remaining: <span id="cc-points-remaining">27</span></div>
+                                    <button id="cc-reset-btn" class="cancel-btn" style="float:right;">Reset</button>
+                                </div>
+                                <div id="cc-stats-grid"></div>
+                                <div class="cc-preset-row" style="margin-top:10px; display:flex; gap:8px;">
+                                    <button class="primary-btn" id="cc-preset-healer">Healer</button>
+                                    <button class="primary-btn" id="cc-preset-crusader">Crusader</button>
+                                    <button class="primary-btn" id="cc-preset-oracle">Oracle</button>
+                                </div>
+                                <div id="cc-stats-info" class="origin-text" style="margin-top:10px;"></div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button id="create-game-btn" class="primary-btn">Create Game</button>
-                    <button class="cancel-btn">Cancel</button>
-                </div>
+                    <div class="modal-footer">
+                        <button id="create-game-btn" class="primary-btn">Create Game</button>
+                        <button class="cancel-btn">Cancel</button>
+                    </div>
             </div>
         </div>
 
@@ -181,6 +231,7 @@
                             <button class="tab-btn active" data-tab="display-settings">Display</button>
                             <button class="tab-btn" data-tab="llm-settings">LLM Settings</button>
                             <button class="tab-btn" data-tab="agent-settings">Agent Settings</button>
+                            <button class="tab-btn" data-tab="style-tools">Style Tools</button>
                         </div>
                         
                         <div class="tab-content">
@@ -200,6 +251,12 @@
                                         <label for="font-size-slider">Font Size:</label>
                                         <input type="range" id="font-size-slider" min="12" max="24" value="16">
                                         <span id="font-size-value">16px</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="background-select">Background:</label>
+                                        <select id="background-select">
+                                            <option value="">Auto (first available)</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -375,12 +432,88 @@
                                 </div>
                             </div>
                         </div>
+
+                            <!-- Style Tools Tab -->
+                            <div class="tab-pane" id="style-tools">
+                                <div class="settings-section">
+                                    <h3>Layout & Debug Tools</h3>
+                                    <div class="form-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="layout-debug-toggle">
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Enable Layout Inspector</span>
+                                        </label>
+                                    </div>
+                            <div class="form-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="layout-grid-toggle">
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Show Grid Overlay</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="layout-editor-toggle">
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Enable Element Resize Mode</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="layout-move-toggle">
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Enable Move Mode (drag to reposition)</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-grid-size">Grid Size:</label>
+                                        <input type="number" id="layout-grid-size" min="4" max="64" step="2" value="16">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-left-width">Left Menu Width (px):</label>
+                                        <input type="number" id="layout-left-width" min="120" max="320" step="5" value="180">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-right-width">Right Panel Width (px):</label>
+                                        <input type="number" id="layout-right-width" min="320" max="640" step="5" value="420">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-gap">Content Gap (px):</label>
+                                        <input type="number" id="layout-gap" min="0" max="24" step="1" value="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-rp-max">Right Panel Pane Max Height (px or 0 for none):</label>
+                                        <input type="number" id="layout-rp-max" min="0" max="1200" step="10" value="0">
+                                    </div>
+                                    <div class="form-group" style="display:flex; gap:8px; flex-wrap:wrap;">
+                                        <button id="layout-reset-all" class="cancel-btn" style="background:#b71c1c;border-color:#b71c1c;color:#fff;">Reset Layout to Defaults</button>
+                                        <button id="layout-restore-saved" class="secondary-btn">Restore Layout From Saved Snapshot</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button id="reset-settings-btn" class="secondary-btn">Reset to Default</button>
                     <button id="save-settings-btn" class="primary-btn">Save Settings</button>
                     <button class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item Info Modal -->
+        <div class="modal" id="item-info-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Item Info</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body" id="item-info-body">
+                    <div class="loading-item-info">Loading...</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="cancel-btn">Close</button>
                 </div>
             </div>
         </div>

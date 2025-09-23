@@ -8,6 +8,7 @@ import os
 import sys
 import subprocess
 import importlib.util
+import webbrowser
 
 # Add the project root to the Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -73,6 +74,12 @@ def start_server():
         print("API documentation at: http://localhost:8000/docs")
         print("=" * 50)
         print("Press Ctrl+C to stop the server.")
+
+        # Try to open the browser automatically
+        try:
+            webbrowser.open("http://localhost:8000")
+        except Exception:
+            pass
         
         try:
             # Run the server script as a module using subprocess

@@ -27,7 +27,8 @@ class UiManager {
             newGame: document.getElementById('new-game-modal'),
             saveGame: document.getElementById('save-game-modal'),
             loadGame: document.getElementById('load-game-modal'),
-            settings: document.getElementById('settings-modal')
+            settings: document.getElementById('settings-modal'),
+            itemInfo: document.getElementById('item-info-modal')
         };
 
         // Form elements
@@ -67,6 +68,9 @@ class UiManager {
         
         // Set up MutationObserver to prevent INPUT elements being created
         this.setupMutationObserver();
+
+        // Apply background from server assets (matches Py GUI backgrounds)
+        this.applyBackgroundFromServer();
     }
     
     // NEW FUNCTION: Prevent other code from replacing SELECT with INPUT
@@ -262,6 +266,34 @@ class UiManager {
                 this.applyTheme(e.target.value);
             });
         }
+        // Background select
+        const bgSelect = document.getElementById('background-select');
+        if (bgSelect) {
+            this.populateBackgroundsSelect();
+            bgSelect.addEventListener('change', (e)=>{
+                const filename = e.target.value || '';
+                if (filename) {
+                    document.body.style.setProperty('--bg-image-url', `url("/images/gui/background/${filename}")`);
+                    document.body.classList.add('has-bg');
+                    localStorage.setItem('rpg_bg_filename', filename);
+                } else {
+                    localStorage.removeItem('rpg_bg_filename');
+                    this.applyBackgroundFromServer();
+                }
+            });
+        }
+
+        // Style Tools: load and bind
+        this.applySavedLayoutSettings();
+        this.applySavedElementStyles();
+        this.initStyleToolsBindings();
+
+        // History for editor actions
+        this._history = [];
+        this._historyIndex = -1;
+        // Internal editor state
+        this._resizeHandlesEnabled = false; // true when Resize mode ON; overlay can exist also for Move mode only
+        this._editorListenersAttached = false;
 
         if (document.getElementById('font-size-slider')) {
             const fontSizeSlider = document.getElementById('font-size-slider');
@@ -301,6 +333,19 @@ class UiManager {
             button.addEventListener('click', () => {
                 const targetTab = button.getAttribute('data-tab');
                 this.switchTab(targetTab);
+            });
+        });
+
+        // Initialize right panel tabs (separate namespace to avoid clashing with settings tabs)
+        const rpTabButtons = document.querySelectorAll('.right-tabs .rp-tab-btn');
+        rpTabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.getAttribute('data-tab');
+                document.querySelectorAll('.right-tabs .rp-tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.right-tabs .rp-tab-pane').forEach(p => p.classList.remove('active'));
+                button.classList.add('active');
+                const pane = document.getElementById(targetTab);
+                if (pane) pane.classList.add('active');
             });
         });
 
@@ -482,6 +527,727 @@ class UiManager {
         }
     }
 
+    applySavedLayoutSettings() {
+        try {
+            const left = localStorage.getItem('rpg_layout_left');
+            const right = localStorage.getItem('rpg_layout_right');
+            const gap = localStorage.getItem('rpg_layout_gap');
+            const rpMax = localStorage.getItem('rpg_rp_max');
+            const grid = localStorage.getItem('rpg_grid_enabled') === 'true';
+            const gsize = localStorage.getItem('rpg_grid_size');
+            const inspector = localStorage.getItem('rpg_dev_inspector_enabled') === 'true';
+            if (left) document.documentElement.style.setProperty('--left-menu-width', `${parseInt(left,10)}px`);
+            if (right) document.documentElement.style.setProperty('--right-panel-width', `${parseInt(right,10)}px`);
+            if (gap) document.documentElement.style.setProperty('--content-gap', `${parseInt(gap,10)}px`);
+            if (rpMax && parseInt(rpMax,10) > 0) document.documentElement.style.setProperty('--rp-pane-max', `${parseInt(rpMax,10)}px`);
+            if (rpMax && parseInt(rpMax,10) === 0) document.documentElement.style.setProperty('--rp-pane-max', `none`);
+            if (gsize) document.documentElement.style.setProperty('--grid-size', `${parseInt(gsize,10)}px`);
+            // Sync inputs if present
+            const setVal = (id, val)=>{ const el=document.getElementById(id); if (el && val!=null) el.value = String(val).replace('px',''); };
+            setVal('layout-left-width', left||180);
+            setVal('layout-right-width', right||420);
+            setVal('layout-gap', gap||10);
+            setVal('layout-rp-max', rpMax||0);
+            setVal('layout-grid-size', gsize||16);
+            const gridToggle = document.getElementById('layout-grid-toggle'); if (gridToggle) gridToggle.checked = grid;
+            const inspToggle = document.getElementById('layout-debug-toggle'); if (inspToggle) inspToggle.checked = inspector;
+            this.toggleGridOverlay(grid);
+            this.enableLayoutInspector(inspector);
+        } catch (e) { console.warn('applySavedLayoutSettings failed', e); }
+    }
+
+    initStyleToolsBindings() {
+        const bindNum = (id, cb) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', ()=> {
+                const v = parseInt(el.value, 10);
+                cb(isNaN(v)?0:v);
+            });
+        };
+        bindNum('layout-left-width', (v)=>{ document.documentElement.style.setProperty('--left-menu-width', `${v}px`); localStorage.setItem('rpg_layout_left', v); });
+        bindNum('layout-right-width', (v)=>{ document.documentElement.style.setProperty('--right-panel-width', `${v}px`); localStorage.setItem('rpg_layout_right', v); });
+        bindNum('layout-gap', (v)=>{ document.documentElement.style.setProperty('--content-gap', `${v}px`); localStorage.setItem('rpg_layout_gap', v); });
+        bindNum('layout-grid-size', (v)=>{ document.documentElement.style.setProperty('--grid-size', `${v}px`); localStorage.setItem('rpg_grid_size', v); });
+        bindNum('layout-rp-max', (v)=>{ if (v>0) { document.documentElement.style.setProperty('--rp-pane-max', `${v}px`); } else { document.documentElement.style.setProperty('--rp-pane-max', `none`); } localStorage.setItem('rpg_rp_max', v); });
+        const gridToggle = document.getElementById('layout-grid-toggle');
+        if (gridToggle) gridToggle.addEventListener('change', ()=>{ const on=gridToggle.checked; localStorage.setItem('rpg_grid_enabled', on); this.toggleGridOverlay(on); });
+        const inspToggle = document.getElementById('layout-debug-toggle');
+        if (inspToggle) inspToggle.addEventListener('change', ()=>{ const on=inspToggle.checked; localStorage.setItem('rpg_dev_inspector_enabled', on); this.enableLayoutInspector(on); });
+        const editorToggle = document.getElementById('layout-editor-toggle');
+        if (editorToggle) editorToggle.addEventListener('change', ()=>{ 
+            const on = editorToggle.checked;
+            // enforce exclusivity: if turning resize ON, turn move OFF
+            const moveToggleEl = document.getElementById('layout-move-toggle');
+            if (on) {
+                if (moveToggleEl) moveToggleEl.checked = false;
+                this._moveMode = false;
+                localStorage.setItem('rpg_dev_move_enabled', false);
+            }
+            localStorage.setItem('rpg_dev_editor_enabled', on);
+            this._resizeHandlesEnabled = on;
+            this.enableElementResizeMode(on); // will keep overlay active if move mode is on
+        });
+        const moveToggle = document.getElementById('layout-move-toggle');
+        if (moveToggle) moveToggle.addEventListener('change', ()=>{ 
+            const on = moveToggle.checked; 
+            // enforce exclusivity: if turning move ON, turn resize OFF (handles hidden)
+            const editorToggleEl = document.getElementById('layout-editor-toggle');
+            if (on) {
+                if (editorToggleEl) editorToggleEl.checked = false;
+                localStorage.setItem('rpg_dev_editor_enabled', false);
+                this._resizeHandlesEnabled = false;
+            }
+            localStorage.setItem('rpg_dev_move_enabled', on); 
+            this._moveMode = on; 
+            // ensure overlay exists or is removed based on combined state
+            this.enableElementResizeMode(this._resizeHandlesEnabled);
+            try { this._updateOverlayRef && this._updateOverlayRef(); } catch(e) {} 
+        });
+        const resetAllBtn = document.getElementById('layout-reset-all');
+        if (resetAllBtn) resetAllBtn.addEventListener('click', (e)=>{ e.preventDefault(); this.resetLayoutToDefaults(true); });
+        const restoreBtn = document.getElementById('layout-restore-saved');
+        if (restoreBtn) restoreBtn.addEventListener('click', (e)=>{ e.preventDefault(); this.restoreFromSavedLayoutSnapshot(); });
+        // If saved
+        let savedEditor = localStorage.getItem('rpg_dev_editor_enabled') === 'true';
+        let savedMove = localStorage.getItem('rpg_dev_move_enabled') === 'true';
+        // Enforce exclusivity at startup: prefer Resize if both were true
+        if (savedEditor && savedMove) { savedMove = false; localStorage.setItem('rpg_dev_move_enabled', false); }
+        if (editorToggle) editorToggle.checked = savedEditor;
+        if (moveToggle) moveToggle.checked = savedMove;
+        this._moveMode = savedMove;
+        this._resizeHandlesEnabled = savedEditor;
+        this.enableElementResizeMode(savedEditor);
+    }
+
+    toggleGridOverlay(show) {
+        try {
+            let el = document.getElementById('layout-grid-overlay');
+            if (show) {
+                if (!el) { el = document.createElement('div'); el.id='layout-grid-overlay'; document.body.appendChild(el); }
+            } else {
+                if (el && el.parentNode) el.parentNode.removeChild(el);
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    enableLayoutInspector(enable) {
+        if (enable) {
+            if (!this._inspHover) this._inspHover = document.createElement('div');
+            if (!this._inspPanel) this._inspPanel = document.createElement('div');
+            this._inspHover.id = 'layout-hover-overlay';
+            this._inspPanel.id = 'layout-inspector';
+            if (!document.getElementById('layout-hover-overlay')) document.body.appendChild(this._inspHover);
+            if (!document.getElementById('layout-inspector')) document.body.appendChild(this._inspPanel);
+            // Track editing mode and last target to avoid re-rendering while typing
+            if (!this._inspEditingBound) {
+                this._inspPanel.addEventListener('focusin', ()=>{ this._inspEditing = true; });
+                this._inspPanel.addEventListener('focusout', ()=>{ setTimeout(()=>{ this._inspEditing = false; }, 50); });
+                this._inspEditingBound = true;
+            }
+            const readVars = ()=>{
+                const left = getComputedStyle(document.documentElement).getPropertyValue('--left-menu-width').trim();
+                const right = getComputedStyle(document.documentElement).getPropertyValue('--right-panel-width').trim();
+                const gap = getComputedStyle(document.documentElement).getPropertyValue('--content-gap').trim();
+                const rpmax = getComputedStyle(document.documentElement).getPropertyValue('--rp-pane-max').trim();
+                const grid = getComputedStyle(document.documentElement).getPropertyValue('--grid-size').trim();
+                const toNum = (v)=> v && v !== 'none' ? parseInt(v,10) : 0;
+                return { left: toNum(left), right: toNum(right), gap: toNum(gap), rpmax: toNum(rpmax), grid: toNum(grid) };
+            };
+            const writeHandlers = ()=>{
+                const L = this._inspPanel.querySelector('#insp-left');
+                const R = this._inspPanel.querySelector('#insp-right');
+                const G = this._inspPanel.querySelector('#insp-gap');
+                const M = this._inspPanel.querySelector('#insp-rpmax');
+                const S = this._inspPanel.querySelector('#insp-grid');
+                const bind = (el, cb)=>{ if (!el) return; el.addEventListener('input', ()=>{ const v=parseInt(el.value,10)||0; cb(v); }); };
+                bind(L, v=>{ document.documentElement.style.setProperty('--left-menu-width', `${v}px`); localStorage.setItem('rpg_layout_left', v); });
+                bind(R, v=>{ document.documentElement.style.setProperty('--right-panel-width', `${v}px`); localStorage.setItem('rpg_layout_right', v); });
+                bind(G, v=>{ document.documentElement.style.setProperty('--content-gap', `${v}px`); localStorage.setItem('rpg_layout_gap', v); });
+                bind(M, v=>{ if (v>0) { document.documentElement.style.setProperty('--rp-pane-max', `${v}px`); } else { document.documentElement.style.setProperty('--rp-pane-max', `none`); } localStorage.setItem('rpg_rp_max', v); });
+                bind(S, v=>{ document.documentElement.style.setProperty('--grid-size', `${v}px`); localStorage.setItem('rpg_grid_size', v); });
+            };
+            const renderInspector = (target)=>{
+                const r = target.getBoundingClientRect();
+                Object.assign(this._inspHover.style, { left:`${r.left}px`, top:`${r.top}px`, width:`${r.width}px`, height:`${r.height}px` });
+                const cs = getComputedStyle(target);
+                const id = target.id?`#${target.id}`:'';
+                const cls = target.className?'.'+String(target.className).trim().split(/\s+/).join('.') : '';
+                const tag = target.tagName.toLowerCase();
+                const vars = readVars();
+                this._inspPanel.style.left = `${Math.min(window.innerWidth-380, r.left+8)}px`;
+                this._inspPanel.style.top = `${Math.min(window.innerHeight-160, r.top+8)}px`;
+                this._inspPanel.innerHTML = `
+                    <div style="font-weight:bold; margin-bottom:4px;">${tag}${id}${cls}</div>
+                    <div>size: ${Math.round(r.width)}x${Math.round(r.height)} | overflowY: ${cs.overflowY} | maxH: ${cs.maxHeight}</div>
+                    <div class="insp-row"><label for="insp-left">Left:</label><input type="number" id="insp-left" min="120" max="640" step="5" value="${vars.left}"><span>px</span></div>
+                    <div class="insp-row"><label for="insp-right">Right:</label><input type="number" id="insp-right" min="320" max="800" step="5" value="${vars.right}"><span>px</span></div>
+                    <div class="insp-row"><label for="insp-gap">Gap:</label><input type="number" id="insp-gap" min="0" max="24" step="1" value="${vars.gap}"><span>px</span></div>
+                    <div class="insp-row"><label for="insp-rpmax">RP Max:</label><input type="number" id="insp-rpmax" min="0" max="1200" step="10" value="${vars.rpmax}"><span>px</span></div>
+                    <div class="insp-row"><label for="insp-grid">Grid:</label><input type="number" id="insp-grid" min="4" max="64" step="2" value="${vars.grid}"><span>px</span></div>
+                `;
+                writeHandlers();
+            };
+            if (!this._inspHandler) {
+                this._inspHandler = (e)=>{
+                    try {
+                        const target = e.target;
+                        if (!target || target.id==='layout-hover-overlay' || target.id==='layout-inspector') return;
+                        const r = target.getBoundingClientRect();
+                        // Always update hover box position
+                        Object.assign(this._inspHover.style, { left:`${r.left}px`, top:`${r.top}px`, width:`${r.width}px`, height:`${r.height}px` });
+                        // Only re-render content when target changes and not editing
+                        if (this._inspEditing) return;
+                        if (this._inspLastTarget !== target) {
+                            this._inspLastTarget = target;
+                            renderInspector(target);
+                        } else {
+                            // Still keep panel following cursor
+                            this._inspPanel.style.left = `${Math.min(window.innerWidth-380, r.left+8)}px`;
+                            this._inspPanel.style.top = `${Math.min(window.innerHeight-160, r.top+8)}px`;
+                        }
+                    } catch (err) { /* ignore */ }
+                };
+            }
+            document.addEventListener('mousemove', this._inspHandler);
+        } else {
+            if (this._inspHandler) document.removeEventListener('mousemove', this._inspHandler);
+            const h = document.getElementById('layout-hover-overlay'); if (h) h.remove();
+            const p = document.getElementById('layout-inspector'); if (p) p.remove();
+            this._inspLastTarget = null; this._inspEditing = false;
+        }
+    }
+
+    applySavedElementStyles() {
+        try {
+            const raw = localStorage.getItem('rpg_element_styles');
+            if (!raw) return;
+            const map = JSON.parse(raw);
+            Object.entries(map).forEach(([selector, styles])=>{
+                try {
+                    document.querySelectorAll(selector).forEach(el=>{
+                        Object.assign(el.style, styles);
+                    });
+                } catch (e) { /* ignore */ }
+            });
+        } catch (e) { console.warn('applySavedElementStyles failed', e);}        
+    }
+
+    // Disallow editing of outer/root containers
+    isEditableTarget(el) {
+        if (!el) return false;
+        const tag = (el.tagName||'').toUpperCase();
+        if (tag === 'HTML' || tag === 'BODY') return false;
+        // Block app root frames
+        if (el.classList && (el.classList.contains('app-container') || el.classList.contains('game-frame'))) return false;
+        const gameFrame = document.querySelector('.game-frame');
+        if (el === gameFrame) return false;
+        return true;
+    }
+
+    getUniqueSelectorFor(el) {
+        if (!el) return null;
+        if (!this.isEditableTarget(el)) return null;
+        if (el.id) return `#${el.id}`;
+        // Ensure a stable selector by assigning a dev data key if needed
+        let key = el.getAttribute('data-dev-key');
+        if (!key) { key = Math.random().toString(36).slice(2); el.setAttribute('data-dev-key', key); }
+        return `[data-dev-key="${key}"]`;
+    }
+
+    persistElementStyle(el) {
+        try {
+            if (!this.isEditableTarget(el)) return;
+            const selector = this.getUniqueSelectorFor(el);
+            if (!selector) return;
+            const raw = localStorage.getItem('rpg_element_styles');
+            const map = raw ? JSON.parse(raw) : {};
+            map[selector] = map[selector] || {};
+            const styles = {};
+            ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ if (el.style[k]) styles[k] = el.style[k]; });
+            map[selector] = { ...map[selector], ...styles };
+            localStorage.setItem('rpg_element_styles', JSON.stringify(map));
+        } catch (e) { console.warn('persistElementStyle failed', e); }
+    }
+
+    // Helper: get current translate offsets from CSS transform
+    getCurrentTranslate(el) {
+        try {
+            const t = getComputedStyle(el).transform || '';
+            if (!t || t === 'none') return { tx: 0, ty: 0 };
+            if (t.startsWith('matrix3d(')) {
+                const vals = t.slice(9, -1).split(',').map(parseFloat);
+                return { tx: vals[12] || 0, ty: vals[13] || 0 };
+            }
+            if (t.startsWith('matrix(')) {
+                const vals = t.slice(7, -1).split(',').map(parseFloat);
+                return { tx: vals[4] || 0, ty: vals[5] || 0 };
+            }
+        } catch {}
+        return { tx: 0, ty: 0 };
+    }
+
+    enableElementResizeMode(enable) {
+        // enable controls whether resize handles are enabled; overlay remains active if either resize OR move is enabled
+        this._resizeHandlesEnabled = !!enable;
+        const wantsActive = this._resizeHandlesEnabled || !!this._moveMode;
+        if (wantsActive) {
+            if (!this._resizeOverlay) {
+                const ov = document.createElement('div');
+                ov.id = 'layout-resize-overlay';
+                // Drag surface (for move mode)
+                const ds = document.createElement('div'); ds.className='drag-surface'; ov.appendChild(ds);
+                ['n','s','e','w','ne','nw','se','sw'].forEach(n=>{ const h=document.createElement('div'); h.className=`handle ${n}`; ov.appendChild(h); });
+                // Toolbar
+                const tb = document.createElement('div');
+                tb.className = 'toolbar';
+                const unlockBtn = document.createElement('button'); unlockBtn.id = 'resize-unlock-btn'; unlockBtn.textContent='Unlock'; tb.appendChild(unlockBtn);
+                const resetWH = document.createElement('button'); resetWH.id = 'resize-resetwh-btn'; resetWH.textContent='Reset WH'; tb.appendChild(resetWH);
+                const resetPos = document.createElement('button'); resetPos.id = 'resize-resetpos-btn'; resetPos.textContent='Reset Pos'; tb.appendChild(resetPos);
+                const clearSel = document.createElement('button'); clearSel.id = 'resize-clearsel-btn'; clearSel.textContent='Clear Sel'; tb.appendChild(clearSel);
+                const undoBtn = document.createElement('button'); undoBtn.id = 'resize-undo-btn'; undoBtn.textContent='Undo'; tb.appendChild(undoBtn);
+                const redoBtn = document.createElement('button'); redoBtn.id = 'resize-redo-btn'; redoBtn.textContent='Redo'; tb.appendChild(redoBtn);
+                const saveBtn = document.createElement('button'); saveBtn.id = 'resize-save-layout-btn'; saveBtn.textContent='Save Layout'; saveBtn.classList.add('save'); tb.appendChild(saveBtn);
+                const restoreBtn = document.createElement('button'); restoreBtn.id = 'resize-restore-layout-btn'; restoreBtn.textContent='Restore'; tb.appendChild(restoreBtn);
+                const resetAllBtn = document.createElement('button'); resetAllBtn.id = 'resize-resetall-btn'; resetAllBtn.textContent='Reset All'; resetAllBtn.classList.add('danger'); tb.appendChild(resetAllBtn);
+                ov.appendChild(tb);
+                document.body.appendChild(ov);
+                this._resizeOverlay = ov;
+            }
+            const getBounds = (els)=>{
+                if (!els || !els.length) return null;
+                let l=Infinity,t=Infinity,r=-Infinity,b=-Infinity;
+                els.forEach(el=>{ const rc=el.getBoundingClientRect(); l=Math.min(l, rc.left); t=Math.min(t, rc.top); r=Math.max(r, rc.right); b=Math.max(b, rc.bottom); });
+                return { left:l, top:t, width: r-l, height: b-t };
+            };
+            const updateOverlay = (elOrEls)=>{
+                const els = Array.isArray(elOrEls)? elOrEls : (this._selectionSet && this._selectionSet.length? this._selectionSet : [elOrEls]);
+                // Filter out non-editable elements
+                const filtered = (els||[]).filter(el=> this.isEditableTarget(el));
+                if (!filtered.length) return;
+                const rb = getBounds(filtered);
+                if (!rb) return;
+                Object.assign(this._resizeOverlay.style, { left:`${rb.left}px`, top:`${rb.top}px`, width:`${rb.width}px`, height:`${rb.height}px`, display:'block' });
+                // Show controls only when a selection is locked
+                const showControls = !!(this._selectionSet && this._selectionSet.length);
+                const tb = this._resizeOverlay.querySelector('.toolbar'); if (tb) tb.style.display = showControls ? 'flex' : 'none';
+                const showHandles = showControls && !!this._resizeHandlesEnabled;
+                this._resizeOverlay.querySelectorAll('.handle').forEach(h=> h.style.display = showHandles ? 'block' : 'none');
+                const ds = this._resizeOverlay.querySelector('.drag-surface');
+                if (ds) { if (showControls && this._moveMode) { ds.style.pointerEvents='auto'; ds.style.cursor='move'; } else { ds.style.pointerEvents='none'; ds.style.cursor='default'; } }
+            };
+            // expose a refresher so external toggles can re-evaluate pointer events
+            this._updateOverlayRef = ()=>{ try { const els = (this._selectionSet && this._selectionSet.length)? this._selectionSet : (this._editorSelected?[this._editorSelected]:null); if (els) updateOverlay(els); } catch(e) {} };
+            const onMove = (e)=>{
+                // When a selection exists and not dragging, freeze overlay on the selected element
+                if (this._editorSelected || this._draggingHandle) return;
+                const t = e.target;
+                if (!t || t.id==='layout-resize-overlay' || t.closest('#layout-inspector')) return;
+                if (!this.isEditableTarget(t)) return;
+                this._hoverTarget = t;
+                updateOverlay(t);
+            };
+            // Attach listeners only once
+            if (!this._editorListenersAttached) {
+                this._onEditorMove = onMove;
+                document.addEventListener('mousemove', this._onEditorMove);
+            }
+            // Activate selection only on right-click (contextmenu)
+            this._onEditorContext = (e)=>{
+                const t = e.target;
+                if (!t || t.closest('#layout-inspector')) return;
+                const clickedOverlay = t.closest && t.closest('#layout-resize-overlay');
+                // Ignore right-clicks on overlay frame or controls
+                if (clickedOverlay) return;
+                if (!this.isEditableTarget(t)) return;
+                e.preventDefault();
+                const ov = this._resizeOverlay;
+                if (e.ctrlKey) {
+                    this._selectionSet = this._selectionSet || [];
+                    const idx = this._selectionSet.indexOf(t);
+                    if (idx===-1) this._selectionSet.push(t); else this._selectionSet.splice(idx,1);
+                    if (this._selectionSet.length) { this._editorSelected = this._selectionSet[0]; updateOverlay(this._selectionSet); this.renderInspectorForSelected(); }
+                    else { this._editorSelected = null; if (ov) ov.style.display='none'; }
+                    return;
+                }
+                // Normal right-click selects a single element
+                this._selectionSet = [t];
+                this._editorSelected = t;
+                updateOverlay(this._selectionSet);
+                this.renderInspectorForSelected();
+            };
+            if (!this._editorListenersAttached) {
+                document.addEventListener('contextmenu', this._onEditorContext);
+            }
+            // expose updater after selection change
+            this._updateOverlayRef && this._updateOverlayRef();
+            // Drag handles
+            const startDrag = (dir, startX, startY)=>{
+                if (!this._editorSelected) return;
+                if (!this.isEditableTarget(this._editorSelected)) return;
+                const el = this._editorSelected;
+                const r = el.getBoundingClientRect();
+                const startW = r.width; const startH = r.height; const startL = r.left; const startT = r.top;
+                // Record action snapshot
+                this.beginEditorAction('resize', [el]);
+                const onMM = (ev)=>{
+                    let dx = ev.clientX - startX; let dy = ev.clientY - startY;
+                    let w = startW, h = startH;
+                    if (dir.includes('e')) w = Math.max(50, startW + dx);
+                    if (dir.includes('s')) h = Math.max(30, startH + dy);
+                    if (dir.includes('w')) w = Math.max(50, startW - dx);
+                    if (dir.includes('n')) h = Math.max(30, startH - dy);
+                    el.style.width = `${Math.round(w)}px`;
+                    el.style.height = `${Math.round(h)}px`;
+                    this.persistElementStyle(el);
+                    const rr = el.getBoundingClientRect();
+                    Object.assign(this._resizeOverlay.style, { width:`${rr.width}px`, height:`${rr.height}px` });
+                    this.renderInspectorForSelected();
+                };
+                const onMU = ()=>{ document.removeEventListener('mousemove', onMM); document.removeEventListener('mouseup', onMU); this._draggingHandle = null; this.commitEditorAction(); };
+                document.addEventListener('mousemove', onMM);
+                document.addEventListener('mouseup', onMU);
+                this._draggingHandle = dir;
+            };
+            this._resizeOverlay.querySelectorAll('.handle').forEach(h=>{
+                h.addEventListener('mousedown', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); const cls = [...h.classList].find(c=> c!=='handle'); startDrag(cls, ev.clientX, ev.clientY); });
+            });
+            // Drag to move (move mode)
+            const dragSurface = this._resizeOverlay.querySelector('.drag-surface');
+            if (dragSurface) {
+                dragSurface.addEventListener('mousedown', (ev)=>{
+                    if (!this._moveMode) return; ev.preventDefault(); ev.stopPropagation();
+                    const startX = ev.clientX, startY = ev.clientY;
+                    let els = (this._selectionSet && this._selectionSet.length)? [...this._selectionSet] : (this._editorSelected?[this._editorSelected]:[]);
+                    els = els.filter(el=> this.isEditableTarget(el));
+                    if (!els.length) return;
+                    // Record action snapshot
+                    this.beginEditorAction('move', els);
+                    // Precompute rects, containers, and starting transforms
+                    const movedSet = new Set(els);
+                    const state = els.map(el=>{
+                        const rc = el.getBoundingClientRect();
+                        const parent = el.parentElement || document.body;
+                        const containerRect = parent.getBoundingClientRect();
+                        const { tx, ty } = this.getCurrentTranslate(el);
+                        // blocker rects = siblings not in movedSet
+                        const blockers = [];
+                        try {
+                            Array.from(parent.children||[]).forEach(ch=>{ if (!movedSet.has(ch) && this.isEditableTarget(ch)) { const r = ch.getBoundingClientRect(); if (r.width>0 && r.height>0) blockers.push({ el: ch, rect: r }); } });
+                        } catch {}
+                        return { el, startRect: rc, containerRect, startTx: tx, startTy: ty, blockers };
+                    });
+                    // Compute container clamping once
+                    const dxMin = Math.max(...state.map(s=> s.containerRect.left - s.startRect.left));
+                    const dxMax = Math.min(...state.map(s=> s.containerRect.right - s.startRect.right));
+                    const dyMin = Math.max(...state.map(s=> s.containerRect.top - s.startRect.top));
+                    const dyMax = Math.min(...state.map(s=> s.containerRect.bottom - s.startRect.bottom));
+                    let lastGoodDx = 0, lastGoodDy = 0;
+                    let swapCandidateEl = null;
+                    const onMM = (e2)=>{
+                        let dx = e2.clientX - startX; let dy = e2.clientY - startY;
+                        // Snap-to-grid when Shift is held
+                        try {
+                            if (e2.shiftKey) {
+                                const g = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')||'16',10) || 16;
+                                dx = Math.round(dx / g) * g;
+                                dy = Math.round(dy / g) * g;
+                            }
+                        } catch {}
+                        // Clamp to container
+                        dx = Math.max(dxMin, Math.min(dxMax, dx));
+                        dy = Math.max(dyMin, Math.min(dyMax, dy));
+                        // Check overlap against blockers; if any, revert to last good
+                        const intersects = (a,b)=> a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+                        let ok = true;
+                        for (let i=0;i<state.length;i++) {
+                            const s = state[i];
+                            const nr = { left: s.startRect.left + dx, right: s.startRect.right + dx, top: s.startRect.top + dy, bottom: s.startRect.bottom + dy };
+                            for (const br of s.blockers) { if (intersects(nr, br.rect)) { ok = false; if (!swapCandidateEl && i===0) swapCandidateEl = br.el; break; } }
+                            if (!ok) break;
+                        }
+                        if (!ok) { dx = lastGoodDx; dy = lastGoodDy; }
+                        else { lastGoodDx = dx; lastGoodDy = dy; }
+                        // Apply transforms without changing dimensions
+                        state.forEach(s=>{ s.el.style.transform = `translate(${Math.round(s.startTx + dx)}px, ${Math.round(s.startTy + dy)}px)`; this.persistElementStyle(s.el); });
+                        updateOverlay(els);
+                    };
+                    const onMU = ()=>{ 
+                        document.removeEventListener('mousemove', onMM); document.removeEventListener('mouseup', onMU);
+                        // If we detected a swap candidate for the anchor element, perform a swap of transforms
+                        try {
+                            if (swapCandidateEl && state && state.length) {
+                                const a = state[0];
+                                // ensure we track candidate before/after in history
+                                if (this._pendingAction) {
+                                    const sel = this.getUniqueSelectorFor(swapCandidateEl);
+                                    if (sel) {
+                                        const beforeSnap = this.captureStylesForElements([swapCandidateEl]);
+                                        this._pendingAction.before = { ...(this._pendingAction.before||{}), ...(beforeSnap||{}) };
+                                        this._pendingAction.elements.push(sel);
+                                    }
+                                }
+                                // Find candidate rect captured during mousedown
+                                let candRect = null;
+                                for (const br of a.blockers) { if (br.el === swapCandidateEl) { candRect = br.rect; break; } }
+                                const bTxTy = this.getCurrentTranslate(swapCandidateEl);
+                                if (candRect) {
+                                    const newATx = (a.startTx||0) + (candRect.left - a.startRect.left);
+                                    const newATy = (a.startTy||0) + (candRect.top - a.startRect.top);
+                                    const newBTx = (bTxTy.tx||0) + (a.startRect.left - candRect.left);
+                                    const newBTy = (bTxTy.ty||0) + (a.startRect.top - candRect.top);
+                                    a.el.style.transform = `translate(${Math.round(newATx)}px, ${Math.round(newATy)}px)`;
+                                    swapCandidateEl.style.transform = `translate(${Math.round(newBTx)}px, ${Math.round(newBTy)}px)`;
+                                    this.persistElementStyle(a.el);
+                                    this.persistElementStyle(swapCandidateEl);
+                                }
+                            }
+                        } catch {}
+                        this.commitEditorAction(); 
+                    };
+                    document.addEventListener('mousemove', onMM);
+                    document.addEventListener('mouseup', onMU);
+                });
+            }
+            const unlock = ()=>{ this._editorSelected = null; this._selectionSet = []; if (this._resizeOverlay) { this._resizeOverlay.style.display='none'; const tb=this._resizeOverlay.querySelector('.toolbar'); if (tb) tb.style.display='none'; this._resizeOverlay.querySelectorAll('.handle').forEach(h=> h.style.display='none'); const ds=this._resizeOverlay.querySelector('.drag-surface'); if (ds) { ds.style.pointerEvents='none'; ds.style.cursor='default'; } } };
+            const unlockBtn = this._resizeOverlay.querySelector('#resize-unlock-btn'); if (unlockBtn) unlockBtn.addEventListener('click', (e)=>{ e.stopPropagation(); unlock(); });
+            const resetBtn = this._resizeOverlay.querySelector('#resize-resetwh-btn'); if (resetBtn) resetBtn.addEventListener('click', (e)=>{ e.stopPropagation(); const targets=(this._selectionSet&&this._selectionSet.length)?this._selectionSet:[this._editorSelected]; const filtered=(targets||[]).filter(el=> this.isEditableTarget(el)); this.beginEditorAction('reset-size', filtered); filtered.forEach(el=>{ if (el){ el.style.width=''; el.style.height=''; this.persistElementStyle(el); } }); this.commitEditorAction(); this.renderInspectorForSelected(); if (this._editorSelected){ const rr=this._editorSelected.getBoundingClientRect(); Object.assign(this._resizeOverlay.style, { width:`${rr.width}px`, height:`${rr.height}px` }); } });
+            const resetPosBtn = this._resizeOverlay.querySelector('#resize-resetpos-btn'); if (resetPosBtn) resetPosBtn.addEventListener('click', (e)=>{ e.stopPropagation(); const targets=(this._selectionSet&&this._selectionSet.length)?this._selectionSet:[this._editorSelected]; const filtered=(targets||[]).filter(el=> this.isEditableTarget(el)); this.beginEditorAction('reset-position', filtered); filtered.forEach(el=>{ if (el){ el.style.position=''; el.style.left=''; el.style.top=''; el.style.zIndex=''; el.style.transform=''; this.persistElementStyle(el); } }); this.commitEditorAction(); updateOverlay(filtered.length?filtered:[this._editorSelected]); });
+            const clearSelBtn = this._resizeOverlay.querySelector('#resize-clearsel-btn'); if (clearSelBtn) clearSelBtn.addEventListener('click',(e)=>{ e.stopPropagation(); this._selectionSet=[this._editorSelected].filter(Boolean); updateOverlay(this._selectionSet); });
+            const undoBtn = this._resizeOverlay.querySelector('#resize-undo-btn'); if (undoBtn) undoBtn.addEventListener('click',(e)=>{ e.stopPropagation(); this.undoEditorAction(); });
+            const redoBtn = this._resizeOverlay.querySelector('#resize-redo-btn'); if (redoBtn) redoBtn.addEventListener('click',(e)=>{ e.stopPropagation(); this.redoEditorAction(); });
+            const saveBtn = this._resizeOverlay.querySelector('#resize-save-layout-btn'); if (saveBtn) saveBtn.addEventListener('click',(e)=>{ e.stopPropagation(); this.saveCurrentLayoutSnapshot(); this.showNotification('Layout saved','success', 1500); });
+            const restoreBtn = this._resizeOverlay.querySelector('#resize-restore-layout-btn'); if (restoreBtn) restoreBtn.addEventListener('click',(e)=>{ e.stopPropagation(); this.restoreFromSavedLayoutSnapshot(); });
+            const resetAllBtn = this._resizeOverlay.querySelector('#resize-resetall-btn'); if (resetAllBtn) resetAllBtn.addEventListener('click',(e)=>{ e.stopPropagation(); this.resetLayoutToDefaults(true); });
+            // Escape to unlock + shortcuts
+            this._onEditorKey = (ev)=>{ 
+                if (ev.key === 'Escape') { unlock(); }
+                if (ev.ctrlKey && ev.key.toLowerCase()==='z') { ev.preventDefault(); this.undoEditorAction(); }
+                if ((ev.ctrlKey && ev.shiftKey && ev.key.toLowerCase()==='z') || (ev.ctrlKey && ev.key.toLowerCase()==='y')) { ev.preventDefault(); this.redoEditorAction(); }
+            };
+            if (!this._editorListenersAttached) {
+                document.addEventListener('keydown', this._onEditorKey);
+                this._editorListenersAttached = true;
+            }
+            // Initialize buttons state
+            this.updateUndoRedoButtons();
+        } else {
+            // Only tear down if move mode is also off
+            if (!this._moveMode) {
+                if (this._onEditorMove) document.removeEventListener('mousemove', this._onEditorMove);
+                if (this._onEditorContext) document.removeEventListener('contextmenu', this._onEditorContext);
+                if (this._onEditorKey) document.removeEventListener('keydown', this._onEditorKey);
+                this._editorListenersAttached = false;
+                const ov = document.getElementById('layout-resize-overlay'); if (ov) ov.remove();
+                this._resizeOverlay = null; this._editorSelected = null; this._selectionSet = []; this._hoverTarget = null; this._updateOverlayRef = null;
+            } else {
+                // Keep overlay for move mode, just hide handles
+                if (this._resizeOverlay) this._resizeOverlay.querySelectorAll('.handle').forEach(h=> h.style.display='none');
+            }
+        }
+    }
+
+    // -------- Layout persistence & history helpers --------
+    getCurrentLayoutVariables() {
+        const cs = getComputedStyle(document.documentElement);
+        const toNum = (v)=>{ v=v.trim(); return v && v !== 'none' ? parseInt(v,10) : 0; };
+        return {
+            left: toNum(cs.getPropertyValue('--left-menu-width')||'0'),
+            right: toNum(cs.getPropertyValue('--right-panel-width')||'0'),
+            gap: toNum(cs.getPropertyValue('--content-gap')||'0'),
+            rpmax: toNum(cs.getPropertyValue('--rp-pane-max')||'0'),
+            grid: toNum(cs.getPropertyValue('--grid-size')||'16'),
+        };
+    }
+
+    saveCurrentLayoutSnapshot() {
+        try {
+            const vars = this.getCurrentLayoutVariables();
+            const stylesRaw = localStorage.getItem('rpg_element_styles');
+            const payload = { vars, element_styles: stylesRaw ? JSON.parse(stylesRaw) : {}, saved_at: Date.now() };
+            localStorage.setItem('rpg_layout_saved', JSON.stringify(payload));
+        } catch (e) { console.warn('saveCurrentLayoutSnapshot failed', e); }
+    }
+
+    resetLayoutToDefaults(showMsg = true) {
+        try {
+            // Clear saved element styles and remove inline styles from affected elements
+            const raw = localStorage.getItem('rpg_element_styles');
+            if (raw) {
+                try {
+                    const map = JSON.parse(raw);
+                    Object.entries(map).forEach(([selector, styles])=>{
+                        try {
+                            document.querySelectorAll(selector).forEach(el=>{
+                                ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ el.style[k] = ''; });
+                            });
+                        } catch { /* ignore */ }
+                    });
+                } catch { /* ignore */ }
+            }
+            localStorage.removeItem('rpg_element_styles');
+            // Reset CSS variables to defaults as defined in CSS
+            document.documentElement.style.setProperty('--left-menu-width', '180px');
+            document.documentElement.style.setProperty('--right-panel-width', '420px');
+            document.documentElement.style.setProperty('--content-gap', '10px');
+            document.documentElement.style.setProperty('--rp-pane-max', 'none');
+            document.documentElement.style.setProperty('--grid-size', '16px');
+            // Clear saved variable overrides
+            ['rpg_layout_left','rpg_layout_right','rpg_layout_gap','rpg_rp_max','rpg_grid_size'].forEach(k=> localStorage.removeItem(k));
+            // Turn off editor/move by default
+            localStorage.setItem('rpg_dev_editor_enabled', 'false');
+            localStorage.setItem('rpg_dev_move_enabled', 'false');
+            // Remove overlays
+            this.toggleGridOverlay(false);
+            this.enableLayoutInspector(false);
+            this.enableElementResizeMode(false);
+            if (showMsg) this.showNotification('Layout reset to defaults', 'success');
+        } catch (e) { console.warn('resetLayoutToDefaults failed', e); }
+    }
+
+    captureStylesForElements(els) {
+        const snap = {};
+        els.forEach(el=>{
+            if (!this.isEditableTarget(el)) return;
+            const selector = this.getUniqueSelectorFor(el);
+            if (!selector) return;
+            snap[selector] = {};
+            ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ if (el.style[k]) snap[selector][k] = el.style[k]; });
+        });
+        return snap;
+    }
+
+    applySnapshot(snap) {
+        Object.entries(snap||{}).forEach(([selector, styles])=>{
+            try {
+                document.querySelectorAll(selector).forEach(el=>{ Object.assign(el.style, styles||{}); this.persistElementStyle(el); });
+            } catch { /* ignore */ }
+        });
+    }
+
+    beginEditorAction(label, els) {
+        try {
+            const elements = (els||[]).filter(Boolean);
+            this._pendingAction = { label, before: this.captureStylesForElements(elements), elements: elements.map(el=> this.getUniqueSelectorFor(el)) };
+        } catch { this._pendingAction = null; }
+    }
+
+    commitEditorAction() {
+        if (!this._pendingAction) { this.updateUndoRedoButtons(); return; }
+        try {
+            const after = {};
+            (this._pendingAction.elements||[]).forEach(sel=>{
+                document.querySelectorAll(sel).forEach(el=>{
+                    after[sel] = after[sel] || {};
+                    ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ if (el.style[k]) after[sel][k] = el.style[k]; });
+                });
+            });
+            const action = { label: this._pendingAction.label, before: this._pendingAction.before, after };
+            // Truncate any redo tail
+            if (this._historyIndex < this._history.length - 1) this._history = this._history.slice(0, this._historyIndex + 1);
+            this._history.push(action);
+            this._historyIndex = this._history.length - 1;
+        } finally {
+            this._pendingAction = null;
+            this.updateUndoRedoButtons();
+        }
+    }
+
+    undoEditorAction() {
+        if (this._historyIndex < 0) return;
+        const action = this._history[this._historyIndex];
+        this.applySnapshot(action.before);
+        this._historyIndex--;
+        this.updateUndoRedoButtons();
+    }
+
+    redoEditorAction() {
+        if (this._historyIndex >= this._history.length - 1) return;
+        this._historyIndex++;
+        const action = this._history[this._historyIndex];
+        this.applySnapshot(action.after);
+        this.updateUndoRedoButtons();
+    }
+
+    updateUndoRedoButtons() {
+        try {
+            const ov = this._resizeOverlay;
+            if (!ov) return;
+            const canUndo = this._historyIndex >= 0;
+            const canRedo = this._historyIndex < this._history.length - 1;
+            const u = ov.querySelector('#resize-undo-btn'); if (u) u.disabled = !canUndo;
+            const r = ov.querySelector('#resize-redo-btn'); if (r) r.disabled = !canRedo;
+        } catch { /* ignore */ }
+    }
+
+    restoreFromSavedLayoutSnapshot() {
+        try {
+            const raw = localStorage.getItem('rpg_layout_saved');
+            if (!raw) { this.showNotification('No saved snapshot found','warning'); return; }
+            const saved = JSON.parse(raw);
+            const v = saved.vars || {};
+            const setVar = (name, val)=>{ if (name==='--rp-pane-max') { if (val && parseInt(val,10)>0) document.documentElement.style.setProperty(name, `${parseInt(val,10)}px`); else document.documentElement.style.setProperty(name, 'none'); } else if (val!=null) { document.documentElement.style.setProperty(name, `${parseInt(val,10)}px`); } };
+            setVar('--left-menu-width', v.left||180);
+            setVar('--right-panel-width', v.right||420);
+            setVar('--content-gap', v.gap||10);
+            setVar('--rp-pane-max', v.rpmax||0);
+            setVar('--grid-size', v.grid||16);
+            localStorage.setItem('rpg_layout_left', v.left||180);
+            localStorage.setItem('rpg_layout_right', v.right||420);
+            localStorage.setItem('rpg_layout_gap', v.gap||10);
+            localStorage.setItem('rpg_rp_max', v.rpmax||0);
+            localStorage.setItem('rpg_grid_size', v.grid||16);
+            const map = saved.element_styles || {};
+            localStorage.setItem('rpg_element_styles', JSON.stringify(map));
+            // Clear inline styles for known edited elements and reapply
+            try { Object.keys(map).forEach(sel=>{ document.querySelectorAll(sel).forEach(el=>{ ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ el.style[k]=''; }); }); }); } catch(e) {}
+            Object.entries(map).forEach(([selector, styles])=>{ try { document.querySelectorAll(selector).forEach(el=>{ Object.assign(el.style, styles||{}); }); } catch(e) {} });
+            this.applySavedLayoutSettings();
+            if (this._updateOverlayRef) this._updateOverlayRef();
+            this.showNotification('Layout restored from saved snapshot','success');
+        } catch (e) { console.warn('restoreFromSavedLayoutSnapshot failed', e); this.showNotification('Failed to restore layout','error'); }
+    }
+
+    renderInspectorForSelected() {
+        if (!this._editorSelected || !this._inspPanel) return;
+        try {
+            const el = this._editorSelected;
+            const r = el.getBoundingClientRect();
+            const cs = getComputedStyle(el);
+            const id = el.id?`#${el.id}`:''; const cls = el.className?'.'+String(el.className).trim().split(/\s+/).join('.') : '';
+            const tag = el.tagName.toLowerCase();
+            const w = parseInt(cs.width,10)||Math.round(r.width); const h = parseInt(cs.height,10)||Math.round(r.height);
+            const ov = cs.overflowY || 'visible'; const mh = cs.maxHeight || 'none';
+            const base = this._inspPanel.innerHTML;
+            // Append editor controls if not already present
+            if (!this._inspPanel.querySelector('#insp-el-width')) {
+                this._inspPanel.innerHTML = base + `
+                    <hr style="opacity:0.4;margin:6px 0;">
+                    <div style="font-weight:bold;margin-bottom:4px;">Selected: ${tag}${id}${cls}</div>
+                    <div class="insp-row"><label for="insp-el-width">Width:</label><input type="number" id="insp-el-width" min="50" max="2000" step="1" value="${w}"><span>px</span></div>
+                    <div class="insp-row"><label for="insp-el-height">Height:</label><input type="number" id="insp-el-height" min="30" max="2000" step="1" value="${h}"><span>px</span></div>
+                    <div class="insp-row"><label for="insp-el-maxh">MaxH:</label><input type="number" id="insp-el-maxh" min="0" max="4000" step="10" value="${mh==='none'?0:parseInt(mh,10)||0}"><span>px</span></div>
+                    <div class="insp-row"><label for="insp-el-over">Overflow:</label><input type="text" id="insp-el-over" value="${ov}"></div>
+                    <div class="insp-row"><button id="insp-el-reset" class="cancel-btn">Reset</button></div>
+                `;
+                const wI = this._inspPanel.querySelector('#insp-el-width');
+                const hI = this._inspPanel.querySelector('#insp-el-height');
+                const mI = this._inspPanel.querySelector('#insp-el-maxh');
+                const oI = this._inspPanel.querySelector('#insp-el-over');
+                const resetBtn = this._inspPanel.querySelector('#insp-el-reset');
+                const bind = (elInput, cssProp, parse=(v)=>v+"px")=>{
+                    if (!elInput) return; 
+                    elInput.addEventListener('focusin', ()=>{ this.beginEditorAction('insp-edit', [el]); });
+                    elInput.addEventListener('input', ()=>{ let v = elInput.value; if (cssProp==='maxHeight' && (v===0 || v==='0')) { el.style.maxHeight = ''; } else { el.style[cssProp] = (cssProp==='overflowY')? v : `${parseInt(v,10)||0}px`; } this.persistElementStyle(el); });
+                    elInput.addEventListener('focusout', ()=>{ this.commitEditorAction(); });
+                };
+                bind(wI,'width'); bind(hI,'height'); bind(mI,'maxHeight');
+                if (oI) { oI.addEventListener('focusin', ()=>{ this.beginEditorAction('insp-edit', [el]); }); oI.addEventListener('input', ()=>{ el.style.overflowY = oI.value||''; this.persistElementStyle(el); }); oI.addEventListener('focusout', ()=>{ this.commitEditorAction(); }); }
+                if (resetBtn) resetBtn.addEventListener('click', ()=>{ this.beginEditorAction('insp-reset', [el]); el.style.width=''; el.style.height=''; el.style.maxHeight=''; el.style.overflowY=''; this.persistElementStyle(el); this.commitEditorAction(); });
+            }
+        } catch (e) { /* ignore */ }
+    }
+
     /**
      * Open a modal dialog
      * @param {string} modalName - The name of the modal to open
@@ -608,6 +1374,455 @@ class UiManager {
         }
 
         localStorage.setItem('rpg_theme', theme);
+    }
+
+    async populateBackgroundsSelect() {
+        try {
+            const resp = await fetch('/api/ui/backgrounds');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const select = document.getElementById('background-select');
+            if (!select) return;
+            const saved = localStorage.getItem('rpg_bg_filename') || '';
+            (data.backgrounds||[]).forEach(fn=>{
+                const opt = document.createElement('option');
+                opt.value = fn;
+                opt.textContent = fn;
+                select.appendChild(opt);
+            });
+            if (saved) select.value = saved;
+        } catch (e) { /* ignore */ }
+    }
+
+    /** Render the right panel using UI state */
+    renderRightPanel(ui) {
+        // Character tab content
+        const charPane = document.getElementById('tab-character');
+        if (charPane) {
+            const res = ui.resources || {};
+            const bar = (name, key, color) => {
+                const r = res[key] || { current: 0, max: 0 };
+                const pct = r.max ? Math.min(100, (r.current / r.max) * 100) : 0;
+                return `<div class=\"rp-bar\" data-bar-type=\"${key}\">
+                    <div class=\"rp-bar-title\" data-bar-type=\"${key}\">${name}: ${Math.round(r.current)}/${Math.round(r.max)}</div>
+                    <div class=\"rp-bar-track\"><div class=\"rp-bar-fill\" data-bar-type=\"${key}\" style=\"width:${pct}%; background:${color}\"></div></div>
+                </div>`;
+            };
+            const statList = (title, dict) => {
+                const rows = Object.keys(dict||{}).map(k=>{
+                    const s=dict[k];
+                    return `<div class=\"rp-row stat-row\" data-stat-key=\"${k}\"><span>${s.name||k}</span><span>${Math.round(s.value)}</span></div>`;
+                }).join('');
+                return `<div class=\"rp-group\"><div class=\"rp-title\">${title}</div>${rows||'<div class=\"rp-empty\">—</div>'}</div>`;
+            };
+            const statusRows = (ui.status_effects||[]).map(e=>`<div class=\"rp-row\"><span>${e.name}</span><span>${e.duration??''}</span></div>`).join('');
+            const turnRows = (ui.turn_order||[]).map(t=>`<div class=\"rp-row\"><span>${t}</span></div>`).join('');
+            const initiativeVal = (ui.initiative==null||ui.initiative===undefined)?'0':Math.round(ui.initiative);
+            // Equipment grid by slot order
+            const slotOrder = [
+                'HEAD','NECK','CHEST','BACK','SHOULDERS','WRISTS','HANDS','WAIST','LEGS','FEET','MAIN_HAND','OFF_HAND','FINGER_1','FINGER_2','TRINKET_1','TRINKET_2'
+            ];
+            const eqMap = {};
+            (ui.equipment||[]).forEach(e=>{ eqMap[e.slot] = e; });
+            const equipRows = slotOrder.map(slot=>{
+                const e = eqMap[slot] || { slot, item_name: null, item_id: null };
+                const displaySlot = slot.replace(/_/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase());
+                const name = e.item_name || 'None';
+                const data = `data-slot=\"${slot}\" ${e.item_id?`data-item-id=\"${e.item_id}\"`:''}`;
+                return `<div class=\"rp-row equip-row\"><span class=\"equip-slot\">${displaySlot}</span><span class=\"equip-item\" ${data}>${name}</span></div>`;
+            }).join('');
+            charPane.innerHTML = `
+                <div class=\"rp-header\">
+                    <div class="rp-name">${ui.player.name}</div>
+                    <div class="rp-sub">Race: ${ui.player.race} | Class: ${ui.player.path}</div>
+                    <div class="rp-sub">Level: ${ui.player.level} | Experience: ${ui.player.experience_current}/${ui.player.experience_max}</div>
+                </div>
+                ${bar('Health', 'health', '#CC3333')}
+                ${bar('Mana', 'mana', '#3366CC')}
+                ${bar('Stamina', 'stamina', '#66CC33')}
+                <div class="rp-columns">
+                    <div class="rp-col">${statList('Primary Stats', ui.primary_stats)}</div>
+                    <div class="rp-col">${statList('Derived Stats', ui.derived_stats)}</div>
+                </div>
+                <div class="rp-columns">
+                    <div class="rp-col">${statList('Social', ui.social_stats)}</div>
+                    <div class="rp-col">${statList('Other', ui.other_stats)}</div>
+                </div>
+                <div class=\"rp-group\"><div class=\"rp-title\">Combat Info</div>
+                    <div class=\"rp-row\"><span>Initiative</span><span>${initiativeVal}</span></div>
+                    <div class=\"rp-subtitle\">Status Effects</div>${statusRows||'<div class=\"rp-empty\">—</div>'}
+                    <div class=\"rp-subtitle\">Turn Order</div>${turnRows||'<div class=\"rp-empty\">—</div>'}
+                </div>
+                <div class=\"rp-group\"><div class=\"rp-title\">Equipment</div>${equipRows||'<div class=\"rp-empty\">—</div>'}</div>
+            `;
+            // Attach character tab handlers (context menus, tooltips)
+            this.attachCharacterTabHandlers();
+        }
+        // Inventory tab
+        const invPane = document.getElementById('tab-inventory');
+        if (invPane) {
+            this.renderInventoryPane();
+        }
+        // Journal tab
+        const jPane = document.getElementById('tab-journal');
+        if (jPane) {
+            this.renderJournalPane(ui);
+        }
+    }
+
+    attachCharacterTabHandlers() {
+        const charPane = document.getElementById('tab-character');
+        if (!charPane) return;
+        // Stat tooltips on right-click
+        charPane.querySelectorAll('.stat-row').forEach(row => {
+            row.addEventListener('contextmenu', async (e) => {
+                e.preventDefault();
+                const key = row.getAttribute('data-stat-key');
+                if (!key) return;
+                try {
+                    const data = await apiClient.getStatModifiers(key);
+                    const lines = (data.modifiers||[]).map(m => {
+                        const sign = (typeof m.value==='number' && m.value>0)?'+':'';
+                        const perc = m.is_percentage?'%':'';
+                        const dur = (m.duration!=null)?` (${m.duration} turns)`:'';
+                        return `${m.source||'Source'}: ${sign}${m.value}${perc}${dur}`;
+                    });
+                    this.showTemporaryTooltip(e.pageX, e.pageY, `<b>${key}</b><br>${lines.length?lines.join('<br>'):'No active modifiers.'}`);
+                } catch (err) {
+                    this.showTemporaryTooltip(e.pageX, e.pageY, `<b>${key}</b><br>Failed to load modifiers.`);
+                }
+            });
+        });
+        // Equipment context menu on right-click
+        charPane.querySelectorAll('.equip-item').forEach(el => {
+            el.addEventListener('contextmenu', (ev) => {
+                ev.preventDefault();
+                const slot = el.getAttribute('data-slot');
+                const itemId = el.getAttribute('data-item-id');
+                const items = [];
+                if (itemId) {
+                    items.push({label: 'Unequip', action: async ()=>{ try{ await apiClient.unequip(slot||itemId); await this.refreshUI(); } catch(e){ this.showNotification('Unequip failed','error'); } }});
+                    items.push({label: 'Item Info', action: ()=>{ this.showNotification('Item info not implemented yet','info'); }});
+                    items.push({label: 'Drop', action: async ()=>{ try{ await apiClient.unequip(slot||itemId); await apiClient.dropItem(itemId); await this.refreshUI(); } catch(e){ this.showNotification('Drop failed','error'); } }});
+                } else {
+                    items.push({label: 'Empty Slot', action: ()=>{}});
+                }
+                this.showContextMenu(ev.pageX, ev.pageY, items);
+            });
+        });
+    }
+
+    renderJournalPane(ui) {
+        const jPane = document.getElementById('tab-journal');
+        if (!jPane) return;
+        const j = ui.journal || {};
+        const quests = j.quests || {};
+        const ids = Object.keys(quests);
+        // Selected quest tracking
+        if (!this._selectedQuestId || !quests[this._selectedQuestId]) {
+            this._selectedQuestId = ids.length ? ids[0] : null;
+        }
+        const selected = this._selectedQuestId ? quests[this._selectedQuestId] : null;
+        // Build left quest list
+        const listHtml = ids.map(qid => {
+            const q = quests[qid] || {}; const active = qid===this._selectedQuestId ? ' style="font-weight:bold;"' : '';
+            const status = (q.status||'').toString();
+            return `<div class="rp-row" data-quest-id="${qid}"><span${active}>${q.name||qid}</span><span>${status}</span></div>`;
+        }).join('');
+        // Build right detail
+        let objHtml = '';
+        if (selected && Array.isArray(selected.objectives)) {
+            objHtml = selected.objectives.map(o=>{
+                const c = o.completed? 'checked' : '';
+                const f = o.failed? 'checked' : '';
+                return `<div class="rp-row">
+                    <span>${o.text||o.description||o.name||o.id}</span>
+                    <span>
+                        <label style="margin-right:8px;"><input type="checkbox" class="obj-complete" data-quest-id="${selected.id||this._selectedQuestId}" data-obj-id="${o.id}" ${c}> Completed</label>
+                        <label><input type="checkbox" class="obj-fail" data-quest-id="${selected.id||this._selectedQuestId}" data-obj-id="${o.id}" ${f}> Failed</label>
+                    </span>
+                </div>`;
+            }).join('');
+        } else {
+            objHtml = '<div class="rp-empty">No objectives</div>';
+        }
+        const charText = (j.character||'').toString();
+        const notes = Array.isArray(j.notes)? j.notes : [];
+        const notesList = notes.map(n=>`<div class=\"rp-row\"><span>${(n.text||'').toString().replace(/</g,'&lt;')}</span><span><button class=\"cancel-btn\" data-del-note=\"${n.id}\">Delete</button></span></div>`).join('');
+        jPane.innerHTML = `
+            <div class="rp-columns">
+                <div class="rp-col">
+                    <div class="rp-group"><div class="rp-title">Quests</div>${listHtml||'<div class="rp-empty">—</div>'}</div>
+                </div>
+                <div class="rp-col">
+                    <div class="rp-group"><div class="rp-title">Character Notes</div>
+                        <textarea id="journal-character-text" rows="5" style="width:100%">${charText.replace(/</g,'&lt;')}</textarea>
+                        <div style="text-align:right; margin-top:6px;"><button id="journal-save-character" class="primary-btn">Save</button></div>
+                    </div>
+                    <div class="rp-group"><div class="rp-title">Notes</div>
+                        <div>${notesList || '<div class=\"rp-empty\">No notes</div>'}</div>
+                        <div style="display:flex; gap:6px; margin-top:6px;"><input type="text" id="journal-new-note" placeholder="Add a note..." style="flex:1;"><button id="journal-add-note" class="primary-btn">Add</button></div>
+                    </div>
+                    <div class="rp-group"><div class="rp-title">${selected?(selected.name||selected.id||'Quest'): 'Quest Details'}</div>
+                        ${selected?`<div class="rp-row"><span>Status</span><span>${selected.status||''}</span></div>`:''}
+                        <div class="rp-subtitle">Objectives</div>
+                        ${objHtml}
+                        ${selected?`<div style="text-align:right; margin-top:6px;"><button id="journal-abandon" class="cancel-btn" data-quest-id="${selected.id||this._selectedQuestId}">Abandon Quest</button></div>`:''}
+                    </div>
+                </div>
+            </div>`;
+        // Attach handlers
+        jPane.querySelectorAll('.rp-row[data-quest-id]').forEach(row=>{
+            row.addEventListener('click', ()=>{ this._selectedQuestId = row.getAttribute('data-quest-id'); this.renderJournalPane(ui); });
+        });
+        const saveBtn = jPane.querySelector('#journal-save-character');
+        if (saveBtn) saveBtn.addEventListener('click', async ()=>{
+            try { await apiClient.updateJournalCharacter(document.getElementById('journal-character-text').value||''); this.showNotification('Character notes saved','success'); } catch(e){ this.showNotification('Save failed','error'); }
+        });
+        jPane.querySelectorAll('.obj-complete, .obj-fail').forEach(cb=>{
+            cb.addEventListener('change', async ()=>{
+                const questId = cb.getAttribute('data-quest-id');
+                const objId = cb.getAttribute('data-obj-id');
+                const completed = jPane.querySelector(`.obj-complete[data-quest-id="${questId}"][data-obj-id="${objId}"]`).checked;
+                const failed = jPane.querySelector(`.obj-fail[data-quest-id="${questId}"][data-obj-id="${objId}"]`).checked;
+                try { await apiClient.updateObjectiveStatus(questId, objId, { completed, failed }); } catch(e){ this.showNotification('Update failed','error'); }
+            });
+        });
+        const abandonBtn = jPane.querySelector('#journal-abandon');
+        if (abandonBtn) abandonBtn.addEventListener('click', async ()=>{
+            const qid = abandonBtn.getAttribute('data-quest-id');
+            try { await apiClient.abandonQuest(qid); this.showNotification('Quest abandoned','info'); } catch(e){ this.showNotification('Abandon failed','error'); }
+        });
+        const addBtn = jPane.querySelector('#journal-add-note');
+        if (addBtn) addBtn.addEventListener('click', async ()=>{
+            const inp = jPane.querySelector('#journal-new-note');
+            const text = (inp && inp.value || '').trim();
+            if (!text) return;
+            try { await apiClient.addJournalNote(text); inp.value=''; } catch(e){ this.showNotification('Add note failed','error'); }
+        });
+        jPane.querySelectorAll('button[data-del-note]').forEach(btn=>{
+            btn.addEventListener('click', async ()=>{
+                const id = btn.getAttribute('data-del-note');
+                try { await apiClient.deleteJournalNote(id); } catch(e){ this.showNotification('Delete note failed','error'); }
+            });
+        });
+    }
+
+    showTemporaryTooltip(x, y, html) {
+        const tip = document.createElement('div');
+        tip.className = 'ui-tooltip';
+        tip.innerHTML = html;
+        Object.assign(tip.style, { position:'absolute', left:`${x}px`, top:`${y}px`, zIndex:10000, background:'#222', color:'#eee', border:'1px solid #555', borderRadius:'4px', padding:'8px', maxWidth:'280px' });
+        document.body.appendChild(tip);
+        setTimeout(()=>{ if (tip.parentNode) tip.parentNode.removeChild(tip); }, 2000);
+    }
+
+    showContextMenu(x, y, items) {
+        const existing = document.getElementById('ui-context-menu');
+        if (existing) existing.remove();
+        const menu = document.createElement('div');
+        menu.id = 'ui-context-menu';
+        menu.className = 'ui-context-menu';
+        Object.assign(menu.style, { position:'absolute', left:`${x}px`, top:`${y}px`, zIndex:10001, background:'#2b2b2b', color:'#e0e0e0', border:'1px solid #3a3a3a', borderRadius:'4px', minWidth:'160px' });
+        (items||[]).forEach(it => {
+            const a = document.createElement('div');
+            a.textContent = it.label || '';
+            Object.assign(a.style, { padding:'6px 12px', cursor:'pointer' });
+            a.addEventListener('mouseover', ()=>{ a.style.background='#3a3a3a'; });
+            a.addEventListener('mouseout', ()=>{ a.style.background='transparent'; });
+            a.addEventListener('click', ()=>{ try{ it.action && it.action(); } finally { menu.remove(); } });
+            menu.appendChild(a);
+        });
+        document.body.appendChild(menu);
+        const close = ()=>{ if (menu.parentNode) menu.parentNode.removeChild(menu); document.removeEventListener('click', close); };
+        setTimeout(()=>{ document.addEventListener('click', close); }, 0);
+    }
+
+    async renderInventoryPane() {
+        const invPane = document.getElementById('tab-inventory');
+        try {
+            const inv = await apiClient.getInventory();
+            const items = inv.items||[];
+            const money = inv.currency||{};
+            const header = `<div class=\"rp-group\"><div class=\"rp-title\">Currency</div>
+                <div class=\"rp-row\"><span>Gold</span><span>${money.gold||0}</span></div>
+                <div class=\"rp-row\"><span>Silver</span><span>${money.silver||0}</span></div>
+                <div class=\"rp-row\"><span>Copper</span><span>${money.copper||0}</span></div>
+            </div>`;
+            const weight = `<div class=\"rp-group\"><div class=\"rp-title\">Weight</div>
+                <div class=\"rp-row\"><span>Current</span><span>${(inv.weight?.current||0).toFixed(1)}</span></div>
+                <div class=\"rp-row\"><span>Max</span><span>${(inv.weight?.max||0).toFixed(1)}</span></div>
+            </div>`;
+            // Build filter controls
+            const currentType = this._invFilterType || 'All';
+            const currentSearch = this._invFilterSearch || '';
+            const types = Array.from(new Set(items.map(i => (i.type||'miscellaneous').toLowerCase()))).sort();
+            const typeOptions = ['All', ...types].map(t => `<option value=\"${t}\" ${t===currentType?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('');
+            const filters = `<div class=\"rp-group\"><div class=\"rp-title\">Filters</div>
+                <div class=\"rp-row\"><span>Type</span><span><select id=\"inv-filter-type\">${typeOptions}</select></span></div>
+                <div class=\"rp-row\"><span>Search</span><span><input id=\"inv-filter-search\" type=\"text\" value=\"${currentSearch.replace(/\"/g,'&quot;')}\" placeholder=\"Item name...\"></span></div>
+            </div>`;
+            // Apply filter
+            const filteredItems = items.filter(it => {
+                const matchType = (currentType==='All') || ((it.type||'').toLowerCase()===currentType.toLowerCase());
+                const matchName = !currentSearch || (it.name||'').toLowerCase().includes(currentSearch.toLowerCase());
+                return matchType && matchName;
+            });
+            const rows = filteredItems.map(it=>{
+                const extra = it.count>1?` (${it.count})`:'';
+                const eq = it.equipped? ' (Equipped)':'';
+                return `<div class=\"inv-row\" data-id=\"${it.id}\">
+                    <div class="inv-name">${it.name}${extra}${eq}</div>
+                    <div class="inv-actions">
+                        <button class="inv-btn" data-action="examine">Examine</button>
+                        ${(String(it.type||'').toLowerCase()==='consumable')?'<button class="inv-btn" data-action="use">Use</button>':''}
+                        ${['weapon','armor','shield','accessory'].includes(String(it.type||'').toLowerCase())?`<button class="inv-btn" data-action="${it.equipped?'unequip':'equip'}">${it.equipped?'Unequip':'Equip'}</button>`:''}
+                        <button class="inv-btn" data-action="drop">Drop</button>
+                    </div>
+                </div>`;
+            }).join('');
+            invPane.innerHTML = header + weight + filters + `<div class=\"rp-group\"><div class=\"rp-title\">Items</div>${rows||'<div class=\"rp-empty\">No items</div>'}</div>`;
+            // Attach filter handlers
+            const typeSel = invPane.querySelector('#inv-filter-type');
+            const searchInp = invPane.querySelector('#inv-filter-search');
+            if (typeSel) typeSel.addEventListener('change', ()=>{ this._invFilterType = typeSel.value; this.renderInventoryPane(); });
+            if (searchInp) searchInp.addEventListener('input', ()=>{ this._invFilterSearch = searchInp.value||''; this.renderInventoryPane(); });
+            // Attach action handlers
+            invPane.querySelectorAll('.inv-row .inv-btn').forEach(btn=>{
+                btn.addEventListener('click', async () => {
+                    const row = btn.closest('.inv-row');
+                    const id = row.getAttribute('data-id');
+                    const action = btn.getAttribute('data-action');
+                    try {
+                        if (action==='use') await apiClient.useItem(id);
+                        else if (action==='equip') await apiClient.equipItem(id);
+                        else if (action==='unequip') await apiClient.unequip(id);
+                        else if (action==='drop') await apiClient.dropItem(id);
+                        else if (action==='examine') { await this.showItemInfo(id); return; }
+                        // Refresh UI after action
+                        await uiManager.refreshUI();
+                    } catch(e) { uiManager.showNotification(e.message||'Action failed','error'); }
+                });
+            });
+        } catch (e) {
+            invPane.innerHTML = `<div class="rp-empty">Failed to load inventory</div>`;
+        }
+    }
+
+    /** Update resource bar label/width for Phase 1 (preview) */
+    updateResourceBarPhase1(barTypeKey, update) {
+        const map = { hp:'health', stamina:'stamina', mana:'mana', resolve:'resolve', mp:'mana' };
+        const key = map[String(barTypeKey||'').toLowerCase()] || barTypeKey;
+        const titleEl = document.querySelector(`.rp-bar-title[data-bar-type="${key}"]`);
+        const fillEl = document.querySelector(`.rp-bar-fill[data-bar-type="${key}"]`);
+        if (!titleEl || !fillEl) return;
+        const max = update.max_value!=null ? parseInt(update.max_value,10) : 0;
+        const cur = update.new_value_preview!=null ? parseInt(update.new_value_preview,10) : 0;
+        const barName = key.charAt(0).toUpperCase()+key.slice(1);
+        titleEl.textContent = `${barName}: ${cur}/${max}`;
+        const pct = max? Math.min(100, (cur/max)*100) : 0;
+        fillEl.style.width = `${pct}%`;
+    }
+
+    /** Update resource bar label/width for Phase 2 (finalize) */
+    updateResourceBarPhase2(barTypeKey, update) {
+        const map = { hp:'health', stamina:'stamina', mana:'mana', resolve:'resolve', mp:'mana' };
+        const key = map[String(barTypeKey||'').toLowerCase()] || barTypeKey;
+        const titleEl = document.querySelector(`.rp-bar-title[data-bar-type="${key}"]`);
+        const fillEl = document.querySelector(`.rp-bar-fill[data-bar-type="${key}"]`);
+        if (!titleEl || !fillEl) return;
+        const max = update.max_value!=null ? parseInt(update.max_value,10) : 0;
+        const cur = update.final_new_value!=null ? parseInt(update.final_new_value,10) : 0;
+        const barName = key.charAt(0).toUpperCase()+key.slice(1);
+        titleEl.textContent = `${barName}: ${cur}/${max}`;
+        const pct = max? Math.min(100, (cur/max)*100) : 0;
+        fillEl.style.width = `${pct}%`;
+    }
+
+    async showItemInfo(itemId) {
+        try {
+            const data = await (async ()=>{
+                const resp = await fetch(apiClient.buildUrl(`items/${apiClient.sessionId}/${encodeURIComponent(itemId)}`), { headers: apiClient.getHeaders() });
+                if (!resp.ok) throw new Error('Failed to fetch item details');
+                return await resp.json();
+            })();
+            // Populate modal
+            const modal = document.getElementById('item-info-modal');
+            const body = document.getElementById('item-info-body');
+            if (!modal || !body) { this.showNotification('Item info UI not available','error'); return; }
+            const rows = [];
+            const esc = (t)=> (t==null?'' : String(t)).replace(/</g,'&lt;');
+            rows.push(`<div class=\"rp-row\"><span><b>Type</b></span><span>${esc(data.item_type)}</span></div>`);
+            if (data.description) rows.push(`<div class=\"rp-row\"><span><b>Description</b></span><span>${esc(data.description)}</span></div>`);
+            rows.push(`<div class=\"rp-row\"><span><b>Weight</b></span><span>${data.weight!=null?data.weight:'?'}</span></div>`);
+            rows.push(`<div class=\"rp-row\"><span><b>Value</b></span><span>${data.value!=null?data.value:'?'}</span></div>`);
+            rows.push(`<div class=\"rp-row\"><span><b>Quantity</b></span><span>${data.quantity||1}</span></div>`);
+            if (data.durability!=null || data.current_durability!=null) rows.push(`<div class=\"rp-row\"><span><b>Durability</b></span><span>${data.current_durability!=null?data.current_durability:'?'} / ${data.durability!=null?data.durability:'?'}</span></div>`);
+            if (Array.isArray(data.equip_slots) && data.equip_slots.length>0) rows.push(`<div class=\"rp-row\"><span><b>Equip Slots</b></span><span>${data.equip_slots.map(s=>esc(s.replace(/_/g,' '))).join(', ')}</span></div>`);
+            // Stats
+            if (Array.isArray(data.stats) && data.stats.length>0) {
+                const srows = data.stats.map(s=>`<li>${esc(s.display_name||s.name)}: ${s.value}${s.is_percentage?'%':''}</li>`).join('');
+                rows.push(`<div class=\"rp-subtitle\">Stats & Effects</div><ul>${srows}</ul>`);
+            }
+            // Custom props
+            const keys = Object.keys(data.custom_properties||{});
+            if (keys.length>0) {
+                const plist = keys.map(k=>`<li><b>${esc(k.replace(/_/g,' '))}:</b> ${esc(data.custom_properties[k])}</li>`).join('');
+                rows.push(`<div class=\"rp-subtitle\">Properties</div><ul>${plist}</ul>`);
+            }
+            // Tags
+            if (Array.isArray(data.tags) && data.tags.length>0) rows.push(`<div class=\"rp-row\"><span><b>Tags</b></span><span>${data.tags.map(esc).join(', ')}</span></div>`);
+            body.innerHTML = `<h3>${esc(data.name||'Item')}</h3>` + rows.join('');
+            this.openModal('itemInfo');
+        } catch (e) {
+            console.error('Item info error', e);
+            this.showNotification('Failed to load item info','error');
+        }
+    }
+
+    /** Refresh UI: fetch UI state and render panels + status bar */
+    async refreshUI() {
+        try {
+            const ui = await apiClient.getUIState();
+            // Status bar
+            const locEl = document.getElementById('current-location');
+            const timeEl = document.getElementById('game-time');
+            const pName = document.getElementById('player-name');
+            const pLvl = document.getElementById('player-level');
+            if (locEl) locEl.textContent = ui.location||'-';
+            if (timeEl) timeEl.textContent = ui.time||'-';
+            if (pName) pName.textContent = ui.player.name||'-';
+            if (pLvl) pLvl.textContent = ui.player.level||'1';
+            this.renderRightPanel(ui);
+        } catch (e) {
+            console.warn('refreshUI failed', e);
+        }
+    }
+
+    /**
+     * Load background list from server and apply the first available (to mirror Py GUI default).
+     */
+    async applyBackgroundFromServer() {
+        try {
+            const saved = localStorage.getItem('rpg_bg_filename');
+            if (saved) {
+                document.body.style.setProperty('--bg-image-url', `url("/images/gui/background/${saved}")`);
+                document.body.classList.add('has-bg');
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            const resp = await fetch('/api/ui/backgrounds');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data && Array.isArray(data.backgrounds) && data.backgrounds.length > 0) {
+                const filename = data.backgrounds[0];
+                document.body.style.setProperty('--bg-image-url', `url("/images/gui/background/${filename}")`);
+                document.body.classList.add('has-bg');
+            }
+        } catch (e) {
+            console.warn('Failed to apply background from server:', e);
+        }
     }
 
     /**
