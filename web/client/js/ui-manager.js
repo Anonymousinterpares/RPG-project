@@ -60,6 +60,8 @@ class UiManager {
         // Enforce base layout anchors before loading any saved styles
         this.enforceMainLayoutAnchors();
         this.enforceCenterStackOrder();
+        // Auto-heal if a previously saved layout corrupted positions
+        this.autoHealLayoutIfCorrupted();
         
         // LLM settings
         this.llmSettings = {
@@ -991,6 +993,59 @@ class UiManager {
             ].filter(Boolean);
             anchors.forEach(el=>{ try { el.style.position=''; el.style.left=''; el.style.top=''; el.style.transform=''; el.style.zIndex=''; el.style.gridColumn=''; el.style.gridColumnStart=''; el.style.gridColumnEnd=''; } catch {} });
         } catch {}
+    }
+
+    hardResetLayoutStorage() {
+        try {
+            const keys = [
+                'rpg_element_styles','rpg_layout_saved','rpg_layout_left','rpg_layout_right','rpg_layout_gap','rpg_rp_max','rpg_grid_size',
+                'rpg_dev_inspector_enabled','rpg_dev_editor_enabled','rpg_dev_move_enabled','rpg_grid_enabled'
+            ];
+            keys.forEach(k=> localStorage.removeItem(k));
+            // Reset CSS variables to defaults
+            document.documentElement.style.setProperty('--left-menu-width', '180px');
+            document.documentElement.style.setProperty('--right-panel-width', '420px');
+            document.documentElement.style.setProperty('--content-gap', '10px');
+            document.documentElement.style.setProperty('--rp-pane-max', 'none');
+            document.documentElement.style.setProperty('--grid-size', '16px');
+            // Re-anchor
+            this.enforceMainLayoutAnchors();
+            this.enforceCenterStackOrder();
+        } catch (e) { console.warn('hardResetLayoutStorage failed', e); }
+    }
+
+    autoHealLayoutIfCorrupted() {
+        try {
+            // Only perform once per browser until the next explicit reset
+            if (localStorage.getItem('rpg_layout_auto_healed') === 'true') return;
+            const left = document.querySelector('.left-menu');
+            const center = document.querySelector('.center-stack');
+            const right = document.querySelector('.right-panel');
+            const out = document.querySelector('.center-stack .game-output');
+            const inp = document.querySelector('.center-stack .command-input-container');
+            if (!left || !center || !right) return;
+            const lr = left.getBoundingClientRect();
+            const cr = center.getBoundingClientRect();
+            const rr = right.getBoundingClientRect();
+            const problems = [];
+            // Right panel should be to the right of center
+            if (rr.left < cr.left) problems.push('rightPanelLeftOfCenter');
+            // Right panel should not massively overlap center (allow small margin)
+            if (rr.left < cr.right - 40 && rr.right > cr.left + 40) problems.push('rightPanelOverlapsCenter');
+            // Input should be below output
+            if (out && inp) {
+                const orc = out.getBoundingClientRect();
+                const irc = inp.getBoundingClientRect();
+                if (irc.top < orc.bottom - 5) problems.push('inputAboveOutput');
+            }
+            if (problems.length) {
+                console.warn('Layout corruption detected:', problems);
+                this.hardResetLayoutStorage();
+                localStorage.setItem('rpg_layout_auto_healed', 'true');
+                // Notify once
+                try { this.showNotification('Layout auto-healed to defaults due to corrupted saved layout', 'warning', 5000); } catch {}
+            }
+        } catch (e) { /* ignore */ }
     }
 
     // Helper: get current translate offsets from CSS transform
