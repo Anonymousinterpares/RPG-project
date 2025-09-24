@@ -444,11 +444,40 @@ class NPCCreator:
                         culture_hint = self._choose_from_weighted_map(mix_def, seed)
             except Exception:
                 pass
-            family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
+            # Determine if we should use a social role variant
+            variant_id = None
+            social_role_types = ["guard", "official", "scholar"]
+            
+            if service_type in social_role_types and culture_hint:
+                # Try to use a specific social role variant
+                variant_id = f"{culture_hint}_{service_type}"
+                logger.debug(f"Attempting to use social role variant: {variant_id}")
+                
+                # Check if the variant exists in config
+                try:
+                    variant_data = cfg.get(f"npc.variants.{variant_id}")
+                    if variant_data and isinstance(variant_data, dict):
+                        # Use the variant's family_id
+                        family_id = variant_data.get("family_id") or family_id
+                        logger.info(f"Using social role variant {variant_id} with family {family_id}")
+                    else:
+                        logger.debug(f"Social role variant {variant_id} not found, using base family")
+                        variant_id = None  # Fall back to base generation
+                except Exception:
+                    logger.debug(f"Failed to check variant {variant_id}, using base family")
+                    variant_id = None
+            
+            if not variant_id:
+                # Standard family selection
+                family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
+            else:
+                # We already determined family_id from variant above
+                pass
 
             difficulty = (cfg.get("game.difficulty", "normal") or "normal")
             encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
 
+            # Generate NPC with potential variant (note: variant application will be added later)
             npc = fam_gen.generate_npc_from_family(
                 family_id=family_id,
                 name=name,
@@ -458,6 +487,11 @@ class NPCCreator:
                 difficulty=difficulty,
                 encounter_size=encounter_size,
             )
+            
+            # Apply variant modifications manually for now (until NPCFamilyGenerator supports variants)
+            if variant_id:
+                logger.info(f"Applying variant {variant_id} to NPC {npc.name}")
+                self._apply_variant_to_npc(npc, variant_id)
             npc.npc_type = NPCType.SERVICE
             npc.relationship = NPCRelationship.NEUTRAL
             if not npc.description:
@@ -469,15 +503,22 @@ class NPCCreator:
                 tags.append("communicative:true")
             npc.known_information["tags"] = tags
             npc.known_information["service"] = {"type": "service", "service_type": service_type}
-            # Apply social role variants (guard/official/scholar) as tags
-            social_roles = {
-                "guard": ["role:guard", "duty:watch"],
-                "official": ["role:official"],
-                "scholar": ["role:scholar"],
-            }
-            if service_type in social_roles:
-                tags.extend(social_roles[service_type])
-                npc.known_information["tags"] = tags
+            
+            # If we used a variant, it should have already applied role tags
+            # But add fallback social role tags if variant wasn't used
+            if not variant_id and service_type in social_role_types:
+                social_roles = {
+                    "guard": ["role:guard", "duty:watch"],
+                    "official": ["role:official"],
+                    "scholar": ["role:scholar"],
+                }
+                if service_type in social_roles:
+                    role_tags = social_roles[service_type]
+                    for tag in role_tags:
+                        if tag not in tags:
+                            tags.append(tag)
+                    npc.known_information["tags"] = tags
+                    logger.debug(f"Applied fallback role tags for {service_type}: {role_tags}")
             if not name:
                 npc.name = self._generate_semideterministic_name(culture_hint=culture_hint, role_hint=service_type, seed=seed)
             npc.known_information["needs_llm_flavor"] = True
@@ -487,6 +528,7 @@ class NPCCreator:
                 "culture": culture_hint,
                 "location": location,
                 "family_id": family_id,
+                "variant_id": variant_id,
             }
             try:
                 from core.character.npc_flavor import attempt_enrich_npc_flavor
@@ -588,6 +630,92 @@ class NPCCreator:
         return new_npc, True
 
     # ---- Helpers ----
+    def _apply_variant_to_npc(self, npc: NPC, variant_id: str) -> None:
+        """Apply variant modifications to an existing NPC."""
+        try:
+            cfg = get_config()
+            variant_data = cfg.get(f"npc.variants.{variant_id}")
+            if not variant_data or not isinstance(variant_data, dict):
+                logger.warning(f"Variant {variant_id} not found or invalid")
+                return
+            
+            # Apply stat modifiers to the NPC's stats manager
+            if npc.stats_manager and "stat_modifiers" in variant_data:
+                stat_mods = variant_data["stat_modifiers"]
+                if isinstance(stat_mods, dict):
+                    for stat_name, mod_dict in stat_mods.items():
+                        if not isinstance(mod_dict, dict):
+                            continue
+                        
+                        # Get current derived stat value
+                        try:
+                            if stat_name == "hp":
+                                current_max = npc.stats_manager.get_stat_value(DerivedStatType.MAX_HEALTH)
+                                current_cur = npc.stats_manager.get_stat_value(DerivedStatType.HEALTH)
+                                # Apply modifiers
+                                if "add" in mod_dict:
+                                    current_max += float(mod_dict["add"])
+                                    current_cur += float(mod_dict["add"])
+                                if "mul" in mod_dict:
+                                    current_max *= float(mod_dict["mul"])
+                                    current_cur *= float(mod_dict["mul"])
+                                # Update stats (note: can't directly set MAX_HEALTH in most systems)
+                                # For now, adjust current health proportionally
+                                npc.stats_manager.set_current_stat(DerivedStatType.HEALTH, max(1.0, current_cur))
+                                logger.debug(f"Applied HP modifier to {npc.name}: {mod_dict}")
+                            elif stat_name in ["damage", "defense", "initiative"]:
+                                # These are derived stats that depend on primary stats
+                                # For now, log that we would apply them but can't easily modify derived stats
+                                logger.debug(f"Would apply {stat_name} modifier to {npc.name}: {mod_dict} (derived stat modification not implemented)")
+                        except Exception as e:
+                            logger.warning(f"Failed to apply stat modifier {stat_name} to {npc.name}: {e}")
+            
+            # Apply additional roles
+            if npc.known_information is None:
+                npc.known_information = {}
+            
+            roles_add = variant_data.get("roles_add", [])
+            if roles_add and isinstance(roles_add, list):
+                current_roles = npc.known_information.get("roles", [])
+                if not isinstance(current_roles, list):
+                    current_roles = []
+                for role in roles_add:
+                    if role not in current_roles:
+                        current_roles.append(role)
+                npc.known_information["roles"] = current_roles
+                logger.debug(f"Added roles to {npc.name}: {roles_add}")
+            
+            # Apply additional abilities  
+            abilities_add = variant_data.get("abilities_add", [])
+            if abilities_add and isinstance(abilities_add, list):
+                current_abilities = npc.known_information.get("abilities", [])
+                if not isinstance(current_abilities, list):
+                    current_abilities = []
+                for ability in abilities_add:
+                    if ability not in current_abilities:
+                        current_abilities.append(ability)
+                npc.known_information["abilities"] = current_abilities
+                logger.debug(f"Added abilities to {npc.name}: {abilities_add}")
+            
+            # Apply additional tags
+            tags_add = variant_data.get("tags_add", [])
+            if tags_add and isinstance(tags_add, list):
+                current_tags = npc.known_information.get("tags", [])
+                if not isinstance(current_tags, list):
+                    current_tags = []
+                for tag in tags_add:
+                    if tag not in current_tags:
+                        current_tags.append(tag)
+                npc.known_information["tags"] = current_tags
+                logger.debug(f"Added tags to {npc.name}: {tags_add}")
+            
+            # Store variant info
+            npc.known_information["variant_id"] = variant_id
+            logger.info(f"Successfully applied variant {variant_id} to {npc.name}")
+            
+        except Exception as e:
+            logger.error(f"Error applying variant {variant_id} to NPC {npc.name}: {e}")
+
     def _choose_from_weighted_map(self, weights: dict, seed: str) -> Optional[str]:
         """Deterministically choose a key from a {key: weight} mapping."""
         import hashlib, random as _random

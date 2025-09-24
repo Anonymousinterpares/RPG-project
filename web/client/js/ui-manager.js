@@ -989,7 +989,7 @@ class UiManager {
                 document.querySelector('.banner-bar'),
                 document.querySelector('.status-bar')
             ].filter(Boolean);
-            anchors.forEach(el=>{ try { el.style.position=''; el.style.left=''; el.style.top=''; el.style.transform=''; el.style.zIndex=''; el.style.gridColumn=''; } catch {} });
+            anchors.forEach(el=>{ try { el.style.position=''; el.style.left=''; el.style.top=''; el.style.transform=''; el.style.zIndex=''; el.style.gridColumn=''; el.style.gridColumnStart=''; el.style.gridColumnEnd=''; } catch {} });
         } catch {}
     }
 
