@@ -45,6 +45,8 @@ from core.base.state import GameState, PlayerState, WorldState
 from core.base.commands import CommandResult
 from core.utils.logging_config import get_logger
 from core.llm.settings_manager import SettingsManager
+from core.agents.base_agent import AgentContext
+from core.agents.narrator import get_narrator_agent
 
 # Configure logger
 logger = get_logger("API")
@@ -54,6 +56,9 @@ active_sessions: Dict[str, GameEngine] = {}
 
 # Active WebSocket connections - mapping session_id to list of WebSocket connections
 websocket_connections: Dict[str, List[WebSocket]] = {}
+
+# Pending WS payloads to flush on first connect per session
+pending_ws_payloads: Dict[str, List[dict]] = {}
 
 # Session listeners to allow disconnecting/cleanup per session
 session_listeners: Dict[str, Dict[str, Any]] = {}
@@ -299,6 +304,10 @@ class AgentConfig(BaseModel):
     rule_checker: AgentSettings
     context_evaluator: AgentSettings
 
+class CreateSessionResponse(BaseModel):
+    session_id: str
+    created_at: datetime
+
 class LLMSettingsResponse(BaseModel):
     providers: ProviderConfig
     agents: AgentConfig
@@ -434,6 +443,19 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 }
             })
         
+        # Flush any pending payloads that were buffered before the first WS client connected
+        try:
+            pending = pending_ws_payloads.get(session_id) or []
+            if pending:
+                for payload in pending:
+                    try:
+                        await websocket.send_json(payload)
+                    except Exception as e:
+                        logger.warning(f"Failed to flush pending WS payload: {e}")
+                pending_ws_payloads[session_id] = []
+        except Exception as e:
+            logger.warning(f"Error flushing pending WS payloads: {e}")
+        
         # Listen for WebSocket messages
         while True:
             # This will keep the connection open and handle disconnections
@@ -444,6 +466,24 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         await ConnectionManager.disconnect(websocket, session_id)
 
 # API endpoints
+
+@app.post("/api/session", response_model=CreateSessionResponse)
+async def create_session():
+    """Create a session without starting or loading a game."""
+    try:
+        session_id = str(uuid.uuid4())
+        engine = GameEngine()
+        # Register session early
+        active_sessions[session_id] = engine
+        websocket_connections[session_id] = []
+        pending_ws_payloads[session_id] = []
+        # Attach listeners so outputs are captured once a stream attaches
+        _attach_engine_listeners(session_id, engine)
+        logger.info(f"Created empty session {session_id}")
+        return CreateSessionResponse(session_id=session_id, created_at=datetime.now())
+    except Exception as e:
+        logger.error(f"Error creating session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create session")
 
 # Helper to attach engine listeners for a session
 def _attach_engine_listeners(session_id: str, engine: GameEngine):
@@ -463,12 +503,23 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
                     engine.orchestrated_event_to_ui.disconnect(lst['orch_conn'])
             except Exception:
                 pass
+            try:
+                if lst.get('out_conn'):
+                    engine.output_generated.disconnect(lst['out_conn'])
+            except Exception:
+                pass
     except Exception:
         pass
 
     def _emit_ws(payload: dict):
         try:
-            asyncio.create_task(ConnectionManager.send_update(session_id, payload))
+            conns = websocket_connections.get(session_id) or []
+            if not conns:
+                # Buffer until a client connects
+                lst = pending_ws_payloads.setdefault(session_id, [])
+                lst.append(payload)
+            else:
+                asyncio.create_task(ConnectionManager.send_update(session_id, payload))
         except Exception as e:
             logger.warning(f"WS emit failed: {e}")
 
@@ -511,7 +562,58 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
     except Exception as e:
         logger.warning(f"Failed connecting orchestrator listener: {e}")
 
-    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn}
+    # Engine generic outputs (welcome/help/etc.) -> broadcast as narrative
+    def on_output_generated(role: str, content: str):
+        try:
+            _emit_ws({"type": "narrative", "data": {"role": role, "text": content, "gradual": False}})
+        except Exception as e:
+            logger.warning(f"Error handling engine.output_generated for WS: {e}")
+    out_conn = None
+    try:
+        engine.output_generated.connect(on_output_generated)
+        out_conn = on_output_generated
+    except Exception as e:
+        logger.warning(f"Failed connecting output_generated listener: {e}")
+
+    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn, "out_conn": out_conn}
+
+def _cleanup_session(session_id: str):
+    """Clean up a session's resources."""
+    try:
+        # Cleanup engine listeners
+        _detach_engine_listeners(session_id)
+        # Remove from active sessions
+        if session_id in active_sessions:
+            del active_sessions[session_id]
+        # Close WebSocket connections
+        if session_id in websocket_connections:
+            conns = websocket_connections[session_id]
+            for ws in conns:
+                try:
+                    if not ws.client_state.disconnected:
+                        asyncio.create_task(ws.close())
+                except Exception:
+                    pass
+            del websocket_connections[session_id]
+        # Clear pending payloads
+        if session_id in pending_ws_payloads:
+            del pending_ws_payloads[session_id]
+        logger.info(f"Cleaned up session {session_id}")
+    except Exception as e:
+        logger.warning(f"Error cleaning up session {session_id}: {e}")
+
+@app.delete("/api/session/{session_id}")
+async def cleanup_session(session_id: str):
+    """Clean up a specific session."""
+    try:
+        _cleanup_session(session_id)
+        return {"status": "success", "message": f"Session {session_id} cleaned up"}
+    except Exception as e:
+        logger.error(f"Error cleaning up session {session_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error cleaning up session: {str(e)}"
+        )
 
 @app.post("/api/new_game", response_model=SessionInfo)
 async def create_new_game(request: NewGameRequest):
@@ -519,6 +621,18 @@ async def create_new_game(request: NewGameRequest):
     try:
         session_id = str(uuid.uuid4())
         engine = GameEngine()
+        # Pre-register the session so WS/connects and later calls see it immediately
+        active_sessions[session_id] = engine
+        websocket_connections[session_id] = []
+        # Clear any pending payloads for this new session
+        pending_ws_payloads[session_id] = []
+        # Attach listeners BEFORE starting the game to catch welcome/help/narration
+        _attach_engine_listeners(session_id, engine)
+        # Set LLM preference before start (default is True, but honor request)
+        try:
+            engine.set_llm_enabled(bool(request.use_llm))
+        except Exception:
+            pass
         # Start new game using full parameters
         engine.start_new_game(
             player_name=request.player_name,
@@ -530,13 +644,11 @@ async def create_new_game(request: NewGameRequest):
             stats=request.stats,
             origin_id=request.origin_id
         )
-        # Toggle LLM
-        engine.set_llm_enabled(request.use_llm)
-        # Store in active sessions
-        active_sessions[session_id] = engine
-        websocket_connections[session_id] = []
-        # Attach listeners for this session
-        _attach_engine_listeners(session_id, engine)
+        # Re-attach listeners in case managers initialized during start
+        try:
+            _attach_engine_listeners(session_id, engine)
+        except Exception:
+            pass
         logger.info(f"Created new game session {session_id} for player {request.player_name}")
         state = engine.state_manager.state
         return SessionInfo(
@@ -618,37 +730,20 @@ async def process_command(session_id: str, request: CommandRequest, engine: Game
 async def save_game(session_id: str, request: SaveGameRequest, engine: GameEngine = Depends(get_game_engine)):
     """Save the current game state."""
     try:
-        # Generate save ID and name
-        save_id = str(uuid.uuid4())
-        save_name = request.save_name or f"Save_{engine.state_manager.state.player.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
-        # Save the game
-        engine.state_manager.save_game(save_id)
-        
-        # Update metadata
-        from core.utils.save_manager import SaveManager
-        save_manager = SaveManager()
-        state = engine.state_manager.state
-        
-        save_manager.update_metadata(
-            save_id=save_id,
-            updates={
-                "save_name": save_name,
-                "player_name": state.player.name,
-                "player_level": state.player.level,
-                "world_time": state.game_time.get_formatted_time(),
-                "location": state.world.current_location,
-                "playtime": state.playtime
-            }
-        )
-        
+        # Determine filename
+        save_name = (request.save_name or "").strip() or None
+        # Use engine lifecycle to save (writes JSON in /saves)
+        saved_path = engine.save_game(save_name)
+        if not saved_path:
+            raise RuntimeError("Save failed")
+        import os as _os
+        save_id = _os.path.basename(saved_path)
         logger.info(f"Saved game {save_id} for session {session_id}")
-        
         return {
             "status": "success",
-            "message": f"Game saved as '{save_name}'",
+            "message": f"Game saved as '{save_name or save_id}'",
             "save_id": save_id,
-            "save_name": save_name
+            "save_name": save_name or _os.path.splitext(save_id)[0]
         }
     except Exception as e:
         logger.error(f"Error saving game: {e}")
@@ -661,13 +756,18 @@ async def save_game(session_id: str, request: SaveGameRequest, engine: GameEngin
 async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngine = Depends(get_game_engine)):
     """Load a saved game state."""
     try:
+        # Ensure listeners are attached BEFORE loading so welcome-back and reintro outputs are captured/buffered
+        try:
+            _attach_engine_listeners(session_id, engine)
+        except Exception:
+            pass
+
         # Load the game
-        success = engine.state_manager.load_game(request.save_id)
-        
-        if not success:
+        success_state = engine.load_game(request.save_id)
+        if success_state is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Save file with ID {request.save_id} not found or is invalid"
+                detail=f"Save file '{request.save_id}' not found or is invalid"
             )
         
         # Get the updated game state
@@ -688,7 +788,7 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
             }
         }
         
-        # Attach listeners (in case engine was recreated/reset by load) and send update
+        # Re-attach listeners (in case any signal sources were recreated by load) and send update
         try:
             _attach_engine_listeners(session_id, engine)
         except Exception:
@@ -974,30 +1074,43 @@ async def get_item_details(session_id: str, item_id: str, engine: GameEngine = D
 
 @app.get("/api/list_saves")
 async def list_saves():
-    """List all available saved games."""
+    """List available JSON saves from the /saves directory (GUI-compatible)."""
     try:
-        from core.utils.save_manager import SaveManager
-        save_manager = SaveManager()
-        saves = save_manager.get_save_list()
-        
-        # Convert to response format
+        from core.base.state.state_manager import get_state_manager as _get_state_manager
+        sm = _get_state_manager()
+        saves_raw = sm.get_available_saves() or []
         save_list = []
-        for save in saves:
-            save_list.append({
-                "save_id": save.save_id,
-                "save_name": save.save_name,
-                "save_time": save.save_time,
-                "formatted_save_time": save.formatted_save_time,
-                "player_name": save.player_name,
-                "player_level": save.player_level,
-                "location": save.location,
-                "world_time": save.world_time
-            })
-        
-        return {
-            "status": "success",
-            "saves": save_list
-        }
+        for s in saves_raw:
+            try:
+                filename = s.get("filename") or ""
+                player_name = s.get("player_name", "Unknown")
+                player_level = s.get("level", 1)
+                location = s.get("location", "Unknown")
+                ts = s.get("last_saved_at") or s.get("created_at") or 0
+                try:
+                    # If ts is ISO string, try to parse; else assume epoch seconds
+                    if isinstance(ts, str):
+                        dt = datetime.fromisoformat(ts)
+                        epoch = dt.timestamp()
+                        formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        epoch = float(ts)
+                        formatted = datetime.fromtimestamp(epoch).strftime("%Y-%m-%d %H:%M:%S") if epoch else ""
+                except Exception:
+                    epoch = 0
+                    formatted = ""
+                save_list.append({
+                    "save_id": filename,
+                    "save_name": filename.rsplit('.', 1)[0] if filename else "",
+                    "save_time": epoch,
+                    "formatted_save_time": formatted,
+                    "player_name": player_name,
+                    "player_level": player_level,
+                    "location": location,
+                })
+            except Exception:
+                continue
+        return {"status": "success", "saves": save_list}
     except Exception as e:
         logger.error(f"Error listing saves: {e}")
         raise HTTPException(
@@ -1209,6 +1322,93 @@ async def toggle_llm(session_id: str, request: ToggleLLMRequest, engine: GameEng
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error toggling LLM: {str(e)}"
         )
+
+# --- Backstory generation endpoints ---
+class BackstoryImproveRequest(BaseModel):
+    name: str
+    race: str
+    path: str
+    origin_id: Optional[str] = None
+    sex: Optional[str] = None
+    seed_text: str = Field(..., description="Seed text to improve")
+
+class BackstoryGenerateRequest(BaseModel):
+    name: str
+    race: str
+    path: str
+    origin_id: Optional[str] = None
+    sex: Optional[str] = None
+
+
+def _format_backstory_context(name: str, race: str, path: str, origin_id: Optional[str], sex: Optional[str]) -> str:
+    try:
+        cfg = _get_config_singleton()
+        origin_text = ""
+        if origin_id:
+            origins = cfg.get_all("origins") or {}
+            if isinstance(origins, dict) and origin_id in origins:
+                od = origins[origin_id]
+                desc = od.get("description") or od.get("summary") or ""
+                traits = od.get("origin_traits") or od.get("traits") or []
+                profs = od.get("skill_proficiencies") or od.get("skills") or []
+                origin_text = f"Origin: {od.get('name', origin_id)}. {desc}\nTraits: "+", ".join([t.get('name', t) if isinstance(t, dict) else str(t) for t in traits]) + "\nSkills: "+", ".join([s.get('name', s) if isinstance(s, dict) else str(s) for s in profs])
+        sex_text = f"Sex: {sex}. " if sex else ""
+        base = f"Character: {name}. Race: {race}. Class: {path}. {sex_text}"
+        return base + ("\n" + origin_text if origin_text else "")
+    except Exception:
+        return f"Character: {name}. Race: {race}. Class: {path}."
+
+@app.post("/api/backstory/improve")
+async def api_backstory_improve(req: BackstoryImproveRequest):
+    try:
+        context_text = _format_backstory_context(req.name, req.race, req.path, req.origin_id, req.sex)
+        prompt = (
+            "Improve the following background seed text for the character described below. "
+            "Make it an engaging character description focusing on personality, motivation, and appearance, "
+            "fitting the provided context. Do not narrate actions, just describe the character.\n\n"
+            f"BACKGROUND SEED:\n{req.seed_text}\n\n"
+            f"{context_text}"
+        )
+        ctx = AgentContext(
+            game_state={}, player_state={}, world_state={},
+            player_input=prompt, conversation_history=[], relevant_memories=[], additional_context={}
+        )
+        agent = get_narrator_agent()
+        out = agent.process(ctx) or {}
+        narrative = out.get("narrative") or ""
+        if not narrative:
+            raise RuntimeError("Empty LLM response")
+        return {"status": "success", "narrative": narrative}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Backstory improve error: {e}")
+        raise HTTPException(status_code=500, detail=f"Backstory improve failed: {e}")
+
+@app.post("/api/backstory/generate")
+async def api_backstory_generate(req: BackstoryGenerateRequest):
+    try:
+        context_text = _format_backstory_context(req.name, req.race, req.path, req.origin_id, req.sex)
+        prompt = (
+            "Generate a short, engaging character description backstory seed (personality, motivation, appearance) "
+            "for the character described below. Do not narrate actions, just describe the character based on the context.\n\n"
+            f"{context_text}"
+        )
+        ctx = AgentContext(
+            game_state={}, player_state={}, world_state={},
+            player_input=prompt, conversation_history=[], relevant_memories=[], additional_context={}
+        )
+        agent = get_narrator_agent()
+        out = agent.process(ctx) or {}
+        narrative = out.get("narrative") or ""
+        if not narrative:
+            raise RuntimeError("Empty LLM response")
+        return {"status": "success", "narrative": narrative}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Backstory generate error: {e}")
+        raise HTTPException(status_code=500, detail=f"Backstory generate failed: {e}")
 
 @app.get("/api/ui/backgrounds")
 async def list_ui_backgrounds():

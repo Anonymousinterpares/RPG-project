@@ -44,6 +44,29 @@ class ApiClient {
     }
 
     /**
+     * Clean up a session on the server
+     */
+    async cleanupSession(sessionId = null) {
+        const id = sessionId || this.sessionId;
+        if (!id) {
+            return;
+        }
+
+        try {
+            const response = await fetch(this.buildUrl(`session/${id}`), {
+                method: 'DELETE',
+                headers: this.getHeaders()
+            });
+            // Don't throw on failure - cleanup is best-effort
+            if (response.ok) {
+                console.log(`Session ${id} cleaned up successfully`);
+            }
+        } catch (error) {
+            console.warn(`Failed to cleanup session ${id}:`, error);
+        }
+    }
+
+    /**
      * Check if there's an active session
      */
     hasActiveSession() {
@@ -195,6 +218,26 @@ class ApiClient {
         } catch (error) {
             console.error('Command error:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Create a session without starting a game
+     */
+    async createSession() {
+        try {
+            const response = await fetch(this.buildUrl('session'), {
+                method: 'POST',
+                headers: this.getHeaders(),
+            });
+            if (!response.ok) throw new Error('Failed to create session');
+            const data = await response.json();
+            this.sessionId = data.session_id;
+            this.saveSession();
+            return data;
+        } catch (e) {
+            console.error('Create session error:', e);
+            throw e;
         }
     }
 
@@ -553,6 +596,34 @@ class ApiClient {
             method: 'GET', headers: this.getHeaders()
         });
         if (!resp.ok) throw new Error('Failed to get stat modifiers');
+        return await resp.json();
+    }
+
+    /**
+     * Improve backstory seed via LLM
+     * @param {{name:string, race:string, path:string, origin_id?:string, sex?:string, seed_text:string}} payload
+     */
+    async improveBackstory(payload) {
+        const resp = await fetch(this.buildUrl('backstory/improve'), {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error('Failed to improve backstory');
+        return await resp.json();
+    }
+
+    /**
+     * Generate a new backstory via LLM
+     * @param {{name:string, race:string, path:string, origin_id?:string, sex?:string}} payload
+     */
+    async generateBackstory(payload) {
+        const resp = await fetch(this.buildUrl('backstory/generate'), {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error('Failed to generate backstory');
         return await resp.json();
     }
 }

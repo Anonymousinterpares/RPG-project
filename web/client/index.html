@@ -152,6 +152,13 @@
                                     <label>Edit the text below (loaded from Origin) to guide LLM background generation:</label>
                                     <textarea id="character-backstory-seed" rows="8" placeholder="Select an Origin to load starting text..."></textarea>
                                 </div>
+                                <div class="form-group">
+                                    <div class="backstory-ai-controls" style="display:flex; gap:8px;">
+                                        <button id="cc-improve-backstory" class="primary-btn">Improve via AI</button>
+                                        <button id="cc-generate-backstory" class="primary-btn">Generate via AI</button>
+                                    </div>
+                                    <div id="cc-backstory-status" class="origin-text" style="display:none; margin-top:6px;"></div>
+                                </div>
                             </div>
                         </div>
                         </div>

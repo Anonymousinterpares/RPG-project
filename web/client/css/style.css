@@ -746,11 +746,13 @@ input:checked + .toggle-slider:before {
 /* Stats grid */
 #cc-stats-grid { display: grid; grid-template-columns: 1.2fr 0.6fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr; gap: 6px; align-items: center; }
 .cc-stat-row { display: contents; }
-.cc-stat-name { font-weight: bold; color: #eee; }
-.cc-stat-base, .cc-stat-adjust, .cc-stat-race, .cc-stat-class, .cc-stat-total, .cc-stat-mod { text-align: center; color: #ddd; }
+.cc-stat-name { font-weight: bold; color: var(--color-text); }
+.cc-stat-base, .cc-stat-adjust, .cc-stat-race, .cc-stat-class, .cc-stat-total, .cc-stat-mod { text-align: center; color: var(--color-text); }
 .cc-stat-controls { display:flex; justify-content:center; gap:4px; }
 .cc-stat-btn { padding: 2px 8px; }
-.cc-points-remaining { color:#eee; margin: 6px 0; font-weight: bold; }
+.cc-points-remaining { color: var(--color-text); margin: 6px 0; font-weight: bold; }
+.cc-pos { color: var(--color-success); font-weight: 600; }
+.cc-neg { color: var(--color-error); font-weight: 600; }
 
 /* Dev grid and inspector */
 #layout-grid-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 9998; background-image:

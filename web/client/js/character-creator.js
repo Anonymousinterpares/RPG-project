@@ -78,14 +78,22 @@ const CharacterCreator = (function() {
                 const c = classMods[k]||0;
                 const total = base + adj + r + c;
                 const mod = modFromTotal(total);
+                const adjStr = adj===0 ? '0' : (adj>0?`+${adj}`:String(adj));
+                const adjCls = adj>0 ? 'cc-pos' : (adj<0 ? 'cc-neg' : '');
+                const rStr = r===0 ? '0' : (r>0?`+${r}`:String(r));
+                const rCls = r>0 ? 'cc-pos' : (r<0 ? 'cc-neg' : '');
+                const cStr = c===0 ? '0' : (c>0?`+${c}`:String(c));
+                const cCls = c>0 ? 'cc-pos' : (c<0 ? 'cc-neg' : '');
+                const modStr = mod===0 ? '0' : (mod>0?`+${mod}`:String(mod));
+                const modCls = mod>0 ? 'cc-pos' : (mod<0 ? 'cc-neg' : '');
                 return `<div class=\"cc-stat-row\">
                     <div class=\"cc-stat-name\">${k}</div>
                     <div class=\"cc-stat-base\">${base}</div>
-                    <div class=\"cc-stat-adjust\"><div class=\"cc-stat-controls\"><button class=\"cc-stat-btn\" data-k=\"${k}\" data-d=\"-1\">-</button><span>${adj>=0?`+${adj}`:adj}</span><button class=\"cc-stat-btn\" data-k=\"${k}\" data-d=\"+1\">+</button></div></div>
-                    <div class=\"cc-stat-race\">${r>=0?`+${r}`:r}</div>
-                    <div class=\"cc-stat-class\">${c>=0?`+${c}`:c}</div>
+                    <div class=\"cc-stat-adjust\"><div class=\"cc-stat-controls\"><button class=\"cc-stat-btn\" data-k=\"${k}\" data-d=\"-1\">-</button><span class=\"${adjCls}\">${adjStr}</span><button class=\"cc-stat-btn\" data-k=\"${k}\" data-d=\"+1\">+</button></div></div>
+                    <div class=\"cc-stat-race\"><span class=\"${rCls}\">${rStr}</span></div>
+                    <div class=\"cc-stat-class\"><span class=\"${cCls}\">${cStr}</span></div>
                     <div class=\"cc-stat-total\">${total}</div>
-                    <div class=\"cc-stat-mod\">${mod>=0?`+${mod}`:mod}</div>
+                    <div class=\"cc-stat-mod\"><span class=\"${modCls}\">${modStr}</span></div>
                 </div>`;
             }).join('');
             grid.innerHTML = header + rows;
@@ -184,6 +192,12 @@ const CharacterCreator = (function() {
         if (presetCrusader) presetCrusader.addEventListener('click', ()=>applyPreset('Crusader'));
         if (presetOracle) presetOracle.addEventListener('click', ()=>applyPreset('Oracle'));
         renderStatsUI();
+
+        // Backstory AI buttons
+        const improveBtn = document.getElementById('cc-improve-backstory');
+        const generateBtn = document.getElementById('cc-generate-backstory');
+        if (improveBtn) improveBtn.addEventListener('click', handleImproveBackstory);
+        if (generateBtn) generateBtn.addEventListener('click', handleGenerateBackstory);
     }
     
     // Load character icons from the server (flat, fallback)
@@ -424,6 +438,73 @@ const CharacterCreator = (function() {
         return true;
     }
     
+    // Backstory AI handlers
+    function _getSelectedOriginId() {
+        try {
+            const originSel = document.getElementById('character-background-select');
+            const opt = originSel?.selectedOptions && originSel.selectedOptions[0];
+            if (!opt) return null;
+            return opt.getAttribute('data-origin-id') || null;
+        } catch(e) { return null; }
+    }
+    function _getPointsRemaining() { return getPointsRemaining(); }
+    function _readBasicFields() {
+        const name = (document.getElementById('new-player-name')?.value||'').trim();
+        const race = document.getElementById('character-race-select')?.value||'';
+        const path = document.getElementById('character-class-select')?.value||'';
+        const sex = document.getElementById('character-sex-select')?.value||'';
+        const origin_id = _getSelectedOriginId();
+        return { name, race, path, sex, origin_id };
+    }
+    function _setBackstoryStatus(text, show=true) {
+        const el = document.getElementById('cc-backstory-status');
+        if (!el) return;
+        el.textContent = text||'';
+        el.style.display = show && text ? 'block' : 'none';
+    }
+    async function handleImproveBackstory() {
+        try {
+            const seedEl = document.getElementById('character-backstory-seed');
+            const seed = (seedEl?.value||'').trim();
+            const { name, race, path, sex, origin_id } = _readBasicFields();
+            if (!name) { alert('Enter a character name first.'); return; }
+            if (!origin_id) { alert('Select an Origin first.'); return; }
+            if (!seed) { alert('Enter or load some seed text first.'); return; }
+            if (_getPointsRemaining() > 0) { alert('Allocate all stat points first.'); return; }
+            _setBackstoryStatus('Improving backstory...');
+            const btn = document.getElementById('cc-improve-backstory'); if (btn) btn.disabled = true;
+            const resp = await apiClient.improveBackstory({ name, race, path, origin_id, sex, seed_text: seed });
+            if (resp && resp.narrative) seedEl.value = resp.narrative;
+            _setBackstoryStatus('Backstory improved.', true);
+        } catch (e) {
+            console.error(e);
+            _setBackstoryStatus('Failed to improve backstory.', true);
+        } finally {
+            const btn = document.getElementById('cc-improve-backstory'); if (btn) btn.disabled = false;
+            setTimeout(()=>_setBackstoryStatus('', false), 2000);
+        }
+    }
+    async function handleGenerateBackstory() {
+        try {
+            const seedEl = document.getElementById('character-backstory-seed');
+            const { name, race, path, sex, origin_id } = _readBasicFields();
+            if (!name) { alert('Enter a character name first.'); return; }
+            if (!origin_id) { alert('Select an Origin first.'); return; }
+            if (_getPointsRemaining() > 0) { alert('Allocate all stat points first.'); return; }
+            _setBackstoryStatus('Generating backstory...');
+            const btn = document.getElementById('cc-generate-backstory'); if (btn) btn.disabled = true;
+            const resp = await apiClient.generateBackstory({ name, race, path, origin_id, sex });
+            if (resp && resp.narrative) seedEl.value = resp.narrative;
+            _setBackstoryStatus('Backstory generated.', true);
+        } catch (e) {
+            console.error(e);
+            _setBackstoryStatus('Failed to generate backstory.', true);
+        } finally {
+            const btn = document.getElementById('cc-generate-backstory'); if (btn) btn.disabled = false;
+            setTimeout(()=>_setBackstoryStatus('', false), 2000);
+        }
+    }
+
     // Public API
     return {
         init,

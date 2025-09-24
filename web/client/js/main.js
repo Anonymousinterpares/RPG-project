@@ -219,14 +219,29 @@ async function createNewGame(playerName, options = {}) {
         // Show loading message
         uiManager.addMessage('Creating new game...', 'system');
         
+        // Clean up any existing session before creating a new game
+        if (apiClient.hasActiveSession()) {
+            const oldSessionId = apiClient.sessionId;
+            // Disconnect WebSocket
+            if (webSocketClient.isConnected) {
+                webSocketClient.disconnect();
+            }
+            // Clean up the old session on server
+            await apiClient.cleanupSession(oldSessionId);
+            // Clear local session
+            apiClient.clearSession();
+            // Wait briefly for clean disconnection and cleanup
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
         // Create new game via API with all character options
         const result = await apiClient.createNewGame(playerName, options);
         
         // Close the modal
         uiManager.closeAllModals();
         
-        // Connect WebSocket
-        connectWebSocket(result.session_id);
+        // Connect WebSocket for the new session
+        connectWebSocket(result.session_id, { isNewGame: true });
         
         // Extract character details for UI update
         const characterRace = options.race || result.race || 'Human';
@@ -249,9 +264,7 @@ async function createNewGame(playerName, options = {}) {
         // Refresh full UI (right panel + status)
         uiManager.refreshUI();
         
-        // Add welcome message
-        uiManager.addMessage(`Welcome, ${playerName} the ${characterRace} ${characterClass}! Your adventure begins...`, 'game');
-        uiManager.addMessage('Type "help" to see available commands.', 'system');
+        // Initial narrative and help will arrive via WebSocket events from the engine
         
         // Create user-event for session creation (for other components to react to)
         document.dispatchEvent(new CustomEvent('session-created', { 
@@ -270,7 +283,7 @@ async function createNewGame(playerName, options = {}) {
 /**
  * Connect to WebSocket for real-time updates
  */
-function connectWebSocket(sessionId) {
+function connectWebSocket(sessionId, options = {}) {
     if (!sessionId && !apiClient.sessionId) {
         console.error('No session ID to connect WebSocket');
         return;
@@ -284,8 +297,10 @@ function connectWebSocket(sessionId) {
         return;
     }
     
-    // Important: First disconnect completely before setting up new handlers
-    webSocketClient.disconnect();
+    // Only disconnect if not already done (e.g., for new games, we disconnect earlier)
+    if (!options.isNewGame && webSocketClient.isConnected) {
+        webSocketClient.disconnect();
+    }
     
     // Remove any existing event handlers to prevent duplication
     if (typeof webSocketClient.offAll === 'function') {
@@ -507,11 +522,11 @@ async function loadSavesList() {
  * Load a saved game
  */
 async function loadGame(saveId) {
+    // Ensure we have a live session (not just a stored sessionId)
     if (!apiClient.hasActiveSession()) {
         try {
-            // Create a temporary session first
             uiManager.addMessage('Creating a new session to load the game...', 'system');
-            const result = await apiClient.createNewGame('Temporary');
+            const result = await apiClient.createSession();
             connectWebSocket(result.session_id);
         } catch (error) {
             uiManager.showNotification('Failed to create session to load game', 'error');
@@ -519,31 +534,46 @@ async function loadGame(saveId) {
         }
     }
     
-    try {
+    const attemptLoad = async () => {
         // Clear the current output
         uiManager.clearOutput();
         uiManager.addMessage('Loading game...', 'system');
-        
-        // Load the game
         const result = await apiClient.loadGame(saveId);
-        
+        return result;
+    };
+
+    try {
+        const result = await attemptLoad();
         if (result.status === 'success') {
-            // Update game state
             updateGameState(result.state);
-            
-            // Enable input
             uiManager.enableCommandInput();
-            
             uiManager.addMessage('Game loaded successfully.', 'system');
             uiManager.showNotification('Game loaded successfully', 'success');
-        } else {
-            uiManager.addMessage('Failed to load game.', 'system');
-            uiManager.showNotification('Failed to load game', 'error');
+            return;
         }
+        // If not success, fall through to retry with fresh session
+        throw new Error('Failed to load game');
     } catch (error) {
-        console.error('Load game error:', error);
-        uiManager.addMessage('Failed to load game: ' + error.message, 'system');
-        uiManager.showNotification('Failed to load game: ' + error.message, 'error');
+        console.warn('Load failed, retrying with a fresh session...', error);
+        try {
+            // Clear any stale session and create a new one, then retry once
+            await apiClient.endSession();
+            const resultNew = await apiClient.createSession();
+            connectWebSocket(resultNew.session_id);
+            const retry = await attemptLoad();
+            if (retry.status === 'success') {
+                updateGameState(retry.state);
+                uiManager.enableCommandInput();
+                uiManager.addMessage('Game loaded successfully.', 'system');
+                uiManager.showNotification('Game loaded successfully', 'success');
+                return;
+            }
+            throw new Error('Failed to load game');
+        } catch (err2) {
+            console.error('Load game error (after retry):', err2);
+            uiManager.addMessage('Failed to load game: ' + (err2.message||err2), 'system');
+            uiManager.showNotification('Failed to load game: ' + (err2.message||err2), 'error');
+        }
     }
 }
 
