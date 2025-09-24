@@ -3,6 +3,7 @@ Location editor component for the World Configurator Tool.
 """
 
 import logging
+import os
 from typing import Dict, List, Optional, Callable
 
 from PySide6.QtCore import Qt, Signal, Slot
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
 from models.base_models import Location, LocationConnection, LocationFeature
 from models.location_data import LocationManager
 from models.world_data import CultureManager
+from models.location_defaults_manager import LocationDefaultsManager
 
 logger = logging.getLogger("world_configurator.ui.location_editor")
 
@@ -243,6 +245,7 @@ class LocationEditor(QWidget):
         # Internal state
         self.location_manager = LocationManager()
         self.culture_manager = CultureManager()
+        self.location_defaults_manager: Optional[LocationDefaultsManager] = None
         self.current_location: Optional[Location] = None
         
         # Setup UI
@@ -476,16 +479,18 @@ class LocationEditor(QWidget):
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
     
-    def set_managers(self, location_manager: LocationManager, culture_manager: CultureManager) -> None:
+    def set_managers(self, location_manager: LocationManager, culture_manager: CultureManager, defaults_manager: Optional[LocationDefaultsManager] = None) -> None:
         """
         Set the managers to use.
         
         Args:
             location_manager: The location manager.
             culture_manager: The culture manager for culture selection.
+            defaults_manager: Optional manager for global culture mix defaults.
         """
         self.location_manager = location_manager
         self.culture_manager = culture_manager
+        self.location_defaults_manager = defaults_manager
         self._refresh_location_list()
         self._populate_culture_combo()
         # Populate culture combo for culture mix editor
@@ -983,6 +988,18 @@ class LocationEditor(QWidget):
         for i in range(self.cm_list.count()):
             cid, weight = self.cm_list.item(i).data(Qt.UserRole)
             mix[cid] = float(weight)
+        # Normalize weights if they don't sum to ~1.0
+        total = sum(mix.values())
+        if total > 0 and abs(total - 1.0) > 1e-6:
+            for k in list(mix.keys()):
+                mix[k] = mix[k] / total
+            # Reflect normalized values in UI list
+            self.cm_list.clear()
+            for cid, weight in mix.items():
+                item = QListWidgetItem(f"{cid}: {weight:.2f}")
+                item.setData(Qt.UserRole, (cid, weight))
+                self.cm_list.addItem(item)
+            QMessageBox.information(self, "Normalized", "Per-location culture mix weights were normalized to sum to 1.0.")
         self.current_location.culture_mix = mix
     
     def _get_available_locations(self) -> Dict[str, str]:
@@ -1086,12 +1103,16 @@ class LocationEditor(QWidget):
             logger.debug(f"Edited connection to: {target_name}")
     
     def _gcm_load(self) -> None:
-        # Load defaults from config/world/locations/defaults.json
-        from utils.file_manager import get_world_config_dir, load_json, save_json
+        # Load defaults from manager if available; otherwise from config/world/locations/defaults.json
+        from utils.file_manager import get_world_config_dir, load_json
         try:
-            path = os.path.join(get_world_config_dir(), "locations", "defaults.json")
-            data = load_json(path) or {}
-            mix = (data.get("culture_mix") or {})
+            mix = {}
+            if self.location_defaults_manager and isinstance(self.location_defaults_manager.data, dict):
+                mix = (self.location_defaults_manager.data.get("culture_mix") or {})
+            else:
+                path = os.path.join(get_world_config_dir(), "locations", "defaults.json")
+                data = load_json(path) or {}
+                mix = (data.get("culture_mix") or {})
             self.gcm_list.clear()
             for cid, weight in mix.items():
                 item = QListWidgetItem(f"{cid}: {float(weight):.2f}")
@@ -1101,17 +1122,46 @@ class LocationEditor(QWidget):
             self.gcm_list.clear()
     
     def _gcm_save(self) -> None:
-        from utils.file_manager import get_world_config_dir, save_json
-        path = os.path.join(get_world_config_dir(), "locations", "defaults.json")
+        from utils.file_manager import get_world_config_dir
         mix: Dict[str, float] = {}
         for i in range(self.gcm_list.count()):
             cid, weight = self.gcm_list.item(i).data(Qt.UserRole)
             mix[cid] = float(weight)
-        data = {"culture_mix": mix, "metadata": {"version": "1.0.0", "description": "Default cultural mixture"}}
-        if save_json(data, path):
-            QMessageBox.information(self, "Saved", "Global culture mix defaults saved.")
+        # Normalize weights if needed
+        total = sum(mix.values())
+        if total > 0 and abs(total - 1.0) > 1e-6:
+            for k in list(mix.keys()):
+                mix[k] = mix[k] / total
+            # Reflect normalized values in UI list
+            self.gcm_list.clear()
+            for cid, weight in mix.items():
+                item = QListWidgetItem(f"{cid}: {weight:.2f}")
+                item.setData(Qt.UserRole, (cid, weight))
+                self.gcm_list.addItem(item)
+            QMessageBox.information(self, "Normalized", "Global culture mix defaults were normalized to sum to 1.0.")
+        # Save via manager if available
+        if self.location_defaults_manager is not None:
+            if not isinstance(self.location_defaults_manager.data, dict):
+                self.location_defaults_manager.data = {"culture_mix": {}, "metadata": {"version": "1.0.0"}}
+            self.location_defaults_manager.data["culture_mix"] = mix
+            # Ensure we have a path
+            target_path = self.location_defaults_manager.state.path
+            if not target_path:
+                # Fallback to game's config path
+                target_path = os.path.join(get_world_config_dir(), "locations", "defaults.json")
+            if self.location_defaults_manager.save_to_file(target_path):
+                QMessageBox.information(self, "Saved", "Global culture mix defaults saved.")
+            else:
+                QMessageBox.critical(self, "Error", "Failed to save culture mix defaults.")
         else:
-            QMessageBox.critical(self, "Error", "Failed to save culture mix defaults.")
+            # Fallback: write directly to game's defaults.json
+            from utils.file_manager import save_json
+            path = os.path.join(get_world_config_dir(), "locations", "defaults.json")
+            data = {"culture_mix": mix, "metadata": {"version": "1.0.0", "description": "Default cultural mixture"}}
+            if save_json(data, path):
+                QMessageBox.information(self, "Saved", "Global culture mix defaults saved.")
+            else:
+                QMessageBox.critical(self, "Error", "Failed to save culture mix defaults.")
     
     def _gcm_add_update(self) -> None:
         cid = self.gcm_culture_edit.text().strip()

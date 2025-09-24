@@ -162,7 +162,11 @@ class MainWindow(QMainWindow):
 
         # Location editor
         self.location_editor = LocationEditor()
-        self.location_editor.set_managers(self.world_config.location_manager, self.world_config.culture_manager)
+        self.location_editor.set_managers(
+            self.world_config.location_manager,
+            self.world_config.culture_manager,
+            self.world_config.location_defaults_manager
+        )
         self.tab_widget.addTab(self.location_editor, "Locations")
 
         # History editor

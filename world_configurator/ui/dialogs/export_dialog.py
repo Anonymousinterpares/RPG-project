@@ -81,6 +81,11 @@ class ExportDialog(BaseDialog):
         self.chk_locations.setChecked(True)
         self.components_layout.addWidget(self.chk_locations)
 
+        # Location defaults (culture mix)
+        self.chk_location_defaults = QCheckBox("Culture Mix Defaults (Locations)")
+        self.chk_location_defaults.setChecked(True)
+        self.components_layout.addWidget(self.chk_location_defaults)
+
         self.chk_history = QCheckBox("World History")
         self.chk_history.setChecked(True)
         self.components_layout.addWidget(self.chk_history)
@@ -145,6 +150,7 @@ class ExportDialog(BaseDialog):
         for chk_item_cat in self.item_checkboxes.values(): # NEW
             chk_item_cat.setChecked(True)
         self.chk_locations.setChecked(True)
+        self.chk_location_defaults.setChecked(True)
         self.chk_history.setChecked(True)
         self.chk_rules.setChecked(True)
         self.chk_origins.setChecked(True)
@@ -161,6 +167,7 @@ class ExportDialog(BaseDialog):
         for chk_item_cat in self.item_checkboxes.values(): # NEW
             chk_item_cat.setChecked(False)
         self.chk_locations.setChecked(False)
+        self.chk_location_defaults.setChecked(False)
         self.chk_history.setChecked(False)
         self.chk_rules.setChecked(False)
         self.chk_origins.setChecked(False)
@@ -181,6 +188,7 @@ class ExportDialog(BaseDialog):
             "classes": self.chk_classes.isChecked(),
             "skills": self.chk_skills.isChecked(), # NEW
             "locations": self.chk_locations.isChecked(),
+            "location_defaults": self.chk_location_defaults.isChecked(),
             "history": self.chk_history.isChecked(),
             "rules": self.chk_rules.isChecked(),
             "origins": self.chk_origins.isChecked(),

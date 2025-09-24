@@ -125,6 +125,9 @@ class NamesEditor(QWidget):
         """Save current UI state into manager or directly to game file if no manager."""
         # Update current culture entry from UI first
         self._save_current_culture()
+        # Validate current culture spec before saving
+        if not self._validate_current_culture():
+            return
         try:
             if self._manager is not None:
                 # Push into manager and save to its path or keep in-memory; export uses export dialog
@@ -183,12 +186,26 @@ class NamesEditor(QWidget):
         cid = self._current_culture
         if not cid:
             return
+        # Build lists and deduplicate while preserving order
+        def _dedup(seq):
+            seen = set()
+            out = []
+            for s in seq:
+                if s not in seen:
+                    seen.add(s)
+                    out.append(s)
+            return out
+        patterns = [p.strip() for p in self.patterns_edit.toPlainText().splitlines() if p.strip()]
+        first_syllables = [s.strip() for s in self.first_syllables_edit.toPlainText().split(',') if s.strip()]
+        last_prefixes = [s.strip() for s in self.last_prefixes_edit.toPlainText().split(',') if s.strip()]
+        last_cores = [s.strip() for s in self.last_cores_edit.toPlainText().split(',') if s.strip()]
+        last_suffixes = [s.strip() for s in self.last_suffixes_edit.toPlainText().split(',') if s.strip()]
         spec = {
-            "patterns": [p.strip() for p in self.patterns_edit.toPlainText().splitlines() if p.strip()],
-            "first_syllables": [s.strip() for s in self.first_syllables_edit.toPlainText().split(',') if s.strip()],
-            "last_prefixes": [s.strip() for s in self.last_prefixes_edit.toPlainText().split(',') if s.strip()],
-            "last_cores": [s.strip() for s in self.last_cores_edit.toPlainText().split(',') if s.strip()],
-            "last_suffixes": [s.strip() for s in self.last_suffixes_edit.toPlainText().split(',') if s.strip()],
+            "patterns": _dedup(patterns),
+            "first_syllables": _dedup(first_syllables),
+            "last_prefixes": _dedup(last_prefixes),
+            "last_cores": _dedup(last_cores),
+            "last_suffixes": _dedup(last_suffixes),
             "allowed_chars": self.allowed_chars_edit.text().strip() or "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"
         }
         self._data.setdefault("cultures", {})
@@ -273,4 +290,29 @@ class NamesEditor(QWidget):
         if not ln:
             ln = "River"
         return ln[:1].upper() + ln[1:]
+
+    def _validate_current_culture(self) -> bool:
+        """Validate the current culture spec: patterns tokens and allowed_chars regex."""
+        cid = self._current_culture
+        if not cid:
+            return True
+        spec = self._data.get("cultures", {}).get(cid, {})
+        # Validate allowed_chars regex
+        try:
+            _ = re.compile(spec.get("allowed_chars", "^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"))
+        except re.error as e:
+            QMessageBox.critical(self, "Invalid Regex", f"Allowed chars regex is invalid for culture '{cid}':\n{e}")
+            return False
+        # Validate tokens in patterns
+        valid_tokens = {"FN", "FN2", "MI", "LN", "LN2"}
+        bad_patterns = []
+        for p in spec.get("patterns", []):
+            tokens = set(re.findall(r"\b([A-Z]{2}\d?)\b", p))
+            unknown = [t for t in tokens if t not in valid_tokens]
+            if unknown:
+                bad_patterns.append(f"{p} (unknown: {', '.join(unknown)})")
+        if bad_patterns:
+            QMessageBox.critical(self, "Invalid Patterns", "Some patterns contain unknown tokens:\n\n" + "\n".join(bad_patterns))
+            return False
+        return True
 
