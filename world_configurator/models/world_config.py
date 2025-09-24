@@ -11,6 +11,7 @@ from models.world_data import CultureManager, WorldHistoryManager, WorldRulesMan
 from models.names_manager import NamesManager
 from models.location_data import LocationManager
 from models.location_defaults_manager import LocationDefaultsManager
+from models.variants_manager import VariantsManager
 from models.origin_data import OriginManager, QuestManager
 from utils.file_manager import get_config_dir, get_project_root, get_world_config_dir, load_json, save_json
 
@@ -55,7 +56,10 @@ class WorldConfigManager:
         
         # Location defaults (world/locations/defaults.json)
         self.location_defaults_manager = LocationDefaultsManager()
-
+        
+        # NPC Variants manager (npc/variants.json)
+        self.variants_manager = VariantsManager()
+        
         from .item_data_manager import ItemDataManager, MANAGED_ITEM_FILES as ITEM_FILE_KEYS_MAP # Local import
         self.item_data_manager = ItemDataManager()
         self.ITEM_FILE_KEYS_MAP = ITEM_FILE_KEYS_MAP # Store for convenience
@@ -74,7 +78,8 @@ class WorldConfigManager:
             "quests": self.quest_manager,
             "magic_systems": self.magic_system_manager,
             "names": self.names_manager,
-            "location_defaults": self.location_defaults_manager
+            "location_defaults": self.location_defaults_manager,
+            "variants": self.variants_manager
         }
         # Add item file keys to managers for load/save/export logic continuity if needed,
         # or handle item_data_manager specially. For now, ItemDataManager handles its own files.
@@ -114,7 +119,8 @@ class WorldConfigManager:
             "quests": "quests.json",
             "magic_systems": "magic_systems.json",
             "names": "names.json",
-            "location_defaults": "location_defaults.json"
+            "location_defaults": "location_defaults.json",
+            "variants": "variants.json"
         }
 
         for component, filename in project_component_files.items():
@@ -173,7 +179,8 @@ class WorldConfigManager:
             "quests": "quests.json",
             "magic_systems": "magic_systems.json",
             "names": "names.json",
-            "location_defaults": "location_defaults.json"
+            "location_defaults": "location_defaults.json",
+            "variants": "variants.json"
         }
 
         for component, filename in project_component_files.items():
@@ -299,7 +306,8 @@ class WorldConfigManager:
             "quests": ("world/scenarios", "quests.json"),
             "magic_systems": ("world/base", "magic_systems.json"),
             "names": ("npc", "names.json"),
-            "location_defaults": ("world/locations", "defaults.json")
+            "location_defaults": ("world/locations", "defaults.json"),
+            "variants": ("npc", "variants.json")
             # Item files are handled by ItemDataManager below
         }
 

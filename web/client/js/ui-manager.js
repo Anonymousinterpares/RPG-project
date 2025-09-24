@@ -53,10 +53,14 @@ class UiManager {
 
         // Initialize theme
         this.applyTheme(this.settings.theme);
-
+        
         // Initialize font size
         this.applyFontSize(this.settings.fontSize);
-
+        
+        // Enforce base layout anchors before loading any saved styles
+        this.enforceMainLayoutAnchors();
+        this.enforceCenterStackOrder();
+        
         // LLM settings
         this.llmSettings = {
             providers: {},
@@ -618,6 +622,9 @@ class UiManager {
     }
 
     applySavedLayoutSettings() {
+        // Re-anchor layout before applying saved values
+        this.enforceMainLayoutAnchors();
+        this.enforceCenterStackOrder();
         try {
             const left = localStorage.getItem('rpg_layout_left');
             const right = localStorage.getItem('rpg_layout_right');
@@ -841,14 +848,25 @@ class UiManager {
         try {
             const raw = localStorage.getItem('rpg_element_styles');
             if (!raw) return;
-            const map = JSON.parse(raw);
-            Object.entries(map).forEach(([selector, styles])=>{
+            const incoming = JSON.parse(raw);
+            const sanitized = {};
+            Object.entries(incoming).forEach(([selector, styles])=>{
                 try {
                     document.querySelectorAll(selector).forEach(el=>{
-                        Object.assign(el.style, styles);
+                        const filtered = this.filterStylesForElement(el, styles);
+                        if (Object.keys(filtered).length) {
+                            Object.assign(el.style, filtered);
+                            const sel = this.getUniqueSelectorFor(el);
+                            if (sel) sanitized[sel] = { ...(sanitized[sel]||{}), ...filtered };
+                        }
                     });
                 } catch (e) { /* ignore */ }
             });
+            // Persist sanitized map back to storage to prevent future drift
+            try { localStorage.setItem('rpg_element_styles', JSON.stringify(sanitized)); } catch {}
+            // After applying, enforce anchors again in case any stray positions slipped in
+            this.enforceMainLayoutAnchors();
+            this.enforceCenterStackOrder();
         } catch (e) { console.warn('applySavedElementStyles failed', e);}        
     }
 
@@ -861,6 +879,8 @@ class UiManager {
         if (el.classList && (el.classList.contains('app-container') || el.classList.contains('game-frame'))) return false;
         const gameFrame = document.querySelector('.game-frame');
         if (el === gameFrame) return false;
+        // HARD GUARD: Never allow moving/swapping the main sections or critical core widgets
+        if (this.isProtectedLayoutElement(el)) return false;
         return true;
     }
 
@@ -903,10 +923,74 @@ class UiManager {
             const map = raw ? JSON.parse(raw) : {};
             map[selector] = map[selector] || {};
             const styles = {};
-            ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ if (el.style[k]) styles[k] = el.style[k]; });
+            const allowProp = (k)=>{
+                // Never persist positioning for protected sections or their descendants
+                const inMainSection = !!(el.closest('.left-menu, .center-stack, .right-panel, .banner-bar, .status-bar'));
+                if (inMainSection && (k==='position' || k==='left' || k==='top' || k==='zIndex' || k==='transform')) return false;
+                return true;
+            };
+            ['width','height','maxHeight','overflowY','position','left','top','zIndex','transform'].forEach(k=>{ if (el.style[k] && allowProp(k)) styles[k] = el.style[k]; });
             map[selector] = { ...map[selector], ...styles };
             localStorage.setItem('rpg_element_styles', JSON.stringify(map));
         } catch (e) { console.warn('persistElementStyle failed', e); }
+    }
+
+    // Layout protection helpers
+    isProtectedLayoutElement(el) {
+        if (!el) return false;
+        // Main grid sections
+        if (el.classList && (el.classList.contains('left-menu') || el.classList.contains('center-stack') || el.classList.contains('right-panel') || el.classList.contains('banner-bar') || el.classList.contains('status-bar'))) {
+            return true;
+        }
+        // Critical widgets that must retain order and position
+        if (el.id === 'game-output' || el.classList?.contains('game-output')) return true;
+        if (el.id === 'command-input' || el.classList?.contains('command-input-container')) return true;
+        return false;
+    }
+
+    filterStylesForElement(el, styles) {
+        try {
+            const filtered = { ...styles };
+            // For main sections and anything inside them, strip absolute positioning/transform
+            if (el.closest('.left-menu, .center-stack, .right-panel, .banner-bar, .status-bar')) {
+                delete filtered.position;
+                delete filtered.left;
+                delete filtered.top;
+                delete filtered.zIndex;
+                delete filtered.transform;
+            }
+            return filtered;
+        } catch { return styles; }
+    }
+
+    enforceCenterStackOrder() {
+        try {
+            const cs = document.querySelector('.center-stack');
+            if (!cs) return;
+            const out = cs.querySelector('.game-output');
+            const inp = cs.querySelector('.command-input-container');
+            if (out && inp) {
+                if (out.nextElementSibling !== inp) {
+                    cs.insertBefore(inp, null); // move to end
+                    cs.insertBefore(out, inp); // ensure out before inp
+                }
+                // Clear any rogue transforms/positions
+                [out, inp].forEach(el=>{ try { el.style.position=''; el.style.left=''; el.style.top=''; el.style.transform=''; el.style.zIndex=''; } catch {} });
+            }
+        } catch {}
+    }
+
+    enforceMainLayoutAnchors() {
+        try {
+            const anchors = [
+                document.querySelector('.left-menu'),
+                document.querySelector('.center-stack'),
+                document.querySelector('.right-panel'),
+                document.querySelector('.banner-bar'),
+                document.querySelector('.status-bar')
+            ].filter(Boolean);
+            anchors.forEach(el=>{ try { el.style.position=''; el.style.left=''; el.style.top=''; el.style.transform=''; el.style.zIndex=''; el.style.gridColumn=''; } catch {} });
+        } catch {}
     }
 
     // Helper: get current translate offsets from CSS transform
@@ -1161,7 +1245,11 @@ class UiManager {
                                 }
                             }
                         } catch {}
-                        this.commitEditorAction(); 
+                        this.commitEditorAction();
+                        // For elements anchored within main sections, never keep transform after drop
+                        try {
+                            (els||[]).forEach(el=>{ if (el && el.closest && el.closest('.left-menu, .center-stack, .right-panel, .banner-bar, .status-bar')) { el.style.transform=''; this.persistElementStyle(el); } });
+                        } catch {}
                     };
                     document.addEventListener('mousemove', onMM);
                     document.addEventListener('mouseup', onMU);
@@ -1289,6 +1377,9 @@ class UiManager {
             this.toggleGridOverlay(false);
             this.enableLayoutInspector(false);
             this.enableElementResizeMode(false);
+            // Re-anchor layout and restore expected order
+            this.enforceMainLayoutAnchors();
+            this.enforceCenterStackOrder();
             if (showMsg) this.showNotification('Layout reset to defaults', 'success');
         } catch (e) { console.warn('resetLayoutToDefaults failed', e); }
     }
