@@ -345,7 +345,11 @@ class UiManager {
                 document.querySelectorAll('.right-tabs .rp-tab-pane').forEach(p => p.classList.remove('active'));
                 button.classList.add('active');
                 const pane = document.getElementById(targetTab);
-                if (pane) pane.classList.add('active');
+                if (pane) {
+                    pane.classList.add('active');
+                    // Ensure proper scrolling for the newly active tab
+                    this.ensureRightPanelScrollable();
+                }
             });
         });
 
@@ -400,6 +404,15 @@ class UiManager {
                 }
                 e.preventDefault();
             }
+        });
+
+        // Window resize handler to adjust right panel scrolling
+        window.addEventListener('resize', () => {
+            // Debounce the resize handler
+            clearTimeout(this._resizeTimeout);
+            this._resizeTimeout = setTimeout(() => {
+                this.ensureRightPanelScrollable();
+            }, 150);
         });
     }
 
@@ -489,7 +502,84 @@ class UiManager {
      * Scroll the output area to the bottom
      */
     scrollToBottom() {
-        this.outputElement.scrollTop = this.outputElement.scrollHeight;
+        // Use requestAnimationFrame for smooth scrolling
+        requestAnimationFrame(() => {
+            this.outputElement.scrollTop = this.outputElement.scrollHeight;
+        });
+    }
+
+    /**
+     * Scroll a specific element to the bottom (for right panel tabs)
+     * @param {HTMLElement} element - The element to scroll
+     */
+    scrollElementToBottom(element) {
+        if (!element) return;
+        requestAnimationFrame(() => {
+            element.scrollTop = element.scrollHeight;
+        });
+    }
+
+    /**
+     * Ensure an element is visible by scrolling its container if needed
+     * @param {HTMLElement} element - The element to make visible
+     * @param {HTMLElement} container - The scrollable container (optional)
+     */
+    scrollIntoView(element, container = null) {
+        if (!element) return;
+        
+        if (container) {
+            // Scroll within a specific container
+            const elementTop = element.offsetTop;
+            const elementBottom = elementTop + element.offsetHeight;
+            const containerTop = container.scrollTop;
+            const containerBottom = containerTop + container.clientHeight;
+            
+            if (elementBottom > containerBottom) {
+                // Element is below the visible area
+                container.scrollTop = elementBottom - container.clientHeight;
+            } else if (elementTop < containerTop) {
+                // Element is above the visible area
+                container.scrollTop = elementTop;
+            }
+        } else {
+            // Use browser's built-in scrollIntoView
+            element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    /**
+     * Ensure the right panel content is properly scrollable and handle overflow
+     */
+    ensureRightPanelScrollable() {
+        const rightPanel = document.querySelector('.right-panel');
+        if (!rightPanel) return;
+
+        // Get the currently active tab pane
+        const activePane = rightPanel.querySelector('.rp-tab-pane.active');
+        if (!activePane) return;
+
+        // Check if content overflows and adjust scrolling
+        requestAnimationFrame(() => {
+            const rightPanelHeight = rightPanel.clientHeight;
+            const tabButtonsHeight = rightPanel.querySelector('.tab-buttons')?.offsetHeight || 0;
+            const availableHeight = rightPanelHeight - tabButtonsHeight - 20; // 20px for padding
+            
+            // Set max height for the active pane if not already set by CSS variable
+            const maxHeight = getComputedStyle(document.documentElement)
+                .getPropertyValue('--rp-pane-max');
+            
+            if (maxHeight === 'none' || !maxHeight) {
+                // Only set max height if not controlled by CSS variable
+                activePane.style.maxHeight = `${availableHeight}px`;
+            }
+
+            // If content is overflowing, ensure scrolling is enabled
+            if (activePane.scrollHeight > activePane.clientHeight) {
+                activePane.style.overflowY = 'auto';
+                // Optional: scroll to a specific element if needed
+                // For now, we'll keep the current scroll position
+            }
+        });
     }
 
     /**
@@ -1624,6 +1714,9 @@ class UiManager {
         if (jPane) {
             this.renderJournalPane(ui);
         }
+        
+        // Auto-scroll the active right panel tab if content overflows
+        this.ensureRightPanelScrollable();
     }
 
     attachCharacterTabHandlers() {

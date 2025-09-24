@@ -70,6 +70,42 @@
     --color-border: #d2b48c;
 }
 
+/* Custom scrollbar styling */
+.game-output::-webkit-scrollbar,
+.right-panel::-webkit-scrollbar,
+.rp-tab-pane::-webkit-scrollbar {
+    width: 8px;
+}
+
+.game-output::-webkit-scrollbar-track,
+.right-panel::-webkit-scrollbar-track,
+.rp-tab-pane::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.game-output::-webkit-scrollbar-thumb,
+.right-panel::-webkit-scrollbar-thumb,
+.rp-tab-pane::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.game-output::-webkit-scrollbar-thumb:hover,
+.right-panel::-webkit-scrollbar-thumb:hover,
+.rp-tab-pane::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Firefox scrollbar styling */
+.game-output,
+.right-panel,
+.rp-tab-pane {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.1);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -838,6 +874,13 @@ body.has-bg::before {
     padding: 10px 10px 8px 10px;
     /* ensure inner content fills the wider column cleanly */
     box-sizing: border-box;
+    /* Enable scrolling when content overflows */
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Ensure smooth scrolling */
+    scroll-behavior: smooth;
+    /* Set max height to fit within the grid container */
+    max-height: calc(100vh - var(--header-height, 100px) - var(--footer-height, 40px) - var(--content-gap, 10px) * 2);
 }
 .status-bar {
     grid-column: 1 / 4;
@@ -857,6 +900,11 @@ body.has-bg::before {
     padding: 12px;
     font-family: Garamond, 'Palatino Linotype', Palatino, serif;
     max-height: none;
+    /* Enable scrolling when content overflows */
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Ensure smooth scrolling */
+    scroll-behavior: smooth;
 }
 
 /* Command input look-and-feel */
@@ -881,7 +929,16 @@ body.has-bg::before {
 .right-tabs .tab-buttons.small-tabs .rp-tab-btn { padding: 0.35rem 0.8rem; font-size: 0.95rem; }
 .right-tabs .rp-tab-btn { background: none; border: none; cursor: pointer; color: #eee; }
 .right-tabs .rp-tab-btn.active { color: #fff; border-bottom: 2px solid #c4b59d; }
-.right-tabs .rp-tab-pane { display: none; max-height: var(--rp-pane-max, none); overflow: auto; }
+.right-tabs .rp-tab-pane { 
+    display: none; 
+    max-height: var(--rp-pane-max, none); 
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Ensure smooth scrolling within tab panes */
+    scroll-behavior: smooth;
+    /* When max-height is set, ensure content is accessible */
+    box-sizing: border-box;
+}
 .right-tabs .rp-tab-pane.active { display: block; }
 .right-tabs .placeholder { color: #ddd; font-style: italic; padding: 8px; }
 /* Right panel content blocks */
