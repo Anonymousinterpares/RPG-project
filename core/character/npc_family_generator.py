@@ -156,14 +156,60 @@ class NPCFamilyGenerator:
         dmg *= float(enc.get("damage", 1.0) or 1.0)
         df *= float(enc.get("defense", 1.0) or 1.0)
         ini *= float(enc.get("initiative", 1.0) or 1.0)
-        # Level curve (simple multiplier for now)
+        # Level curve (with interpolation)
         plc = scaling.get("player_level_curve", {}) or {}
         def curve_mul(key: str) -> float:
             seg = plc.get(key, {})
-            try:
-                return float(seg.get("multiplier", 1.0) or 1.0)
-            except Exception:
+            if not seg:
                 return 1.0
+            
+            try:
+                # Extract curve parameters
+                start_level = int(seg.get("start_level", 1) or 1)
+                end_level = int(seg.get("end_level", 20) or 20)
+                curve_type = str(seg.get("curve", "linear") or "linear")
+                base_multiplier = float(seg.get("multiplier", 1.0) or 1.0)
+                
+                # Clamp level to valid range
+                effective_level = max(start_level, min(level, end_level))
+                
+                # No interpolation needed at endpoints
+                if effective_level == start_level:
+                    return base_multiplier
+                if effective_level == end_level:
+                    return base_multiplier
+                
+                # Normalize level to 0-1 range for interpolation
+                t = (effective_level - start_level) / (end_level - start_level)
+                
+                # Apply curve function
+                interpolated_t = t  # Default linear interpolation
+                if curve_type == "log":
+                    # Logarithmic: faster at start, slower at end
+                    import math
+                    interpolated_t = math.log(1 + t * 9) / math.log(10)  # log10(1+9t) maps 0->0, 1->1
+                elif curve_type == "exp":
+                    # Exponential: slower at start, faster at end
+                    interpolated_t = (pow(10, t) - 1) / 9  # (10^t - 1)/9 maps 0->0, 1->1
+                elif curve_type == "ease_in":
+                    # Ease in: cubic - slow start, accelerated end
+                    interpolated_t = t * t * t
+                elif curve_type == "ease_out":
+                    # Ease out: cubic - fast start, decelerated end
+                    interpolated_t = 1 - pow(1 - t, 3)
+                
+                # Scale multiplier using interpolated value
+                # A multiplier of 1.0 means no change, so we interpret base_multiplier as:
+                # - If base_multiplier > 1.0, it's the maximum scaling factor at end_level
+                # - If base_multiplier < 1.0, it's the minimum scaling factor at end_level
+                if base_multiplier >= 1.0:
+                    return 1.0 + (base_multiplier - 1.0) * interpolated_t
+                else:
+                    return 1.0 - (1.0 - base_multiplier) * interpolated_t
+            except Exception as e:
+                logger.warning(f"Error applying level curve for {key}: {e}")
+                return 1.0
+                
         hp *= curve_mul("hp")
         dmg *= curve_mul("damage")
         df *= curve_mul("defense")

@@ -60,10 +60,12 @@ class UiManager {
         // Enforce base layout anchors before loading any saved styles
         this.enforceMainLayoutAnchors();
         this.enforceCenterStackOrder();
-        // Auto-heal if a previously saved layout corrupted positions
+        this.applySavedElementStyles();
+        this.initStyleToolsBindings();
+        // Final enforcement after all styles are loaded
+        this.enforceMainLayoutAnchors();
+        this.enforceCenterStackOrder();
         this.autoHealLayoutIfCorrupted();
-        
-        // LLM settings
         this.llmSettings = {
             providers: {},
             agents: {}
@@ -707,6 +709,8 @@ class UiManager {
         if (resetAllBtn) resetAllBtn.addEventListener('click', (e)=>{ e.preventDefault(); this.resetLayoutToDefaults(true); });
         const restoreBtn = document.getElementById('layout-restore-saved');
         if (restoreBtn) restoreBtn.addEventListener('click', (e)=>{ e.preventDefault(); this.restoreFromSavedLayoutSnapshot(); });
+        const hardResetBtn = document.getElementById('layout-hard-reset');
+        if (hardResetBtn) hardResetBtn.addEventListener('click', (e)=> { e.preventDefault(); this.hardResetLayoutStorage(); location.reload(); });
         // If saved
         let savedEditor = localStorage.getItem('rpg_dev_editor_enabled') === 'true';
         let savedMove = localStorage.getItem('rpg_dev_move_enabled') === 'true';
@@ -848,11 +852,24 @@ class UiManager {
 
     applySavedElementStyles() {
         try {
-            const raw = localStorage.getItem('rpg_element_styles');
-            if (!raw) return;
-            const incoming = JSON.parse(raw);
+            // Prefer the toolbar snapshot if present, otherwise fall back to the direct map
+            let incoming = null;
+            try {
+                const snapRaw = localStorage.getItem('rpg_layout_saved');
+                if (snapRaw) {
+                    const snap = JSON.parse(snapRaw);
+                    if (snap && snap.element_styles && typeof snap.element_styles === 'object') {
+                        incoming = snap.element_styles;
+                    }
+                }
+            } catch {}
+            if (!incoming) {
+                const raw = localStorage.getItem('rpg_element_styles');
+                if (!raw) return;
+                incoming = JSON.parse(raw);
+            }
             const sanitized = {};
-            Object.entries(incoming).forEach(([selector, styles])=>{
+            Object.entries(incoming || {}).forEach(([selector, styles])=>{
                 try {
                     document.querySelectorAll(selector).forEach(el=>{
                         const filtered = this.filterStylesForElement(el, styles);
@@ -864,8 +881,15 @@ class UiManager {
                     });
                 } catch (e) { /* ignore */ }
             });
-            // Persist sanitized map back to storage to prevent future drift
+            // Keep both stores in sync with the sanitized, actually-applied map
             try { localStorage.setItem('rpg_element_styles', JSON.stringify(sanitized)); } catch {}
+            try {
+                const saved = JSON.parse(localStorage.getItem('rpg_layout_saved') || '{}');
+                if (saved && typeof saved === 'object') {
+                    saved.element_styles = sanitized;
+                    localStorage.setItem('rpg_layout_saved', JSON.stringify(saved));
+                }
+            } catch {}
             // After applying, enforce anchors again in case any stray positions slipped in
             this.enforceMainLayoutAnchors();
             this.enforceCenterStackOrder();
@@ -1396,7 +1420,11 @@ class UiManager {
             const vars = this.getCurrentLayoutVariables();
             const element_styles = this.collectAllEditableStyles();
             const payload = { vars, element_styles, saved_at: Date.now() };
+            // 1) Save the snapshot that the toolbar "Restore" uses
             localStorage.setItem('rpg_layout_saved', JSON.stringify(payload));
+            // 2) Also update the auto-applied map so a simple reload reflects the new layout
+            //    (we store the raw capture here; application time will sanitize if needed)
+            try { localStorage.setItem('rpg_element_styles', JSON.stringify(element_styles)); } catch {}
         } catch (e) { console.warn('saveCurrentLayoutSnapshot failed', e); }
     }
 

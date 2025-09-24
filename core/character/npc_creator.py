@@ -453,45 +453,42 @@ class NPCCreator:
                 variant_id = f"{culture_hint}_{service_type}"
                 logger.debug(f"Attempting to use social role variant: {variant_id}")
                 
-                # Check if the variant exists in config
-                try:
-                    variant_data = cfg.get(f"npc.variants.{variant_id}")
-                    if variant_data and isinstance(variant_data, dict):
-                        # Use the variant's family_id
-                        family_id = variant_data.get("family_id") or family_id
-                        logger.info(f"Using social role variant {variant_id} with family {family_id}")
-                    else:
-                        logger.debug(f"Social role variant {variant_id} not found, using base family")
-                        variant_id = None  # Fall back to base generation
-                except Exception:
-                    logger.debug(f"Failed to check variant {variant_id}, using base family")
+                # Check if the variant exists in the family generator
+                if fam_gen.get_variant(variant_id):
+                    logger.info(f"Using social role variant {variant_id}")
+                else:
+                    logger.debug(f"Social role variant {variant_id} not found, using base family")
                     variant_id = None
-            
-            if not variant_id:
-                # Standard family selection
-                family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
-            else:
-                # We already determined family_id from variant above
-                pass
 
             difficulty = (cfg.get("game.difficulty", "normal") or "normal")
             encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
 
-            # Generate NPC with potential variant (note: variant application will be added later)
-            npc = fam_gen.generate_npc_from_family(
-                family_id=family_id,
-                name=name,
-                location=location,
-                level=1,
-                overlay_id=None,
-                difficulty=difficulty,
-                encounter_size=encounter_size,
-            )
-            
-            # Apply variant modifications manually for now (until NPCFamilyGenerator supports variants)
+            # Generate NPC using variant path or family path based on availability
             if variant_id:
-                logger.info(f"Applying variant {variant_id} to NPC {npc.name}")
-                self._apply_variant_to_npc(npc, variant_id)
+                # Use the variant generation path for consistent scaling and metadata
+                npc = fam_gen.generate_npc_from_variant(
+                    variant_id=variant_id,
+                    name=name,
+                    location=location,
+                    level=1,
+                    overlay_id=None,
+                    difficulty=difficulty,
+                    encounter_size=encounter_size,
+                )
+                logger.info(f"Generated service NPC using variant {variant_id}: {npc.name}")
+            else:
+                # Standard family selection and generation
+                family_id = fam_gen.choose_humanoid_family(culture_hint=culture_hint, location=location, seed=seed) or "humanoid_normal_base"
+                npc = fam_gen.generate_npc_from_family(
+                    family_id=family_id,
+                    name=name,
+                    location=location,
+                    level=1,
+                    overlay_id=None,
+                    difficulty=difficulty,
+                    encounter_size=encounter_size,
+                )
+                logger.info(f"Generated service NPC using family {family_id}: {npc.name}")
             npc.npc_type = NPCType.SERVICE
             npc.relationship = NPCRelationship.NEUTRAL
             if not npc.description:
@@ -522,12 +519,23 @@ class NPCCreator:
             if not name:
                 npc.name = self._generate_semideterministic_name(culture_hint=culture_hint, role_hint=service_type, seed=seed)
             npc.known_information["needs_llm_flavor"] = True
+            
+            # Build flavor context - get family_id from NPC metadata
+            family_id_for_flavor = None
+            if variant_id:
+                # Get family_id from the variant that was used
+                variant_data = fam_gen.get_variant(variant_id)
+                family_id_for_flavor = variant_data.get("family_id") if variant_data else None
+            else:
+                # Use the family_id from the standard generation path above
+                family_id_for_flavor = family_id
+            
             npc.known_information["flavor_context"] = {
                 "kind": "service",
                 "service_type": service_type,
                 "culture": culture_hint,
                 "location": location,
-                "family_id": family_id,
+                "family_id": family_id_for_flavor,
                 "variant_id": variant_id,
             }
             try:
