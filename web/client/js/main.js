@@ -152,9 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
         sendCommand();
     });
     
-    // Command submission via Enter key
-    document.getElementById('command-input').addEventListener('keypress', (e) => {
+// Command submission via Enter key (suppress default to avoid accidental double-trigger)
+    document.getElementById('command-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
+            e.preventDefault();
             sendCommand();
         }
     });
@@ -371,10 +372,17 @@ function connectWebSocket(sessionId, options = {}) {
     webSocketClient.on('turn_order_update', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
     webSocketClient.on('ui_bar_update_phase1', (data) => { try { uiManager.updateResourceBarPhase1(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
     webSocketClient.on('ui_bar_update_phase2', (data) => { try { uiManager.updateResourceBarPhase2(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
-    webSocketClient.on('narrative', (data) => {
+webSocketClient.on('narrative', (data) => {
         try {
             const role = (data && data.role) || 'system';
             const text = (data && data.text) || '';
+            // Suppress pure echo of the last command we sent (attempt messages)
+            try {
+                const lastCmd = (uiManager.lastSentCommand || '').trim();
+                if (lastCmd && text && text.trim() === lastCmd) {
+                    return; // skip duplicate echo
+                }
+            } catch {}
             uiManager.addMessage(text, role === 'system' ? 'system' : 'game');
         } catch (e) { console.warn(e); }
     });
@@ -399,7 +407,10 @@ async function sendCommand() {
     }
     
     try {
-        // Show command in output
+        // Remember last sent command for echo-suppression on WS stream
+        uiManager.lastSentCommand = command;
+        
+        // Local echo so the user immediately sees what they typed
         uiManager.addMessage(command, 'player');
         
         // Add to command history
@@ -415,6 +426,7 @@ async function sendCommand() {
         if (result.source === 'http_response') {
             // Refresh UI after command
             uiManager.refreshUI();
+            // Do not display narrative here; rely on WebSocket stream for messages
             handleCommandResult(result);
         }
         
@@ -430,10 +442,9 @@ async function sendCommand() {
 function handleCommandResult(result) {
     if (!result) return;
     
-    // Add result message
-    if (result.message) {
-        uiManager.addMessage(result.message, 'game');
-    }
+    // IMPORTANT: Do NOT add result.message here to avoid duplicates.
+    // Narrative and system text are streamed via WebSocket 'narrative' events.
+    // This handler should only update state and handle control flow.
     
     // Update game state if provided
     if (result.state) {

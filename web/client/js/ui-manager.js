@@ -10,6 +10,10 @@ class UiManager {
         this.commandInput = document.getElementById('command-input');
         this.sendButton = document.getElementById('send-command-btn');
 
+        // Lightweight recent message de-duplication
+        // Stores { key: string, ts: number } for last few seconds
+        this._recentMsgKeys = [];
+
         // Game info elements
         this.playerNameElement = document.getElementById('player-name');
         this.playerLevelElement = document.getElementById('player-level');
@@ -470,10 +474,25 @@ class UiManager {
      * @param {string} text - The message text
      * @param {string} type - The type of message (system, player, game)
      */
-    addMessage(text, type = 'game') {
+addMessage(text, type = 'game') {
+        // Guard: ignore empty
+        if (text == null) return;
+        const txt = String(text);
+        const key = `${type}|${txt}`;
+        const now = Date.now();
+        // Drop identical messages received within 1500ms window
+        // Keep only recent window entries (5s)
+        try {
+            this._recentMsgKeys = (this._recentMsgKeys || []).filter(e => now - e.ts < 5000);
+            const seen = this._recentMsgKeys.find(e => e.key === key && (now - e.ts) < 1500);
+            if (seen) return; // skip duplicate burst
+            this._recentMsgKeys.push({ key, ts: now });
+            if (this._recentMsgKeys.length > 50) this._recentMsgKeys.shift();
+        } catch {}
+
         const messageElement = document.createElement('div');
         messageElement.className = `message ${type}`;
-        messageElement.textContent = text;
+        messageElement.textContent = txt;
 
         this.outputElement.appendChild(messageElement);
         this.scrollToBottom();
