@@ -10,7 +10,8 @@ from .context import AssistantContext
 
 ANALYZE_CONTRACT = (
     "Return JSON with keys: intent='analyze', analysis (string), recommendations (list of strings),"
-    " optional suggested_patch (list of RFC6902 ops)."
+    " optional suggested_patch (list of RFC6902 ops). If the user explicitly requests creating a new entry,"
+    " you may return intent='create_entry' with entity_type (string), rationale (string), entry (object) instead."
 )
 
 MODIFY_CONTRACT = (

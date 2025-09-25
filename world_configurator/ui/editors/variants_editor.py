@@ -725,12 +725,21 @@ class VariantsEditor(QWidget):
             if variant_data:
                 content = dict(variant_data)  # Make a copy
         
+        # Get current UI filter context for better AI suggestions
+        ui_context = {
+            "current_culture_filter": self.culture_filter_combo.currentText(),
+            "current_role_filter": self.role_filter_combo.currentText(),
+            "quick_culture_setting": self.quick_culture_combo.currentText(),
+            "quick_role_setting": self.quick_role_combo.currentText()
+        }
+        
         return AssistantContext(
             domain="variants",
             selection_id=self._current_variant,
             content=content,
             schema=None,
-            allowed_paths=allowed
+            allowed_paths=allowed,
+            ui_context=ui_context
         )
     
     def apply_assistant_patch(self, patch_ops):
@@ -816,6 +825,9 @@ class VariantsEditor(QWidget):
                     self.variants_list.setCurrentItem(item)
                     break
             
+            # Sync UI controls to match the newly created variant
+            self._sync_ui_to_variant(variant_data)
+            
             self.variants_modified.emit()
             return True, "Successfully created variant.", variant_id
         
@@ -888,6 +900,12 @@ class VariantsEditor(QWidget):
             "beast_normal_base", "beast_easy_base", "beast_hard_base"
         ]
         
+        # Get current UI context for better AI guidance
+        current_culture_filter = self.culture_filter_combo.currentText()
+        current_role_filter = self.role_filter_combo.currentText()
+        quick_culture_setting = self.quick_culture_combo.currentText()
+        quick_role_setting = self.quick_role_combo.currentText()
+        
         return {
             "existing_names": sorted(existing_names),
             "existing_ids": sorted(existing_ids),
@@ -903,6 +921,26 @@ class VariantsEditor(QWidget):
             "stat_modifiers_structure": {
                 "description": "Stat modifiers have 'add' and 'mul' operations applied in that order",
                 "example": {"hp": {"add": 5, "mul": 1.2}, "damage": {"mul": 0.9}}
+            },
+            "ui_context": {
+                "current_culture_filter": current_culture_filter,
+                "current_role_filter": current_role_filter,
+                "quick_culture_setting": quick_culture_setting,
+                "quick_role_setting": quick_role_setting,
+                "guidance": f"User is currently viewing {current_culture_filter} culture and {current_role_filter} role variants. Quick creation is set to {quick_culture_setting} culture and {quick_role_setting} role. Consider aligning new variants with these preferences unless specifically requested otherwise."
+            },
+            "social_role_patterns": {
+                "description": "Standard social roles and their typical attributes",
+                "guard": {"typical_roles": ["tank", "controller"], "typical_abilities": ["resonant_shield", "guard_breaker"], "typical_tags": ["duty:watch", "role:guard"]},
+                "official": {"typical_roles": ["support", "controller"], "typical_abilities": ["rally_shout", "chorus_of_clarity"], "typical_tags": ["role:official"]},
+                "scholar": {"typical_roles": ["controller", "support"], "typical_abilities": ["calculation_contest", "planar_harmonization"], "typical_tags": ["role:scholar"]}
+            },
+            "culture_family_mapping": {
+                "concordant": "concordant_citizen",
+                "verdant": "verdant_wanderer", 
+                "crystalline": "crystalline_adept",
+                "ashen": "ashen_nomad",
+                "tempest": "tempest_swashbuckler"
             }
         }
     
@@ -947,3 +985,65 @@ class VariantsEditor(QWidget):
                     sanitized[list_field] = clean_list
         
         return sanitized
+    
+    def _sync_ui_to_variant(self, variant_data: dict):
+        """Sync UI controls to match the attributes of the given variant."""
+        if not isinstance(variant_data, dict):
+            return
+        
+        # Try to infer culture from family_id or variant name/id
+        family_id = variant_data.get("family_id", "")
+        variant_name = variant_data.get("name", "")
+        variant_id = variant_data.get("id", "")
+        
+        # Extract culture from family_id or name patterns
+        cultures = ["concordant", "verdant", "crystalline", "ashen", "tempest"]
+        detected_culture = None
+        
+        for culture in cultures:
+            if (culture in family_id.lower() or 
+                culture in variant_name.lower() or 
+                culture in variant_id.lower()):
+                detected_culture = culture
+                break
+        
+        # Update quick creation culture combo if we detected a culture
+        if detected_culture:
+            culture_index = -1
+            for i in range(self.quick_culture_combo.count()):
+                if self.quick_culture_combo.itemText(i) == detected_culture:
+                    culture_index = i
+                    break
+            
+            if culture_index >= 0:
+                self.quick_culture_combo.setCurrentIndex(culture_index)
+        
+        # Try to detect role from roles_add or variant name/id
+        roles_add = variant_data.get("roles_add", [])
+        social_roles = ["guard", "official", "scholar"]
+        detected_role = None
+        
+        # Check roles_add first
+        for role in social_roles:
+            if role in roles_add:
+                detected_role = role
+                break
+        
+        # Fallback: check name/id patterns
+        if not detected_role:
+            for role in social_roles:
+                if (role in variant_name.lower() or 
+                    role in variant_id.lower()):
+                    detected_role = role
+                    break
+        
+        # Update quick creation role combo if we detected a role
+        if detected_role:
+            role_index = -1
+            for i in range(self.quick_role_combo.count()):
+                if self.quick_role_combo.itemText(i) == detected_role:
+                    role_index = i
+                    break
+            
+            if role_index >= 0:
+                self.quick_role_combo.setCurrentIndex(role_index)
