@@ -637,12 +637,18 @@ class UiManager {
             const grid = localStorage.getItem('rpg_grid_enabled') === 'true';
             const gsize = localStorage.getItem('rpg_grid_size');
             const inspector = localStorage.getItem('rpg_dev_inspector_enabled') === 'true';
+            const centerH = localStorage.getItem('rpg_center_output_h');
             if (left) document.documentElement.style.setProperty('--left-menu-width', `${parseInt(left,10)}px`);
             if (right) document.documentElement.style.setProperty('--right-panel-width', `${parseInt(right,10)}px`);
             if (gap) document.documentElement.style.setProperty('--content-gap', `${parseInt(gap,10)}px`);
             if (rpMax && parseInt(rpMax,10) > 0) document.documentElement.style.setProperty('--rp-pane-max', `${parseInt(rpMax,10)}px`);
             if (rpMax && parseInt(rpMax,10) === 0) document.documentElement.style.setProperty('--rp-pane-max', `none`);
             if (gsize) document.documentElement.style.setProperty('--grid-size', `${parseInt(gsize,10)}px`);
+            if (centerH && parseInt(centerH,10) > 0) {
+                document.documentElement.style.setProperty('--center-output-track', `${parseInt(centerH,10)}px`);
+            } else {
+                document.documentElement.style.setProperty('--center-output-track', `1fr`);
+            }
             // Sync inputs if present
             const setVal = (id, val)=>{ const el=document.getElementById(id); if (el && val!=null) el.value = String(val).replace('px',''); };
             setVal('layout-left-width', left||180);
@@ -905,8 +911,6 @@ class UiManager {
         if (el.classList && (el.classList.contains('app-container') || el.classList.contains('game-frame'))) return false;
         const gameFrame = document.querySelector('.game-frame');
         if (el === gameFrame) return false;
-        // HARD GUARD: Never allow moving/swapping the main sections or critical core widgets
-        if (this.isProtectedLayoutElement(el)) return false;
         return true;
     }
 
@@ -1130,6 +1134,13 @@ class UiManager {
                 const rb = getBounds(filtered);
                 if (!rb) return;
                 Object.assign(this._resizeOverlay.style, { left:`${rb.left}px`, top:`${rb.top}px`, width:`${rb.width}px`, height:`${rb.height}px`, display:'block' });
+                
+                // Classification of selection for smart handles
+                const selectedEl = filtered.length === 1 ? filtered[0] : null;
+                const isSidePanel = !!(selectedEl && selectedEl.classList && (selectedEl.classList.contains('left-menu') || selectedEl.classList.contains('right-panel')));
+                const isOutput = !!(selectedEl && selectedEl.classList && selectedEl.classList.contains('game-output'));
+                const isCore = !!(selectedEl && selectedEl.classList && (selectedEl.classList.contains('left-menu') || selectedEl.classList.contains('right-panel') || selectedEl.classList.contains('center-stack') || selectedEl.classList.contains('banner-bar') || selectedEl.classList.contains('status-bar')));
+
                 // Show controls only when a selection is locked
                 const showControls = !!(this._selectionSet && this._selectionSet.length);
                 const tb = this._resizeOverlay.querySelector('.toolbar'); if (tb) {
@@ -1153,9 +1164,26 @@ class UiManager {
                     }
                 }
                 const showHandles = showControls && !!this._resizeHandlesEnabled;
-                this._resizeOverlay.querySelectorAll('.handle').forEach(h=> h.style.display = showHandles ? 'block' : 'none');
+                this._resizeOverlay.querySelectorAll('.handle').forEach(h=> {
+                    const dir = [...h.classList].find(c=> c!=='handle') || '';
+                    let shouldShow = showHandles;
+                    // For side panels, only allow horizontal resizing
+                    if (isSidePanel && !['e','w'].includes(dir)) shouldShow = false;
+                    // For game output, only allow vertical resizing
+                    if (isOutput && !['n','s'].includes(dir)) shouldShow = false;
+                    h.style.display = shouldShow ? 'block' : 'none';
+                });
                 const ds = this._resizeOverlay.querySelector('.drag-surface');
-                if (ds) { if (showControls && this._moveMode) { ds.style.pointerEvents='auto'; ds.style.cursor='move'; } else { ds.style.pointerEvents='none'; ds.style.cursor='default'; } }
+                if (ds) {
+                    // For protected/anchored selections, disable move mode entirely
+                    if (showControls && this._moveMode && !(isCore || isOutput)) {
+                        ds.style.pointerEvents='auto';
+                        ds.style.cursor='move';
+                    } else {
+                        ds.style.pointerEvents='none';
+                        ds.style.cursor='default';
+                    }
+                }
             };
             // expose a refresher so external toggles can re-evaluate pointer events
             this._updateOverlayRef = ()=>{ try { const els = (this._selectionSet && this._selectionSet.length)? this._selectionSet : (this._editorSelected?[this._editorSelected]:null); if (els) updateOverlay(els); } catch(e) {} };
@@ -1205,8 +1233,57 @@ class UiManager {
             // Drag handles
             const startDrag = (dir, startX, startY)=>{
                 if (!this._editorSelected) return;
-                if (!this.isEditableTarget(this._editorSelected)) return;
+                
                 const el = this._editorSelected;
+                if (!this.isEditableTarget(el)) return;
+
+                // Branch: Special handling for side panels
+                const isSidePanel = (el.classList.contains('left-menu') || el.classList.contains('right-panel'));
+                if (isSidePanel) {
+                    const varName = el.classList.contains('left-menu') ? '--left-menu-width' : '--right-panel-width';
+                    const storageKey = el.classList.contains('left-menu') ? 'rpg_layout_left' : 'rpg_layout_right';
+                    const startW = el.getBoundingClientRect().width;
+
+                    const onMM = (ev)=>{
+                        let dx = ev.clientX - startX;
+                        let newWidth = dir.includes('w') ? startW - dx : startW + dx;
+                        newWidth = Math.max(120, Math.min(800, newWidth)); // Clamp width
+                        document.documentElement.style.setProperty(varName, `${Math.round(newWidth)}px`);
+                    };
+                    const onMU = ()=>{
+                        document.removeEventListener('mousemove', onMM);
+                        document.removeEventListener('mouseup', onMU);
+                        const finalWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue(varName));
+                        localStorage.setItem(storageKey, finalWidth);
+                    };
+                    document.addEventListener('mousemove', onMM);
+                    document.addEventListener('mouseup', onMU);
+                    return; // End special handling
+                }
+
+                // Branch: Special handling for game output vertical resizing
+                if (el.classList.contains('game-output')) {
+                    const csEl = document.querySelector('.center-stack');
+                    const startH = el.getBoundingClientRect().height;
+                    const onMM = (ev)=>{
+                        let dy = ev.clientY - startY;
+                        let newHeight = dir.includes('n') ? startH - dy : startH + dy;
+                        newHeight = Math.max(240, Math.min(1000, newHeight));
+                        document.documentElement.style.setProperty('--center-output-track', `${Math.round(newHeight)}px`);
+                    };
+                    const onMU = ()=>{
+                        document.removeEventListener('mousemove', onMM);
+                        document.removeEventListener('mouseup', onMU);
+                        const v = getComputedStyle(document.documentElement).getPropertyValue('--center-output-track');
+                        const px = parseInt(v,10);
+                        if (!isNaN(px)) localStorage.setItem('rpg_center_output_h', px);
+                    };
+                    document.addEventListener('mousemove', onMM);
+                    document.addEventListener('mouseup', onMU);
+                    return; // End special handling
+                }
+
+                // Default handling for all other elements
                 const r = el.getBoundingClientRect();
                 const startW = r.width; const startH = r.height; const startL = r.left; const startT = r.top;
                 // Record action snapshot
@@ -1382,6 +1459,7 @@ class UiManager {
             gap: toNum(cs.getPropertyValue('--content-gap')||'0'),
             rpmax: toNum(cs.getPropertyValue('--rp-pane-max')||'0'),
             grid: toNum(cs.getPropertyValue('--grid-size')||'16'),
+            center_output: (function(){ const v = cs.getPropertyValue('--center-output-track')||'1fr'; return /px/.test(v)? toNum(v): 0; })()
         };
     }
 
@@ -1548,12 +1626,23 @@ class UiManager {
             if (!raw) { this.showNotification('No saved snapshot found','warning'); return; }
             const saved = JSON.parse(raw);
             const v = saved.vars || {};
-            const setVar = (name, val)=>{ if (name==='--rp-pane-max') { if (val && parseInt(val,10)>0) document.documentElement.style.setProperty(name, `${parseInt(val,10)}px`); else document.documentElement.style.setProperty(name, 'none'); } else if (val!=null) { document.documentElement.style.setProperty(name, `${parseInt(val,10)}px`); } };
+            const setVar = (name, val)=>{ 
+                if (name==='--rp-pane-max') {
+                    if (val && parseInt(val,10)>0) document.documentElement.style.setProperty(name, `${parseInt(val,10)}px`); 
+                    else document.documentElement.style.setProperty(name, 'none'); 
+                } else if (name==='--center-output-track') {
+                    if (val && parseInt(val,10)>0) document.documentElement.style.setProperty(name, `${parseInt(val,10)}px`);
+                    else document.documentElement.style.setProperty(name, '1fr');
+                } else if (val!=null) { 
+                    document.documentElement.style.setProperty(name, `${parseInt(val,10)}px`); 
+                } 
+            };
             setVar('--left-menu-width', v.left||180);
             setVar('--right-panel-width', v.right||420);
             setVar('--content-gap', v.gap||10);
             setVar('--rp-pane-max', v.rpmax||0);
             setVar('--grid-size', v.grid||16);
+            setVar('--center-output-track', v.center_output||0);
             localStorage.setItem('rpg_layout_left', v.left||180);
             localStorage.setItem('rpg_layout_right', v.right||420);
             localStorage.setItem('rpg_layout_gap', v.gap||10);

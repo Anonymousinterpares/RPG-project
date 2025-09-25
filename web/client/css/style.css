@@ -847,7 +847,7 @@ body.has-bg::before {
 
 /* Hard layout anchors to prevent accidental swapping */
 .left-menu { grid-column: 1 !important; }
-.center-stack { grid-column: 2 !important; display: grid; grid-template-rows: 1fr auto; }
+.center-stack { grid-column: 2 !important; display: grid; grid-template-rows: var(--center-output-track, 1fr) auto; }
 .right-panel { grid-column: 3 !important; }
 .banner-bar { grid-column: 1 / 4 !important; }
 .status-bar { grid-column: 1 / 4 !important; }
@@ -876,7 +876,7 @@ body.has-bg::before {
 .left-menu .menu-btn { background-image: url('/images/gui/button_normal.png'); background-position:center; background-repeat:no-repeat; }
 .left-menu .menu-btn:hover { background-image: url('/images/gui/button_hover.png'); }
 .left-menu .menu-btn:active { background-image: url('/images/gui/button_pressed.png'); color:#FF0000; }
-.center-stack { grid-column: 2 !important; display: grid; grid-template-rows: 1fr auto; gap: 8px; }
+.center-stack { grid-column: 2; display: grid; grid-template-rows: var(--center-output-track, 1fr) auto; gap: 8px; }
 .right-panel {
     grid-column: 3 !important;
     background: rgba(51,51,51,0.85);
