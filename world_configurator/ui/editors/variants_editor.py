@@ -700,3 +700,250 @@ class VariantsEditor(QWidget):
             QMessageBox.warning(self, "Validation Errors", "\\n".join(errors))
         else:
             QMessageBox.information(self, "Valid", "Current variant is valid!")
+    
+    # AI Assistant integration methods
+    def get_assistant_context(self):
+        """Get context for the AI assistant."""
+        from assistant.context import AssistantContext
+        
+        # Define allowed paths that the AI can modify
+        allowed = [
+            "/name",
+            "/description", 
+            "/family_id",
+            "/stat_modifiers",
+            "/roles_add",
+            "/abilities_add",
+            "/tags_add"
+        ]
+        
+        content = None
+        if self._manager and self._current_variant:
+            # Save current UI state first
+            self._save_current_variant()
+            variant_data = self._manager.get_variant(self._current_variant)
+            if variant_data:
+                content = dict(variant_data)  # Make a copy
+        
+        return AssistantContext(
+            domain="variants",
+            selection_id=self._current_variant,
+            content=content,
+            schema=None,
+            allowed_paths=allowed
+        )
+    
+    def apply_assistant_patch(self, patch_ops):
+        """Apply AI assistant patch to the current variant."""
+        from assistant.patching import apply_patch_with_validation
+        
+        if not self._manager or not self._current_variant:
+            return False, "No variant selected."
+        
+        ctx = self.get_assistant_context()
+        if not ctx.content:
+            return False, "No variant data available."
+        
+        ok, msg, new_content = apply_patch_with_validation(ctx, ctx.content, patch_ops)
+        if not ok:
+            return False, msg
+        
+        try:
+            # Sanitize and validate the new content
+            new_content = self._sanitize_variant_payload(new_content)
+            
+            # Update the manager
+            self._manager.add_variant(self._current_variant, new_content)
+            
+            # Refresh the UI to reflect changes
+            self._load_variant(self._current_variant)
+            
+            self.variants_modified.emit()
+            return True, "Successfully applied changes."
+        
+        except Exception as e:
+            logger.error(f"Failed to apply assistant patch: {e}", exc_info=True)
+            return False, f"Failed to apply changes: {e}"
+    
+    def create_entry_from_llm(self, entry: dict):
+        """Create a new variant from AI assistant suggestion."""
+        if not self._manager:
+            return False, "No manager available.", None
+        
+        try:
+            # Ensure minimal required fields and generate unique ID
+            proposed_name = (entry.get("name") or "New Variant").strip()
+            
+            # Generate variant ID from name or use provided ID
+            if "id" in entry and entry["id"].strip():
+                variant_id = entry["id"].strip()
+            else:
+                # Generate ID from name
+                variant_id = proposed_name.lower().replace(" ", "_").replace("-", "_")
+                # Remove special characters
+                import re
+                variant_id = re.sub(r'[^a-z0-9_]', '', variant_id)
+            
+            # Ensure uniqueness
+            existing_variants = self._manager.data.get("variants", {})
+            original_id = variant_id
+            suffix = 1
+            while variant_id in existing_variants:
+                variant_id = f"{original_id}_{suffix}"
+                suffix += 1
+            
+            # Sanitize and prepare variant data
+            variant_data = self._sanitize_variant_payload(entry)
+            variant_data["id"] = variant_id
+            variant_data["name"] = proposed_name
+            
+            # Ensure required fields have defaults
+            if "family_id" not in variant_data:
+                variant_data["family_id"] = "humanoid_normal_base"
+            if "description" not in variant_data:
+                variant_data["description"] = f"A {proposed_name.lower()} variant."
+            
+            # Add to manager
+            self._manager.add_variant(variant_id, variant_data)
+            
+            # Refresh UI
+            self._refresh_variants_list()
+            
+            # Select the new variant
+            for i in range(self.variants_list.count()):
+                item = self.variants_list.item(i)
+                if item.data(Qt.UserRole) == variant_id:
+                    self.variants_list.setCurrentItem(item)
+                    break
+            
+            self.variants_modified.emit()
+            return True, "Successfully created variant.", variant_id
+        
+        except Exception as e:
+            logger.error(f"Failed to create variant from LLM: {e}", exc_info=True)
+            return False, f"Failed to create variant: {e}", None
+    
+    def get_domain_examples(self):
+        """Get example variants for the AI assistant."""
+        if not self._manager:
+            return []
+        
+        variants = self._manager.data.get("variants", {})
+        if not variants:
+            return []
+        
+        # Return the first few variants as examples
+        examples = []
+        for variant_id, variant_data in list(variants.items())[:3]:
+            example = dict(variant_data)
+            example["_example_id"] = variant_id
+            examples.append(example)
+        
+        return examples
+    
+    def get_reference_catalogs(self):
+        """Get reference data for the AI assistant."""
+        if not self._manager:
+            return {}
+        
+        variants = self._manager.data.get("variants", {})
+        
+        # Collect existing names and IDs
+        existing_names = []
+        existing_ids = []
+        existing_families = set()
+        existing_roles = set()
+        existing_abilities = set()
+        existing_tags = set()
+        
+        for variant_id, variant_data in variants.items():
+            existing_ids.append(variant_id)
+            if "name" in variant_data:
+                existing_names.append(variant_data["name"])
+            if "family_id" in variant_data:
+                existing_families.add(variant_data["family_id"])
+            
+            # Collect roles, abilities, and tags
+            for role in variant_data.get("roles_add", []):
+                existing_roles.add(role)
+            for ability in variant_data.get("abilities_add", []):
+                existing_abilities.add(ability)
+            for tag in variant_data.get("tags_add", []):
+                existing_tags.add(tag)
+        
+        # Common stat modifier fields
+        stat_fields = ["hp", "damage", "defense", "initiative"]
+        modifier_ops = ["add", "mul"]
+        
+        # Common role types
+        common_roles = ["striker", "tank", "controller", "support", "skirmisher", "scout"]
+        
+        # Common culture prefixes
+        cultures = ["concordant", "verdant", "crystalline", "ashen", "tempest"]
+        
+        # Common family patterns
+        common_families = [
+            "concordant_citizen", "verdant_wanderer", "crystalline_adept", 
+            "ashen_nomad", "tempest_swashbuckler", "humanoid_normal_base",
+            "beast_normal_base", "beast_easy_base", "beast_hard_base"
+        ]
+        
+        return {
+            "existing_names": sorted(existing_names),
+            "existing_ids": sorted(existing_ids),
+            "existing_families": sorted(existing_families),
+            "common_families": common_families,
+            "existing_roles": sorted(existing_roles),
+            "common_roles": common_roles,
+            "existing_abilities": sorted(existing_abilities),
+            "existing_tags": sorted(existing_tags),
+            "stat_fields": stat_fields,
+            "modifier_operations": modifier_ops,
+            "cultures": cultures,
+            "stat_modifiers_structure": {
+                "description": "Stat modifiers have 'add' and 'mul' operations applied in that order",
+                "example": {"hp": {"add": 5, "mul": 1.2}, "damage": {"mul": 0.9}}
+            }
+        }
+    
+    def _sanitize_variant_payload(self, payload: dict) -> dict:
+        """Sanitize incoming variant payload to fit the expected schema."""
+        if not isinstance(payload, dict):
+            raise ValueError("Payload must be a dictionary")
+        
+        sanitized = {}
+        
+        # Copy basic string fields
+        for field in ["id", "name", "description", "family_id"]:
+            if field in payload and isinstance(payload[field], str):
+                sanitized[field] = payload[field].strip()
+        
+        # Handle stat modifiers
+        if "stat_modifiers" in payload and isinstance(payload["stat_modifiers"], dict):
+            stat_mods = {}
+            for stat, mods in payload["stat_modifiers"].items():
+                if isinstance(mods, dict):
+                    clean_mods = {}
+                    for op in ["add", "mul"]:
+                        if op in mods and isinstance(mods[op], (int, float)):
+                            clean_mods[op] = float(mods[op])
+                    if clean_mods:
+                        stat_mods[stat] = clean_mods
+            if stat_mods:
+                sanitized["stat_modifiers"] = stat_mods
+        
+        # Handle list fields
+        for list_field in ["roles_add", "abilities_add", "tags_add"]:
+            if list_field in payload:
+                if isinstance(payload[list_field], list):
+                    clean_list = [str(item).strip() for item in payload[list_field] if str(item).strip()]
+                elif isinstance(payload[list_field], str):
+                    # Handle comma-separated strings
+                    clean_list = [item.strip() for item in payload[list_field].split(",") if item.strip()]
+                else:
+                    continue
+                
+                if clean_list:
+                    sanitized[list_field] = clean_list
+        
+        return sanitized
