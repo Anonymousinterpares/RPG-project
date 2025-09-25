@@ -733,13 +733,18 @@ class VariantsEditor(QWidget):
             "quick_role_setting": self.quick_role_combo.currentText()
         }
         
+        # Get reference catalogs with UI context included
+        references = self.get_reference_catalogs()
+        references["ui_context"] = ui_context
+        
         return AssistantContext(
             domain="variants",
             selection_id=self._current_variant,
             content=content,
             schema=None,
             allowed_paths=allowed,
-            ui_context=ui_context
+            exemplars=self.get_domain_examples(),
+            references=references
         )
     
     def apply_assistant_patch(self, patch_ops):
@@ -900,11 +905,6 @@ class VariantsEditor(QWidget):
             "beast_normal_base", "beast_easy_base", "beast_hard_base"
         ]
         
-        # Get current UI context for better AI guidance
-        current_culture_filter = self.culture_filter_combo.currentText()
-        current_role_filter = self.role_filter_combo.currentText()
-        quick_culture_setting = self.quick_culture_combo.currentText()
-        quick_role_setting = self.quick_role_combo.currentText()
         
         return {
             "existing_names": sorted(existing_names),
@@ -921,13 +921,6 @@ class VariantsEditor(QWidget):
             "stat_modifiers_structure": {
                 "description": "Stat modifiers have 'add' and 'mul' operations applied in that order",
                 "example": {"hp": {"add": 5, "mul": 1.2}, "damage": {"mul": 0.9}}
-            },
-            "ui_context": {
-                "current_culture_filter": current_culture_filter,
-                "current_role_filter": current_role_filter,
-                "quick_culture_setting": quick_culture_setting,
-                "quick_role_setting": quick_role_setting,
-                "guidance": f"User is currently viewing {current_culture_filter} culture and {current_role_filter} role variants. Quick creation is set to {quick_culture_setting} culture and {quick_role_setting} role. Consider aligning new variants with these preferences unless specifically requested otherwise."
             },
             "social_role_patterns": {
                 "description": "Standard social roles and their typical attributes",
