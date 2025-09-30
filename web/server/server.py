@@ -702,11 +702,16 @@ async def process_command(session_id: str, request: CommandRequest, engine: Game
         
         # Send update to WebSocket clients only for events that should be broadcast
         # This prevents duplicate outputs when using LLM commands
-        if result.status.name != "SUCCESS" or "websocket_sent" not in result.data:
+        # Be robust when result.data is None
+        try:
+            data_dict = result.data or {}
+        except Exception:
+            data_dict = {}
+        result.data = data_dict
+        should_broadcast = (result.status.name != "SUCCESS") or ("websocket_sent" not in data_dict)
+        if should_broadcast:
             # Mark that we've broadcast this via websocket
-            if not result.data:
-                result.data = {}
-            result.data["websocket_sent"] = True
+            data_dict["websocket_sent"] = True
             
             # Create a websocket-specific copy of the data
             ws_data = response_data.copy()
@@ -798,6 +803,23 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
             "data": response_data
         }))
         
+        # If loading into combat, send current combat log HTML via WebSocket
+        try:
+            raw_mode = getattr(state, 'current_mode', None)
+            mode_str = raw_mode.name if hasattr(raw_mode, 'name') else str(raw_mode) if raw_mode else 'NARRATIVE'
+            if mode_str == 'COMBAT':
+                # Try to get combat log HTML from combat manager
+                cm = getattr(engine, 'combat_manager', None)
+                if cm and hasattr(cm, 'get_combat_log_html'):
+                    combat_html = cm.get_combat_log_html()
+                    if combat_html:
+                        asyncio.create_task(ConnectionManager.send_update(session_id, {
+                            "type": "combat_log_set_html",
+                            "data": {"html": combat_html}
+                        }))
+        except Exception as e:
+            logger.warning(f"Could not send combat log HTML after load: {e}")
+        
         logger.info(f"Loaded game {request.save_id} for session {session_id}")
         
         return response_data
@@ -886,8 +908,13 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
         except Exception:
             pass
 
-        # Mode, location, time
-        mode = getattr(state.current_mode, 'name', str(getattr(state, 'current_mode', 'NARRATIVE')))
+        # Mode, location, time (ensure mode is a plain string for clients)
+        raw_mode = getattr(state, 'current_mode', 'NARRATIVE')
+        mode = None
+        try:
+            mode = raw_mode.name if hasattr(raw_mode, 'name') else str(raw_mode)
+        except Exception:
+            mode = 'NARRATIVE'
         location = getattr(player, 'current_location', None)
         game_time = state.game_time.get_formatted_time() if getattr(state, 'game_time', None) else None
 

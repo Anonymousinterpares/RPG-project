@@ -347,6 +347,8 @@ function connectWebSocket(sessionId, options = {}) {
         if (data.message) {
             uiManager.addMessage(data.message, 'system');
         }
+        // Ensure UI is refreshed (and Combat tab activated if needed)
+        try { uiManager.refreshUI(); } catch (e) { console.warn(e); }
     });
     
     webSocketClient.on('time_update', (data) => {
@@ -372,7 +374,11 @@ function connectWebSocket(sessionId, options = {}) {
     webSocketClient.on('turn_order_update', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
     webSocketClient.on('ui_bar_update_phase1', (data) => { try { uiManager.updateResourceBarPhase1(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
     webSocketClient.on('ui_bar_update_phase2', (data) => { try { uiManager.updateResourceBarPhase2(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
-webSocketClient.on('narrative', (data) => {
+    // Combat log HTML updates
+    webSocketClient.on('combat_log_set_html', (data) => {
+        try { uiManager.setCombatLogHtml(data?.html || ''); } catch (e) { console.warn(e); }
+    });
+    webSocketClient.on('narrative', (data) => {
         try {
             const role = (data && data.role) || 'system';
             const text = (data && data.text) || '';
@@ -533,58 +539,63 @@ async function loadSavesList() {
  * Load a saved game
  */
 async function loadGame(saveId) {
-    // Ensure we have a live session (not just a stored sessionId)
-    if (!apiClient.hasActiveSession()) {
-        try {
-            uiManager.addMessage('Creating a new session to load the game...', 'system');
-            const result = await apiClient.createSession();
-            connectWebSocket(result.session_id);
-        } catch (error) {
-            uiManager.showNotification('Failed to create session to load game', 'error');
-            return;
-        }
-    }
-    
-    const attemptLoad = async () => {
+    try {
         // Clear the current output
         uiManager.clearOutput();
         uiManager.addMessage('Loading game...', 'system');
+        
+        // Ensure we have a fresh session for loading
+        // Clean up any existing session first
+        if (apiClient.hasActiveSession()) {
+            try {
+                await apiClient.endSession();
+                if (webSocketClient.isConnected) {
+                    webSocketClient.disconnect();
+                }
+            } catch (e) {
+                console.warn('Error cleaning up old session:', e);
+            }
+        }
+        
+        // Create a new session for loading the game
+        const sessionResult = await apiClient.createSession();
+        
+        // Connect WebSocket before loading so we can receive events
+        connectWebSocket(sessionResult.session_id);
+        
+        // Small delay to ensure WebSocket is ready
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Now load the game with the active session
         const result = await apiClient.loadGame(saveId);
-        return result;
-    };
-
-    try {
-        const result = await attemptLoad();
+        
         if (result.status === 'success') {
-            updateGameState(result.state);
+            // Update game state from the load result
+            if (result.state) {
+                updateGameState(result.state);
+            }
+            
+            // Enable command input
             uiManager.enableCommandInput();
+            
+            // Refresh UI to populate right panel with character stats
+            await uiManager.refreshUI();
+            
+            // Give WebSocket events time to arrive (including combat log HTML)
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             uiManager.addMessage('Game loaded successfully.', 'system');
             uiManager.showNotification('Game loaded successfully', 'success');
-            return;
+            
+            // Close the load game modal
+            uiManager.closeAllModals();
+        } else {
+            throw new Error(result.message || 'Failed to load game');
         }
-        // If not success, fall through to retry with fresh session
-        throw new Error('Failed to load game');
     } catch (error) {
-        console.warn('Load failed, retrying with a fresh session...', error);
-        try {
-            // Clear any stale session and create a new one, then retry once
-            await apiClient.endSession();
-            const resultNew = await apiClient.createSession();
-            connectWebSocket(resultNew.session_id);
-            const retry = await attemptLoad();
-            if (retry.status === 'success') {
-                updateGameState(retry.state);
-                uiManager.enableCommandInput();
-                uiManager.addMessage('Game loaded successfully.', 'system');
-                uiManager.showNotification('Game loaded successfully', 'success');
-                return;
-            }
-            throw new Error('Failed to load game');
-        } catch (err2) {
-            console.error('Load game error (after retry):', err2);
-            uiManager.addMessage('Failed to load game: ' + (err2.message||err2), 'system');
-            uiManager.showNotification('Failed to load game: ' + (err2.message||err2), 'error');
-        }
+        console.error('Load game error:', error);
+        uiManager.addMessage('Failed to load game: ' + (error.message || error), 'system');
+        uiManager.showNotification('Failed to load game: ' + (error.message || error), 'error');
     }
 }
 

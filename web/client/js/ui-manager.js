@@ -61,6 +61,10 @@ class UiManager {
         // Initialize font size
         this.applyFontSize(this.settings.fontSize);
         
+        // Track mode transitions for auto-activating combat tab
+        this._prevMode = null;
+        this._autoCombatShown = false;
+        
         // Enforce base layout anchors before loading any saved styles
         this.enforceMainLayoutAnchors();
         this.enforceCenterStackOrder();
@@ -1924,6 +1928,10 @@ addMessage(text, type = 'game') {
 
     /** Render the right panel using UI state */
     renderRightPanel(ui) {
+        // Ensure combat tab presence if in combat mode
+        if ((ui.mode||'').toUpperCase() === 'COMBAT') {
+            this.ensureCombatTab();
+        }
         // Character tab content
         const charPane = document.getElementById('tab-character');
         if (charPane) {
@@ -1999,6 +2007,91 @@ addMessage(text, type = 'game') {
         
         // Auto-scroll the active right panel tab if content overflows
         this.ensureRightPanelScrollable();
+    }
+
+    // Ensure the 'Combat' tab exists in the right panel
+    ensureCombatTab() {
+        try {
+            const tabs = document.querySelector('.right-tabs');
+            if (!tabs) return;
+            const btnRow = tabs.querySelector('.tab-buttons');
+            const content = tabs.querySelector('.tab-content');
+            if (!btnRow || !content) return;
+            let btn = btnRow.querySelector('[data-tab="tab-combat"]');
+            let pane = document.getElementById('tab-combat');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.className = 'rp-tab-btn';
+                btn.setAttribute('data-tab', 'tab-combat');
+                btn.textContent = 'Combat';
+                btnRow.insertBefore(btn, btnRow.firstChild); // put Combat first
+                // wire click like others
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.right-tabs .rp-tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.right-tabs .rp-tab-pane').forEach(p => p.classList.remove('active'));
+                    btn.classList.add('active');
+                    const pane = document.getElementById('tab-combat');
+                    if (pane) pane.classList.add('active');
+                    this.ensureRightPanelScrollable();
+                });
+            }
+            if (!pane) {
+                pane = document.createElement('div');
+                pane.className = 'rp-tab-pane';
+                pane.id = 'tab-combat';
+                pane.innerHTML = '<div class="placeholder">Combat log</div>';
+                content.insertBefore(pane, content.firstChild);
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    // Remove the 'Combat' tab from the right panel
+    removeCombatTab() {
+        try {
+            const tabs = document.querySelector('.right-tabs');
+            if (!tabs) return;
+            const btnRow = tabs.querySelector('.tab-buttons');
+            const content = tabs.querySelector('.tab-content');
+            if (!btnRow || !content) return;
+            
+            const btn = btnRow.querySelector('[data-tab="tab-combat"]');
+            const pane = document.getElementById('tab-combat');
+            
+            // If the combat tab is currently active, switch to Character tab
+            const wasActive = btn && btn.classList.contains('active');
+            
+            // Remove the button and pane
+            if (btn) btn.remove();
+            if (pane) pane.remove();
+            
+            // If combat tab was active, activate the Character tab
+            if (wasActive) {
+                this.activateRightPanelTab('tab-character');
+            }
+        } catch (e) {
+            console.warn('Failed to remove combat tab:', e);
+        }
+    }
+
+    // Programmatically activate a right panel tab
+    activateRightPanelTab(tabId) {
+        const btn = document.querySelector(`.right-tabs .rp-tab-btn[data-tab="${tabId}"]`);
+        const pane = document.getElementById(tabId);
+        if (!btn || !pane) return;
+        document.querySelectorAll('.right-tabs .rp-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.right-tabs .rp-tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        pane.classList.add('active');
+        this.ensureRightPanelScrollable();
+    }
+
+    // Update combat log HTML content
+    setCombatLogHtml(html) {
+        this.ensureCombatTab();
+        const pane = document.getElementById('tab-combat');
+        if (pane) {
+            pane.innerHTML = html || '<div class="placeholder">Combat log</div>';
+        }
     }
 
     attachCharacterTabHandlers() {
@@ -2315,6 +2408,29 @@ addMessage(text, type = 'game') {
     async refreshUI() {
         try {
             const ui = await apiClient.getUIState();
+            // Normalize mode value from server
+            let modeRaw = ui.mode;
+            let modeStr = '';
+            try { modeStr = String(modeRaw || '').toUpperCase(); } catch { modeStr = ''; }
+            const inCombat = modeStr.includes('COMBAT');
+            
+            // Handle combat mode changes
+            if (inCombat) {
+                // Entering or staying in combat - ensure combat tab exists
+                this.ensureCombatTab();
+                if (!this._autoCombatShown || this._prevMode !== 'COMBAT') {
+                    this.activateRightPanelTab('tab-combat');
+                    this._autoCombatShown = true;
+                }
+            } else if (this._prevMode === 'COMBAT') {
+                // Exiting combat - remove combat tab
+                this.removeCombatTab();
+                this._autoCombatShown = false;
+            }
+            
+            // Update previous mode for next comparison
+            this._prevMode = inCombat ? 'COMBAT' : modeStr;
+            
             // Status bar
             const locEl = document.getElementById('current-location');
             const timeEl = document.getElementById('game-time');
@@ -2324,6 +2440,8 @@ addMessage(text, type = 'game') {
             if (timeEl) timeEl.textContent = ui.time||'-';
             if (pName) pName.textContent = ui.player.name||'-';
             if (pLvl) pLvl.textContent = ui.player.level||'1';
+            
+            // Render right panel content
             this.renderRightPanel(ui);
         } catch (e) {
             console.warn('refreshUI failed', e);

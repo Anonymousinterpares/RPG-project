@@ -210,7 +210,21 @@ class ApiClient {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to process command');
+                try {
+                    // Try to extract error details from server
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        const errJson = await response.json();
+                        const msg = (errJson && (errJson.detail || errJson.message)) || `HTTP ${response.status}`;
+                        throw new Error(msg);
+                    } else {
+                        const txt = await response.text();
+                        throw new Error(txt || `HTTP ${response.status}`);
+                    }
+                } catch (e) {
+                    // Fall back if parsing fails
+                    throw new Error(`Failed to process command (HTTP ${response.status})`);
+                }
             }
 
             return await response.json();
@@ -277,6 +291,7 @@ class ApiClient {
         }
 
         try {
+            // Correct: session_id in URL path, save_id in request body
             const response = await fetch(this.buildUrl(`load_game/${this.sessionId}`), {
                 method: 'POST',
                 headers: this.getHeaders(),
@@ -326,6 +341,7 @@ class ApiClient {
         }
 
         try {
+            // Correct: use session_id in URL path
             const response = await fetch(this.buildUrl(`end_session/${this.sessionId}`), {
                 method: 'DELETE',
                 headers: this.getHeaders(),
