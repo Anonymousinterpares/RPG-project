@@ -11,6 +11,8 @@ import logging
 import uuid
 import random
 import json
+import os
+from pathlib import Path
 from datetime import datetime
 
 from core.utils.logging_config import get_logger
@@ -53,6 +55,10 @@ class ItemFactory:
         self._template_loader = get_item_template_loader()
         
         self._initialized = True
+        
+        # Cache for icon directories to avoid repeated filesystem calls
+        self._icon_cache = {}
+        
         logger.info("ItemFactory initialized")
     
     def create_item_from_template(self, 
@@ -108,6 +114,10 @@ class ItemFactory:
                 template_id=template.id,
                 source="template_copy"
             )
+        
+        # Assign random icon if not specified
+        if not item.icon_path:
+            self.assign_random_icon(item)
         
         logger.info(f"Created item from template: {template_id}")
         return item
@@ -372,6 +382,10 @@ class ItemFactory:
                 for prop in spec["known_properties"]:
                     item.discover_property(prop)
             
+            # Assign random icon if not specified
+            if not item.icon_path:
+                self.assign_random_icon(item)
+            
             logger.info(f"Created custom item: {item.name}")
             return item
             
@@ -408,6 +422,87 @@ class ItemFactory:
         except Exception as e:
             logger.error(f"Error creating items from JSON: {e}")
             return []
+    
+    def assign_random_icon(self, item: Item) -> None:
+        """
+        Assign a random icon from the pool based on item type and tags.
+        Icon path is permanently stored with the item.
+        
+        Args:
+            item: The item to assign an icon to.
+        """
+        # Skip if already has an icon
+        if item.icon_path:
+            return
+        
+        # Determine icon directory based on item type
+        type_to_dir = {
+            ItemType.WEAPON: "weapon",
+            ItemType.ARMOR: "armor",
+            ItemType.SHIELD: "shield",
+            ItemType.ACCESSORY: "accessory",
+            ItemType.CONSUMABLE: "consumable",
+            ItemType.QUEST: "quest",
+            ItemType.MATERIAL: "material",
+            ItemType.CONTAINER: "container",
+            ItemType.KEY: "key",
+            ItemType.DOCUMENT: "document",
+            ItemType.TOOL: "tool",
+            ItemType.TREASURE: "treasure",
+            ItemType.MISCELLANEOUS: "miscellaneous"
+        }
+        
+        icon_dir = type_to_dir.get(item.item_type, "miscellaneous")
+        base_path = Path("images/icons") / icon_dir
+        
+        # Get candidates from cache or scan directory
+        cache_key = str(base_path)
+        if cache_key not in self._icon_cache:
+            # Scan directory for PNG files
+            if base_path.exists():
+                self._icon_cache[cache_key] = list(base_path.glob("*.png"))
+            else:
+                self._icon_cache[cache_key] = []
+                logger.warning(f"Icon directory not found: {base_path}")
+        
+        candidates = []
+        
+        # Strategy 1: Match by tags (e.g., "dagger" in tags → dagger_*.png)
+        if item.tags:
+            for tag in item.tags:
+                tag_lower = tag.lower()
+                matching = [p for p in self._icon_cache.get(cache_key, []) 
+                           if tag_lower in p.stem.lower()]
+                if matching:
+                    candidates.extend(matching)
+        
+        # Strategy 2: If no tag matches, get all icons in the type directory
+        if not candidates:
+            candidates = self._icon_cache.get(cache_key, [])
+        
+        # Strategy 3: Fallback to miscellaneous if type folder empty
+        if not candidates:
+            misc_path = Path("images/icons/miscellaneous")
+            misc_cache_key = str(misc_path)
+            if misc_cache_key not in self._icon_cache:
+                if misc_path.exists():
+                    self._icon_cache[misc_cache_key] = list(misc_path.glob("*.png"))
+                else:
+                    self._icon_cache[misc_cache_key] = []
+            
+            candidates = self._icon_cache.get(misc_cache_key, [])
+            icon_dir = "miscellaneous"
+        
+        # Select random icon from candidates
+        if candidates:
+            selected = random.choice(candidates)
+            # Store as web-accessible path (forward slashes for web)
+            item.icon_path = f"/images/icons/{icon_dir}/{selected.name}"
+            logger.info(f"Assigned random icon to '{item.name}': {item.icon_path}")
+        else:
+            # No icons available - set None and log warning
+            logger.warning(f"No icons available for item type {item.item_type}, item: {item.name}")
+            item.icon_path = None
 
 
 # Convenience function

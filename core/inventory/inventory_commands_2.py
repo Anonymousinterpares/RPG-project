@@ -107,27 +107,35 @@ def unequip_command(game_state: GameState, args: List[str]) -> CommandResult:
     # Try to interpret target_identifier as a slot first
     try:
         potential_slot = EquipmentSlot(target_identifier.lower().replace(" ", "_"))
-        item_id_in_slot = inventory.equipment.get(potential_slot) # Use .equipment for current state
-        if item_id_in_slot:
-            item_to_unequip_obj = inventory.get_item(item_id_in_slot)
+        equipped_val = inventory.equipment.get(potential_slot)  # May be Item or ID string
+        if equipped_val:
+            if isinstance(equipped_val, Item):
+                item_to_unequip_obj = equipped_val
+            else:
+                item_to_unequip_obj = inventory.get_item(equipped_val)
             if item_to_unequip_obj:
                 target_slot_to_unequip = potential_slot
-            else: 
+            else:
                 return CommandResult.error(f"Item in slot {potential_slot.value} is missing from inventory records.")
-        else: 
+        else:
             return CommandResult.failure(f"You have nothing equipped in your {potential_slot.value.replace('_', ' ')}.")
     except ValueError:
         # Not a direct slot name, try to find item by ID or name among equipped items
         # Search all equipped items
-        for slot_enum_loop, item_id_loop in inventory.equipment.items(): # Iterate over current equipment state
-            if item_id_loop: # If a slot has an item
-                item_obj_in_loop = inventory.get_item(item_id_loop)
-                if item_obj_in_loop:
-                    # Check if the identifier matches the item's ID or name
-                    if item_id_loop == target_identifier or target_identifier.lower() in item_obj_in_loop.name.lower():
-                        item_to_unequip_obj = item_obj_in_loop
-                        target_slot_to_unequip = slot_enum_loop
-                        break # Found the item and its slot
+        for slot_enum_loop, equipped_val in inventory.equipment.items():  # Iterate over current equipment state
+            if not equipped_val:
+                continue
+            if isinstance(equipped_val, Item):
+                item_obj_in_loop = equipped_val
+                equipped_id = equipped_val.id
+            else:
+                equipped_id = equipped_val
+                item_obj_in_loop = inventory.get_item(equipped_id)
+            if item_obj_in_loop:
+                if equipped_id == target_identifier or target_identifier.lower() in (item_obj_in_loop.name or '').lower():
+                    item_to_unequip_obj = item_obj_in_loop
+                    target_slot_to_unequip = slot_enum_loop
+                    break  # Found the item and its slot
         if not item_to_unequip_obj:
             return CommandResult.failure(f"You don't have an item matching '{target_identifier}' equipped, nor is it a valid slot name.")
 

@@ -1951,24 +1951,14 @@ addMessage(text, type = 'game') {
                 }).join('');
                 return `<div class=\"rp-group\"><div class=\"rp-title\">${title}</div>${rows||'<div class=\"rp-empty\">—</div>'}</div>`;
             };
-            const statusRows = (ui.status_effects||[]).map(e=>`<div class=\"rp-row\"><span>${e.name}</span><span>${e.duration??''}</span></div>`).join('');
-            const turnRows = (ui.turn_order||[]).map(t=>`<div class=\"rp-row\"><span>${t}</span></div>`).join('');
+            const statusRows = (ui.status_effects||[]).map(e=>`<div class="rp-row"><span>${e.name}</span><span>${e.duration??''}</span></div>`).join('');
+            const turnRows = (ui.turn_order||[]).map(t=>`<div class="rp-row"><span>${t}</span></div>`).join('');
             const initiativeVal = (ui.initiative==null||ui.initiative===undefined)?'0':Math.round(ui.initiative);
-            // Equipment grid by slot order
-            const slotOrder = [
-                'HEAD','NECK','CHEST','BACK','SHOULDERS','WRISTS','HANDS','WAIST','LEGS','FEET','MAIN_HAND','OFF_HAND','FINGER_1','FINGER_2','TRINKET_1','TRINKET_2'
-            ];
-            const eqMap = {};
-            (ui.equipment||[]).forEach(e=>{ eqMap[e.slot] = e; });
-            const equipRows = slotOrder.map(slot=>{
-                const e = eqMap[slot] || { slot, item_name: null, item_id: null };
-                const displaySlot = slot.replace(/_/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase());
-                const name = e.item_name || 'None';
-                const data = `data-slot=\"${slot}\" ${e.item_id?`data-item-id=\"${e.item_id}\"`:''}`;
-                return `<div class=\"rp-row equip-row\"><span class=\"equip-slot\">${displaySlot}</span><span class=\"equip-item\" ${data}>${name}</span></div>`;
-            }).join('');
+            
+            // Build paperdoll
+            const paperdollHtml = this.renderPaperdoll(ui);
             charPane.innerHTML = `
-                <div class=\"rp-header\">
+                <div class="rp-header">
                     <div class="rp-name">${ui.player.name}</div>
                     <div class="rp-sub">Race: ${ui.player.race} | Class: ${ui.player.path}</div>
                     <div class="rp-sub">Level: ${ui.player.level} | Experience: ${ui.player.experience_current}/${ui.player.experience_max}</div>
@@ -1984,15 +1974,16 @@ addMessage(text, type = 'game') {
                     <div class="rp-col">${statList('Social', ui.social_stats)}</div>
                     <div class="rp-col">${statList('Other', ui.other_stats)}</div>
                 </div>
-                <div class=\"rp-group\"><div class=\"rp-title\">Combat Info</div>
-                    <div class=\"rp-row\"><span>Initiative</span><span>${initiativeVal}</span></div>
-                    <div class=\"rp-subtitle\">Status Effects</div>${statusRows||'<div class=\"rp-empty\">—</div>'}
-                    <div class=\"rp-subtitle\">Turn Order</div>${turnRows||'<div class=\"rp-empty\">—</div>'}
+                <div class="rp-group"><div class="rp-title">Combat Info</div>
+                    <div class="rp-row"><span>Initiative</span><span>${initiativeVal}</span></div>
+                    <div class="rp-subtitle">Status Effects</div>${statusRows||'<div class="rp-empty">—</div>'}
+                    <div class="rp-subtitle">Turn Order</div>${turnRows||'<div class="rp-empty">—</div>'}
                 </div>
-                <div class=\"rp-group\"><div class=\"rp-title\">Equipment</div>${equipRows||'<div class=\"rp-empty\">—</div>'}</div>
+                ${paperdollHtml}
             `;
-            // Attach character tab handlers (context menus, tooltips)
+            // Attach character tab handlers (context menus, tooltips, paperdoll)
             this.attachCharacterTabHandlers();
+            this.attachPaperdollHandlers();
         }
         // Inventory tab
         const invPane = document.getElementById('tab-inventory');
@@ -2268,69 +2259,284 @@ addMessage(text, type = 'game') {
             const inv = await apiClient.getInventory();
             const items = inv.items||[];
             const money = inv.currency||{};
-            const header = `<div class=\"rp-group\"><div class=\"rp-title\">Currency</div>
-                <div class=\"rp-row\"><span>Gold</span><span>${money.gold||0}</span></div>
-                <div class=\"rp-row\"><span>Silver</span><span>${money.silver||0}</span></div>
-                <div class=\"rp-row\"><span>Copper</span><span>${money.copper||0}</span></div>
+            
+            // Currency display
+            const header = `<div class="currency-section">
+                <div class="currency-grid">
+                    <div class="currency-item currency-gold">
+                        <div class="currency-label">Gold</div>
+                        <div class="currency-value">${money.gold||0}</div>
+                    </div>
+                    <div class="currency-item currency-silver">
+                        <div class="currency-label">Silver</div>
+                        <div class="currency-value">${money.silver||0}</div>
+                    </div>
+                    <div class="currency-item currency-copper">
+                        <div class="currency-label">Copper</div>
+                        <div class="currency-value">${money.copper||0}</div>
+                    </div>
+                </div>
             </div>`;
-            const weight = `<div class=\"rp-group\"><div class=\"rp-title\">Weight</div>
-                <div class=\"rp-row\"><span>Current</span><span>${(inv.weight?.current||0).toFixed(1)}</span></div>
-                <div class=\"rp-row\"><span>Max</span><span>${(inv.weight?.max||0).toFixed(1)}</span></div>
+            
+            // Weight display
+            const currentWeight = inv.weight?.current||0;
+            const maxWeight = inv.weight?.max||1;
+            const overLimit = currentWeight > maxWeight ? ' over-limit' : '';
+            const weight = `<div class="weight-section">
+                <div class="weight-label">Encumbrance</div>
+                <div class="weight-value${overLimit}">${currentWeight.toFixed(1)} / ${maxWeight.toFixed(1)}</div>
             </div>`;
-            // Build filter controls
+            
+            // Filter controls
             const currentType = this._invFilterType || 'All';
             const currentSearch = this._invFilterSearch || '';
             const types = Array.from(new Set(items.map(i => (i.type||'miscellaneous').toLowerCase()))).sort();
-            const typeOptions = ['All', ...types].map(t => `<option value=\"${t}\" ${t===currentType?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('');
-            const filters = `<div class=\"rp-group\"><div class=\"rp-title\">Filters</div>
-                <div class=\"rp-row\"><span>Type</span><span><select id=\"inv-filter-type\">${typeOptions}</select></span></div>
-                <div class=\"rp-row\"><span>Search</span><span><input id=\"inv-filter-search\" type=\"text\" value=\"${currentSearch.replace(/\"/g,'&quot;')}\" placeholder=\"Item name...\"></span></div>
+            const typeOptions = ['All', ...types].map(t => `<option value="${t}" ${t===currentType?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('');
+            const filters = `<div class="rp-group"><div class="rp-title">Filters</div>
+                <div class="rp-row"><span>Type</span><span><select id="inv-filter-type">${typeOptions}</select></span></div>
+                <div class="rp-row"><span>Search</span><span><input id="inv-filter-search" type="text" value="${currentSearch.replace(/"/g,'&quot;')}" placeholder="Item name..."></span></div>
             </div>`;
-            // Apply filter
+            
+            // Apply filters
             const filteredItems = items.filter(it => {
                 const matchType = (currentType==='All') || ((it.type||'').toLowerCase()===currentType.toLowerCase());
                 const matchName = !currentSearch || (it.name||'').toLowerCase().includes(currentSearch.toLowerCase());
                 return matchType && matchName;
             });
-            const rows = filteredItems.map(it=>{
-                const extra = it.count>1?` (${it.count})`:'';
-                const eq = it.equipped? ' (Equipped)':'';
-                return `<div class=\"inv-row\" data-id=\"${it.id}\">
-                    <div class="inv-name">${it.name}${extra}${eq}</div>
-                    <div class="inv-actions">
-                        <button class="inv-btn" data-action="examine">Examine</button>
-                        ${(String(it.type||'').toLowerCase()==='consumable')?'<button class="inv-btn" data-action="use">Use</button>':''}
-                        ${['weapon','armor','shield','accessory'].includes(String(it.type||'').toLowerCase())?`<button class="inv-btn" data-action="${it.equipped?'unequip':'equip'}">${it.equipped?'Unequip':'Equip'}</button>`:''}
-                        <button class="inv-btn" data-action="drop">Drop</button>
+            
+            // Render grid
+            const gridCells = filteredItems.map(it=>{
+                const rarity = (it.rarity||'common').toLowerCase();
+                const iconPath = it.icon_path || '/images/icons/miscellaneous/generic_1.png';
+                const count = it.quantity > 1 ? it.quantity : (it.count || 0);
+                const stackHtml = count > 1 ? `<span class="item-stack-count">x${count}</span>` : '';
+                const questHtml = it.is_quest_item ? `<span class="item-quest-marker">★</span>` : '';
+                const equippedHtml = it.equipped ? `<span class="item-equipped-marker">✓</span>` : '';
+                
+                // Durability badge
+                let durabilityHtml = '';
+                if (it.durability != null && it.current_durability != null) {
+                    const pct = (it.current_durability / it.durability) * 100;
+                    const durClass = pct < 25 ? 'low' : pct < 60 ? 'medium' : 'high';
+                    durabilityHtml = `<span class="item-durability-badge ${durClass}">${Math.round(pct)}%</span>`;
+                }
+                
+                return `<div class="inventory-cell" 
+                            data-id="${it.id}" 
+                            data-rarity="${rarity}"
+                            data-type="${it.type||'miscellaneous'}"
+                            title="${it.name}">
+                    <img src="${iconPath}" class="inventory-cell-icon" alt="${it.name}" onerror="this.src='/images/icons/miscellaneous/generic_1.png'">
+                    <div class="item-overlay">
+                        ${equippedHtml}
+                        ${questHtml}
+                        ${durabilityHtml}
+                        ${stackHtml}
                     </div>
                 </div>`;
             }).join('');
-            invPane.innerHTML = header + weight + filters + `<div class=\"rp-group\"><div class=\"rp-title\">Items</div>${rows||'<div class=\"rp-empty\">No items</div>'}</div>`;
+            
+            const gridHtml = `<div class="inventory-grid-container">
+                <div class="inventory-grid">${gridCells || '<div class="rp-empty">No items</div>'}</div>
+            </div>`;
+            
+            invPane.innerHTML = header + weight + filters + gridHtml;
+            
             // Attach filter handlers
             const typeSel = invPane.querySelector('#inv-filter-type');
             const searchInp = invPane.querySelector('#inv-filter-search');
             if (typeSel) typeSel.addEventListener('change', ()=>{ this._invFilterType = typeSel.value; this.renderInventoryPane(); });
             if (searchInp) searchInp.addEventListener('input', ()=>{ this._invFilterSearch = searchInp.value||''; this.renderInventoryPane(); });
-            // Attach action handlers
-            invPane.querySelectorAll('.inv-row .inv-btn').forEach(btn=>{
-                btn.addEventListener('click', async () => {
-                    const row = btn.closest('.inv-row');
-                    const id = row.getAttribute('data-id');
-                    const action = btn.getAttribute('data-action');
-                    try {
-                        if (action==='use') await apiClient.useItem(id);
-                        else if (action==='equip') await apiClient.equipItem(id);
-                        else if (action==='unequip') await apiClient.unequip(id);
-                        else if (action==='drop') await apiClient.dropItem(id);
-                        else if (action==='examine') { await this.showItemInfo(id); return; }
-                        // Refresh UI after action
-                        await uiManager.refreshUI();
-                    } catch(e) { uiManager.showNotification(e.message||'Action failed','error'); }
+            
+            // Attach click handlers to cells
+            invPane.querySelectorAll('.inventory-cell').forEach(cell=>{
+                cell.addEventListener('click', async () => {
+                    const id = cell.getAttribute('data-id');
+                    await this.showItemInfo(id);
+                });
+                
+                // Right-click for context menu (future: equip/drop options)
+                cell.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const id = cell.getAttribute('data-id');
+                    this.showItemContextMenu(e.pageX, e.pageY, id, items.find(i => i.id === id));
                 });
             });
         } catch (e) {
+            console.error('Inventory render error:', e);
             invPane.innerHTML = `<div class="rp-empty">Failed to load inventory</div>`;
         }
+    }
+    
+    renderPaperdoll(ui) {
+        // Determine silhouette path based on race and gender
+        const race = (ui.player.race || 'human').toLowerCase();
+        const gender = (ui.player.sex || ui.player.gender || 'male').toLowerCase();
+        
+        // Try race-specific, fallback to default, then to generic default
+        const silhouettePath = `/images/character/paperdoll/${race}_${gender}.png`;
+        const fallbackPath = `/images/character/paperdoll/default_${gender}.png`;
+        const finalFallback = `/images/character/paperdoll/default_male.png`;
+        
+        // Build equipment map
+        const eqMap = {};
+        console.log('=== PAPERDOLL DEBUG ===');
+        console.log('ui.equipment array:', ui.equipment);
+        (ui.equipment||[]).forEach(e=>{ 
+            const slotKey = e.slot ? e.slot.toUpperCase() : '';
+            console.log(`Mapping: slot="${e.slot}" -> key="${slotKey}" | item="${e.item_name}" | icon="${e.icon_path}"`);
+            eqMap[slotKey] = e; 
+        });
+        console.log('Final equipment map:', eqMap);
+        console.log('Checking CHEST slot:', eqMap['CHEST']);
+        console.log('Checking MAIN_HAND slot:', eqMap['MAIN_HAND']);
+        
+        // Define all equipment slots
+        const allSlots = [
+            'HEAD', 'NECK', 'SHOULDERS', 'CHEST', 'BACK', 'WRISTS', 'HANDS', 'WAIST', 'LEGS', 'FEET',
+            'MAIN_HAND', 'OFF_HAND', 'RANGED',
+            'FINGER_1', 'FINGER_2', 'FINGER_3', 'FINGER_4', 'FINGER_5',
+            'FINGER_6', 'FINGER_7', 'FINGER_8', 'FINGER_9', 'FINGER_10',
+            'TRINKET_1', 'TRINKET_2'
+        ];
+        
+        const slotsHtml = allSlots.map(slot => {
+            const eq = eqMap[slot];
+            const hasItem = eq && eq.item_id;
+            // Fallback to generic icon if icon_path is missing
+            const iconPath = (eq && eq.icon_path) ? eq.icon_path : '/images/icons/miscellaneous/generic_1.png';
+            const rarity = eq && eq.rarity ? eq.rarity.toLowerCase() : 'common';
+            const itemName = eq && eq.item_name ? eq.item_name : '';
+            const slotDisplay = slot.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\S/g, t => t.toUpperCase());
+            
+            return `<div class=\"equipment-slot ${hasItem ? 'has-item' : 'empty'}\" 
+                        data-slot=\"${slot.toLowerCase()}\" 
+                        data-rarity=\"${rarity}\"
+                        ${hasItem ? `data-item-id=\"${eq.item_id}\"` : ''}>
+                ${hasItem ? `<img src=\"${iconPath}\" class=\"equipment-slot-icon\" alt=\"${itemName}\" onerror=\"this.src='/images/icons/miscellaneous/generic_1.png'\">` : ''}
+                <div class=\"equipment-slot-label\">${hasItem ? itemName : slotDisplay}</div>
+            </div>`;
+        }).join('');
+        
+        return `<div class="rp-group">
+            <div class="rp-title">Equipment</div>
+            <div class="paperdoll-container">
+                <div class="paperdoll-wrapper">
+                    <img src="${silhouettePath}" 
+                         class="paperdoll-silhouette" 
+                         alt="Character" 
+                         style="display:none;" 
+                         onload="this.style.display='block';" 
+                         onerror="this.style.display='none';this.onerror=null;"
+                    <div class="paperdoll-slots">
+                        ${slotsHtml}
+                    </div>
+                </div>
+                <div class="paperdoll-info">
+                    <div class="paperdoll-race-class">${ui.player.race} ${ui.player.path}</div>
+                    <div>Click slots to manage equipment</div>
+                </div>
+            </div>
+        </div>`;
+    }
+    
+    attachPaperdollHandlers() {
+        const charPane = document.getElementById('tab-character');
+        if (!charPane) return;
+        
+        charPane.querySelectorAll('.equipment-slot').forEach(slot => {
+            slot.addEventListener('click', async () => {
+                const slotName = slot.getAttribute('data-slot');
+                const itemId = slot.getAttribute('data-item-id');
+                
+                if (itemId) {
+                    // Slot has item - show item info
+                    await this.showItemInfo(itemId);
+                } else {
+                    // Empty slot - show notification
+                    const slotDisplay = slotName.replace(/_/g, ' ').toUpperCase();
+                    this.showNotification(`${slotDisplay} slot is empty`, 'info', 2000);
+                }
+            });
+            
+            // Right-click for context menu
+            slot.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const slotName = slot.getAttribute('data-slot');
+                const itemId = slot.getAttribute('data-item-id');
+                
+                if (itemId) {
+                    this.showEquipmentSlotContextMenu(e.pageX, e.pageY, slotName, itemId);
+                } else {
+                    this.showNotification('Slot is empty', 'info', 1500);
+                }
+            });
+        });
+    }
+    
+    showEquipmentSlotContextMenu(x, y, slotName, itemId) {
+        const menuItems = [
+            { label: '📖 Examine', action: () => this.showItemInfo(itemId) },
+            { label: '✖ Unequip', action: async () => {
+                try {
+                    // Unequip by slot name for reliability
+                    await apiClient.unequip(slotName);
+                    await this.refreshUI();
+                    this.showNotification('Item unequipped', 'success');
+                } catch(e) {
+                    this.showNotification(e.message || 'Failed to unequip', 'error');
+                }
+            }}
+        ];
+        
+        this.showContextMenu(x, y, menuItems);
+    }
+    
+    showItemContextMenu(x, y, itemId, item) {
+        if (!item) return;
+        
+        const menuItems = [
+            { label: '📖 Examine', action: () => this.showItemInfo(itemId) }
+        ];
+        
+        // Add equip/unequip option
+        if (item.is_equippable || ['weapon','armor','shield','accessory'].includes((item.type||'').toLowerCase())) {
+            if (item.equipped) {
+                menuItems.push({ label: '✖ Unequip', action: async () => {
+                    try {
+                        await apiClient.unequip(itemId);
+                        await this.refreshUI();
+                    } catch(e) { this.showNotification(e.message||'Failed to unequip','error'); }
+                }});
+            } else {
+                menuItems.push({ label: '✓ Equip', action: async () => {
+                    try {
+                        await apiClient.equipItem(itemId);
+                        await this.refreshUI();
+                    } catch(e) { this.showNotification(e.message||'Failed to equip','error'); }
+                }});
+            }
+        }
+        
+        // Add use option for consumables
+        if (item.is_consumable || (item.type||'').toLowerCase() === 'consumable') {
+            menuItems.push({ label: '🍴 Use', action: async () => {
+                try {
+                    await apiClient.useItem(itemId);
+                    await this.refreshUI();
+                } catch(e) { this.showNotification(e.message||'Failed to use','error'); }
+            }});
+        }
+        
+        // Add drop option
+        menuItems.push({ label: '🗑 Drop', action: async () => {
+            try {
+                await apiClient.dropItem(itemId);
+                await this.refreshUI();
+            } catch(e) { this.showNotification(e.message||'Failed to drop','error'); }
+        }});
+        
+        this.showContextMenu(x, y, menuItems);
     }
 
     /** Update resource bar label/width for Phase 1 (preview) */

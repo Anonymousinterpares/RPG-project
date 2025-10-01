@@ -250,6 +250,8 @@ class UIEquipmentEntry(BaseModel):
     slot: str
     item_id: Optional[str] = None
     item_name: Optional[str] = None
+    icon_path: Optional[str] = None
+    rarity: Optional[str] = None
 
 class UIStatusEffectEntry(BaseModel):
     name: str
@@ -898,15 +900,47 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
         equipment_entries: List[UIEquipmentEntry] = []
         try:
             eq = getattr(inv, 'equipment', {})
-            for slot, item_id in eq.items():
+            for slot, val in (eq.items() if hasattr(eq, 'items') else []):
+                # Skip empty slots
+                if not val:
+                    continue
+
                 slot_name = slot.value if hasattr(slot, 'value') else str(slot)
+                item_obj = None
+                item_id_str = None
                 item_name = None
-                if item_id:
-                    item = inv.get_item(item_id)
-                    item_name = getattr(item, 'name', None)
-                equipment_entries.append(UIEquipmentEntry(slot=slot_name, item_id=item_id, item_name=item_name))
-        except Exception:
-            pass
+                icon_path = None
+                rarity = None
+                
+                try:
+                    # val may be an Item object or a string ID
+                    # Prefer duck-typing so we don't import Item here
+                    if hasattr(val, 'id') and hasattr(val, 'name'):
+                        item_obj = val
+                    else:
+                        item_obj = inv.get_item(val)
+                    if item_obj:
+                        item_id_str = getattr(item_obj, 'id', None) or (str(val) if isinstance(val, str) else None)
+                        item_name = getattr(item_obj, 'name', None)
+                        icon_path = getattr(item_obj, 'icon_path', None)
+                        rarity_obj = getattr(item_obj, 'rarity', None)
+                        if rarity_obj:
+                            rarity = rarity_obj.value if hasattr(rarity_obj, 'value') else str(rarity_obj)
+                        equipment_entries.append(UIEquipmentEntry(
+                            slot=slot_name,
+                            item_id=item_id_str,
+                            item_name=item_name,
+                            icon_path=icon_path,
+                            rarity=rarity
+                        ))
+                        logger.debug(f"Added equipment: {slot_name} -> {item_name} (id: {item_id_str})")
+                    else:
+                        logger.warning(f"Equipment slot {slot_name} had value but item could not be resolved: {val}")
+                except Exception as e:
+                    logger.warning(f"Error processing equipped entry for slot {slot_name}: {e}")
+                    continue
+        except Exception as e:
+            logger.error(f"Error building equipment list: {e}", exc_info=True)
 
         # Mode, location, time (ensure mode is a plain string for clients)
         raw_mode = getattr(state, 'current_mode', 'NARRATIVE')
@@ -965,13 +999,23 @@ async def get_inventory_state(session_id: str, engine: GameEngine = Depends(get_
         items = []
         for item in getattr(inv, 'items', []):
             try:
+                rarity_obj = getattr(item, 'rarity', None)
+                rarity = rarity_obj.value if hasattr(rarity_obj, 'value') else str(rarity_obj) if rarity_obj else 'common'
                 items.append({
                     'id': item.id,
                     'name': item.name,
                     'type': item.item_type.value if hasattr(item.item_type, 'value') else str(item.item_type),
                     'description': getattr(item, 'description', ''),
                     'count': getattr(item, 'quantity', 1),
-                    'equipped': bool(inv.is_item_equipped(item.id))
+                    'quantity': getattr(item, 'quantity', 1),
+                    'equipped': bool(inv.is_item_equipped(item.id)),
+                    'icon_path': getattr(item, 'icon_path', None),
+                    'rarity': rarity,
+                    'is_quest_item': getattr(item, 'is_quest_item', False),
+                    'is_equippable': getattr(item, 'is_equippable', False),
+                    'is_consumable': getattr(item, 'is_consumable', False),
+                    'durability': getattr(item, 'durability', None),
+                    'current_durability': getattr(item, 'current_durability', None)
                 })
             except Exception:
                 continue
@@ -1003,22 +1047,55 @@ class InventoryActionRequest(BaseModel):
 async def api_inventory_equip(session_id: str, req: InventoryActionRequest, engine: GameEngine = Depends(get_game_engine)):
     if not req.item_id:
         raise HTTPException(status_code=400, detail="item_id required")
-    # Use command router like the desktop GUI does
-    slot_part = f" {req.slot}" if req.slot else ""
-    result = engine.process_command(f"equip {req.item_id}{slot_part}")
-    return {
-        'status': result.status.name,
-        'message': result.message,
-        'state_updated': True
-    }
+    try:
+        from core.inventory.item_manager import get_inventory_manager
+        from core.inventory.item_enums import EquipmentSlot
+        inv = get_inventory_manager()
+        preferred_slot = None
+        if req.slot:
+            try:
+                preferred_slot = EquipmentSlot(str(req.slot).lower().replace(' ', '_'))
+            except Exception:
+                preferred_slot = str(req.slot)
+        ok = inv.equip_item(req.item_id, preferred_slot=preferred_slot)
+        if not ok:
+            raise HTTPException(status_code=400, detail="Could not equip item")
+        return {'status': 'SUCCESS', 'message': 'Equipped', 'state_updated': True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Equip API error: {e}")
+        raise HTTPException(status_code=500, detail="Equip failed")
 
 @app.post("/api/inventory/unequip/{session_id}")
 async def api_inventory_unequip(session_id: str, req: InventoryActionRequest, engine: GameEngine = Depends(get_game_engine)):
     if not req.slot and not req.item_id:
         raise HTTPException(status_code=400, detail="slot or item_id required")
-    arg = req.slot or req.item_id
-    result = engine.process_command(f"unequip {arg}")
-    return {'status': result.status.name, 'message': result.message, 'state_updated': True}
+    try:
+        from core.inventory.item_manager import get_inventory_manager
+        from core.inventory.item_enums import EquipmentSlot
+        inv = get_inventory_manager()
+        # Determine slot to unequip
+        target_slot = None
+        if req.slot:
+            try:
+                target_slot = EquipmentSlot(str(req.slot).lower().replace(' ', '_'))
+            except Exception:
+                target_slot = None
+        if not target_slot and req.item_id:
+            slots = inv.get_equipped_slots_for_item(req.item_id)
+            target_slot = slots[0] if slots else None
+        if not target_slot:
+            raise HTTPException(status_code=400, detail="Item not equipped")
+        removed_id = inv.unequip_item(target_slot)
+        if not removed_id:
+            raise HTTPException(status_code=400, detail="Nothing to unequip")
+        return {'status': 'SUCCESS', 'message': 'Unequipped', 'state_updated': True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unequip API error: {e}")
+        raise HTTPException(status_code=500, detail="Unequip failed")
 
 @app.post("/api/inventory/use/{session_id}")
 async def api_inventory_use(session_id: str, req: InventoryActionRequest, engine: GameEngine = Depends(get_game_engine)):

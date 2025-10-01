@@ -548,10 +548,11 @@ async function loadGame(saveId) {
         // Clean up any existing session first
         if (apiClient.hasActiveSession()) {
             try {
-                await apiClient.endSession();
                 if (webSocketClient.isConnected) {
                     webSocketClient.disconnect();
                 }
+                // Don't call endSession - just clear local state since we're loading into the same session
+                // await apiClient.endSession();
             } catch (e) {
                 console.warn('Error cleaning up old session:', e);
             }
