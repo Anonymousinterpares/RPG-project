@@ -150,6 +150,28 @@ class StatLabel(QLabel):
             display_name = self.display_name_override
 
         menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #2D2D30; /* Dark background */
+                color: #E0E0E0; /* Light text */
+                border: 1px solid #555555; /* Subtle border */
+                padding: 2px; /* Padding around all items */
+            }
+            QMenu::item {
+                padding: 5px 20px 5px 20px; /* Top, Right, Bottom, Left padding */
+                border: 1px solid transparent; /* Spacing between items */
+            }
+            QMenu::item:selected {
+                background-color: #0E639C; /* Selection color */
+                color: #FFFFFF;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #555555;
+                margin-left: 10px;
+                margin-right: 5px;
+            }
+        """)
         menu.addAction(f"{display_name} Details", lambda: self.show_tooltip(QCursor.pos()))
         menu.exec_(self.mapToGlobal(position))
 
