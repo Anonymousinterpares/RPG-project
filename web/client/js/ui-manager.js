@@ -1946,8 +1946,14 @@ addMessage(text, type = 'game') {
             };
             const statList = (title, dict) => {
                 const rows = Object.keys(dict||{}).map(k=>{
-                    const s=dict[k];
-                    return `<div class=\"rp-row stat-row\" data-stat-key=\"${k}\"><span>${s.name||k}</span><span>${Math.round(s.value)}</span></div>`;
+                    const s = dict[k] || {};
+                    const valNum = Number(s.value||0);
+                    const baseNum = Number(s.base_value||valNum);
+                    const delta = Math.round(valNum - baseNum);
+                    const sign = delta > 0 ? '+' : '';
+                    const color = delta > 0 ? '#69c45f' : (delta < 0 ? '#c45f5f' : null);
+                    const deltaHtml = delta !== 0 ? ` <span class=\"stat-delta\" style=\"color:${color}\">(${sign}${delta})</span>` : '';
+                    return `<div class=\"rp-row stat-row\" data-stat-key=\"${k}\" data-stat-base=\"${baseNum}\" data-stat-value=\"${valNum}\"><span>${s.name||k}</span><span>${Math.round(valNum)}${deltaHtml}</span></div>`;
                 }).join('');
                 return `<div class=\"rp-group\"><div class=\"rp-title\">${title}</div>${rows||'<div class=\"rp-empty\">—</div>'}</div>`;
             };
@@ -2094,17 +2100,27 @@ addMessage(text, type = 'game') {
                 e.preventDefault();
                 const key = row.getAttribute('data-stat-key');
                 if (!key) return;
+                const base = Number(row.getAttribute('data-stat-base')||0);
+                const val = Number(row.getAttribute('data-stat-value')||0);
+                const delta = Math.round(val - base);
+                const sign = delta>0?'+':'';
+                const color = delta>0?'#69c45f':(delta<0?'#c45f5f':'#cccccc');
                 try {
                     const data = await apiClient.getStatModifiers(key);
                     const lines = (data.modifiers||[]).map(m => {
-                        const sign = (typeof m.value==='number' && m.value>0)?'+':'';
+                        const mv = Number(m.value||0);
+                        const ms = mv>0?'+':'';
+                        const mc = mv>0?'#69c45f':(mv<0?'#c45f5f':'#cccccc');
                         const perc = m.is_percentage?'%':'';
                         const dur = (m.duration!=null)?` (${m.duration} turns)`:'';
-                        return `${m.source||'Source'}: ${sign}${m.value}${perc}${dur}`;
+                        const source = m.source || m.source_name || 'Source';
+                        return `${source}: <span style="color:${mc}">${ms}${mv}${perc}</span>${dur}`;
                     });
-                    this.showTemporaryTooltip(e.pageX, e.pageY, `<b>${key}</b><br>${lines.length?lines.join('<br>'):'No active modifiers.'}`);
+                    const header = `<b>${key}</b><hr>Base: ${Math.round(base)}<br>Total: ${Math.round(val)}${delta!==0?` <span style=\"color:${color}\">(${sign}${delta})</span>`:''}<br><br><b>Modifiers:</b><br>`;
+                    this.showTemporaryTooltip(e.pageX, e.pageY, header + (lines.length?lines.join('<br>'):'No active modifiers.'));
                 } catch (err) {
-                    this.showTemporaryTooltip(e.pageX, e.pageY, `<b>${key}</b><br>Failed to load modifiers.`);
+                    const header = `<b>${key}</b><hr>Base: ${Math.round(base)}<br>Total: ${Math.round(val)}${delta!==0?` <span style=\"color:${color}\">(${sign}${delta})</span>`:''}<br>`;
+                    this.showTemporaryTooltip(e.pageX, e.pageY, header + '<br>Failed to load modifiers.');
                 }
             });
         });

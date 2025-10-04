@@ -46,6 +46,9 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
         if not hasattr(self, 'instance_id_for_debug'): # Set only if not already set (e.g. by a subclass's super call)
             self.instance_id_for_debug = str(uuid.uuid4())
         
+        # Reference to stats manager for equipment modifier synchronization
+        self._stats_manager = None
+        
         logger.info(f"InventoryManager CLASS __init__ called. Instance ID: {self.instance_id_for_debug}")
     
     @property
@@ -184,6 +187,33 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
             inventory._currency.set_mixed_currency(gold, silver, copper)
         
         return inventory
+    
+    def set_stats_manager(self, stats_manager) -> None:
+        """
+        Set the stats manager reference for equipment modifier synchronization.
+        
+        Args:
+            stats_manager: The stats manager instance
+        """
+        self._stats_manager = stats_manager
+        logger.debug("Stats manager reference set in InventoryManager")
+        
+        # If we already have equipment modifiers, sync them now
+        if hasattr(self, '_equipment_modifiers') and self._equipment_modifiers:
+            self._sync_stats_modifiers()
+    
+    def _sync_stats_modifiers(self) -> None:
+        """
+        Override of EquipmentManager method to trigger stats synchronization.
+        """
+        if self._stats_manager and hasattr(self._stats_manager, 'sync_equipment_modifiers'):
+            try:
+                self._stats_manager.sync_equipment_modifiers()
+                logger.debug("Triggered equipment modifier synchronization with stats manager")
+            except Exception as e:
+                logger.error(f"Error synchronizing equipment modifiers with stats manager: {e}")
+        else:
+            logger.debug("No stats manager available for equipment modifier sync")
     
     def save_to_file(self, filepath: str, include_unknown: bool = True) -> bool:
         """

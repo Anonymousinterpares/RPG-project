@@ -12,7 +12,7 @@ from PySide6.QtCore import QObject, Signal
 
 from core.stats.stats_base import Stat, StatType, DerivedStatType, StatCategory, Skill # Import Skill enum
 from core.stats.derived_stats import DERIVED_STAT_CALCULATORS, calculate_derived_stat, get_modifier_from_stat
-from core.stats.modifier import StatModifier, ModifierSource, ModifierGroup
+from core.stats.modifier import StatModifier, ModifierSource, ModifierGroup, ModifierType
 from core.stats.modifier_manager import ModifierManager
 from core.stats.skill_check import perform_check, calculate_success_chance, SkillCheckResult
 from core.stats.combat_effects import StatusEffect, StatusEffectManager, StatusEffectType
@@ -44,6 +44,10 @@ class StatsManager(QObject):
         self.status_effect_manager = StatusEffectManager(self)
         self.level = 1
         self.config: Dict[str, Any] = {}
+        
+        # Reference to inventory manager for equipment modifiers
+        # This will be set by the state manager or game engine
+        self._inventory_manager = None
 
         # Load default configuration
         if config_file and os.path.exists(config_file):
@@ -890,6 +894,95 @@ class StatsManager(QObject):
             self.stats_changed.emit(self.get_all_stats())
         except Exception:
             pass
+
+    def set_inventory_manager(self, inventory_manager) -> None:
+        """
+        Set the inventory manager reference for equipment modifier synchronization.
+        
+        Args:
+            inventory_manager: The inventory manager instance
+        """
+        self._inventory_manager = inventory_manager
+        logger.debug("Inventory manager reference set in StatsManager")
+        
+        # Sync equipment modifiers if available
+        if inventory_manager:
+            self.sync_equipment_modifiers()
+    
+    def sync_equipment_modifiers(self) -> None:
+        """
+        Synchronize equipment modifiers from inventory manager into the modifier system.
+        This should be called whenever equipment changes.
+        """
+        if not self._inventory_manager:
+            logger.debug("No inventory manager available for equipment modifier sync")
+            return
+            
+        try:
+            # Remove all existing equipment modifiers
+            removed_count = self.modifier_manager.remove_modifiers_by_source(ModifierSource.EQUIPMENT)
+            if removed_count > 0:
+                logger.debug(f"Removed {removed_count} existing equipment modifiers")
+            
+            # Get current equipment modifiers from inventory manager
+            if hasattr(self._inventory_manager, '_equipment_modifiers'):
+                equipment_modifiers = self._inventory_manager._equipment_modifiers
+                
+                # Convert equipment modifiers to StatModifier objects
+                for modifier_id, modifier_data in equipment_modifiers.items():
+                    try:
+                        # Get item name for source identification
+                        source_name = f"Item ({modifier_data.get('source_slot', 'Unknown Slot')})"
+                        if modifier_data.get('source_item'):
+                            item = self._inventory_manager.get_item(modifier_data['source_item'])
+                            if item:
+                                source_name = item.name
+                        
+                        # Convert stat name string to appropriate enum
+                        stat_name = modifier_data.get('stat', '')
+                        stat_enum = None
+                        
+                        # Try StatType first
+                        try:
+                            stat_enum = StatType.from_string(stat_name)
+                        except ValueError:
+                            try:
+                                stat_enum = DerivedStatType.from_string(stat_name)
+                            except ValueError:
+                                logger.warning(f"Unknown stat type in equipment modifier: {stat_name}")
+                                continue
+                        
+                        # Create StatModifier object
+                        stat_modifier = StatModifier(
+                            stat=stat_enum,
+                            value=float(modifier_data.get('value', 0)),
+                            source_type=ModifierSource.EQUIPMENT,
+                            source_name=source_name,
+                            modifier_type=ModifierType.PERMANENT,  # Equipment modifiers are permanent while equipped
+                            is_percentage=modifier_data.get('is_percentage', False),
+                            description=f"Equipment bonus from {source_name}"
+                        )
+                        
+                        # Add the modifier
+                        self.modifier_manager.add_modifier(stat_modifier)
+                        logger.debug(f"Added equipment modifier: {stat_modifier}")
+                        
+                    except Exception as e:
+                        logger.error(f"Error creating equipment modifier {modifier_id}: {e}")
+                        continue
+                
+                logger.info(f"Synchronized {len(equipment_modifiers)} equipment modifiers")
+            else:
+                logger.debug("Inventory manager has no equipment modifiers")
+            
+            # Recalculate derived stats to account for new modifiers
+            self._recalculate_derived_stats()
+            
+            # Emit stats changed signal
+            self.stats_changed.emit(self.get_all_stats())
+            
+        except Exception as e:
+            logger.error(f"Error synchronizing equipment modifiers: {e}", exc_info=True)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to a dictionary for serialization."""

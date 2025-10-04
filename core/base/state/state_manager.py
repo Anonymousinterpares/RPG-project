@@ -303,6 +303,9 @@ class StateManager:
         except Exception as e:
             logger.error(f"Failed to initialize stats manager: {e}")
         
+        # Initialize inventory manager and connect to stats manager
+        self._connect_inventory_and_stats_managers()
+        
         # Initialize memory/context system
         self.initialize_memory_context(self._current_state)
         
@@ -480,6 +483,9 @@ class StateManager:
                         logger.info("Restored detailed quest data from save")
                 except Exception as e:
                     logger.warning(f"Error restoring quest data: {e}")
+            
+            # Connect inventory and stats managers for equipment modifier synchronization
+            self._connect_inventory_and_stats_managers()
             
             # Explicitly ensure stats manager is initialized and signal is emitted
             self.ensure_stats_manager_initialized()
@@ -787,6 +793,43 @@ class StateManager:
         """
         logger.info("Memory/context restoration stub called (not fully implemented)")
         # Will be implemented when memory/context modules are added
+    
+    def _connect_inventory_and_stats_managers(self) -> None:
+        """
+        Connect the inventory manager and stats manager for equipment modifier synchronization.
+        
+        This establishes the bidirectional connection so that equipment changes
+        automatically update stat modifiers.
+        """
+        try:
+            # Get both managers
+            stats_manager = self.stats_manager  # This property handles initialization
+            
+            if not stats_manager:
+                logger.warning("Stats manager not available for inventory connection")
+                return
+            
+            # Get inventory manager singleton
+            from core.inventory.item_manager import get_inventory_manager
+            inventory_manager = get_inventory_manager()
+            
+            if not inventory_manager:
+                logger.warning("Inventory manager not available for stats connection")
+                return
+            
+            # Establish bidirectional connection
+            stats_manager.set_inventory_manager(inventory_manager)
+            inventory_manager.set_stats_manager(stats_manager)
+            
+            # Trigger initial equipment modifier synchronization
+            if hasattr(inventory_manager, '_equipment_modifiers') and inventory_manager._equipment_modifiers:
+                stats_manager.sync_equipment_modifiers()
+                logger.info("Initial equipment modifier synchronization completed")
+            
+            logger.info("Successfully connected inventory and stats managers")
+            
+        except Exception as e:
+            logger.error(f"Error connecting inventory and stats managers: {e}", exc_info=True)
 
 
 # Convenience function

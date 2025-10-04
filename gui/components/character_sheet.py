@@ -100,8 +100,8 @@ class StatLabel(QLabel):
         modifiers = self._fetch_modifiers()
 
         # Get the display name (e.g., "Strength") if available, otherwise use the key
-        display_name = self.stat_name_key # Default to key
-        if hasattr(self, 'display_name_override'): # Check if set by update_stat_data
+        display_name = self.stat_name_key  # Default to key
+        if hasattr(self, 'display_name_override'):  # Check if set by update_stat_data
             display_name = self.display_name_override
 
         tooltip_text = f"<b>{display_name}</b><hr>"
@@ -109,27 +109,34 @@ class StatLabel(QLabel):
         if self.description:
             tooltip_text += f"{self.description}<br><br>"
 
-        tooltip_text += f"Base Value: {self.base_value}<br>"
-        tooltip_text += f"Current Value: {self.current_value}<br>"
+        # Base / Total / Delta header with color-coded delta
+        try:
+            delta_val = (self.current_value or 0) - (self.base_value or 0)
+        except Exception:
+            delta_val = 0
+        delta_sign = "+" if delta_val > 0 else ""
+        delta_color = "#69c45f" if delta_val > 0 else ("#c45f5f" if delta_val < 0 else "#cccccc")
+        tooltip_text += f"Base: {self.base_value}<br>"
+        tooltip_text += f"Total: {self.current_value}"
+        if delta_val != 0:
+            tooltip_text += f" <span style='color:{delta_color}'>({delta_sign}{int(delta_val)})</span>"
+        tooltip_text += "<br>"
 
+        # Detailed modifiers list with color-coded values
         if modifiers:
             tooltip_text += "<br><b>Modifiers:</b><br>"
             for mod in modifiers:
                 # Access modifier data assuming it's a dictionary now
-                mod_source = mod.get('source', 'Unknown')
+                mod_source = mod.get('source_name') or mod.get('source') or 'Unknown'
                 mod_value = mod.get('value', 0)
                 mod_is_percentage = mod.get('is_percentage', False)
                 mod_duration = mod.get('duration', None)
 
-                mod_text = f"{mod_source}: "
-                if mod_value > 0:
-                    mod_text += "+"
-                mod_text += f"{mod_value}"
-                if mod_is_percentage:
-                    mod_text += "%"
-                if mod_duration is not None:
-                    mod_text += f" ({mod_duration} turns)"
-                tooltip_text += f"{mod_text}<br>"
+                sign = "+" if isinstance(mod_value, (int, float)) and mod_value > 0 else ""
+                color = "#69c45f" if (isinstance(mod_value, (int, float)) and mod_value > 0) else ("#c45f5f" if (isinstance(mod_value, (int, float)) and mod_value < 0) else "#cccccc")
+                val_text = f"<span style='color:{color}'>{sign}{mod_value}{'%' if mod_is_percentage else ''}</span>"
+                dur_text = f" ({mod_duration} turns)" if (mod_duration is not None) else ""
+                tooltip_text += f"{mod_source}: {val_text}{dur_text}<br>"
         else:
             tooltip_text += "<br>No active modifiers.<br>"
 
@@ -485,6 +492,11 @@ class CharacterSheetWidget(QScrollArea):
 
             # Create value label - use the Enum Name (stat_id) as the key
             value_label = StatLabel(value, stat_id) # Pass Enum Name ("STR", "MELEE_ATTACK")
+            # Ensure HTML (for colored deltas) is rendered
+            try:
+                value_label.setTextFormat(Qt.RichText)
+            except Exception:
+                pass
             # Set minimum width and restore original color
             value_label.setStyleSheet("color: #E0E0E0; min-width: 30px;")
             value_label.setAlignment(Qt.AlignRight)
@@ -922,15 +934,23 @@ class CharacterSheetWidget(QScrollArea):
                 logging.error(f"Fallback update after signal error also failed: {update_err}")
                 
     def _update_primary_stats(self, primary_stats):
-        """Update just the primary stats from stats data."""
+        """Update just the primary stats from stats data, showing colored deltas."""
         for stat_name, stat_data in primary_stats.items():
-             # stat_name here is expected to be "STR", "DEX", etc.
+            # stat_name here is expected to be "STR", "DEX", etc.
             if stat_name in self.primary_stat_labels:
                 try:
-                    stat_value = stat_data.get('value', 0)
-                    old_text = self.primary_stat_labels[stat_name].text()
-                    new_text = str(int(stat_value)) # Ensure comparison is string vs string
+                    value = int(stat_data.get('value', 0))
+                    base = int(stat_data.get('base_value', value))
+                    delta = value - base
+                    delta_sign = "+" if delta > 0 else ""
+                    delta_color = "#69c45f" if delta > 0 else ("#c45f5f" if delta < 0 else "#E0E0E0")
 
+                    # Compose HTML with colored delta
+                    new_text = f"{value}"
+                    if delta != 0:
+                        new_text += f" <span style='color:{delta_color}'>({delta_sign}{delta})</span>"
+
+                    old_text = self.primary_stat_labels[stat_name].text()
                     if old_text != new_text:
                         self.primary_stat_labels[stat_name].setText(new_text)
                         logging.info(f"Updated primary stat {stat_name} from '{old_text}' to '{new_text}'")
@@ -940,18 +960,25 @@ class CharacterSheetWidget(QScrollArea):
                 except Exception as e:
                     logging.error(f"Error updating primary stat {stat_name}: {e}", exc_info=True)
             else:
-                 logging.warning(f"Stat key '{stat_name}' from primary stats data not found in UI labels.")
+                logging.warning(f"Stat key '{stat_name}' from primary stats data not found in UI labels.")
     
     def _update_derived_stats(self, derived_stats, category):
-        """Update derived stats from stats data."""
+        """Update derived stats from stats data, showing colored deltas."""
         for stat_name, stat_data in derived_stats.items():
-             # stat_name here is expected to be "MELEE_ATTACK", "DEFENSE", etc.
+            # stat_name here is expected to be "MELEE_ATTACK", "DEFENSE", etc.
             if stat_name in self.derived_stat_labels:
                 try:
-                    stat_value = stat_data.get('value', 0)
-                    old_text = self.derived_stat_labels[stat_name].text()
-                    new_text = str(int(stat_value))
+                    value = int(stat_data.get('value', 0))
+                    base = int(stat_data.get('base_value', value))
+                    delta = value - base
+                    delta_sign = "+" if delta > 0 else ""
+                    delta_color = "#69c45f" if delta > 0 else ("#c45f5f" if delta < 0 else "#E0E0E0")
 
+                    new_text = f"{value}"
+                    if delta != 0:
+                        new_text += f" <span style='color:{delta_color}'>({delta_sign}{delta})</span>"
+
+                    old_text = self.derived_stat_labels[stat_name].text()
                     if old_text != new_text:
                         self.derived_stat_labels[stat_name].setText(new_text)
                         logging.info(f"Updated {category} stat {stat_name} from '{old_text}' to '{new_text}'")
@@ -961,13 +988,13 @@ class CharacterSheetWidget(QScrollArea):
 
                     # Special case for initiative display
                     if stat_name == "INITIATIVE":
-                        if self.initiative_value.text() != new_text:
-                            self.initiative_value.setText(new_text)
-                            logging.info(f"Updated initiative display to {new_text}")
+                        if self.initiative_value.text() != str(value):
+                            self.initiative_value.setText(str(value))
+                            logging.info(f"Updated initiative display to {value}")
                 except Exception as e:
                     logging.error(f"Error updating derived stat {stat_name}: {e}", exc_info=True)
             else:
-                 logging.warning(f"Stat key '{stat_name}' from {category} stats data not found in UI labels.")
+                logging.warning(f"Stat key '{stat_name}' from {category} stats data not found in UI labels.")
     
     def _update_resources(self, resources: Dict[str, Any], all_player_stats: Optional[Dict[str, Any]] = None):
         """

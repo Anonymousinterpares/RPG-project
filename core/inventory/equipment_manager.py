@@ -243,6 +243,10 @@ class EquipmentManager(InventoryBase):
             self._equipment[target_slot] = item.id # Store item ID
             self._update_equipment_modifiers()
             logger.info(f"Equipped {item.name} (ID: {item.id}) in {target_slot.value}")
+            
+            # Trigger stats synchronization if available
+            self._sync_stats_modifiers()
+            
             return True
         
         logger.warning(f"Failed to equip {item.name}: No suitable slot found or made available.")
@@ -287,6 +291,9 @@ class EquipmentManager(InventoryBase):
 
         self._update_equipment_modifiers()
         
+        # Trigger stats synchronization if available
+        self._sync_stats_modifiers()
+        
         item_name_for_log = item_obj.name if item_obj else f"Item ID {item_id_in_slot}"
         logger.info(f"Unequipped {item_name_for_log} from {slot.value}")
         
@@ -308,6 +315,10 @@ class EquipmentManager(InventoryBase):
                 unequipped_items.append(item_id)
         
         self._update_equipment_modifiers()
+        
+        # Trigger stats synchronization if available
+        self._sync_stats_modifiers()
+        
         logger.info(f"Unequipped all items ({len(unequipped_items)} items)")
         
         return unequipped_items
@@ -338,6 +349,14 @@ class EquipmentManager(InventoryBase):
                 }
         
         logger.debug(f"Updated equipment modifiers: {len(self._equipment_modifiers)} active modifiers")
+    
+    def _sync_stats_modifiers(self) -> None:
+        """
+        Trigger synchronization of equipment modifiers with the stats manager.
+        This method will be overridden by InventoryManager to provide the stats manager reference.
+        """
+        # Base implementation does nothing - will be overridden in InventoryManager
+        pass
     
     def get_stat_modifiers(self, stat_name: str) -> List[Dict[str, Any]]:
         """
