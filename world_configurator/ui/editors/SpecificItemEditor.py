@@ -16,6 +16,24 @@ from PySide6.QtWidgets import (QDialogButtonBox,
     QDoubleSpinBox, QSpinBox, QTableWidget, QTableWidgetItem, QHeaderView,
     QInputDialog
 )
+# Safe import of core stats enums even when world_configurator runs standalone
+try:
+    from core.stats.stats_base import StatType, DerivedStatType
+except ModuleNotFoundError:
+    import sys
+    try:
+        # Use helper to get project root if available
+        from utils.file_manager import get_project_root as _wcfg_get_root
+        _pr = _wcfg_get_root()
+    except Exception:
+        _pr = None
+    if not _pr:
+        import os as _os
+        # Compute project root relative to this file: .../latest version
+        _pr = _os.path.normpath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', '..', '..'))
+    if _pr and _pr not in sys.path:
+        sys.path.insert(0, _pr)
+    from core.stats.stats_base import StatType, DerivedStatType
 
 from ui.dialogs.base_dialog import BaseDialog
 from utils.file_manager import load_json, save_json, get_project_root
@@ -24,23 +42,81 @@ logger = logging.getLogger("world_configurator.ui.specific_item_editor")
 
 # --- Stat Entry Dialog (for item stats) ---
 class ItemStatDialog(BaseDialog):
-    """Dialog for adding/editing an item stat."""
+    """Dialog for adding/editing an item stat with validated choices."""
     def __init__(self, parent=None, stat_data: Optional[Dict[str, Any]] = None):
         super().__init__(parent)
         self.setWindowTitle("Edit Item Stat")
         self.stat_data = stat_data if stat_data else {}
 
         layout = QFormLayout(self)
-        self.name_edit = QLineEdit(self.stat_data.get("name", ""))
-        self.name_edit.setPlaceholderText("Stat ID (e.g., strength_bonus)")
-        self.value_edit = QLineEdit(str(self.stat_data.get("value", "0"))) # Store as string for QLineEdit
+
+        # Build validated stat choices from core enums
+        self._stat_choices: List[Dict[str, str]] = []  # {'id': 'strength', 'display': 'Strength (STR)', 'category': 'Primary'}
+        # Primary stats
+        for s in StatType:
+            stat_id = s.name.lower()  # e.g., 'strength'
+            friendly = s.name.title()  # 'Strength'
+            shown = f"[Primary] {friendly} ({str(s)})"  # 'STR' as value
+            self._stat_choices.append({'id': stat_id, 'display': shown, 'category': 'Primary'})
+        # Derived stats
+        for d in DerivedStatType:
+            stat_id = d.name.lower()  # e.g., 'melee_attack'
+            shown = f"[Derived] {str(d)}"  # str(d) is human-friendly like 'Melee Attack'
+            self._stat_choices.append({'id': stat_id, 'display': shown, 'category': 'Derived'})
+
+        # Stat selector
+        self.stat_combo = QComboBox()
+        for opt in self._stat_choices:
+            self.stat_combo.addItem(opt['display'], userData=opt['id'])
+
+        # Preselect if editing existing
+        existing_name = str(self.stat_data.get("name", "")).strip()
+        selected_index = -1
+        if existing_name:
+            # Normalize existing to canonical id using enums
+            canonical = None
+            try:
+                st = StatType.from_string(existing_name)
+                canonical = st.name.lower()
+            except Exception:
+                try:
+                    dt = DerivedStatType.from_string(existing_name)
+                    canonical = dt.name.lower()
+                except Exception:
+                    # Fallback: attempt lower/underscore
+                    canonical = existing_name.lower().replace(' ', '_')
+            for i in range(self.stat_combo.count()):
+                if self.stat_combo.itemData(i) == canonical:
+                    selected_index = i
+                    break
+        if selected_index >= 0:
+            self.stat_combo.setCurrentIndex(selected_index)
+        else:
+            self.stat_combo.setCurrentIndex(0)
+
+        self.value_edit = QLineEdit(str(self.stat_data.get("value", "0")))  # keep text edit for flexible input
         self.value_edit.setPlaceholderText("Value (numeric or boolean)")
-        self.display_name_edit = QLineEdit(self.stat_data.get("display_name", ""))
-        self.display_name_edit.setPlaceholderText("Optional display name (e.g., Strength Bonus)")
+
+        # Default display name suggestion based on selected stat
+        suggested_display = self._suggest_display_name(self.stat_combo.currentData())
+        self.display_name_edit = QLineEdit(self.stat_data.get("display_name", suggested_display))
+        self.display_name_edit.setPlaceholderText("Auto display name for selected stat")
+        # Lock display name to canonical stat name to avoid typos
+        try:
+            self.display_name_edit.setReadOnly(True)
+        except Exception:
+            pass
         self.is_percentage_check = QCheckBox("Is Percentage?")
         self.is_percentage_check.setChecked(self.stat_data.get("is_percentage", False))
 
-        layout.addRow("Stat ID:", self.name_edit)
+        # Always update display name to match current selection
+        def _on_stat_changed():
+            self.display_name_edit.setText(self._suggest_display_name(self.stat_combo.currentData()))
+        self.stat_combo.currentIndexChanged.connect(_on_stat_changed)
+        # Ensure initial sync
+        _on_stat_changed()
+
+        layout.addRow("Stat:", self.stat_combo)
         layout.addRow("Value:", self.value_edit)
         layout.addRow("Display Name:", self.display_name_edit)
         layout.addRow(self.is_percentage_check)
@@ -49,6 +125,53 @@ class ItemStatDialog(BaseDialog):
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         layout.addRow(self.button_box)
+
+    def _suggest_display_name(self, stat_id: Optional[str]) -> str:
+        if not stat_id:
+            return ""
+        # For primary stats, use Title case of enum name; for derived, use enum value (human-friendly)
+        try:
+            st = StatType[stat_id.upper()]
+            return st.name.title()
+        except Exception:
+            try:
+                dt = DerivedStatType[stat_id.upper()]
+                return str(dt)
+            except Exception:
+                # Fallback: prettify
+                return stat_id.replace('_', ' ').title()
+
+    def get_stat_data(self) -> Optional[Dict[str, Any]]:
+        name = self.stat_combo.currentData()
+        value_str = self.value_edit.text().strip()
+        display_name = self.display_name_edit.text().strip()
+        is_percentage = self.is_percentage_check.isChecked()
+
+        if not name or not value_str:
+            QMessageBox.warning(self, "Input Error", "Stat and Value are required.")
+            return None
+
+        # Attempt to parse value as float, int, or bool
+        parsed_value: Any
+        try:
+            if '.' in value_str:
+                parsed_value = float(value_str)
+            else:
+                parsed_value = int(value_str)
+        except ValueError:
+            if value_str.lower() == 'true':
+                parsed_value = True
+            elif value_str.lower() == 'false':
+                parsed_value = False
+            else:
+                parsed_value = value_str
+
+        data = {"name": name, "value": parsed_value}
+        if display_name:
+            data["display_name"] = display_name
+        if is_percentage:
+            data["is_percentage"] = True
+        return data
 
     def get_stat_data(self) -> Optional[Dict[str, Any]]:
         name = self.name_edit.text().strip()
