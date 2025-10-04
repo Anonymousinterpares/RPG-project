@@ -928,6 +928,21 @@ class StatsManager(QObject):
             if hasattr(self._inventory_manager, '_equipment_modifiers'):
                 equipment_modifiers = self._inventory_manager._equipment_modifiers
                 
+                # Normalize and synonym map for item stat names -> engine stat keys
+                STAT_SYNONYMS = {
+                    # Common weapon/attack synonyms
+                    'attack_bonus': 'melee_attack',
+                    'atk_bonus': 'melee_attack',
+                    'spell_focus_bonus': 'magic_attack',
+                    'ranged_bonus': 'ranged_attack',
+                    # Saves/attributes
+                    'willpower_save_bonus': 'willpower',
+                    'charisma_save_bonus': 'charisma',
+                    'strength_save_bonus': 'strength',
+                    # Armor synonyms
+                    'armor': 'defense',
+                }
+                
                 # Convert equipment modifiers to StatModifier objects
                 for modifier_id, modifier_data in equipment_modifiers.items():
                     try:
@@ -939,17 +954,19 @@ class StatsManager(QObject):
                                 source_name = item.name
                         
                         # Convert stat name string to appropriate enum
-                        stat_name = modifier_data.get('stat', '')
+                        raw_stat_name = str(modifier_data.get('stat', '') or '').strip()
+                        stat_key = raw_stat_name.lower().replace(' ', '_')
+                        stat_key = STAT_SYNONYMS.get(stat_key, stat_key)
                         stat_enum = None
                         
                         # Try StatType first
                         try:
-                            stat_enum = StatType.from_string(stat_name)
+                            stat_enum = StatType.from_string(stat_key)
                         except ValueError:
                             try:
-                                stat_enum = DerivedStatType.from_string(stat_name)
+                                stat_enum = DerivedStatType.from_string(stat_key)
                             except ValueError:
-                                logger.warning(f"Unknown stat type in equipment modifier: {stat_name}")
+                                logger.warning(f"Unknown stat type in equipment modifier: '{raw_stat_name}' (normalized: '{stat_key}') from {source_name}")
                                 continue
                         
                         # Create StatModifier object
@@ -970,7 +987,6 @@ class StatsManager(QObject):
                     except Exception as e:
                         logger.error(f"Error creating equipment modifier {modifier_id}: {e}")
                         continue
-                
                 logger.info(f"Synchronized {len(equipment_modifiers)} equipment modifiers")
             else:
                 logger.debug("Inventory manager has no equipment modifiers")
