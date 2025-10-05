@@ -1041,8 +1041,21 @@ body.has-bg::before {
     --font-size-small: 0.85rem;
 }
 
+/* Combat log line styling */
+#tab-combat .combat-log-line { color: var(--text-secondary); padding: 2px 0; line-height: 1.25; }
+#tab-combat .combat-log-line.cl-round { color: #FFD700; font-weight: 700; }
+#tab-combat .combat-log-line.cl-turnorder { color: #87CEFA; font-weight: 600; }
+#tab-combat .combat-log-line.cl-turn { color: #00BFFF; font-weight: 600; }
+#tab-combat .combat-log-line.cl-attack { color: #FF69B4; }
+#tab-combat .combat-log-line.cl-miss { color: #B0B0B0; font-style: italic; }
+#tab-combat .combat-log-line.cl-damage { color: #FF5555; font-weight: 600; }
+#tab-combat .combat-log-line.cl-heal { color: #C0F75B; font-weight: 600; }
+#tab-combat .combat-log-line.cl-status { color: #FFA500; }
+#tab-combat .combat-log-line.cl-defend { color: #9ACD32; }
+#tab-combat .combat-log-line.cl-generic { color: var(--text-secondary); }
+
 /* Right panel content blocks - ENHANCED */
-.rp-header { 
+.rp-header {
     margin-bottom: 12px; 
     padding-bottom: 8px;
     border-bottom: 2px solid var(--border-accent);

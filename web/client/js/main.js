@@ -392,6 +392,10 @@ function connectWebSocket(sessionId, options = {}) {
             uiManager.addMessage(text, role === 'system' ? 'system' : 'game');
         } catch (e) { console.warn(e); }
     });
+    // New: append incremental mechanics lines to combat tab
+    webSocketClient.on('combat_log_append', (data) => {
+        try { uiManager.appendCombatLogLine(data || {}); } catch (e) { console.warn(e); }
+    });
     webSocketClient.on('journal_updated', ()=>{ try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
     // Connect WebSocket only after setting up all handlers
     webSocketClient.connect(id);

@@ -428,6 +428,7 @@ class UiManager {
             clearTimeout(this._resizeTimeout);
             this._resizeTimeout = setTimeout(() => {
                 this.ensureRightPanelScrollable();
+                this.ensureCenterOutputScrollable();
             }, 150);
         });
     }
@@ -499,6 +500,8 @@ addMessage(text, type = 'game') {
         messageElement.textContent = txt;
 
         this.outputElement.appendChild(messageElement);
+        // Keep main output fixed-height and scrollable
+        this.ensureCenterOutputScrollable();
         this.scrollToBottom();
     }
 
@@ -611,6 +614,27 @@ addMessage(text, type = 'game') {
                 // For now, we'll keep the current scroll position
             }
         });
+    }
+
+    /** Ensure main output area remains a fixed-height, scrollable viewport */
+    ensureCenterOutputScrollable() {
+        try {
+            const center = document.querySelector('.center-stack');
+            const out = this.outputElement;
+            if (!center || !out) return;
+            // Compute available height for the output area within center stack
+            requestAnimationFrame(() => {
+                const inp = center.querySelector('.command-input-container');
+                const centerH = center.clientHeight || 0;
+                const inpH = inp ? inp.offsetHeight : 0;
+                const pad = 10;
+                const available = Math.max(0, centerH - inpH - pad);
+                if (available > 0) {
+                    out.style.maxHeight = `${available}px`;
+                }
+                out.style.overflowY = 'auto';
+            });
+        } catch (e) { /* ignore */ }
     }
 
     /**
@@ -2088,7 +2112,65 @@ addMessage(text, type = 'game') {
         const pane = document.getElementById('tab-combat');
         if (pane) {
             pane.innerHTML = html || '<div class="placeholder">Combat log</div>';
+            // After snapshot replace, keep pane scrollable and pinned to bottom
+            this.ensureRightPanelScrollable();
+            this.scrollElementToBottom(pane);
         }
+    }
+
+    // Append a single mechanics/log line to the Combat tab and autoscroll
+    appendCombatLogLine(data) {
+        try {
+            this.ensureCombatTab();
+            const pane = document.getElementById('tab-combat');
+            if (!pane) return;
+            // Remove placeholder if present
+            const ph = pane.querySelector('.placeholder');
+            if (ph) { try { ph.remove(); } catch (e) {}
+            }
+            const div = document.createElement('div');
+            const text = (data && typeof data.text === 'string') ? data.text : '';
+            const cls = this.classifyCombatLogLine(text, data && data.step, data && data.kind, data && data.role);
+            div.className = `combat-log-line ${cls}`.trim();
+            if (data && typeof data.html === 'string' && data.html.trim()) {
+                div.innerHTML = data.html;
+            } else {
+                // Escape and inject text
+                const esc = (t)=> String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                div.innerHTML = esc(text);
+            }
+            pane.appendChild(div);
+            this.ensureRightPanelScrollable();
+            this.scrollElementToBottom(pane);
+        } catch (e) { console.warn('appendCombatLogLine failed', e); }
+    }
+
+    // Heuristic classification to mimic loaded log colors/styles
+    classifyCombatLogLine(text, step=null, kind=null, role=null) {
+        try {
+            const t = (text||'').trim();
+            const low = t.toLowerCase();
+            // Hard markers
+            if (t.startsWith('Round ') && t.endsWith('begins!')) return 'cl-round';
+            if (t.startsWith('Turn order:')) return 'cl-turnorder';
+            if (t.startsWith('It is now')) return 'cl-turn';
+            if (t.startsWith('Combat started')) return 'cl-round';
+            // Content markers
+            if (low.includes(' recovers ') || low.includes('regains')) return 'cl-heal';
+            if (low.includes('takes') && low.includes('damage')) return 'cl-damage';
+            if (low.includes('misses')) return 'cl-miss';
+            if (low.includes('attacks') || low.includes('attack')) return 'cl-attack';
+            if (low.includes('status effect') || low.includes('worn off')) return 'cl-status';
+            if (low.includes('defend') || low.includes('braces')) return 'cl-defend';
+            if (low.startsWith('entity ') && low.includes('stamina')) return 'cl-heal';
+            // Step-based hint
+            if (typeof step === 'string') {
+                const s = step.toUpperCase();
+                if (s.includes('ADVANCING_TURN')) return 'cl-turn';
+                if (s.includes('APPLYING_STATUS_EFFECTS')) return 'cl-status';
+            }
+            return 'cl-generic';
+        } catch { return 'cl-generic'; }
     }
 
     attachCharacterTabHandlers() {
@@ -2665,6 +2747,8 @@ addMessage(text, type = 'game') {
             
             // Render right panel content
             this.renderRightPanel(ui);
+            // Ensure center output remains scrollable and pinned
+            this.ensureCenterOutputScrollable();
         } catch (e) {
             console.warn('refreshUI failed', e);
         }

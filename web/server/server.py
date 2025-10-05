@@ -47,6 +47,8 @@ from core.utils.logging_config import get_logger
 from core.llm.settings_manager import SettingsManager
 from core.agents.base_agent import AgentContext
 from core.agents.narrator import get_narrator_agent
+from core.base.config import get_config as _get_config_singleton
+import html as _html_escape_mod
 
 # Configure logger
 logger = get_logger("API")
@@ -490,6 +492,73 @@ async def create_session():
 # Helper to attach engine listeners for a session
 def _attach_engine_listeners(session_id: str, engine: GameEngine):
     """Attach engine signals to websocket broadcast for the given session."""
+
+    # Palette loader for combat log coloring (from Python config)
+    def _load_combat_palette():
+        pal = {}
+        try:
+            cfg = _get_config_singleton()
+            raw = cfg.get_all("combat_display_settings") or {}
+            # map keys we care about (provide defaults)
+            defaults = {
+                "color_log_damage": "#ececec",
+                "color_log_heal": "#ececec",
+                "color_log_miss": "#ececec",
+                "color_log_turn": "#ececec",
+                "color_log_round": "#ececec",
+                "color_log_system_message": "#ececec",
+                "color_log_narrative": "#ececec",
+                "color_log_default": "#ececec",
+            }
+            for k, v in defaults.items():
+                pal[k] = raw.get(k, v)
+        except Exception:
+            # Fallback hard defaults (light grey)
+            pal = {
+                "color_log_damage": "#ececec",
+                "color_log_heal": "#ececec",
+                "color_log_miss": "#ececec",
+                "color_log_turn": "#ececec",
+                "color_log_round": "#ececec",
+                "color_log_system_message": "#ececec",
+                "color_log_narrative": "#ececec",
+                "color_log_default": "#ececec",
+            }
+        return pal
+
+    _combat_palette_cache = _load_combat_palette()
+
+    def _color_for_log_line(text: str, event_type, source_step: str = None) -> str:
+        t = (text or "").strip()
+        low = t.lower()
+        pal = _combat_palette_cache
+        try:
+            # Round/turn markers
+            if t.startswith("Round ") and t.endswith("begins!"): return pal.get("color_log_round")
+            if t.startswith("It is now "): return pal.get("color_log_turn")
+            if t.startswith("Turn order:"): return pal.get("color_log_turn")
+            # Semantics
+            if ("takes" in low and "damage" in low) or ("raw damage" in low) or ("critical hit" in low):
+                return pal.get("color_log_damage")
+            if ("recovers" in low or "regains" in low):
+                return pal.get("color_log_heal")
+            if ("misses" in low):
+                return pal.get("color_log_miss")
+            # Step hints
+            if isinstance(source_step, str):
+                s = source_step.upper()
+                if "ADVANCING_TURN" in s: return pal.get("color_log_turn")
+            # System messages fallback
+            try:
+                from core.orchestration.events import DisplayEventType
+                if event_type == DisplayEventType.SYSTEM_MESSAGE:
+                    return pal.get("color_log_system_message")
+            except Exception:
+                pass
+            return pal.get("color_log_default")
+        except Exception:
+            return pal.get("color_log_default")
+
     # Clean existing listeners
     try:
         if session_id in session_listeners:
@@ -537,12 +606,13 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
         logger.warning(f"Failed connecting stats_changed listener: {e}")
 
     # Orchestrated events -> broadcast specific types
-    from core.orchestration.events import DisplayEvent, DisplayEventType
+    from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
     def on_orchestrated_event(event_obj):
         try:
             if not isinstance(event_obj, DisplayEvent):
                 return
             t = event_obj.type
+            target = getattr(event_obj, 'target_display', None)
             # Map to websocket event types
             if t == DisplayEventType.TURN_ORDER_UPDATE:
                 _emit_ws({"type": "turn_order_update", "data": event_obj.content})
@@ -552,9 +622,168 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
                 _emit_ws({"type": "ui_bar_update_phase2", "data": event_obj.metadata or {}})
             elif t == DisplayEventType.COMBAT_LOG_SET_HTML:
                 _emit_ws({"type": "combat_log_set_html", "data": {"html": event_obj.content}})
-            elif t in (DisplayEventType.SYSTEM_MESSAGE, DisplayEventType.NARRATIVE_GENERAL, DisplayEventType.NARRATIVE_ATTEMPT, DisplayEventType.NARRATIVE_IMPACT):
-                _emit_ws({"type": "narrative", "data": {"role": event_obj.role or "system", "text": event_obj.content, "gradual": bool(event_obj.gradual_visual_display)}})
-            # else: ignore other internal events
+            else:
+                # Route by target display and event type
+                if target == DisplayTarget.COMBAT_LOG:
+                    from core.orchestration.events import DisplayEventType as _DET
+                    # Narration prose goes to main output
+                    if t in (_DET.NARRATIVE_GENERAL, _DET.NARRATIVE_ATTEMPT, _DET.NARRATIVE_IMPACT):
+                        _emit_ws({
+                            "type": "narrative",
+                            "data": {"role": event_obj.role or "gm", "text": event_obj.content, "gradual": bool(getattr(event_obj, 'gradual_visual_display', False))}
+                        })
+                    else:
+                        # Mechanics/system lines appended to Combat tab with inline color from Python config
+                        plain_text = str(event_obj.content) if event_obj.content is not None else ""
+                        color = _color_for_log_line(plain_text, t, getattr(event_obj, 'source_step', None))
+                        # Escape then inject color
+                        esc = _html_escape_mod.escape(plain_text)
+                        html_line = f"<span style=\"color:{color}\">{esc}</span>"
+                        line_payload = {
+                            "text": plain_text,
+                            "html": html_line,
+                            "kind": getattr(t, 'name', str(t)),
+                            "role": event_obj.role or "system",
+                            "step": getattr(event_obj, 'source_step', None)
+                        }
+                        _emit_ws({"type": "combat_log_append", "data": line_payload})
+                else:
+                    # Default: stream as narrative to main output
+                    from core.orchestration.events import DisplayEventType as _DET2
+                    if t in (_DET2.SYSTEM_MESSAGE, _DET2.NARRATIVE_GENERAL, _DET2.NARRATIVE_ATTEMPT, _DET2.NARRATIVE_IMPACT):
+                        _emit_ws({
+                            "type": "narrative",
+                            "data": {"role": event_obj.role or "system", "text": event_obj.content, "gradual": bool(getattr(event_obj, 'gradual_visual_display', False))}
+                        })
+                    # else: ignore other internal events
+
+            # IMPORTANT: In the web server we don't have a Qt UI to acknowledge visual completion.
+            # Without an acknowledgement, the CombatOutputOrchestrator will never advance its queue,
+            # and the CombatManager won't resume (no QTimer event loop here). We therefore
+            # immediately acknowledge the visual completion and manually trigger the inter-step
+            # timeout using asyncio to keep the combat flow progressing in headless mode.
+            try:
+                orch = getattr(engine, "_combat_orchestrator", None)
+                if orch is not None:
+                    # Acknowledge the visual display completion for this event
+                    try:
+                        orch._handle_visual_display_complete()
+                    except Exception:
+                        # Safe to ignore; orchestrator may not be waiting for visual on some events
+                        pass
+                    # Manually schedule inter-step timeout since QTimer won't fire in FastAPI
+                    async def _advance_after_delay(delay_ms: int):
+                        try:
+                            import asyncio as _asyncio
+                            # Bound the delay to a small range to avoid stalling
+                            d = max(0, int(delay_ms)) / 1000.0 if delay_ms is not None else 0.0
+                            # Keep very small delays from being 0 to ensure scheduling
+                            if d > 0:
+                                await _asyncio.sleep(d)
+                            # 1) Nudge the orchestrator's delay timeout (normally fired by QTimer)
+                            try:
+                                orch._on_inter_step_delay_timeout()
+                            except Exception:
+                                pass
+                            # 2) Directly resume the CombatManager step (bypass Qt timers)
+                            try:
+                                st = getattr(engine, 'state_manager', None)
+                                gs = getattr(st, 'state', None) if st else None
+                                cm = getattr(gs, 'combat_manager', None) if gs else None
+                                if cm is not None:
+                                    try:
+                                        # Mark as no longer waiting and process next step
+                                        setattr(cm, 'waiting_for_display_completion', False)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        cm.process_combat_step(engine)
+                                    except Exception:
+                                        # Do not crash server if CM processing throws
+                                        pass
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                    try:
+                        delay = getattr(orch, "config_delay_ms", 0) or 0
+                    except Exception:
+                        delay = 0
+                    try:
+                        asyncio.create_task(_advance_after_delay(delay))
+                    except Exception:
+                        # If the event loop is not available for some reason, fall back to immediate call
+                        try:
+                            orch._on_inter_step_delay_timeout()
+                        except Exception:
+                            pass
+            except Exception:
+                # Never let WS event handling crash due to ack issues
+                pass
+        except Exception as e:
+            logger.warning(f"Error handling orchestrated event for WS: {e}")
+            # Without an acknowledgement, the CombatOutputOrchestrator will never advance its queue,
+            # and the CombatManager won't resume (no QTimer event loop here). We therefore
+            # immediately acknowledge the visual completion and manually trigger the inter-step
+            # timeout using asyncio to keep the combat flow progressing in headless mode.
+            try:
+                orch = getattr(engine, "_combat_orchestrator", None)
+                if orch is not None:
+                    # Acknowledge the visual display completion for this event
+                    try:
+                        orch._handle_visual_display_complete()
+                    except Exception:
+                        # Safe to ignore; orchestrator may not be waiting for visual on some events
+                        pass
+                    # Manually schedule inter-step timeout since QTimer won't fire in FastAPI
+                    async def _advance_after_delay(delay_ms: int):
+                        try:
+                            import asyncio as _asyncio
+                            # Bound the delay to a small range to avoid stalling
+                            d = max(0, int(delay_ms)) / 1000.0 if delay_ms is not None else 0.0
+                            # Keep very small delays from being 0 to ensure scheduling
+                            if d > 0:
+                                await _asyncio.sleep(d)
+                            # 1) Nudge the orchestrator's delay timeout (normally fired by QTimer)
+                            try:
+                                orch._on_inter_step_delay_timeout()
+                            except Exception:
+                                pass
+                            # 2) Directly resume the CombatManager step (bypass Qt timers)
+                            try:
+                                st = getattr(engine, 'state_manager', None)
+                                gs = getattr(st, 'state', None) if st else None
+                                cm = getattr(gs, 'combat_manager', None) if gs else None
+                                if cm is not None:
+                                    try:
+                                        # Mark as no longer waiting and process next step
+                                        setattr(cm, 'waiting_for_display_completion', False)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        cm.process_combat_step(engine)
+                                    except Exception:
+                                        # Do not crash server if CM processing throws
+                                        pass
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                    try:
+                        delay = getattr(orch, "config_delay_ms", 0) or 0
+                    except Exception:
+                        delay = 0
+                    try:
+                        asyncio.create_task(_advance_after_delay(delay))
+                    except Exception:
+                        # If the event loop is not available for some reason, fall back to immediate call
+                        try:
+                            orch._on_inter_step_delay_timeout()
+                        except Exception:
+                            pass
+            except Exception:
+                # Never let WS event handling crash due to ack issues
+                pass
         except Exception as e:
             logger.warning(f"Error handling orchestrated event for WS: {e}")
     orch_conn = None
@@ -792,6 +1021,8 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
                 },
                 "time": state.game_time.get_formatted_time(),
                 "game_running": engine.game_loop.is_running,
+                # Include mode explicitly for clients that want to react immediately
+                "mode": (getattr(getattr(state, 'current_mode', None), 'name', str(getattr(state, 'current_mode', 'NARRATIVE'))) if state else 'NARRATIVE')
             }
         }
         
