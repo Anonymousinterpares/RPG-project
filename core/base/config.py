@@ -41,6 +41,7 @@ class GameConfig:
         "system": "system_config.json",
         "gui": "gui_config.json",
         "llm": "llm/base_config.json", # Added LLM config
+        "combat_display_settings": "combat_display_settings.json",
         "classes": os.path.join("character", "classes.json"),
         "races": os.path.join("character", "races.json"),
         "origins": os.path.join("world", "scenarios", "origins.json"),
