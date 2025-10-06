@@ -209,20 +209,31 @@ class ItemStatDialog(BaseDialog):
 # --- Dice Roll Effect Dialog ---
 class DiceRollEffectDialog(BaseDialog):
     """Dialog for adding/editing a dice roll effect."""
-    def __init__(self, parent=None, effect_data: Optional[Dict[str, str]] = None):
+    def __init__(self, parent=None, effect_data: Optional[Dict[str, str]] = None, effect_types: Optional[List[str]] = None):
         super().__init__(parent)
         self.setWindowTitle("Edit Dice Roll Effect")
         self.effect_data = effect_data if effect_data else {}
+        self._effect_types = effect_types or [
+            "slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"
+        ]
 
         layout = QFormLayout(self)
-        self.effect_type_edit = QLineEdit(self.effect_data.get("effect_type", ""))
-        self.effect_type_edit.setPlaceholderText("e.g., physical_slashing_damage")
+        # Effect type dropdown
+        self.effect_type_combo = QComboBox()
+        for et in self._effect_types:
+            self.effect_type_combo.addItem(et)
+        # Preselect existing if provided
+        existing_et = str(self.effect_data.get("effect_type", "")).strip().lower()
+        if existing_et:
+            idx = self.effect_type_combo.findText(existing_et)
+            if idx >= 0:
+                self.effect_type_combo.setCurrentIndex(idx)
         self.dice_notation_edit = QLineEdit(self.effect_data.get("dice_notation", ""))
         self.dice_notation_edit.setPlaceholderText("e.g., 1d8+2")
         self.description_edit = QLineEdit(self.effect_data.get("description", ""))
         self.description_edit.setPlaceholderText("Optional description of the effect")
 
-        layout.addRow("Effect Type:", self.effect_type_edit)
+        layout.addRow("Effect Type:", self.effect_type_combo)
         layout.addRow("Dice Notation:", self.dice_notation_edit)
         layout.addRow("Description:", self.description_edit)
 
@@ -232,7 +243,7 @@ class DiceRollEffectDialog(BaseDialog):
         layout.addRow(self.button_box)
 
     def get_effect_data(self) -> Optional[Dict[str, str]]:
-        effect_type = self.effect_type_edit.text().strip()
+        effect_type = self.effect_type_combo.currentText().strip()
         dice_notation = self.dice_notation_edit.text().strip()
         description = self.description_edit.text().strip()
 
@@ -259,6 +270,20 @@ class SpecificItemEditor(QWidget):
         self.full_item_file_path = os.path.join(self.project_root, self.item_file_path_relative)
 
         self._setup_ui()
+        
+        # Load effect types from combat config for dropdowns and LLM grounding
+        try:
+            combat_cfg_path = os.path.join(self.project_root, "config", "combat", "combat_config.json")
+            combat_cfg = load_json(combat_cfg_path) or {}
+            dmg = combat_cfg.get("damage", {}) if isinstance(combat_cfg, dict) else {}
+            ets = dmg.get("types", []) if isinstance(dmg, dict) else []
+            if isinstance(ets, list) and ets:
+                self._effect_types: List[str] = [str(x).strip().lower() for x in ets if isinstance(x, str)]
+            else:
+                self._effect_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
+        except Exception:
+            self._effect_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
+        
         self.load_data()
 
     # ===== Assistant integration (provider methods) =====
@@ -320,6 +345,7 @@ class SpecificItemEditor(QWidget):
                     "stat_ids_primary": primary_stats,
                     "stat_ids_derived": derived_stats,
                 },
+                "effect_types": getattr(self, "_effect_types", []),
                 "existing_names": names,
                 "existing_ids": ids,
             }
@@ -1146,7 +1172,7 @@ class SpecificItemEditor(QWidget):
 
     @Slot()
     def _add_dice_effect(self):
-        dialog = DiceRollEffectDialog(self)
+        dialog = DiceRollEffectDialog(self, effect_types=getattr(self, "_effect_types", None))
         if dialog.exec() == QDialog.Accepted:
             effect_data = dialog.get_effect_data()
             if effect_data:

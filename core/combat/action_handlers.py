@@ -8,6 +8,7 @@ from core.stats.stats_base import StatType, DerivedStatType
 from core.utils.dice import roll_dice_notation, check_success
 from core.combat.combat_entity import CombatEntity, EntityType
 from core.combat.combat_action import CombatAction 
+from core.base.config import get_config
 from core.combat.enums import CombatState, CombatStep
 
 if TYPE_CHECKING:
@@ -182,6 +183,27 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
 
             target_hp_before_actual_deduction = target_stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
             target_hp_after_damage_preview = max(0, target_hp_before_actual_deduction - final_damage_dealt)
+            
+            # Optional typed rider application (low chance) before announcing damage line
+            try:
+                cfg = get_config()
+                rider = cfg.get(f"combat.typed_riders.{damage_type}")
+            except Exception:
+                rider = None
+            try:
+                if rider and isinstance(rider, dict) and rider.get("status"):
+                    ch = rider.get("chance", 0.0)
+                    dur = rider.get("duration", 1)
+                    if random.random() < float(ch) and final_damage_dealt > 0:
+                        status_name = str(rider.get("status"))
+                        # Apply to stats manager and entity registry for consistency
+                        target_stats_manager.add_status_effect(StatusEffect(name=status_name, description=f"From {action.name}", effect_type=StatusEffectType.SPECIAL, duration=int(dur)))
+                        target.add_status_effect(status_name, duration=int(dur))
+                        status_msg = f"  {target.combat_name} is now {status_name} due to {action.name}!"
+                        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=status_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(status_msg)
+                        queued_events_this_handler = True
+            except Exception as rider_err:
+                logger.debug(f"Typed rider application failed or skipped: {rider_err}")
             
             # STRICT ORDER: announce damage before any bar change
             damage_taken_log_msg = f"  {target.combat_name} takes {final_damage_dealt:.0f} {current_result_detail['damage_type']} damage! (HP: {int(target_hp_after_damage_preview)}/{int(target.max_hp)})"
@@ -393,6 +415,26 @@ def _handle_spell_action(manager: 'CombatManager', action: CombatAction, perform
             if final_damage > 0:
                 target_hp_preview = max(0, target_hp_before_spell - final_damage)
 
+                # Optional typed rider for spells
+                try:
+                    cfg = get_config()
+                    rider = cfg.get(f"combat.typed_riders.{dmg_type}")
+                except Exception:
+                    rider = None
+                try:
+                    if rider and isinstance(rider, dict) and rider.get("status"):
+                        ch = rider.get("chance", 0.0)
+                        dur = rider.get("duration", 1)
+                        if random.random() < float(ch) and final_damage > 0:
+                            status_name = str(rider.get("status"))
+                            target_stats_manager.add_status_effect(StatusEffect(name=status_name, description=f"From {action.name}", effect_type=StatusEffectType.SPECIAL, duration=int(dur)))
+                            target.add_status_effect(status_name, duration=int(dur))
+                            status_msg = f"  {target.combat_name} is now {status_name} due to {action.name}!"
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=status_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(status_msg)
+                            queued_events_this_handler = True
+                except Exception as rider_err:
+                    logger.debug(f"Typed rider (spell) failed or skipped: {rider_err}")
+                
                 # STRICT ORDER: announce damage before bar changes
                 damage_taken_msg = f"  {target.combat_name} takes {final_damage:.0f} {dmg_type} damage from {action.name}! (HP: {int(target_hp_preview)}/{int(target.max_hp)})"
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=damage_taken_msg, target_display=DisplayTarget.COMBAT_LOG, gradual_visual_display=True)); manager._add_to_log(damage_taken_msg)

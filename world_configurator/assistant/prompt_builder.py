@@ -42,9 +42,17 @@ def build_system_prompt(mode: str, ctx: AssistantContext) -> str:
         base.append(ANALYZE_CONTRACT)
     elif mode == "modify":
         base.append("Allowed edit paths: " + ", ".join(ctx.allowed_paths))
+        if ctx.references and isinstance(ctx.references, dict):
+            et = ctx.references.get("effect_types")
+            if isinstance(et, list) and et:
+                base.append("When specifying dice_roll_effects.effect_type, choose only from: " + ", ".join(et))
         base.append(MODIFY_CONTRACT)
     elif mode == "create":
         # If existing names are provided in references, emphasize not to reuse them
+        if ctx.references and isinstance(ctx.references, dict):
+            et = ctx.references.get("effect_types")
+            if isinstance(et, list) and et:
+                base.append("When specifying dice_roll_effects.effect_type, choose only from: " + ", ".join(et))
         if ctx.references and isinstance(ctx.references, dict):
             existing = ctx.references.get("existing_names") or ctx.references.get("existing_names_list")
             if existing and isinstance(existing, list) and existing:

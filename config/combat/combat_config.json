@@ -83,6 +83,17 @@
     "weapon_damage_scaling": 0.1,
     "spell_damage_scaling": 0.2
   },
+  "typed_riders": {
+    "slashing": {"status": "Bleeding", "duration": 2, "chance": 0.10},
+    "piercing": {"status": "Punctured", "duration": 2, "chance": 0.10},
+    "bludgeoning": {"status": "Staggered", "duration": 1, "chance": 0.10},
+    "fire": {"status": "Burning", "duration": 2, "chance": 0.15},
+    "cold": {"status": "Chilled", "duration": 1, "chance": 0.15},
+    "lightning": {"status": "Dazed", "duration": 1, "chance": 0.10},
+    "acid": {"status": "Corroded", "duration": 2, "chance": 0.10},
+    "poison": {"status": "Poisoned", "duration": 3, "chance": 0.20},
+    "arcane": {"status": null}
+  },
   
   "status_effects": {
     "poisoned": {
