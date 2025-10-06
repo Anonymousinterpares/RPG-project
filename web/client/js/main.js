@@ -143,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         exitBtn.addEventListener('click', async () => {
             try { await apiClient.endSession(); } catch {}
             uiManager.disableCommandInput();
+            hideGamePanels();
             uiManager.addMessage('Session ended.', 'system');
         });
     }
@@ -167,6 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen for new session creation
     document.addEventListener('session-created', (e) => {
+        // Show game panels when session is created
+        showGamePanels();
         // Always reconnect to ensure fresh connection
         connectWebSocket(e.detail.sessionId);
         uiManager.enableCommandInput();
@@ -178,6 +181,64 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check server status
     checkServerStatus();
 });
+
+/**
+ * Show game output, command input, right panel, and status bar (when session becomes active)
+ */
+function showGamePanels() {
+    const gameOutput = document.getElementById('game-output');
+    const rightPanel = document.querySelector('.right-panel');
+    const commandInput = document.querySelector('.command-input-container');
+    const statusBar = document.querySelector('.status-bar');
+    
+    console.log('showGamePanels() called');
+    console.log('  gameOutput:', gameOutput, 'current display:', gameOutput?.style?.display);
+    console.log('  rightPanel:', rightPanel, 'current display:', rightPanel?.style?.display);
+    console.log('  commandInput:', commandInput, 'current display:', commandInput?.style?.display);
+    console.log('  statusBar:', statusBar, 'current display:', statusBar?.style?.display);
+    
+    if (gameOutput) {
+        gameOutput.style.display = 'block';
+        console.log('  -> gameOutput display set to block');
+    }
+    if (rightPanel) {
+        rightPanel.style.display = 'block';
+        console.log('  -> rightPanel display set to block');
+    }
+    if (commandInput) {
+        commandInput.style.display = 'flex';
+        console.log('  -> commandInput display set to flex');
+    }
+    if (statusBar) {
+        statusBar.style.display = 'block';
+        console.log('  -> statusBar display set to block');
+    }
+}
+
+/**
+ * Hide game output, command input, right panel, and status bar (when session ends)
+ */
+function hideGamePanels() {
+    const gameOutput = document.getElementById('game-output');
+    const rightPanel = document.querySelector('.right-panel');
+    const commandInput = document.querySelector('.command-input-container');
+    const statusBar = document.querySelector('.status-bar');
+    
+    console.log('hideGamePanels() called');
+    
+    if (gameOutput) {
+        gameOutput.style.display = 'none';
+    }
+    if (rightPanel) {
+        rightPanel.style.display = 'none';
+    }
+    if (commandInput) {
+        commandInput.style.display = 'none';
+    }
+    if (statusBar) {
+        statusBar.style.display = 'none';
+    }
+}
 
 /**
  * Check if the server is available
@@ -200,6 +261,8 @@ async function checkServerStatus() {
  */
 function checkExistingSession() {
     if (apiClient.hasActiveSession()) {
+        // Show game panels
+        showGamePanels();
         uiManager.addMessage('Reconnecting to existing game session...', 'system');
         connectWebSocket(apiClient.sessionId);
         uiManager.enableCommandInput();
@@ -489,6 +552,7 @@ function handleGameExit() {
     apiClient.endSession().then(() => {
         webSocketClient.disconnect();
         uiManager.disableCommandInput();
+        hideGamePanels();
         uiManager.addMessage('Thanks for playing! Refresh the page to start a new game.', 'system');
     });
 }
@@ -575,6 +639,9 @@ async function loadGame(saveId) {
         const result = await apiClient.loadGame(saveId);
         
         if (result.status === 'success') {
+            // Show game panels since we now have an active session
+            showGamePanels();
+            
             // Update game state from the load result
             if (result.state) {
                 updateGameState(result.state);

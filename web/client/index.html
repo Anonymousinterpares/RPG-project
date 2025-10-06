@@ -34,19 +34,19 @@
             </aside>
 
             <section class="center-stack">
-                <div class="game-output" id="game-output">
+                <div class="game-output" id="game-output" style="display:none;">
                     <div class="welcome-message">
                         <h2>Welcome to RPG Adventure</h2>
                         <p>Start a new game or load a saved game to begin your adventure.</p>
                     </div>
                 </div>
-                <div class="command-input-container">
+                <div class="command-input-container" style="display:none;">
                     <input type="text" id="command-input" class="command-input" placeholder="Enter a command..." disabled>
                     <button id="send-command-btn" class="send-command-btn" disabled><i class="fas fa-paper-plane"></i></button>
                 </div>
             </section>
 
-            <aside class="right-panel">
+            <aside class="right-panel" style="display:none;">
                 <div class="right-tabs">
                     <div class="tab-buttons small-tabs">
                         <button class="rp-tab-btn active" data-tab="tab-character">Character</button>
@@ -61,7 +61,7 @@
                 </div>
             </aside>
 
-            <footer class="status-bar">
+            <footer class="status-bar" style="display:none;">
                 <div class="status-text">
                     Location: <span id="current-location">-</span> | Time: <span id="game-time">-</span> | Player: <span id="player-name">-</span> (Lv <span id="player-level">1</span>)
                 </div>
