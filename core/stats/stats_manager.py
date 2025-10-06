@@ -16,6 +16,7 @@ from core.stats.modifier import StatModifier, ModifierSource, ModifierGroup, Mod
 from core.stats.modifier_manager import ModifierManager
 from core.stats.skill_check import perform_check, calculate_success_chance, SkillCheckResult
 from core.stats.combat_effects import StatusEffect, StatusEffectManager, StatusEffectType
+from core.base.config import get_config
 
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,10 @@ class StatsManager(QObject):
         self.status_effect_manager = StatusEffectManager(self)
         self.level = 1
         self.config: Dict[str, Any] = {}
+        
+        # Typed resistance contributions by source_id -> {damage_type: percent}
+        # Example: {"armor_chest": {"slashing": 10, "fire": 5}}
+        self._typed_resist_contrib_by_source: Dict[str, Dict[str, float]] = {}
         
         # Reference to inventory manager for equipment modifiers
         # This will be set by the state manager or game engine
@@ -505,6 +510,67 @@ class StatsManager(QObject):
                 # Value didn't change, no need to emit signal
                 logger.debug(f"Value for {stat_type} already {clamped_value}. No change.")
                 return False
+
+    def get_resistance_percent(self, damage_type: str) -> float:
+        """
+        Get aggregated typed resistance percentage for a given damage type.
+        Returns a clamped percent in range [-100, cap], where cap is loaded from config
+        (defaults to 75 if not configured).
+        """
+        try:
+            # Load cap from config if available; fall back to 75
+            cfg = get_config()
+            cap = float(cfg.get("combat.defense.magical.resistance_cap", 75))
+        except Exception:
+            cap = 75.0
+        # Sum contributions across all sources for this type
+        total = 0.0
+        try:
+            dt = str(damage_type or "").strip().lower()
+            for _src, contrib_map in self._typed_resist_contrib_by_source.items():
+                if not isinstance(contrib_map, dict):
+                    continue
+                val = contrib_map.get(dt)
+                if isinstance(val, (int, float)):
+                    total += float(val)
+        except Exception:
+            pass
+        # Clamp to [-100, cap]
+        if total < -100.0:
+            return -100.0
+        if total > cap:
+            return cap
+        return total
+
+    def set_resistance_contribution(self, source_id: str, resistances: Dict[str, float]) -> None:
+        """
+        Set or update a source contribution to typed resistances.
+        - source_id: stable key (e.g., equipment slot or item instance id)
+        - resistances: mapping of damage_type -> percent (can be negative for vulnerability)
+        """
+        if not isinstance(source_id, str) or not source_id.strip():
+            return
+        src = source_id.strip()
+        sanitized: Dict[str, float] = {}
+        if isinstance(resistances, dict):
+            for k, v in resistances.items():
+                try:
+                    dt = str(k or "").strip().lower()
+                    if not dt:
+                        continue
+                    val = float(v)
+                    sanitized[dt] = val
+                except Exception:
+                    continue
+        self._typed_resist_contrib_by_source[src] = sanitized
+
+    def remove_resistance_contribution(self, source_id: str) -> None:
+        """Remove a source's contribution to typed resistances."""
+        try:
+            if source_id in self._typed_resist_contrib_by_source:
+                del self._typed_resist_contrib_by_source[source_id]
+        except Exception:
+            pass
 
     def get_current_stat_value(self, stat_type: Union[DerivedStatType, str]) -> float:
         """

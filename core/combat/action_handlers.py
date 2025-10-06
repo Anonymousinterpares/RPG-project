@@ -119,11 +119,13 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
     except Exception as e_cost:
         logger.warning(f"Failed to apply/display resource costs after roll: {e_cost}")
 
+    # Determine typed damage type for melee attacks (default to slashing)
+    damage_type = "slashing"
     current_result_detail.update({
         "hit_roll_result": {"success": hit_success, "is_critical": is_critical, "is_fumble": is_fumble,
                             "roll_total": hit_roll_total_modified, "roll_dice": raw_d20_roll, "roll_bonus": attack_bonus,
                             "target_defense": defense_value},
-        "damage": 0, "damage_type": "Physical", 
+        "damage": 0, "damage_type": damage_type,
         "target_hp_before": target.current_hp if hasattr(target, 'current_hp') else target_stats_manager.get_current_stat_value(DerivedStatType.HEALTH), 
         "target_hp_after": target.current_hp if hasattr(target, 'current_hp') else target_stats_manager.get_current_stat_value(DerivedStatType.HEALTH), 
         "target_max_hp": target.max_hp if hasattr(target, 'max_hp') else target_stats_manager.get_stat_value(DerivedStatType.MAX_HEALTH),
@@ -159,11 +161,24 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
             queued_events_this_handler = True
             
             damage_reduction = target_stats_manager.get_stat_value(DerivedStatType.DAMAGE_REDUCTION)
-            final_damage_dealt = round(max(0, total_raw_damage - damage_reduction)) 
+            after_flat = max(0, total_raw_damage - damage_reduction)
+            final_damage_dealt = round(after_flat)
             
-            mitigation_msg = f"  Mitigation: DR {damage_reduction:.0f}. Final Damage: {final_damage_dealt}"
+            mitigation_msg = f"  Mitigation: DR {damage_reduction:.0f}. After DR: {after_flat:.0f}"
             engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=mitigation_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(mitigation_msg)
             queued_events_this_handler = True
+            
+            # Apply typed resistance
+            try:
+                typed_resist = float(target_stats_manager.get_resistance_percent(damage_type))
+            except Exception:
+                typed_resist = 0.0
+            if abs(typed_resist) > 0.0001:
+                after_type = max(0, after_flat * (1 - typed_resist / 100.0))
+                final_damage_dealt = round(after_type)
+                type_msg = f"  Type Resistance ({damage_type}): {typed_resist:.0f}% -> Final Damage: {final_damage_dealt}"
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=type_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(type_msg)
+                queued_events_this_handler = True
 
             target_hp_before_actual_deduction = target_stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
             target_hp_after_damage_preview = max(0, target_hp_before_actual_deduction - final_damage_dealt)
@@ -346,17 +361,40 @@ def _handle_spell_action(manager: 'CombatManager', action: CombatAction, perform
             queued_events_this_handler = True
 
             magic_defense_val = target_stats_manager.get_stat_value(DerivedStatType.MAGIC_DEFENSE)
-            final_damage = round(max(0, total_raw_damage - magic_defense_val))
+            after_flat = max(0, total_raw_damage - magic_defense_val)
+            final_damage = round(after_flat)
             
-            mitigation_msg = f"  {target.combat_name} resists ({magic_defense_val:.0f} M.Def). Final Damage: {final_damage}"
+            mitigation_msg = f"  {target.combat_name} resists ({magic_defense_val:.0f} M.Def). After M.Def: {after_flat:.0f}"
             engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=mitigation_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(mitigation_msg)
             queued_events_this_handler = True
+            
+            # Determine damage type for spell (default arcane)
+            dmg_type = "arcane"
+            try:
+                if isinstance(action.special_effects, dict):
+                    cand = action.special_effects.get("damage_type")
+                    if isinstance(cand, str) and cand.strip():
+                        dmg_type = cand.strip().lower()
+            except Exception:
+                pass
+            
+            # Apply typed resistance if defined
+            try:
+                typed_resist = float(target_stats_manager.get_resistance_percent(dmg_type))
+            except Exception:
+                typed_resist = 0.0
+            if abs(typed_resist) > 0.0001:
+                after_type = max(0, after_flat * (1 - typed_resist / 100.0))
+                final_damage = round(after_type)
+                type_msg = f"  Type Resistance ({dmg_type}): {typed_resist:.0f}% -> Final Damage: {final_damage}"
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=type_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(type_msg)
+                queued_events_this_handler = True
 
             if final_damage > 0:
                 target_hp_preview = max(0, target_hp_before_spell - final_damage)
 
                 # STRICT ORDER: announce damage before bar changes
-                damage_taken_msg = f"  {target.combat_name} takes {final_damage:.0f} magic damage from {action.name}! (HP: {int(target_hp_preview)}/{int(target.max_hp)})"
+                damage_taken_msg = f"  {target.combat_name} takes {final_damage:.0f} {dmg_type} damage from {action.name}! (HP: {int(target_hp_preview)}/{int(target.max_hp)})"
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=damage_taken_msg, target_display=DisplayTarget.COMBAT_LOG, gradual_visual_display=True)); manager._add_to_log(damage_taken_msg)
                 queued_events_this_handler = True
 

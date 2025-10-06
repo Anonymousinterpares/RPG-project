@@ -1,81 +1,5 @@
 [
   {
-    "id": "template_sword_short",
-    "name": "Short Sword",
-    "description": "A simple one-handed sword designed for close combat.",
-    "item_type": "weapon",
-    "rarity": "common",
-    "weight": 2.0,
-    "value": 1000,
-    "is_equippable": true,
-    "equip_slots": [
-      "main_hand",
-      "off_hand"
-    ],
-    "stats": [
-      {
-        "name": "attack_speed",
-        "value": 1.2,
-        "display_name": "Attack Speed"
-      }
-    ],
-    "dice_roll_effects": [
-      {
-        "effect_type": "physical_slashing_damage",
-        "dice_notation": "1d6",
-        "description": "Base weapon damage"
-      }
-    ],
-    "is_stackable": false,
-    "durability": 100,
-    "tags": [
-      "weapon",
-      "sword",
-      "metal",
-      "one-handed"
-    ]
-  },
-  {
-    "id": "template_sword_long",
-    "name": "Long Sword",
-    "description": "A longer sword with improved reach and power.",
-    "item_type": "weapon",
-    "rarity": "uncommon",
-    "weight": 3.5,
-    "value": 2500,
-    "is_equippable": true,
-    "equip_slots": [
-      "main_hand"
-    ],
-    "stats": [
-      {
-        "name": "attack_speed",
-        "value": 0.9,
-        "display_name": "Attack Speed"
-      },
-      {
-        "name": "reach",
-        "value": 1.5,
-        "display_name": "Reach"
-      }
-    ],
-    "dice_roll_effects": [
-      {
-        "effect_type": "physical_slashing_damage",
-        "dice_notation": "1d8",
-        "description": "Base weapon damage"
-      }
-    ],
-    "is_stackable": false,
-    "durability": 120,
-    "tags": [
-      "weapon",
-      "sword",
-      "metal",
-      "one-handed"
-    ]
-  },
-  {
     "id": "template_sword_great",
     "name": "Great Sword",
     "description": "A massive two-handed sword capable of dealing devastating blows.",
@@ -107,7 +31,7 @@
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_slashing_damage",
+        "effect_type": "slashing",
         "dice_notation": "2d6",
         "description": "Base weapon damage"
       }
@@ -147,7 +71,7 @@
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_piercing_damage",
+        "effect_type": "piercing",
         "dice_notation": "1d6",
         "description": "Base weapon damage"
       }
@@ -160,6 +84,82 @@
       "wood",
       "ranged",
       "two-handed"
+    ]
+  },
+  {
+    "id": "template_sword_long",
+    "name": "Long Sword",
+    "description": "A longer sword with improved reach and power.",
+    "item_type": "weapon",
+    "rarity": "uncommon",
+    "weight": 3.5,
+    "value": 2500,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand"
+    ],
+    "stats": [
+      {
+        "name": "attack_speed",
+        "value": 0.9,
+        "display_name": "Attack Speed"
+      },
+      {
+        "name": "reach",
+        "value": 1.5,
+        "display_name": "Reach"
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "slashing",
+        "dice_notation": "1d8",
+        "description": "Base weapon damage"
+      }
+    ],
+    "is_stackable": false,
+    "durability": 120,
+    "tags": [
+      "weapon",
+      "sword",
+      "metal",
+      "one-handed"
+    ]
+  },
+  {
+    "id": "template_sword_short",
+    "name": "Short Sword",
+    "description": "A simple one-handed sword designed for close combat.",
+    "item_type": "weapon",
+    "rarity": "common",
+    "weight": 2.0,
+    "value": 1000,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand",
+      "off_hand"
+    ],
+    "stats": [
+      {
+        "name": "attack_speed",
+        "value": 1.2,
+        "display_name": "Attack Speed"
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "slashing",
+        "dice_notation": "1d6",
+        "description": "Base weapon damage"
+      }
+    ],
+    "is_stackable": false,
+    "durability": 100,
+    "tags": [
+      "weapon",
+      "sword",
+      "metal",
+      "one-handed"
     ]
   },
   {
@@ -190,7 +190,7 @@
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_piercing_damage",
+        "effect_type": "piercing",
         "dice_notation": "1d4",
         "description": "Base weapon damage"
       }
@@ -204,5 +204,32 @@
       "one-handed",
       "concealable"
     ]
+  },
+  {
+    "description": "A common sword, often used by city guards or soldiers. Reliable and easy to maintain.",
+    "durability": 100,
+    "equip_slots": [
+      "main_hand"
+    ],
+    "id": "standard_issue_sword",
+    "is_equippable": true,
+    "item_type": "weapon",
+    "name": "Standard Issue Sword",
+    "rarity": "common",
+    "stats": [
+      {
+        "name": "melee_attack",
+        "value": 3,
+        "display_name": "Melee Attack"
+      }
+    ],
+    "tags": [
+      "weapon",
+      "sword",
+      "melee"
+    ],
+    "value": 50,
+    "weight": 3.0,
+    "current_durability": 100
   }
 ]

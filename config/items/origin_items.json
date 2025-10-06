@@ -46,7 +46,7 @@
     ],
     "stats": [
       {
-        "name": "willpower_save_bonus",
+        "name": "willpower",
         "value": 1,
         "display_name": "Willpower Save Bonus"
       }
@@ -126,15 +126,15 @@
     ],
     "stats": [
       {
-        "name": "attack_bonus",
+        "name": "melee_attack",
         "value": 1,
         "display_name": "Attack Bonus"
       }
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_piercing_damage",
-        "dice_notation": "1d4",
+        "effect_type": "piercing",
+        "dice_notation": "1d6",
         "description": "Base weapon damage"
       }
     ],
@@ -420,7 +420,7 @@
     ],
     "stats": [
       {
-        "name": "spell_focus_bonus",
+        "name": "magic_attack",
         "value": 1,
         "display_name": "Spell Focus"
       }
@@ -551,7 +551,7 @@
     "stats": [],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_piercing_damage",
+        "effect_type": "piercing",
         "dice_notation": "1d4-1"
       }
     ],
@@ -1076,7 +1076,7 @@
     "stats": [],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_piercing_damage",
+        "effect_type": "piercing",
         "dice_notation": "1d4"
       }
     ],
@@ -1334,7 +1334,7 @@
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_slashing_damage",
+        "effect_type": "slashing",
         "dice_notation": "1d6"
       }
     ],
@@ -1495,7 +1495,7 @@
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_piercing_damage",
+        "effect_type": "piercing",
         "dice_notation": "1d4-1"
       }
     ],
@@ -2345,7 +2345,7 @@
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_slashing_damage",
+        "effect_type": "slashing",
         "dice_notation": "1d12"
       }
     ],
