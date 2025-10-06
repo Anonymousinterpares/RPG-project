@@ -1454,54 +1454,76 @@ async def list_saves():
         )
 
 @app.delete("/api/end_session/{session_id}")
-async def end_session(session_id: str, engine: GameEngine = Depends(get_game_engine)):
-    """End a game session and clean up resources."""
+async def end_session(session_id: str):
+    """End a game session and clean up resources.
+    
+    Note: Does not require the engine to exist - allows cleanup of orphaned sessions.
+    """
     try:
-        # Stop the game loop if running
-        if engine.game_loop.is_running:
-            engine.game_loop.stop()
+        # Get engine if it exists (may be None if session already cleaned up)
+        engine = active_sessions.get(session_id)
         
-        # Remove from active sessions
+        if engine:
+            # Stop the game loop if running (best-effort)
+            try:
+                if hasattr(engine, 'game_loop') and engine.game_loop and engine.game_loop.is_running:
+                    engine.game_loop.stop()
+                    logger.info(f"Stopped game loop for session {session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to stop game loop for session {session_id}: {e}")
+            
+            # Disconnect listeners (best-effort)
+            try:
+                if session_id in session_listeners:
+                    lst = session_listeners.pop(session_id)
+                    if lst.get('stats_conn') and hasattr(engine, 'state_manager'):
+                        try:
+                            if engine.state_manager and hasattr(engine.state_manager, 'stats_manager'):
+                                if engine.state_manager.stats_manager:
+                                    engine.state_manager.stats_manager.stats_changed.disconnect(lst['stats_conn'])
+                        except Exception as e:
+                            logger.warning(f"Failed to disconnect stats listener: {e}")
+                    if lst.get('orch_conn') and hasattr(engine, 'orchestrated_event_to_ui'):
+                        try:
+                            engine.orchestrated_event_to_ui.disconnect(lst['orch_conn'])
+                        except Exception as e:
+                            logger.warning(f"Failed to disconnect orchestration listener: {e}")
+            except Exception as e:
+                logger.warning(f"Error disconnecting listeners for session {session_id}: {e}")
+        
+        # Remove from active sessions (whether engine existed or not)
         if session_id in active_sessions:
             del active_sessions[session_id]
-        # Disconnect listeners
-        try:
-            if session_id in session_listeners:
-                lst = session_listeners.pop(session_id)
-                if lst.get('stats_conn') and engine.state_manager.stats_manager:
-                    try:
-                        engine.state_manager.stats_manager.stats_changed.disconnect(lst['stats_conn'])
-                    except Exception:
-                        pass
-                if lst.get('orch_conn'):
-                    try:
-                        engine.orchestrated_event_to_ui.disconnect(lst['orch_conn'])
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+            logger.info(f"Removed session {session_id} from active sessions")
         
-        # Remove WebSocket connections
+        # Remove WebSocket connections (best-effort)
         if session_id in websocket_connections:
             for websocket in websocket_connections[session_id]:
                 try:
                     await websocket.close()
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to close WebSocket: {e}")
             del websocket_connections[session_id]
+            logger.info(f"Closed WebSocket connections for session {session_id}")
         
-        logger.info(f"Ended session {session_id}")
+        # Clean up pending payloads if any
+        if session_id in pending_ws_payloads:
+            del pending_ws_payloads[session_id]
+        
+        logger.info(f"Successfully ended session {session_id}")
         
         return {
             "status": "success",
             "message": f"Session {session_id} ended successfully"
         }
     except Exception as e:
-        logger.error(f"Error ending session: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error ending session: {str(e)}"
-        )
+        # Log the error but return success anyway - cleanup is best-effort
+        logger.error(f"Error ending session {session_id}: {e}", exc_info=True)
+        # Still return success since we did our best to clean up
+        return {
+            "status": "success",
+            "message": f"Session {session_id} cleanup completed with warnings (see logs)"
+        }
 
 # Server startup and shutdown events
 @app.on_event("startup")

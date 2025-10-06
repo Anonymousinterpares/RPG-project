@@ -286,9 +286,9 @@ async function createNewGame(playerName, options = {}) {
         // Clean up any existing session before creating a new game
         if (apiClient.hasActiveSession()) {
             const oldSessionId = apiClient.sessionId;
-            // Disconnect WebSocket
+            // Disconnect WebSocket (intentional)
             if (webSocketClient.isConnected) {
-                webSocketClient.disconnect();
+                webSocketClient.disconnect(true);
             }
             // Clean up the old session on server
             await apiClient.cleanupSession(oldSessionId);
@@ -363,7 +363,7 @@ function connectWebSocket(sessionId, options = {}) {
     
     // Only disconnect if not already done (e.g., for new games, we disconnect earlier)
     if (!options.isNewGame && webSocketClient.isConnected) {
-        webSocketClient.disconnect();
+        webSocketClient.disconnect(false); // Not intentional - we're reconnecting immediately
     }
     
     // Remove any existing event handlers to prevent duplication
@@ -382,6 +382,14 @@ function connectWebSocket(sessionId, options = {}) {
             'command_result': [],
             'game_loaded': [],
             'time_update': [],
+            'stats_changed': [],
+            'turn_order_update': [],
+            'ui_bar_update_phase1': [],
+            'ui_bar_update_phase2': [],
+            'combat_log_set_html': [],
+            'combat_log_append': [],
+            'narrative': [],
+            'journal_updated': [],
             'error': []
         };
     }
@@ -550,7 +558,7 @@ function updateGameState(state) {
  */
 function handleGameExit() {
     apiClient.endSession().then(() => {
-        webSocketClient.disconnect();
+        webSocketClient.disconnect(true); // Intentional disconnect
         uiManager.disableCommandInput();
         hideGamePanels();
         uiManager.addMessage('Thanks for playing! Refresh the page to start a new game.', 'system');
@@ -617,7 +625,7 @@ async function loadGame(saveId) {
         if (apiClient.hasActiveSession()) {
             try {
                 if (webSocketClient.isConnected) {
-                    webSocketClient.disconnect();
+                    webSocketClient.disconnect(true); // Intentional disconnect
                 }
                 // Don't call endSession - just clear local state since we're loading into the same session
                 // await apiClient.endSession();

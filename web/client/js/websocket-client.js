@@ -107,9 +107,12 @@ class WebSocketClient {
                 console.log('WebSocket connection closed', event.code, event.reason);
                 this._notifyEventHandlers('disconnect', { code: event.code, reason: event.reason });
                 
-                // Attempt to reconnect if it wasn't a normal closure
-                if (event.code !== 1000 && event.code !== 1001) {
+                // Attempt to reconnect if it wasn't a normal closure and not intentionally disconnected
+                if (event.code !== 1000 && event.code !== 1001 && !this.intentionalDisconnect) {
                     this._attemptReconnect();
+                } else if (this.intentionalDisconnect) {
+                    console.log('Skipping reconnect - disconnect was intentional');
+                    this.intentionalDisconnect = false; // Reset flag
                 }
             });
             
@@ -131,8 +134,10 @@ class WebSocketClient {
 
     /**
      * Disconnect from the WebSocket server
+     * @param {boolean} intentional - If true, will not attempt to reconnect
      */
-    disconnect() {
+    disconnect(intentional = false) {
+        this.intentionalDisconnect = intentional;
         if (this.socket) {
             try {
                 this.socket.close(1000, 'Client disconnected');
