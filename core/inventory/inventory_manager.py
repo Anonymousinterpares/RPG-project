@@ -19,6 +19,7 @@ from core.inventory.inventory_item_operations import InventoryItemOperations
 from core.inventory.inventory_limits import InventoryLimits
 from core.inventory.equipment_manager import EquipmentManager
 from core.inventory.currency_manager import CurrencyManager
+from core.base.config import get_config
 
 # Get module logger
 logger = get_logger("Inventory")
@@ -205,15 +206,70 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
     def _sync_stats_modifiers(self) -> None:
         """
         Override of EquipmentManager method to trigger stats synchronization.
+        In addition to any upstream hooks, this wires equipment-based typed resistances into the StatsManager.
         """
-        if self._stats_manager and hasattr(self._stats_manager, 'sync_equipment_modifiers'):
+        if not self._stats_manager:
+            logger.debug("No stats manager available for equipment modifier sync")
+            return
+        # Load allowed effect types from combat config (fallback to defaults)
+        try:
+            cfg = get_config()
+            allowed_types = cfg.get("combat.damage.types", []) or []
+            if not isinstance(allowed_types, list) or not allowed_types:
+                allowed_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
+            allowed_types = [str(x).strip().lower() for x in allowed_types if isinstance(x, str)]
+        except Exception:
+            allowed_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
+        # First, clear previous equipment-based contributions for all slots
+        try:
+            from core.inventory.item_enums import EquipmentSlot
+            for slot in EquipmentSlot:
+                try:
+                    self._stats_manager.remove_resistance_contribution(f"equip_{slot.value}")
+                except Exception:
+                    pass
+        except Exception as clr_err:
+            logger.debug(f"Error clearing previous resistance contributions: {clr_err}")
+        # Apply contributions from currently equipped items that define typed_resistances in custom_properties
+        try:
+            for slot, item_id in self._equipment.items():
+                if not item_id:
+                    continue
+                it = self.get_item(item_id)
+                if not it:
+                    continue
+                cp = getattr(it, 'custom_properties', {}) if hasattr(it, 'custom_properties') else {}
+                if not isinstance(cp, dict):
+                    continue
+                typed_map = None
+                # Prefer explicit key to avoid conflicts with generic names
+                if 'typed_resistances' in cp and isinstance(cp['typed_resistances'], dict):
+                    typed_map = cp['typed_resistances']
+                # Build sanitized mapping from allowed types only
+                if isinstance(typed_map, dict):
+                    sanitized: Dict[str, float] = {}
+                    for k, v in typed_map.items():
+                        try:
+                            dt = str(k or "").strip().lower()
+                            if dt in allowed_types:
+                                sanitized[dt] = float(v)
+                        except Exception:
+                            continue
+                    if sanitized:
+                        try:
+                            self._stats_manager.set_resistance_contribution(f"equip_{slot.value}", sanitized)
+                            logger.debug(f"Applied typed resistances from {it.name} in {slot.value}: {sanitized}")
+                        except Exception as ap_err:
+                            logger.debug(f"Failed applying typed resistances for {it.name}: {ap_err}")
+        except Exception as apply_err:
+            logger.debug(f"Error applying equipment typed resistances: {apply_err}")
+        # Upstream hook if present (non-critical)
+        if hasattr(self._stats_manager, 'sync_equipment_modifiers'):
             try:
                 self._stats_manager.sync_equipment_modifiers()
                 logger.debug("Triggered equipment modifier synchronization with stats manager")
             except Exception as e:
                 logger.error(f"Error synchronizing equipment modifiers with stats manager: {e}")
-        else:
-            logger.debug("No stats manager available for equipment modifier sync")
     
     def save_to_file(self, filepath: str, include_unknown: bool = True) -> bool:
         """
