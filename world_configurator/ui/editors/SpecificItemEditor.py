@@ -261,6 +261,342 @@ class SpecificItemEditor(QWidget):
         self._setup_ui()
         self.load_data()
 
+    # ===== Assistant integration (provider methods) =====
+    def get_assistant_context(self):
+        """Provide selection context for the assistant."""
+        try:
+            from assistant.context import AssistantContext
+        except Exception:
+            # Lazy import path fallback if packaging differs
+            from ..assistant.context import AssistantContext  # type: ignore
+        item = self._current_item_dict()
+        allowed = [
+            "/name",
+            "/description",
+            "/item_type",
+            "/rarity",
+            "/weight",
+            "/value",
+            "/is_equippable",
+            "/is_consumable",
+            "/is_stackable",
+            "/is_quest_item",
+            "/equip_slots",
+            "/stack_limit",
+            "/durability",
+            "/current_durability",
+            "/stats",
+            "/dice_roll_effects",
+            "/tags",
+            "/custom_properties",
+        ]
+        selection_id = (item.get("id") if isinstance(item, dict) else None)
+        return AssistantContext(
+            domain=f"items:{self.item_file_key}",
+            selection_id=selection_id,
+            content=item if isinstance(item, dict) else None,
+            schema=None,
+            allowed_paths=allowed,
+        )
+
+    def get_reference_catalogs(self) -> Dict[str, Any]:
+        """Return minimal catalogs and constraints to ground LLM responses."""
+        try:
+            item_types = ["armor","weapon","shield","accessory","consumable","tool","container","document","key","material","treasure","miscellaneous"]
+            rarities = ["common","uncommon","rare","epic","legendary","quest"]
+            equip_slots = [
+                "main_hand","off_hand","both_hands","head","chest","legs","hands","feet",
+                "neck","ring","belt","cloak","quiver","pouch"
+            ]
+            primary_stats = [s.name.lower() for s in StatType]
+            derived_stats = [d.name.lower() for d in DerivedStatType]
+            names = sorted({i.get("name","") for i in self.items_data if isinstance(i, dict) and i.get("name")})
+            ids = sorted({i.get("id","") for i in self.items_data if isinstance(i, dict) and i.get("id")})
+            return {
+                "constraints": {
+                    "item_types": item_types,
+                    "rarities": rarities,
+                    "equip_slots": equip_slots,
+                    "stat_ids_primary": primary_stats,
+                    "stat_ids_derived": derived_stats,
+                },
+                "existing_names": names,
+                "existing_ids": ids,
+            }
+        except Exception:
+            return {}
+
+    def apply_assistant_patch(self, patch_ops):
+        """Apply RFC6902 patch ops to the current selection, with validation and sanitization."""
+        try:
+            from assistant.patching import apply_patch_with_validation
+        except Exception:
+            from ..assistant.patching import apply_patch_with_validation  # type: ignore
+        ctx = self.get_assistant_context()
+        if not ctx.content or self.current_item_index is None:
+            return False, "No item selected."
+        ok, msg, new_content = apply_patch_with_validation(ctx, ctx.content, patch_ops)
+        if not ok:
+            return False, msg
+        try:
+            sanitized = self._sanitize_item_payload(new_content)
+            self._replace_current_item(sanitized)
+            self.save_data()
+            # Refresh details UI with sanitized values
+            self._populate_details_from_item_data(sanitized)
+            return True, "OK"
+        except Exception as e:
+            logger.error("Failed to apply assistant patch: %s", e, exc_info=True)
+            return False, f"Failed to apply: {e}"
+
+    def create_entry_from_llm(self, entry: dict):
+        """Create a new item from LLM proposal, ensuring uniqueness and sanitization."""
+        try:
+            payload = self._sanitize_item_payload(entry, for_create=True)
+            proposed_id = payload.get("id") or self._generate_id_from_name(payload.get("name", "New Item"))
+            new_id = self._ensure_unique_id(proposed_id)
+            new_name = self._ensure_unique_name(payload.get("name") or "New Item")
+            payload["id"] = new_id
+            payload["name"] = new_name
+            self.items_data.append(payload)
+            if not self.save_data():
+                return False, "Failed to save", None
+            self._refresh_item_list_widget()
+            self._select_item_by_id(new_id)
+            return True, "Created", new_id
+        except Exception as e:
+            logger.error("Failed to create entry from LLM: %s", e, exc_info=True)
+            return False, f"Failed to create: {e}", None
+
+    # ===== Search helpers for targeted visibility =====
+    def search_for_entries(self, term: str, limit: int = 10) -> List[tuple]:
+        """Fuzzy-match items by id/name/tags and return list of (id, name, score)."""
+        import difflib, unicodedata
+        def _norm(s: str) -> str:
+            try:
+                s2 = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode("ascii")
+            except Exception:
+                s2 = s or ""
+            return s2.lower()
+        q = _norm(term)
+        results: List[tuple] = []
+        for it in self.items_data:
+            if not isinstance(it, dict):
+                continue
+            iid = str(it.get("id", ""))
+            nm = str(it.get("name", ""))
+            tags = ",".join(it.get("tags", [])) if isinstance(it.get("tags"), list) else ""
+            hay = " | ".join([iid, nm, tags])
+            score = difflib.SequenceMatcher(None, q, _norm(hay)).ratio()
+            if score >= 0.4:
+                results.append((iid, nm or iid, float(score)))
+        results.sort(key=lambda t: (-t[2], t[1], t[0]))
+        return results[:limit]
+
+    def focus_entry(self, item_id: str) -> bool:
+        """Focus/select the item with given id in the UI and internal state."""
+        try:
+            # update current index to item id's index in items_data
+            idx = None
+            for i, it in enumerate(self.items_data):
+                if isinstance(it, dict) and it.get("id") == item_id:
+                    idx = i
+                    break
+            if idx is None:
+                return False
+            self.current_item_index = idx
+            # refresh list to ensure rows/indices align, then select by id
+            self._refresh_item_list_widget()
+            self._select_item_by_id(item_id)
+            return True
+        except Exception:
+            return False
+
+    # ===== Internal helpers =====
+    def _current_item_dict(self) -> Optional[Dict[str, Any]]:
+        if self.current_item_index is None:
+            return None
+        if 0 <= self.current_item_index < len(self.items_data):
+            it = self.items_data[self.current_item_index]
+            return it if isinstance(it, dict) else None
+        return None
+
+    def _replace_current_item(self, new_dict: Dict[str, Any]) -> None:
+        if self.current_item_index is None:
+            return
+        if 0 <= self.current_item_index < len(self.items_data):
+            self.items_data[self.current_item_index] = new_dict
+
+    def _select_item_by_id(self, item_id: str) -> None:
+        # Find new index and select in list widget
+        target_index = None
+        for i, it in enumerate(self.items_data):
+            if isinstance(it, dict) and it.get("id") == item_id:
+                target_index = i
+                break
+        if target_index is None:
+            return
+        # Find the row in the QListWidget whose UserRole matches target_index
+        for row in range(self.item_list_widget.count()):
+            it = self.item_list_widget.item(row)
+            if it and it.data(Qt.UserRole) == target_index:
+                self.item_list_widget.setCurrentRow(row)
+                break
+
+    def _ensure_unique_id(self, proposed_id: str) -> str:
+        existing = {str(it.get("id")) for it in self.items_data if isinstance(it, dict) and it.get("id")}
+        pid = (proposed_id or "item").strip()
+        if pid not in existing:
+            return pid
+        base = pid
+        suffix = 2
+        nid = f"{base}_{suffix}"
+        while nid in existing:
+            suffix += 1
+            nid = f"{base}_{suffix}"
+        return nid
+
+    def _ensure_unique_name(self, proposed_name: str) -> str:
+        existing = {str(it.get("name")) for it in self.items_data if isinstance(it, dict) and it.get("name")}
+        name = (proposed_name or "New Item").strip()
+        if name not in existing:
+            return name
+        base = name
+        suffix = 2
+        nn = f"{base} ({suffix})"
+        while nn in existing:
+            suffix += 1
+            nn = f"{base} ({suffix})"
+        return nn
+
+    def _generate_id_from_name(self, name: str) -> str:
+        import re
+        slug = re.sub(r"[^a-zA-Z0-9]+", "_", (name or "item").strip().lower()).strip("_")
+        if not slug:
+            slug = "item"
+        return slug
+
+    def _sanitize_item_payload(self, payload: Dict[str, Any], for_create: bool = False) -> Dict[str, Any]:
+        """Normalize and validate item payload before persisting."""
+        out: Dict[str, Any] = dict(payload or {})
+        def as_float(x, default=0.0):
+            try:
+                return float(x)
+            except Exception:
+                return default
+        def as_int(x, default=0):
+            try:
+                return int(x)
+            except Exception:
+                return default
+        def as_bool(x):
+            if isinstance(x, bool):
+                return x
+            s = str(x).strip().lower()
+            return s in ("1","true","yes","y","on")
+        def as_list_str(v):
+            vals: List[str] = []
+            if isinstance(v, list):
+                for el in v:
+                    if isinstance(el, str) and el.strip():
+                        vals.append(el.strip())
+                    elif isinstance(el, dict):
+                        vid = el.get("id")
+                        if isinstance(vid, str) and vid.strip():
+                            vals.append(vid.strip())
+            # dedupe preserve order
+            seen = set(); res: List[str] = []
+            for s in vals:
+                if s not in seen:
+                    seen.add(s)
+                    res.append(s)
+            return res
+
+        if for_create:
+            out["name"] = (out.get("name") or "New Item").strip()
+            out["item_type"] = str(out.get("item_type") or "miscellaneous").lower()
+            out["rarity"] = str(out.get("rarity") or "common").lower()
+
+        # Scalars
+        if "name" in out: out["name"] = str(out["name"]).strip()
+        if "description" in out: out["description"] = str(out["description"]).strip()
+        if "item_type" in out: out["item_type"] = str(out["item_type"]).lower()
+        if "rarity" in out: out["rarity"] = str(out["rarity"]).lower()
+        if "weight" in out: out["weight"] = max(0.0, as_float(out["weight"]))
+        if "value" in out: out["value"] = max(0, as_int(out["value"]))
+        for k in ("is_equippable","is_consumable","is_stackable","is_quest_item"):
+            if k in out: out[k] = as_bool(out[k])
+
+        # Equip slots and tags
+        if "equip_slots" in out: out["equip_slots"] = as_list_str(out["equip_slots"]) or out.pop("equip_slots", None) or []
+        if "tags" in out: out["tags"] = as_list_str(out["tags"]) or out.pop("tags", None) or []
+
+        # Stack/durability
+        if out.get("is_stackable"):
+            out["stack_limit"] = max(1, as_int(out.get("stack_limit", 1), 1))
+        else:
+            out.pop("stack_limit", None)
+        if "durability" in out:
+            out["durability"] = max(0, as_int(out["durability"]))
+            if out["durability"] <= 0:
+                out.pop("current_durability", None)
+            else:
+                out["current_durability"] = max(0, min(out["durability"], as_int(out.get("current_durability", out["durability"]))))
+
+        # Stats normalization
+        stats = out.get("stats")
+        if isinstance(stats, list):
+            norm_stats: List[Dict[str, Any]] = []
+            valid_names = {s.name.lower() for s in StatType} | {d.name.lower() for d in DerivedStatType}
+            for st in stats:
+                if not isinstance(st, dict):
+                    continue
+                name = str(st.get("name", "")).lower().replace(" ", "_")
+                if name not in valid_names:
+                    continue
+                val = st.get("value")
+                # parse numeric/bool if string
+                if isinstance(val, str):
+                    vstr = val.strip()
+                    try:
+                        val = float(vstr) if "." in vstr else int(vstr)
+                    except Exception:
+                        if vstr.lower() in ("true","false"):
+                            val = (vstr.lower() == "true")
+                entry = {"name": name, "value": val}
+                if st.get("display_name"): entry["display_name"] = str(st["display_name"]).strip()
+                if st.get("is_percentage"): entry["is_percentage"] = bool(st["is_percentage"])
+                norm_stats.append(entry)
+            out["stats"] = norm_stats
+
+        # Dice roll effects
+        dre = out.get("dice_roll_effects")
+        if isinstance(dre, list):
+            norm_dre: List[Dict[str, Any]] = []
+            for e in dre:
+                if not isinstance(e, dict):
+                    continue
+                et = str(e.get("effect_type", "")).strip()
+                dn = str(e.get("dice_notation", "")).strip()
+                if not et or not dn:
+                    continue
+                entry = {"effect_type": et, "dice_notation": dn}
+                if e.get("description"): entry["description"] = str(e["description"]).strip()
+                norm_dre.append(entry)
+            out["dice_roll_effects"] = norm_dre
+
+        # Custom properties must be a dict if present
+        if "custom_properties" in out and not isinstance(out["custom_properties"], dict):
+            out.pop("custom_properties", None)
+
+        # Clamp enums
+        if out.get("item_type") not in {"armor","weapon","shield","accessory","consumable","tool","container","document","key","material","treasure","miscellaneous"}:
+            out["item_type"] = "miscellaneous"
+        if out.get("rarity") not in {"common","uncommon","rare","epic","legendary","quest"}:
+            out["rarity"] = "common"
+
+        return out
+
     def _setup_ui(self):
         main_layout = QHBoxLayout(self)
         splitter = QSplitter(Qt.Horizontal)
@@ -435,7 +771,7 @@ class SpecificItemEditor(QWidget):
 
         if save_json(self.items_data, self.full_item_file_path):
             logger.info(f"Saved {self.item_file_key} data to {self.full_item_file_path}")
-            self.data_modified.emit(self.item_file_key)
+            self.data_modified.emit()
             return True
         else:
             QMessageBox.critical(self, "Save Error", f"Failed to save {self.item_file_key} data.")
@@ -500,7 +836,7 @@ class SpecificItemEditor(QWidget):
                 self.item_list_widget.setCurrentRow(i)
                 break
         self.id_edit.setFocus() # Focus on ID for editing
-        self.data_modified.emit(self.item_file_key)
+        self.data_modified.emit()
 
 
     @Slot()
@@ -518,7 +854,7 @@ class SpecificItemEditor(QWidget):
             self._refresh_item_list_widget()
             self._clear_details()
             self._set_details_enabled(False)
-            self.data_modified.emit(self.item_file_key)
+            self.data_modified.emit()
             self.save_data() # Auto-save after removal
 
     @Slot()
@@ -798,7 +1134,7 @@ class SpecificItemEditor(QWidget):
                 self.stats_table.setItem(row_pos, 1, QTableWidgetItem(str(stat_data["value"])))
                 self.stats_table.setItem(row_pos, 2, QTableWidgetItem(stat_data.get("display_name", "")))
                 self.stats_table.item(row_pos,0).setData(Qt.UserRole, stat_data) # Store for editing
-                self.data_modified.emit(self.item_file_key)
+                self.data_modified.emit()
 
 
     @Slot()
@@ -806,7 +1142,7 @@ class SpecificItemEditor(QWidget):
         current_row = self.stats_table.currentRow()
         if current_row >= 0:
             self.stats_table.removeRow(current_row)
-            self.data_modified.emit(self.item_file_key)
+            self.data_modified.emit()
 
     @Slot()
     def _add_dice_effect(self):
@@ -820,14 +1156,14 @@ class SpecificItemEditor(QWidget):
                 self.dice_effects_table.setItem(row_pos, 1, QTableWidgetItem(effect_data["dice_notation"]))
                 self.dice_effects_table.setItem(row_pos, 2, QTableWidgetItem(effect_data.get("description", "")))
                 self.dice_effects_table.item(row_pos,0).setData(Qt.UserRole, effect_data)
-                self.data_modified.emit(self.item_file_key)
+                self.data_modified.emit()
 
     @Slot()
     def _remove_dice_effect(self):
         current_row = self.dice_effects_table.currentRow()
         if current_row >= 0:
             self.dice_effects_table.removeRow(current_row)
-            self.data_modified.emit(self.item_file_key)
+            self.data_modified.emit()
 
     def refresh_data(self):
         """Public method to reload data from file."""

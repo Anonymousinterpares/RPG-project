@@ -11,7 +11,7 @@ from .context import AssistantContext
 ANALYZE_CONTRACT = (
     "Return JSON with keys: intent='analyze', analysis (string), recommendations (list of strings),"
     " optional suggested_patch (list of RFC6902 ops). If the user explicitly requests creating a new entry,"
-    " you may return intent='create_entry' with entity_type (string), rationale (string), entry (object) instead."
+    " you may return intent='create_entry' with entity_type (string), rationale (string), entry (object OR array of objects) instead."
 )
 
 MODIFY_CONTRACT = (
@@ -21,9 +21,9 @@ MODIFY_CONTRACT = (
 )
 
 CREATE_CONTRACT = (
-    "Return JSON with keys: intent='create_entry', entity_type (string), rationale (string), entry (object)."
-    " The entry must conform to the domain structure and avoid placeholders."
-    " The new entry's name MUST NOT exactly match any existing entry in the domain."
+    "Return JSON with keys: intent='create_entry', entity_type (string), rationale (string), entry (object OR array of objects)."
+    " If the user requests multiple entries, set entry to an array with that many items."
+    " Each entry must conform to the domain structure, avoid placeholders, and use unique names (no duplicates across the new set or existing entries)."
 )
 
 
@@ -49,6 +49,10 @@ def build_system_prompt(mode: str, ctx: AssistantContext) -> str:
             existing = ctx.references.get("existing_names") or ctx.references.get("existing_names_list")
             if existing and isinstance(existing, list) and existing:
                 base.append("Do not reuse any of these existing names: " + ", ".join(existing[:50]))
+            ids = ctx.references.get("existing_ids")
+            if ids and isinstance(ids, list) and ids:
+                base.append("IDs must be unique. You may omit 'id' to let the tool assign one.")
+        base.append("If the user requests N entries, return exactly N entries in 'entry' as an array. Ensure no duplicates among the new entries.")
         base.append(CREATE_CONTRACT)
     else:
         base.append("Unknown mode; still follow JSON output contracts strictly.")

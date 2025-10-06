@@ -143,6 +143,41 @@ class AssistantDock(QDockWidget):
             ctx.references = ctx.references or None
         user_text = self.input_edit.toPlainText()
         messages: Optional[List[dict]] = None
+
+        # On-demand targeted search: if user types "search: <term>", try to focus or attach results.
+        try:
+            low = (user_text or "").strip().lower()
+            if low.startswith("search:") and hasattr(provider, "search_for_entries"):
+                term = user_text.split(":", 1)[1].strip() if ":" in user_text else ""
+                matches = provider.search_for_entries(term) if term else []
+                if len(matches) == 1 and hasattr(provider, "focus_entry"):
+                    # Auto-focus the only match and refresh context/references
+                    provider.focus_entry(matches[0][0])
+                    ctx = provider.get_assistant_context()
+                    try:
+                        ctx.references = provider.get_reference_catalogs()
+                    except Exception:
+                        pass
+                elif len(matches) > 1:
+                    # Attach compact results to references for LLM grounding and user visibility
+                    refs = ctx.references or {}
+                    refs = dict(refs)
+                    refs["search_results"] = [{"id": mid, "name": mname, "score": score} for (mid, mname, score) in matches[:10]]
+                    ctx.references = refs
+        except Exception:
+            # Best effort; proceed with normal flow
+            pass
+
+        # Heuristic: if user asks to "create/add/generate" N, force create mode for this send
+        try:
+            import re
+            lowtxt = (user_text or "").strip().lower()
+            m = re.search(r"\b(create|add|generate)\s+(\d+)\b", lowtxt)
+            if m and mode != "create":
+                mode = "create"
+        except Exception:
+            pass
+
         # For create mode, attach exemplar and clear selection context
         if mode == "create":
             examples = provider.get_domain_examples()
@@ -217,9 +252,19 @@ class AssistantDock(QDockWidget):
             self._try_parse_patch(data.get("patch"))
         elif intent == "create_entry":
             self.tabs.setCurrentIndex(2)
-            self.entry_out.setPlainText(json.dumps(data.get("entry", {}), indent=2, ensure_ascii=False))
-            self._last_entry = data.get("entry") if isinstance(data.get("entry"), dict) else None
-            self.create_entry_btn.setEnabled(self._last_entry is not None)
+            entry_obj = data.get("entry")
+            # Support single object or list of objects for bulk creation
+            try:
+                self.entry_out.setPlainText(json.dumps(entry_obj, indent=2, ensure_ascii=False))
+            except Exception:
+                self.entry_out.setPlainText(str(entry_obj))
+            self._last_entry = entry_obj if isinstance(entry_obj, (dict, list)) else None
+            if isinstance(entry_obj, list):
+                self.create_entry_btn.setText(f"Create {len(entry_obj)} Entries")
+                self.create_entry_btn.setEnabled(len(entry_obj) > 0)
+            else:
+                self.create_entry_btn.setText("Create Entry")
+                self.create_entry_btn.setEnabled(isinstance(entry_obj, dict))
         else:
             # Raw content fallback
             self.tabs.setCurrentIndex(0)
@@ -265,12 +310,27 @@ class AssistantDock(QDockWidget):
         provider = self._active_provider()
         if provider is None:
             return
-        ok, msg, new_id = provider.create_entry_from_llm(self._last_entry)
-        if ok:
-            QMessageBox.information(self, "Entry Created", f"Created new entry with id: {new_id}")
+        # Handle bulk list or single dict
+        if isinstance(self._last_entry, list):
+            created = 0; failed = 0
+            for e in self._last_entry:
+                if not isinstance(e, dict):
+                    failed += 1
+                    continue
+                ok, msg, new_id = provider.create_entry_from_llm(e)
+                if ok:
+                    created += 1
+                else:
+                    failed += 1
+            QMessageBox.information(self, "Bulk Create", f"Created: {created}, Failed: {failed}")
             self.create_entry_btn.setEnabled(False)
         else:
-            QMessageBox.warning(self, "Creation Failed", msg)
+            ok, msg, new_id = provider.create_entry_from_llm(self._last_entry)
+            if ok:
+                QMessageBox.information(self, "Entry Created", f"Created new entry with id: {new_id}")
+                self.create_entry_btn.setEnabled(False)
+            else:
+                QMessageBox.warning(self, "Creation Failed", msg)
 
     def _on_clear(self) -> None:
         self.input_edit.clear()

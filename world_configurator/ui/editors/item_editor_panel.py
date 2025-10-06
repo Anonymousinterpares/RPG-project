@@ -5,7 +5,7 @@ Main panel for managing different types of items.
 
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
@@ -31,6 +31,7 @@ class ItemEditorPanel(QWidget):
     Main panel for editing various item categories.
     It features a list of item categories on the left and a
     stacked widget on the right to display the editor for the selected category.
+    Also acts as an assistant provider by delegating to the active SpecificItemEditor.
     """
     item_data_modified = Signal(str) # Emits category name on modification
 
@@ -41,6 +42,88 @@ class ItemEditorPanel(QWidget):
 
         self._setup_ui()
         self._populate_category_list()
+
+    # ===== Assistant provider delegation =====
+    def _active_editor(self) -> Optional[QWidget]:
+        try:
+            # Current widget in the stack might be the placeholder or a SpecificItemEditor
+            w = self.editor_stack.currentWidget()
+            # Verify it's the editor instance we created for the current category
+            if self.current_category_key and self.current_category_key in self.category_editors:
+                return self.category_editors.get(self.current_category_key)
+            return w
+        except Exception:
+            return None
+
+    def get_assistant_context(self):
+        """Return the active editor's assistant context, or a default items context."""
+        ed = self._active_editor()
+        if ed and hasattr(ed, "get_assistant_context"):
+            return ed.get_assistant_context()
+        # Default fallback when no editor is active yet
+        try:
+            from assistant.context import AssistantContext
+        except Exception:
+            from ..assistant.context import AssistantContext  # type: ignore
+        allowed = [
+            "/name", "/description", "/item_type", "/rarity", "/weight", "/value",
+            "/is_equippable", "/is_consumable", "/is_stackable", "/is_quest_item",
+            "/equip_slots", "/stack_limit", "/durability", "/current_durability",
+            "/stats", "/dice_roll_effects", "/tags", "/custom_properties",
+        ]
+        return AssistantContext(
+            domain=f"items:{self.current_category_key or 'unknown'}",
+            selection_id=None,
+            content=None,
+            schema=None,
+            allowed_paths=allowed,
+        )
+
+    def get_reference_catalogs(self) -> Dict[str, Any]:
+        ed = self._active_editor()
+        if ed and hasattr(ed, "get_reference_catalogs"):
+            try:
+                return ed.get_reference_catalogs()
+            except Exception:
+                return {}
+        return {}
+
+    def get_domain_examples(self) -> list:
+        """Provide one example item from the active editor, if available."""
+        ed = self._active_editor()
+        try:
+            if ed and hasattr(ed, "items_data") and isinstance(ed.items_data, list) and ed.items_data:
+                first = ed.items_data[0]
+                if isinstance(first, dict):
+                    return [first]
+        except Exception:
+            pass
+        return []
+
+    def apply_assistant_patch(self, patch_ops):
+        ed = self._active_editor()
+        if ed and hasattr(ed, "apply_assistant_patch"):
+            return ed.apply_assistant_patch(patch_ops)
+        return False, "No active item editor."
+
+    def create_entry_from_llm(self, entry: dict):
+        ed = self._active_editor()
+        if ed and hasattr(ed, "create_entry_from_llm"):
+            return ed.create_entry_from_llm(entry)
+        return False, "No active item editor.", None
+
+    # Optional delegation for targeted search hooks used by AssistantDock
+    def search_for_entries(self, term: str, limit: int = 10):
+        ed = self._active_editor()
+        if ed and hasattr(ed, "search_for_entries"):
+            return ed.search_for_entries(term, limit)
+        return []
+
+    def focus_entry(self, item_id: str) -> bool:
+        ed = self._active_editor()
+        if ed and hasattr(ed, "focus_entry"):
+            return ed.focus_entry(item_id)
+        return False
 
     def _setup_ui(self):
         main_layout = QHBoxLayout(self)
