@@ -41,6 +41,14 @@ class ContextEvaluatorAgent(BaseAgent):
         
         # Cache for context summaries
         self._context_summaries: Dict[str, Tuple[str, float]] = {}
+
+    def reset(self) -> None:
+        """Clear cached context summaries to avoid cross-session leakage."""
+        try:
+            self._context_summaries.clear()
+        except Exception:
+            self._context_summaries = {}
+        logger.info("ContextEvaluator agent cache cleared")
     
     def _generate_system_prompt(self, context: AgentContext) -> str:
         """

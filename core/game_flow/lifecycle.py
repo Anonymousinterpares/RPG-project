@@ -40,6 +40,14 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
     
     # Set current state in state manager
     engine._state_manager._current_state = game_state
+
+    # Ensure the engine-level RuleChecker (used by GUI flow) is clean for this session
+    try:
+        if hasattr(engine, "_rule_checker") and hasattr(engine._rule_checker, "reset"):
+            engine._rule_checker.reset()
+            logger.info("Engine RuleChecker reset for new game session.")
+    except Exception as e:
+        logger.warning(f"Failed to reset engine RuleChecker for new game: {e}")
     
     # Initialize memory/context system
     engine._state_manager.initialize_memory_context(game_state)
@@ -362,6 +370,13 @@ def load_game(engine: 'GameEngine', filename: str) -> Optional[GameState]:
                 engine._agent_manager.reset_state()
             except Exception as e:
                 logger.warning(f"Error resetting agent state: {e}")
+        # Also reset the engine-level RuleChecker which is used for validation in GUI
+        try:
+            if hasattr(engine, "_rule_checker") and hasattr(engine._rule_checker, "reset"):
+                engine._rule_checker.reset()
+                logger.info("Engine RuleChecker reset before load.")
+        except Exception as e:
+            logger.warning(f"Failed to reset engine RuleChecker before load: {e}")
 
     # Load the game state
     game_state = engine._state_manager.load_game(filename)
@@ -397,6 +412,13 @@ def load_game(engine: 'GameEngine', filename: str) -> Optional[GameState]:
             logger.info("Agent manager state reset for loaded game")
         except Exception as e:
             logger.warning(f"Error preparing agent system: {e}")
+    # Ensure the engine-level RuleChecker is also cleared for the loaded session
+    try:
+        if hasattr(engine, "_rule_checker") and hasattr(engine._rule_checker, "reset"):
+            engine._rule_checker.reset()
+            logger.info("Engine RuleChecker reset for loaded game.")
+    except Exception as e:
+        logger.warning(f"Failed to reset engine RuleChecker after load: {e}")
 
     # Start/unpause the game loop if it was paused
     if engine._game_loop.is_paused:

@@ -48,6 +48,9 @@ class NarratorAgent(BaseAgent):
         super().__init__("Narrator")
         logger.info(f"NarratorAgent initialized with {len(self.SUPPORTED_COMMANDS)} supported commands: {', '.join(self.SUPPORTED_COMMANDS)}")
         
+    def reset(self) -> None:
+        """No persistent state to reset, provided for interface consistency."""
+        logger.info("Narrator agent reset (no state)")
 
     def _generate_system_prompt(self, context: AgentContext) -> str:
         """
@@ -177,6 +180,10 @@ class NarratorAgent(BaseAgent):
 
         ## Guidelines
         - **NARRATIVE Mode Focus:** When mode is NARRATIVE, actively look for intents requiring skill checks, state changes, or mode transitions.
+        - **Inventory Changes (CRITICAL):** When the player gives, offers, drops, leaves behind, discards, sacrifices, or consumes an item, include a `request_state_change` with `attribute: "inventory"`.
+          • Prefer `template_id` if known; otherwise use `item_id` (when present) or `item_name`.
+          • Use `change_type: "remove"` for removals; include `quantity`.
+          • Example: {{"action":"request_state_change","target_entity":"{player_id}","attribute":"inventory","change_type":"remove","template_id":"ritual_dagger","quantity":1,"context":"Player offers the dagger to the Elder as part of the ritual."}}
         - **Stamina Regeneration (NARRATIVE Mode):** If the 'System Note' indicates player stamina is not full, evaluate if context (time passed, player actions) warrants regeneration. If yes, include a `request_state_change` for 'stamina' with a positive 'value' and narrate briefly (e.g., "You feel somewhat refreshed."). If not appropriate, omit this request.
         - **Mode Transitions:** If player input clearly initiates combat ("attack", "fight"), trade ("trade", "buy", "sell"), or social conflict ("confront", "intimidate"), YOU MUST include a `request_mode_transition` in the `requests` list.
         - **Spawn Hints for COMBAT (Optional):** When requesting COMBAT, include a compact spawn specification only if needed:
@@ -190,6 +197,13 @@ class NarratorAgent(BaseAgent):
         - **Narrative First:** Always provide narrative, describing the attempt or situation leading to requests. Do not determine success/failure in narrative.
         - **Environment:** Incorporate environmental tags (from context, if provided) into descriptions and consider them for checks (e.g., taking cover).
         - **Consistency & Fairness:** Maintain world/character consistency. Be descriptive but reasonably concise. Avoid explicit/harmful content.
+
+        ### Final Checklist (before you output JSON)
+        1) Did the input imply a skill check? If yes, add `request_skill_check`.
+        2) Did the input imply an inventory change? If yes, add `request_state_change` with `attribute: "inventory"`.
+        3) Did the input imply a mode transition (combat/trade/social)? If yes, add `request_mode_transition`.
+        4) Did the player explicitly ask to list stats/inventory/quests? If yes, add `request_data_retrieval`.
+        5) Keep the narrative concise (2–5 sentences) and complete the immediate outcome.
 
         Respond to the player's input by generating the required JSON `AgentOutput` object ONLY.
         """

@@ -53,6 +53,29 @@ class RuleCheckerAgent(BaseAgent):
         
         # Track action history for anti-cheat detection
         self._action_history: List[Dict[str, Any]] = []
+
+    def reset(self) -> None:
+        """Reset in-memory caches and histories so no state leaks between sessions."""
+        try:
+            if hasattr(self, "_looted_entities") and isinstance(self._looted_entities, set):
+                self._looted_entities.clear()
+            else:
+                self._looted_entities = set()
+            if hasattr(self, "_completed_events") and isinstance(self._completed_events, dict):
+                self._completed_events.clear()
+            else:
+                self._completed_events = {}
+            if hasattr(self, "_action_history") and isinstance(self._action_history, list):
+                self._action_history.clear()
+            else:
+                self._action_history = []
+            logger.info("RuleChecker agent state reset")
+        except Exception:
+            # Fall back to reinitializing the containers
+            self._looted_entities = set()
+            self._completed_events = {}
+            self._action_history = []
+            logger.info("RuleChecker agent state reset (containers reinitialized)")
     
     def _generate_system_prompt(self, context: AgentContext) -> str:
         """

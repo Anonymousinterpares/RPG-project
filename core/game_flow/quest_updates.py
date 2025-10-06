@@ -518,7 +518,7 @@ def _derive_dsl_from_objective(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _evaluate_and_update_all(engine, game_state, objective_type_filter: Optional[List[str]] = None) -> None:
+def _evaluate_and_update_all(engine, game_state, objective_type_filter: Optional[List[str]] = None, event: Optional[Dict[str, Any]] = None) -> None:
     """Evaluate all quest objectives using the DSL and update statuses.
     Non-regressive: once completed/failed, we do not regress here.
     """
@@ -544,6 +544,17 @@ def _evaluate_and_update_all(engine, game_state, objective_type_filter: Optional
                 # Skip if already terminal
                 if obj.get('completed') or obj.get('failed'):
                     continue
+                # If this scan was triggered by an item event, narrow fetch objectives to that item only
+                try:
+                    if objective_type_filter and any(t.lower() == 'fetch' for t in objective_type_filter):
+                        ev_item_id = (event or {}).get('item_id') if isinstance(event, dict) else None
+                        if ev_item_id:
+                            target_id = str(obj.get('target_id') or '').strip()
+                            if target_id and str(ev_item_id).strip().lower() != target_id.strip().lower():
+                                # This fetch objective targets a different item; skip on this event tick
+                                continue
+                except Exception:
+                    pass
                 # DEV: log objective scan line
                 if _dev_quest_verbose():
                     try:
@@ -674,7 +685,7 @@ def process_event_for_quests(engine, game_state, event: Dict[str, Any]) -> None:
                     _queue_dev(engine, f"Objective scan: total={total}, types={counts}, filter={filt_str}")
                 except Exception:
                     pass
-            _evaluate_and_update_all(engine, game_state, objective_type_filter=filt)
+            _evaluate_and_update_all(engine, game_state, objective_type_filter=filt, event=event)
             # Optional LLM fallback for near-match kill objectives
             try:
                 if et == EV_ENEMY_DEFEATED and get_config().get("quests.llm_fallback.enabled", False):
