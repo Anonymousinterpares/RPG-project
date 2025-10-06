@@ -48,6 +48,10 @@ class UiManager {
         this.commandHistory = [];
         this.historyIndex = -1;
 
+        // Gradual message queue (to ensure sequential, readable display)
+        this._messageQueue = [];
+        this._isTyping = false;
+
         // Settings
         this.settings = {
             theme: localStorage.getItem('rpg_theme') || 'light',
@@ -478,8 +482,9 @@ class UiManager {
      * Add a message to the game output area
      * @param {string} text - The message text
      * @param {string} type - The type of message (system, player, game)
+     * @param {boolean} gradual - Whether to display text gradually (like Python GUI)
      */
-addMessage(text, type = 'game') {
+addMessage(text, type = 'game', gradual = false) {
         // Guard: ignore empty
         if (text == null) return;
         const txt = String(text);
@@ -497,12 +502,80 @@ addMessage(text, type = 'game') {
 
         const messageElement = document.createElement('div');
         messageElement.className = `message ${type}`;
-        messageElement.textContent = txt;
+        
+        if (gradual) {
+            // Queue gradual display to mimic orchestrator's sequential UI flow
+            this._enqueueGradualMessage({ text: txt, type, element: null });
+        } else {
+            // Instant display
+            messageElement.textContent = txt;
+            this.outputElement.appendChild(messageElement);
+            this.ensureCenterOutputScrollable();
+            this.scrollToBottom();
+        }
+    }
 
+    /** Queue a gradual message for sequential display */
+    _enqueueGradualMessage(item) {
+        this._messageQueue.push(item);
+        // Kick the processor if idle
+        if (!this._isTyping) this._processNextMessage();
+    }
+
+    /** Process the next queued gradual message, if any */
+    _processNextMessage() {
+        if (this._isTyping) return;
+        const next = this._messageQueue.shift();
+        if (!next) return;
+        this._isTyping = true;
+        const { text, type } = next;
+        const messageElement = document.createElement('div');
+        messageElement.className = `message ${type}`;
+        messageElement.textContent = '';
         this.outputElement.appendChild(messageElement);
-        // Keep main output fixed-height and scrollable
         this.ensureCenterOutputScrollable();
         this.scrollToBottom();
+        // Display text gradually, then continue with the queue
+        this._displayTextGradually(messageElement, text, () => {
+            this._isTyping = false;
+            // Small micro-delay to let layout settle
+            setTimeout(() => this._processNextMessage(), 0);
+        });
+    }
+    
+    /**
+     * Display text gradually in an element (like Python GUI gradual display)
+     * @param {HTMLElement} element - The element to display text in
+     * @param {string} fullText - The complete text to display
+     * @param {function} [onComplete] - Callback when finished
+     */
+    _displayTextGradually(element, fullText, onComplete) {
+        // Cancel any ongoing gradual display for this element
+        if (element._gradualDisplayTimer) {
+            clearInterval(element._gradualDisplayTimer);
+            element._gradualDisplayTimer = null;
+        }
+        
+        let currentIndex = 0;
+        const charsPerFrame = 1; // Display 1 character at a time (matches Python GUI)
+        const intervalMs = 5; // 5ms between characters (matches Python GUI default setting)
+        
+        element._gradualDisplayTimer = setInterval(() => {
+            if (currentIndex >= fullText.length) {
+                clearInterval(element._gradualDisplayTimer);
+                element._gradualDisplayTimer = null;
+                try { if (typeof onComplete === 'function') onComplete(); } catch {}
+                return;
+            }
+            
+            // Add next character
+            const nextIndex = Math.min(currentIndex + charsPerFrame, fullText.length);
+            element.textContent = fullText.substring(0, nextIndex);
+            currentIndex = nextIndex;
+            
+            // Auto-scroll to keep new text visible
+            this.scrollToBottom();
+        }, intervalMs);
     }
 
     /**

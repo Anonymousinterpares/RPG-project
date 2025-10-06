@@ -796,7 +796,9 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
     # Engine generic outputs (welcome/help/etc.) -> broadcast as narrative
     def on_output_generated(role: str, content: str):
         try:
-            _emit_ws({"type": "narrative", "data": {"role": role, "text": content, "gradual": False}})
+            # Treat non-system narrations (e.g., GM/story text) as gradual by default to match Python GUI
+            is_non_system = (str(role).lower() != 'system')
+            _emit_ws({"type": "narrative", "data": {"role": role, "text": content, "gradual": is_non_system}})
         except Exception as e:
             logger.warning(f"Error handling engine.output_generated for WS: {e}")
     out_conn = None

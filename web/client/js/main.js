@@ -453,6 +453,9 @@ function connectWebSocket(sessionId, options = {}) {
         try {
             const role = (data && data.role) || 'system';
             const text = (data && data.text) || '';
+            // Prefer server hint if provided; otherwise default to gradual for non-system narrations
+            const hasGradual = data && Object.prototype.hasOwnProperty.call(data, 'gradual');
+            const gradual = hasGradual ? !!data.gradual : (String(role).toLowerCase() !== 'system');
             // Suppress pure echo of the last command we sent (attempt messages)
             try {
                 const lastCmd = (uiManager.lastSentCommand || '').trim();
@@ -460,7 +463,7 @@ function connectWebSocket(sessionId, options = {}) {
                     return; // skip duplicate echo
                 }
             } catch {}
-            uiManager.addMessage(text, role === 'system' ? 'system' : 'game');
+            uiManager.addMessage(text, role === 'system' ? 'system' : 'game', gradual);
         } catch (e) { console.warn(e); }
     });
     // New: append incremental mechanics lines to combat tab
