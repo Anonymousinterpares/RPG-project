@@ -224,6 +224,20 @@ class WorldConfigManager:
         errors = []
         exported_count = 0
 
+        # Refresh ItemDataManager from disk so we export latest files saved by editors
+        try:
+            self.item_data_manager.load_all_managed_files(project_dir=get_project_root())
+        except Exception:
+            logger.warning("ItemDataManager reload before export failed; proceeding with existing in-memory data.")
+
+        # Before exporting, ensure active editors have flushed changes to disk
+        try:
+            from ui.editors.item_editor_panel import ItemEditorPanel  # type: ignore
+            # Attempt to find a live instance via MainWindow if available is out of scope here.
+            # As a safety, re-load item files from disk just before export below.
+        except Exception:
+            pass
+
         # Standard components
         for component_key, should_export in export_options.items():
             if not should_export:

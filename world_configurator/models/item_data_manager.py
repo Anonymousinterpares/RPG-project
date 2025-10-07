@@ -208,8 +208,10 @@ class ItemDataManager:
             except Exception as e_backup:
                 logger.error(f"Failed to backup game's {filename}: {e_backup}")
         
-        # Save current data to the game's target path
-        data_to_export = self.all_item_data.get(file_key, [])
+        # Load freshest data from source file on disk to avoid stale in-memory state
+        source_full_path = os.path.join(get_project_root(), MANAGED_ITEM_FILES[file_key])
+        latest = load_json(source_full_path)
+        data_to_export = latest if isinstance(latest, list) else self.all_item_data.get(file_key, [])
         if save_json(data_to_export, target_path):
             logger.info(f"Successfully exported '{file_key}' to {target_path}")
             return True

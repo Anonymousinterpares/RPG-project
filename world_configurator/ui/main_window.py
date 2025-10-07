@@ -676,6 +676,13 @@ class MainWindow(QMainWindow):
             selected_components = [comp for comp, selected in export_options.items() if selected]
             logger.info(f"Exporting components: {', '.join(selected_components)}")
 
+            # First, flush any unsaved edits from active item editors to disk
+            try:
+                if hasattr(self, 'item_editor_panel') and self.item_editor_panel:
+                    self.item_editor_panel.save_all_item_editors()
+            except Exception:
+                logger.warning("Failed to flush item editors before export; proceeding anyway.")
+
             # Export to game with selected options
             # Assumes WorldConfigManager.export_to_game handles calling manager exports
             success, errors = self.world_config.export_to_game(export_options)

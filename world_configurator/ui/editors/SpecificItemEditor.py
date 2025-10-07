@@ -36,6 +36,8 @@ except ModuleNotFoundError:
     from core.stats.stats_base import StatType, DerivedStatType
 
 from ui.dialogs.base_dialog import BaseDialog
+from ui.widgets.typed_resistances_editor import TypedResistancesEditor
+from ui.widgets.multiselect_combo import MultiSelectCombo
 from utils.file_manager import load_json, save_json, get_project_root
 
 logger = logging.getLogger("world_configurator.ui.specific_item_editor")
@@ -208,7 +210,7 @@ class ItemStatDialog(BaseDialog):
 
 # --- Dice Roll Effect Dialog ---
 class DiceRollEffectDialog(BaseDialog):
-    """Dialog for adding/editing a dice roll effect."""
+    """Dialog for adding/editing a dice roll effect with constrained dice notation."""
     def __init__(self, parent=None, effect_data: Optional[Dict[str, str]] = None, effect_types: Optional[List[str]] = None):
         super().__init__(parent)
         self.setWindowTitle("Edit Dice Roll Effect")
@@ -228,13 +230,42 @@ class DiceRollEffectDialog(BaseDialog):
             idx = self.effect_type_combo.findText(existing_et)
             if idx >= 0:
                 self.effect_type_combo.setCurrentIndex(idx)
-        self.dice_notation_edit = QLineEdit(self.effect_data.get("dice_notation", ""))
-        self.dice_notation_edit.setPlaceholderText("e.g., 1d8+2")
+
+        # Dice notation builder: base NdS from dropdown + optional modifier
+        self.dice_base_combo = QComboBox()
+        base_notations: List[str] = []
+        for n in (1, 2, 3, 4):
+            for s in (4, 6, 8, 10, 12, 20):
+                base_notations.append(f"{n}d{s}")
+        for bn in base_notations:
+            self.dice_base_combo.addItem(bn)
+        # Modifier
+        self.mod_sign_combo = QComboBox(); self.mod_sign_combo.addItems(["+", "-"])
+        self.mod_value_spin = QSpinBox(); self.mod_value_spin.setRange(0, 100); self.mod_value_spin.setValue(0)
+        self.mod_value_spin.setSpecialValueText("0")
+        # Preselect from existing notation if provided
+        import re
+        existing_dn = str(self.effect_data.get("dice_notation", "")).strip().lower()
+        m = re.match(r"(\d+d\d+)([+\-])(\d+)$", existing_dn)
+        if m:
+            base, sign, mv = m.group(1), m.group(2), int(m.group(3))
+            idx = self.dice_base_combo.findText(base)
+            if idx >= 0:
+                self.dice_base_combo.setCurrentIndex(idx)
+            self.mod_sign_combo.setCurrentText(sign)
+            self.mod_value_spin.setValue(mv)
+        elif existing_dn:
+            idx = self.dice_base_combo.findText(existing_dn)
+            if idx >= 0:
+                self.dice_base_combo.setCurrentIndex(idx)
+
         self.description_edit = QLineEdit(self.effect_data.get("description", ""))
         self.description_edit.setPlaceholderText("Optional description of the effect")
 
         layout.addRow("Effect Type:", self.effect_type_combo)
-        layout.addRow("Dice Notation:", self.dice_notation_edit)
+        layout.addRow("Dice Base (NdS):", self.dice_base_combo)
+        layout.addRow("Modifier Sign:", self.mod_sign_combo)
+        layout.addRow("Modifier Value:", self.mod_value_spin)
         layout.addRow("Description:", self.description_edit)
 
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -244,8 +275,12 @@ class DiceRollEffectDialog(BaseDialog):
 
     def get_effect_data(self) -> Optional[Dict[str, str]]:
         effect_type = self.effect_type_combo.currentText().strip()
-        dice_notation = self.dice_notation_edit.text().strip()
+        base = self.dice_base_combo.currentText().strip()
+        sign = self.mod_sign_combo.currentText().strip()
+        mv = int(self.mod_value_spin.value())
         description = self.description_edit.text().strip()
+
+        dice_notation = base if mv == 0 else f"{base}{sign}{mv}"
 
         if not effect_type or not dice_notation:
             QMessageBox.warning(self, "Input Error", "Effect Type and Dice Notation are required.")
@@ -265,13 +300,15 @@ class SpecificItemEditor(QWidget):
         self.item_file_path_relative = item_file_path_relative
         self.items_data: List[Dict[str, Any]] = [] # List of item dictionaries
         self.current_item_index: Optional[int] = None
+        # When True, save_data() will not pull values from the current UI form before saving.
+        # This is used for programmatic updates (e.g., assistant patches) to avoid overwriting
+        # freshly-applied data with stale UI values.
+        self._programmatic_save_in_progress: bool = False
 
         self.project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         self.full_item_file_path = os.path.join(self.project_root, self.item_file_path_relative)
 
-        self._setup_ui()
-        
-        # Load effect types from combat config for dropdowns and LLM grounding
+        # Load effect types from combat config BEFORE building UI so widgets can use them
         try:
             combat_cfg_path = os.path.join(self.project_root, "config", "combat", "combat_config.json")
             combat_cfg = load_json(combat_cfg_path) or {}
@@ -283,6 +320,8 @@ class SpecificItemEditor(QWidget):
                 self._effect_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
         except Exception:
             self._effect_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
+
+        self._setup_ui()
         
         self.load_data()
 
@@ -330,7 +369,7 @@ class SpecificItemEditor(QWidget):
             item_types = ["armor","weapon","shield","accessory","consumable","tool","container","document","key","material","treasure","miscellaneous"]
             rarities = ["common","uncommon","rare","epic","legendary","quest"]
             equip_slots = [
-                "main_hand","off_hand","both_hands","head","chest","legs","hands","feet",
+                "main_hand","off_hand","two_hand","head","chest","legs","hands","feet",
                 "neck","ring","belt","cloak","quiver","pouch"
             ]
             primary_stats = [s.name.lower() for s in StatType]
@@ -346,6 +385,11 @@ class SpecificItemEditor(QWidget):
                     "stat_ids_derived": derived_stats,
                 },
                 "effect_types": getattr(self, "_effect_types", []),
+                "typed_resistances": {
+                    "allowed_types": getattr(self, "_effect_types", []),
+                    "percent_range": [-100, 100],
+                    "omit_zero": True
+                },
                 "existing_names": names,
                 "existing_ids": ids,
             }
@@ -367,9 +411,14 @@ class SpecificItemEditor(QWidget):
         try:
             sanitized = self._sanitize_item_payload(new_content)
             self._replace_current_item(sanitized)
-            self.save_data()
-            # Refresh details UI with sanitized values
+            # Update UI first so form reflects patched values
             self._populate_details_from_item_data(sanitized)
+            # Persist without pulling values back from the (previous) UI state
+            self._programmatic_save_in_progress = True
+            try:
+                self.save_data()
+            finally:
+                self._programmatic_save_in_progress = False
             return True, "OK"
         except Exception as e:
             logger.error("Failed to apply assistant patch: %s", e, exc_info=True)
@@ -564,10 +613,8 @@ class SpecificItemEditor(QWidget):
             out.pop("stack_limit", None)
         if "durability" in out:
             out["durability"] = max(0, as_int(out["durability"]))
-            if out["durability"] <= 0:
-                out.pop("current_durability", None)
-            else:
-                out["current_durability"] = max(0, min(out["durability"], as_int(out.get("current_durability", out["durability"]))))
+        # Templates should not carry current_durability
+        out.pop("current_durability", None)
 
         # Stats normalization
         stats = out.get("stats")
@@ -614,6 +661,33 @@ class SpecificItemEditor(QWidget):
         # Custom properties must be a dict if present
         if "custom_properties" in out and not isinstance(out["custom_properties"], dict):
             out.pop("custom_properties", None)
+        # Normalize typed_resistances under custom_properties (LLM/create/patch path)
+        if isinstance(out.get("custom_properties"), dict):
+            cp = dict(out.get("custom_properties") or {})
+            tr = cp.get("typed_resistances")
+            if isinstance(tr, dict):
+                allowed = set(getattr(self, "_effect_types", []) or [])
+                norm: Dict[str, int] = {}
+                for k, v in tr.items():
+                    try:
+                        key = str(k).strip().lower()
+                        if key and (not allowed or key in allowed):
+                            vi = int(float(v))
+                            if vi != 0:
+                                if vi < -100: vi = -100
+                                if vi > 100: vi = 100
+                                norm[key] = vi
+                    except Exception:
+                        continue
+                if norm:
+                    cp["typed_resistances"] = norm
+                else:
+                    cp.pop("typed_resistances", None)
+                # write back
+                out["custom_properties"] = cp if cp else out.pop("custom_properties", None) or {}
+            # Drop empty custom_properties entirely
+            if isinstance(out.get("custom_properties"), dict) and not out["custom_properties"]:
+                out.pop("custom_properties", None)
 
         # Clamp enums
         if out.get("item_type") not in {"armor","weapon","shield","accessory","consumable","tool","container","document","key","material","treasure","miscellaneous"}:
@@ -702,9 +776,15 @@ class SpecificItemEditor(QWidget):
         self.details_form_layout.addRow("Flags:", flags_layout)
 
         # Conditional Fields
-        self.equip_slots_edit = QLineEdit()
-        self.equip_slots_edit.setPlaceholderText("Comma-separated (e.g., main_hand,chest)")
-        self.details_form_layout.addRow("Equip Slots:", self.equip_slots_edit)
+        # Equip Slots: multi-select dropdown
+        self.equip_slots_combo = MultiSelectCombo()
+        # Allowed slots (align with references in get_reference_catalogs)
+        _equip_slot_opts = [
+            "main_hand","off_hand","two_hand","head","chest","legs","hands","feet",
+            "neck","ring","belt","cloak","quiver","pouch"
+        ]
+        self.equip_slots_combo.set_options(_equip_slot_opts)
+        self.details_form_layout.addRow("Equip Slots:", self.equip_slots_combo)
 
         self.stack_limit_spin = QSpinBox()
         self.stack_limit_spin.setRange(1, 9999)
@@ -714,9 +794,7 @@ class SpecificItemEditor(QWidget):
         self.durability_spin.setRange(0, 1000)
         self.details_form_layout.addRow("Durability (Max):", self.durability_spin)
 
-        self.current_durability_spin = QSpinBox()
-        self.current_durability_spin.setRange(0,1000)
-        self.details_form_layout.addRow("Current Durability:", self.current_durability_spin)
+        # Current Durability removed for templates (instances track this at runtime)
 
 
         # Stats Table
@@ -757,6 +835,10 @@ class SpecificItemEditor(QWidget):
         self.tags_edit.setPlaceholderText("Comma-separated tags (e.g., magic, fire, potion)")
         self.details_form_layout.addRow("Tags:", self.tags_edit)
 
+        # Typed Resistances (structured editor)
+        self.typed_res_editor = TypedResistancesEditor(effect_types=getattr(self, "_effect_types", []))
+        self.details_form_layout.addRow("Typed Resistances:", self.typed_res_editor)
+
         # Custom Properties (simple JSON string for now)
         self.custom_props_edit = QTextEdit()
         self.custom_props_edit.setPlaceholderText("JSON string for custom properties, e.g., {\"charge_cost\": 5}")
@@ -791,8 +873,9 @@ class SpecificItemEditor(QWidget):
 
     def save_data(self) -> bool:
         """Saves all items data to the JSON file."""
-        # Ensure current item details are applied to self.items_data if an item is selected
-        if self.current_item_index is not None and self.current_item_index < len(self.items_data):
+        # Ensure current item details are applied to self.items_data if an item is selected,
+        # unless a programmatic save is in progress (assistant patch path).
+        if (not self._programmatic_save_in_progress) and self.current_item_index is not None and self.current_item_index < len(self.items_data):
             self._apply_details_to_current_item_data()
 
         if save_json(self.items_data, self.full_item_file_path):
@@ -956,10 +1039,10 @@ class SpecificItemEditor(QWidget):
         self.is_stackable_check.setChecked(bool(item_data.get("is_stackable", False)))
         self.is_quest_item_check.setChecked(bool(item_data.get("is_quest_item", False)))
 
-        self.equip_slots_edit.setText(", ".join(item_data.get("equip_slots", [])))
+        # Equip slots via multi-select
+        self.equip_slots_combo.set_selected(item_data.get("equip_slots", []))
         self.stack_limit_spin.setValue(int(item_data.get("stack_limit", 1)))
         self.durability_spin.setValue(int(item_data.get("durability", 0)))
-        self.current_durability_spin.setValue(int(item_data.get("current_durability", item_data.get("durability", 0))))
 
 
         # Populate stats table
@@ -1000,6 +1083,14 @@ class SpecificItemEditor(QWidget):
         except TypeError:
             self.custom_props_edit.setPlainText("") # Clear if not serializable
 
+        # Populate typed resistances editor from custom_properties
+        typed_res = {}
+        if isinstance(custom_props, dict):
+            tr = custom_props.get("typed_resistances")
+            if isinstance(tr, dict):
+                typed_res = {str(k).strip().lower(): int(v) for k, v in tr.items() if isinstance(k, str) and isinstance(v, (int, float))}
+        self.typed_res_editor.set_values(typed_res)
+
         self._update_conditional_field_visibility()
 
 
@@ -1023,7 +1114,7 @@ class SpecificItemEditor(QWidget):
         item_data["is_quest_item"] = self.is_quest_item_check.isChecked()
 
         if item_data["is_equippable"]:
-            item_data["equip_slots"] = [s.strip() for s in self.equip_slots_edit.text().split(',') if s.strip()]
+            item_data["equip_slots"] = self.equip_slots_combo.get_selected()
         else:
             item_data.pop("equip_slots", None)
 
@@ -1033,10 +1124,8 @@ class SpecificItemEditor(QWidget):
             item_data.pop("stack_limit", None)
 
         item_data["durability"] = self.durability_spin.value()
-        if item_data["durability"] > 0 : # Only save current_durability if max durability is set
-            item_data["current_durability"] = self.current_durability_spin.value()
-        else:
-            item_data.pop("current_durability", None)
+        # In templates, do not persist current_durability; runtime items track this.
+        item_data.pop("current_durability", None)
 
 
         # Stats
@@ -1079,16 +1168,36 @@ class SpecificItemEditor(QWidget):
 
         item_data["tags"] = [t.strip() for t in self.tags_edit.text().split(',') if t.strip()]
 
+        # Merge Custom Properties JSON with structured Typed Resistances
+        parsed_cp = None
         try:
             custom_props_str = self.custom_props_edit.toPlainText().strip()
             if custom_props_str:
-                item_data["custom_properties"] = json.loads(custom_props_str)
-            elif "custom_properties" in item_data: # If empty string, remove the key
-                del item_data["custom_properties"]
+                parsed_cp = json.loads(custom_props_str)
+                if not isinstance(parsed_cp, dict):
+                    parsed_cp = {}
         except json.JSONDecodeError:
-            QMessageBox.warning(self, "JSON Error", "Invalid JSON in Custom Properties. Changes not saved for this field.")
-            # Optionally, don't save the custom_properties part or revert to original
-            # For now, it will keep the old value if new is invalid and save_json doesn't crash
+            QMessageBox.warning(self, "JSON Error", "Invalid JSON in Custom Properties. Keeping previous custom_properties where possible.")
+            parsed_cp = None
+        # Start from existing dict if JSON parse failed, else from parsed cp or empty
+        cp = parsed_cp if isinstance(parsed_cp, dict) else (item_data.get("custom_properties") if isinstance(item_data.get("custom_properties"), dict) else {})
+        # Apply typed resistances from the structured editor
+        typed_res = self.typed_res_editor.get_values()
+        if typed_res:
+            cp["typed_resistances"] = typed_res
+        else:
+            if isinstance(cp, dict):
+                cp.pop("typed_resistances", None)
+        # Persist or remove custom_properties key
+        if isinstance(cp, dict) and cp:
+            item_data["custom_properties"] = cp
+            try:
+                self.custom_props_edit.setPlainText(json.dumps(cp, indent=2))
+            except Exception:
+                pass
+        else:
+            item_data.pop("custom_properties", None)
+            self.custom_props_edit.clear()
 
     def _clear_details(self):
         self.id_edit.clear()
@@ -1102,14 +1211,18 @@ class SpecificItemEditor(QWidget):
         self.is_consumable_check.setChecked(False)
         self.is_stackable_check.setChecked(False)
         self.is_quest_item_check.setChecked(False)
-        self.equip_slots_edit.clear()
+        self.equip_slots_combo.clear_selection()
         self.stack_limit_spin.setValue(1)
         self.durability_spin.setValue(0)
-        self.current_durability_spin.setValue(0)
         self.stats_table.setRowCount(0)
         self.dice_effects_table.setRowCount(0)
         self.tags_edit.clear()
         self.custom_props_edit.clear()
+        # Reset typed resistances editor
+        try:
+            self.typed_res_editor.set_values({})
+        except Exception:
+            pass
         self._update_conditional_field_visibility()
 
 
@@ -1132,21 +1245,43 @@ class SpecificItemEditor(QWidget):
         if enabled:
             self._update_conditional_field_visibility()
         else: # Hide conditional fields if no item is selected
-            self.details_form_layout.labelForField(self.equip_slots_edit).setVisible(False)
-            self.equip_slots_edit.setVisible(False)
+            self.details_form_layout.labelForField(self.equip_slots_combo).setVisible(False)
+            self.equip_slots_combo.setVisible(False)
             self.details_form_layout.labelForField(self.stack_limit_spin).setVisible(False)
             self.stack_limit_spin.setVisible(False)
+            # Hide typed resistances section
+            try:
+                self.details_form_layout.labelForField(self.typed_res_editor).setVisible(False)
+                self.typed_res_editor.setVisible(False)
+            except Exception:
+                pass
 
 
     def _update_conditional_field_visibility(self):
         """Show/hide fields based on checkbox states."""
         is_equippable = self.is_equippable_check.isChecked()
-        self.details_form_layout.labelForField(self.equip_slots_edit).setVisible(is_equippable)
-        self.equip_slots_edit.setVisible(is_equippable)
+        self.details_form_layout.labelForField(self.equip_slots_combo).setVisible(is_equippable)
+        self.equip_slots_combo.setVisible(is_equippable)
+        self.equip_slots_combo.setEnabled(is_equippable)
+        if not is_equippable:
+            try:
+                self.equip_slots_combo.clear_selection()
+            except Exception:
+                pass
 
         is_stackable = self.is_stackable_check.isChecked()
         self.details_form_layout.labelForField(self.stack_limit_spin).setVisible(is_stackable)
         self.stack_limit_spin.setVisible(is_stackable)
+
+        # Typed resistances visible only for equippable items
+        try:
+            lbl = self.details_form_layout.labelForField(self.typed_res_editor)
+            if lbl:
+                lbl.setVisible(is_equippable)
+            self.typed_res_editor.setVisible(is_equippable)
+            self.typed_res_editor.setEnabled(is_equippable)
+        except Exception:
+            pass
 
     @Slot()
     def _add_item_stat(self):
