@@ -490,27 +490,22 @@ class CombatOutputOrchestrator(QObject):
         closing_prompt = f"The combat has just ended. The outcome was: {outcome}. Provide a brief, immersive closing narrative (1-2 sentences) describing the aftermath for the player."
         
         llm_narrative = "[Default Closing: The dust settles on the battlefield.]" # Fallback
-        if engine._use_llm and hasattr(engine, '_agent_manager'):
+        if engine._use_llm:
             try:
-                # This assumes AgentManager has a method or can route this appropriately.
-                # A new method in NarratorAgent or AgentManager might be cleaner.
-                # For now, using a simplified direct call similar to initial narrative.
-                # This should ideally be non-blocking if using threads for LLM calls.
-                # For now, this will block the orchestrator briefly.
                 logger.info(f"Orchestrator requesting closing combat narrative with prompt: {closing_prompt}")
-                
-                # Re-using process_with_llm from interaction_core for simplicity,
-                # though a dedicated method in AgentManager would be better.
-                from core.game_flow.interaction_core import process_with_llm 
+                from core.game_flow.interaction_core import _build_interaction_context, _get_agent_response
+                from core.interaction.enums import InteractionMode
                 gs = engine._state_manager.current_state if hasattr(engine, '_state_manager') and engine._state_manager else None
-                response = process_with_llm(gs, closing_prompt)
-                if response.is_success and response.message:
-                    llm_narrative = response.message
+                context = _build_interaction_context(gs, InteractionMode.COMBAT, actor_id=getattr(getattr(gs, 'player', None), 'id', None)) if gs else {}
+                agent_output = _get_agent_response(engine, gs, context, closing_prompt, InteractionMode.COMBAT) or {}
+                narrative = agent_output.get('narrative')
+                if narrative:
+                    llm_narrative = narrative
                     logger.info(f"Orchestrator received closing narrative: {llm_narrative[:70]}...")
                 else:
-                    logger.warning("Failed to generate closing combat narrative from LLM.")
+                    logger.warning("Failed to generate closing combat narrative from LLM (no narrative).")
             except Exception as e:
-                logger.error(f"Error generating closing combat narrative via LLM: {e}", exc_info=True)
+                logger.error(f"Error generating closing combat narrative via structured path: {e}", exc_info=True)
         else:
             logger.info("LLM disabled, using default closing narrative.")
 

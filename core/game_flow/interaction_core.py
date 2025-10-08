@@ -27,12 +27,13 @@ logger = logging.getLogger("INTERACTION_PROC") # Keep original logger name for m
 
 def should_narrative_use_unified_loop(intent: str) -> bool:
     """
-    Placeholder function to determine if narrative input requires
-    the full unified loop (validation, checks, state changes).
+    Decide whether narrative input should use the unified loop.
+
+    Design decision: always route Narrative mode input through the
+    unified loop so that structured requests (skill checks, state
+    changes, mode transitions) are validated and executed consistently.
     """
-    # TODO: Implement logic to detect narrative requiring specific actions
-    # based on keywords, context analysis, or LLM output flags.
-    return False # Default to standard narrative processing
+    return True
 
 # --- Core Interaction Processing ---
 
@@ -144,13 +145,24 @@ def _build_interaction_context(game_state: 'GameState', current_mode: Interactio
 def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: Dict[str, Any], intent: str, current_mode: InteractionMode) -> Optional[AgentOutput]:
     """Calls the appropriate LLM agent based on the mode and returns the structured output."""
     logger.debug(f"Getting agent response for Mode: {current_mode.name}, Intent: '{intent}'")
+
+    # Compute internal exact time for prompt (do not show to user)
+    try:
+        from core.utils.time_utils import format_game_time
+        exact_time_str = format_game_time(getattr(game_state.world, 'game_time', 0.0)) if getattr(game_state, 'world', None) else ""
+    except Exception:
+        exact_time_str = ""
+
+    # Provide richer world_state to the agent
     agent_context = AgentContext(
         game_state=context, # Pass context dict as game_state for agent
         player_state=context.get('player', {}),
         world_state={
             'location': context.get('location'),
             'time_of_day': context.get('time_of_day'),
-            'environment': context.get('environment')
+            'is_day': getattr(getattr(game_state, 'world', None), 'is_day', True),
+            'environment': context.get('environment'),
+            'exact_game_time': exact_time_str
         },
         player_input=intent, # Use the intent as the input
         conversation_history=game_state.conversation_history,
@@ -165,16 +177,16 @@ def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: 
         agent_output = engine._combat_narrator_agent.process(agent_context)
     # TODO: Add elif for SOCIAL_CONFLICT, TRADE agents
     else:
-        # Fallback to default AgentManager (likely Narrator)
-        logger.debug(f"Using default AgentManager processing for mode {current_mode.name}")
-        # Note: This path might need refinement if default agents should also produce structured requests.
-        # The default process_input returns narrative and a list of commands (strings), not AgentOutput
-        response_text, commands = engine._agent_manager.process_input(
-            game_state=game_state, # Pass original state here? Or context? Needs clarification.
-            player_input=intent
-        )
-        # Reconstruct basic AgentOutput - assumes default path doesn't give structured requests
-        agent_output = {"narrative": response_text, "requests": []} # Assuming default agent doesn't return structured requests yet
+        # For Narrative (and other non-combat unified flows), call NarratorAgent directly
+        # to obtain structured AgentOutput with requests.
+        try:
+            from core.agents.narrator import get_narrator_agent
+            narrator = get_narrator_agent()
+            logger.debug("Using NarratorAgent for structured AgentOutput in unified loop")
+            agent_output = narrator.process(agent_context)
+        except Exception as e:
+            logger.error(f"Failed to obtain structured AgentOutput from NarratorAgent: {e}")
+            agent_output = None
 
 
     if not agent_output:
@@ -376,6 +388,13 @@ def run_unified_loop(engine: 'GameEngine', game_state: 'GameState', intent: str,
             engine._output("system", "Sorry, I couldn't process that request properly (Agent Error).")
             return CommandResult.error("Agent failed to produce structured output.")
 
+        # Log structured agent output JSON for diagnostics
+        try:
+            import json as _json
+            logger.info(f"[LLM_AGENT_OUTPUT_STRUCTURED] {_json.dumps(agent_output, ensure_ascii=False)}")
+        except Exception:
+            logger.info("[LLM_AGENT_OUTPUT_STRUCTURED] <unavailable>")
+
         requests_list = agent_output.get('requests', [])
         if requests_list and actor_combat_name != "Unknown":
             corrected_requests = []
@@ -391,7 +410,127 @@ def run_unified_loop(engine: 'GameEngine', game_state: 'GameState', intent: str,
                  corrected_requests.append(req)
             agent_output["requests"] = corrected_requests
 
-        # 3. Validate Action
+        # 3. Time passage handling (pre-validation): advance time only outside COMBAT
+        try:
+            current_mode_name = game_state.current_mode.name if hasattr(game_state.current_mode, 'name') else str(game_state.current_mode)
+        except Exception:
+            current_mode_name = 'NARRATIVE'
+        try:
+            from core.utils.time_utils import parse_time_string, MINUTE
+            if current_mode_name != 'COMBAT':
+                tp = agent_output.get('time_passage') if isinstance(agent_output, dict) else None
+                logger.info(f"[TIME_CAPTURE] raw_time_passage_field={tp!r}")
+                seconds = parse_time_string(tp) if tp else None
+                # If missing, first try to parse player's intent
+                if seconds is None:
+                    try:
+                        import re
+                        intent_text = intent or ""
+                        m = re.search(r"(\d+)\s*(hour|hours|hr|hrs)", intent_text, re.IGNORECASE)
+                        if m:
+                            seconds = float(m.group(1)) * 3600.0
+                        else:
+                            m = re.search(r"(\d+)\s*(minute|minutes|min|mins)", intent_text, re.IGNORECASE)
+                            if m:
+                                seconds = float(m.group(1)) * 60.0
+                            else:
+                                m = re.search(r"(\d+)\s*(day|days)", intent_text, re.IGNORECASE)
+                                if m:
+                                    seconds = float(m.group(1)) * 86400.0
+                        # Number words from intent
+                        if seconds is None:
+                            ones = "one|two|three|four|five|six|seven|eight|nine"
+                            teens = "ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen"
+                            tens = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety"
+                            number_word_re = rf"((?:{teens}|(?:{tens})(?:[- ](?:{ones}))?|(?:{ones})))"
+                            def _word_to_num(txt: str) -> float:
+                                txt = (txt or '').strip().lower().replace('-', ' ')
+                                base_map = {
+                                    'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,
+                                    'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
+                                    'twenty':20,'thirty':30,'forty':40,'fifty':50,'sixty':60,'seventy':70,'eighty':80,'ninety':90
+                                }
+                                total = 0
+                                for p in [p for p in txt.split() if p]:
+                                    if p in base_map: total += base_map[p]
+                                    else: return 0
+                                return float(total)
+                            m = re.search(rf"\b{number_word_re}\s*(hour|hours|hr|hrs)\b", intent_text, re.IGNORECASE)
+                            if m: seconds = _word_to_num(m.group(1)) * 3600.0
+                            if seconds is None or seconds == 0:
+                                m = re.search(rf"\b{number_word_re}\s*(minute|minutes|min|mins)\b", intent_text, re.IGNORECASE)
+                                if m: seconds = _word_to_num(m.group(1)) * 60.0
+                            if seconds is None or seconds == 0:
+                                m = re.search(rf"\b{number_word_re}\s*(day|days)\b", intent_text, re.IGNORECASE)
+                                if m: seconds = _word_to_num(m.group(1)) * 86400.0
+                    except Exception:
+                        seconds = None
+                # If still missing, try to parse the narrative
+                if seconds is None:
+                    # Heuristic: attempt to detect simple time mentions in the narrative (e.g., "12 hours")
+                    try:
+                        import re
+                        narr = (agent_output.get('narrative') or '') if isinstance(agent_output, dict) else ''
+                        m = re.search(r"(\d+)\s*(hour|hours|hr|hrs)", narr, re.IGNORECASE)
+                        if m:
+                            seconds = float(m.group(1)) * 3600.0
+                        else:
+                            m = re.search(r"(\d+)\s*(minute|minutes|min|mins)", narr, re.IGNORECASE)
+                            if m:
+                                seconds = float(m.group(1)) * 60.0
+                            else:
+                                m = re.search(r"(\d+)\s*(day|days)", narr, re.IGNORECASE)
+                                if m:
+                                    seconds = float(m.group(1)) * 86400.0
+                        # If still None, try number words (e.g., 'twelve hours', 'twenty-one minutes')
+                        if seconds is None:
+                            # Build regex for number words up to 99 (tens + optional ones)
+                            ones = "one|two|three|four|five|six|seven|eight|nine"
+                            teens = "ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen"
+                            tens = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety"
+                            number_word_re = rf"((?:{teens}|(?:{tens})(?:[- ](?:{ones}))?|(?:{ones})))"
+                            # Try hours
+                            m = re.search(rf"\b{number_word_re}\s*(hour|hours|hr|hrs)\b", narr, re.IGNORECASE)
+                            def _word_to_num(txt: str) -> float:
+                                txt = (txt or '').strip().lower()
+                                # normalize hyphens to spaces
+                                txt = txt.replace('-', ' ')
+                                parts = [p for p in txt.split() if p]
+                                base_map = {
+                                    'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,
+                                    'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
+                                    'twenty':20,'thirty':30,'forty':40,'fifty':50,'sixty':60,'seventy':70,'eighty':80,'ninety':90
+                                }
+                                total = 0
+                                for p in parts:
+                                    if p in base_map:
+                                        total += base_map[p]
+                                    else:
+                                        # unknown word
+                                        return 0
+                                return float(total)
+                            if m:
+                                seconds = _word_to_num(m.group(1)) * 3600.0
+                            if seconds is None or seconds == 0:
+                                m = re.search(rf"\b{number_word_re}\s*(minute|minutes|min|mins)\b", narr, re.IGNORECASE)
+                                if m:
+                                    seconds = _word_to_num(m.group(1)) * 60.0
+                            if seconds is None or seconds == 0:
+                                m = re.search(rf"\b{number_word_re}\s*(day|days)\b", narr, re.IGNORECASE)
+                                if m:
+                                    seconds = _word_to_num(m.group(1)) * 86400.0
+                    except Exception:
+                        seconds = None
+                if seconds is None:
+                    seconds = 1 * MINUTE
+                # Advance world time
+                if getattr(game_state, 'world', None):
+                    logger.info(f"[TIME_CAPTURE] computed_seconds={seconds}")
+                    game_state.world.advance_time(seconds)
+        except Exception as _e_time:
+            logger.warning(f"Time passage handling failed: {_e_time}")
+
+        # 4. Validate Action
         is_valid, validation_feedback = _validate_agent_action(engine, context, agent_output, intent)
         if not is_valid:
             is_npc_action = hasattr(game_state, 'is_processing_npc_action') and game_state.is_processing_npc_action
@@ -403,7 +542,14 @@ def run_unified_loop(engine: 'GameEngine', game_state: 'GameState', intent: str,
                 return CommandResult.invalid(f"Action invalid: {validation_feedback}")
 
 
-        # 4. Execute Validated Requests & Handle Narrative
+        # 4. Output primary narrative (if any) before executing mechanics, unless it's a pure data retrieval
+        primary_narrative = agent_output.get('narrative', '') or ''
+        requests_list = agent_output.get('requests', []) or []
+        has_data_retrieval = any(isinstance(r, dict) and r.get('action') == 'request_data_retrieval' for r in requests_list)
+        if primary_narrative.strip() and not has_data_retrieval:
+            engine._output("gm", primary_narrative)
+
+        # 5. Execute Validated Requests & Handle outcome/system lines
         final_narrative_parts = _execute_validated_requests(engine, game_state, agent_output, effective_actor_id, intent)
 
         # 5. Output Final System Messages (Results of checks/changes)

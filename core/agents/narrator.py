@@ -69,6 +69,8 @@ class NarratorAgent(BaseAgent):
         world_weather = context.world_state.get("weather", "Clear")
         is_day = context.world_state.get("is_day", True)
         day_night = "day" if is_day else "night"
+        # Internal exact time (do not reveal to player)
+        exact_game_time = context.world_state.get("exact_game_time", "Unknown")
 
         current_mode = context.game_state.get("mode", "NARRATIVE")
         mode_display = current_mode if isinstance(current_mode, str) else \
@@ -89,6 +91,7 @@ class NarratorAgent(BaseAgent):
         - Time: {world_time} ({day_night})
         - Weather: {world_weather}
         - Current Interaction Mode: {mode_display}{stamina_note_for_prompt}
+        - Exact Game Time (internal): {exact_game_time}
 
         ## Your Responsibilities
         1. Generate vivid narrative responses to player actions.
@@ -100,6 +103,7 @@ class NarratorAgent(BaseAgent):
         ```json
         {{
         "narrative": "Your descriptive text about the situation and the player's attempted action goes here. Describe the lead-up to any requested checks or state changes.",
+        "time_passage": "1m",
         "requests": [
             {{
             "action": "request_skill_check",
@@ -179,6 +183,8 @@ class NarratorAgent(BaseAgent):
         Evidence items should reference concrete signals (flags, dialogue ids, interaction ids). Do not propose quest status changes that contradict objective-level logic; prefer proposing objective updates. Never invent quest or objective IDs.
 
         ## Guidelines
+        - **Time Passage (MANDATORY):** Always include a compact `time_passage` value (e.g., "30s", "1m", "2h", "1d") representing the approximate time elapsed since the last user input. If uncertain, default to "1m". Do not omit this field.
+        - **Time Disclosure Policy:** Do not reveal numeric clock times to the player. Use only named periods (dawn, morning, noon, afternoon, evening, sunset, night, deep night). The "Exact Game Time (internal)" is for reasoning only.
         - **NARRATIVE Mode Focus:** When mode is NARRATIVE, actively look for intents requiring skill checks, state changes, or mode transitions.
         - **Inventory Changes (CRITICAL):** When the player gives, offers, drops, leaves behind, discards, sacrifices, or consumes an item, include a `request_state_change` with `attribute: "inventory"`.
           • Prefer `template_id` if known; otherwise use `item_id` (when present) or `item_name`.
@@ -569,6 +575,12 @@ class NarratorAgent(BaseAgent):
         messages = []
         system_prompt = self._generate_system_prompt(context)
         messages.append({"role": "system", "content": system_prompt})
+        # Verify time_passage directive presence in prompt
+        try:
+            directive_present = ("Time Passage (MANDATORY)" in system_prompt) or ("time_passage" in system_prompt)
+            logger.info(f"[LLM_PROMPT_POLICY] time_passage_directive_present={directive_present}")
+        except Exception:
+            pass
 
         # Add conversation history
         history_messages = self._format_conversation_history(context)

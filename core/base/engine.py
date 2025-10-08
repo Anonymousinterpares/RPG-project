@@ -355,6 +355,13 @@ class GameEngine(QObject):
                 logger.info("CombatManager step is COMBAT_ENDED. Transitioning to NARRATIVE mode.")
                 
                 game_state.set_interaction_mode(InteractionMode.NARRATIVE)
+                # Advance a default 5 minutes to capture combat duration immersively
+                try:
+                    from core.utils.time_utils import MINUTE
+                    if getattr(game_state, 'world', None):
+                        game_state.world.advance_time(5 * MINUTE)
+                except Exception:
+                    pass
                 final_combat_outcome = combat_manager.state.name if combat_manager.state else "Unknown"
                 
                 # Clear combat manager from game state and orchestrator
@@ -390,14 +397,15 @@ class GameEngine(QObject):
 
                     # Perform LLM call for closing narrative (can be async or in a separate thread later)
                     try:
-                        from core.game_flow.interaction_core import process_with_llm # Local import
+                        from core.game_flow.interaction_core import _build_interaction_context, _get_agent_response
                         logger.info(f"Requesting closing combat narrative with prompt: {closing_prompt}")
-                        closing_result = process_with_llm(game_state, closing_prompt) # Pass GameState to LLM
-                        
-                        if closing_result.is_success and closing_result.message:
+                        context = _build_interaction_context(game_state, InteractionMode.COMBAT, actor_id=getattr(game_state.player, 'id', None))
+                        agent_output = _get_agent_response(self, game_state, context, closing_prompt, InteractionMode.COMBAT)
+                        closing_text = agent_output.get('narrative') if agent_output else None
+                        if closing_text:
                             closing_narrative_event = DisplayEvent(
                                 type=DisplayEventType.NARRATIVE_GENERAL,
-                                content=closing_result.message,
+                                content=closing_text,
                                 role="gm",
                                 target_display=DisplayTarget.MAIN_GAME_OUTPUT,
                                 gradual_visual_display=True,
@@ -465,6 +473,13 @@ class GameEngine(QObject):
 
             # Transition mode and detach combat manager
             game_state.set_interaction_mode(InteractionMode.NARRATIVE)
+            # Advance a default 5 minutes to capture combat duration immersively
+            try:
+                from core.utils.time_utils import MINUTE
+                if getattr(game_state, 'world', None):
+                    game_state.world.advance_time(5 * MINUTE)
+            except Exception:
+                pass
             final_combat_outcome = combat_manager.state.name if getattr(combat_manager, 'state', None) else "Unknown"
             game_state.combat_manager = None
 

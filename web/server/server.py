@@ -1183,7 +1183,11 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
         except Exception:
             mode = 'NARRATIVE'
         location = getattr(player, 'current_location', None)
-        game_time = state.game_time.get_formatted_time() if getattr(state, 'game_time', None) else None
+        # Provide narrative time-of-day period for UI instead of exact clock
+        try:
+            game_time = state.world.time_of_day if getattr(state, 'world', None) else None
+        except Exception:
+            game_time = None
 
         # Combat info (basic)
         turn_order: List[str] = []

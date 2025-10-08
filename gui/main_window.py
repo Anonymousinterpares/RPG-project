@@ -849,7 +849,7 @@ class MainWindow(QMainWindow):
 
             self.status_bar.update_status(
                 location=getattr(state.player, 'current_location', 'Unknown') if state.player else 'N/A',
-                game_time=self.game_engine.game_loop.game_time.get_formatted_time(),
+                game_time=getattr(state.world, 'time_of_day', ''),
                 speed=self.game_engine.game_loop.speed.name,
                 mode=current_mode_name 
             )

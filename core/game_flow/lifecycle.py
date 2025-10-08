@@ -228,7 +228,7 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
     
     # Generate initial narrative if LLM is enabled
     if engine._use_llm:
-        logger.info("Generating welcome narration")
+        logger.info("Generating welcome narration (structured)")
         narration_prompt = (
             f"I've just started a new game as {game_state.player.name}, a {game_state.player.race} {game_state.player.path}. "
             f"My background is: \"{introduction_text_for_llm}\". "
@@ -236,15 +236,34 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
             f"This is the first narrative in the game, so make it welcoming and informative."
         )
 
-        from core.game_flow.interaction_core import process_with_llm 
-        result = process_with_llm(game_state, narration_prompt) 
-        
-        narrative_text = None
-        if result.is_success and result.message:
-            logger.info(f"Received welcome narrative from LLM, first 100 chars: '{result.message[:100]}...'")
-            narrative_text = result.message
-        else:
-            logger.warning("Failed to generate welcome narrative from LLM.")
+        # Use structured narrator path to obtain narrative and time_passage
+        try:
+            from core.game_flow.interaction_core import _build_interaction_context, _get_agent_response
+            from core.interaction.enums import InteractionMode
+            context = _build_interaction_context(game_state, InteractionMode.NARRATIVE, actor_id=getattr(game_state.player, 'id', None))
+            agent_output = _get_agent_response(engine, game_state, context, narration_prompt, InteractionMode.NARRATIVE) or {}
+            # Log structured agent output for welcome
+            try:
+                import json as _json
+                logger.info(f"[LLM_AGENT_OUTPUT_STRUCTURED] {_json.dumps(agent_output, ensure_ascii=False)}")
+            except Exception:
+                logger.info("[LLM_AGENT_OUTPUT_STRUCTURED] <unavailable>")
+            narrative_text = agent_output.get('narrative') or "The world awaits your command..."
+            # Advance time for NARRATIVE welcome based on time_passage (fallback to 1m)
+            try:
+                from core.utils.time_utils import parse_time_string, MINUTE
+                tp = agent_output.get('time_passage')
+                logger.info(f"[TIME_CAPTURE] raw_time_passage_field={tp!r}")
+                seconds = parse_time_string(tp) if tp else None
+                if seconds is None:
+                    seconds = 1 * MINUTE
+                if getattr(game_state, 'world', None):
+                    logger.info(f"[TIME_CAPTURE] computed_seconds={seconds}")
+                    game_state.world.advance_time(seconds)
+            except Exception as e_time:
+                logger.warning(f"Welcome time passage handling failed: {e_time}")
+        except Exception as e:
+            logger.warning(f"Structured welcome generation failed: {e}")
             narrative_text = "The world awaits your command..."
 
         # Route the initial narrative through the orchestrator so we can append quest-start messages afterwards
@@ -493,33 +512,45 @@ def _generate_reintroductory_narrative_content(engine: 'GameEngine', game_state:
             f"Make it atmospheric, but not overly narrative and help me get back into the story - I need all most important details from my previous game."
         )
         
-        # Generate the narrative using the LLM
-        logger.info("LIFECYCLE_DEBUG: About to call process_with_llm for reintroductory narrative")
-        logger.info(f"LIFECYCLE_DEBUG: Prompt length: {len(reintro_prompt)} chars")
-        from core.game_flow.interaction_core import process_with_llm 
-        result = process_with_llm(game_state, reintro_prompt)
-        
-        logger.info(f"LIFECYCLE_DEBUG: process_with_llm returned - Success: {result.is_success}")
-        if result.message:
-            logger.info(f"LIFECYCLE_DEBUG: Result message length: {len(result.message)} chars")
-            logger.info(f"LIFECYCLE_DEBUG: Result message preview: '{result.message[:200]}...'")
-        else:
-            logger.warning("LIFECYCLE_DEBUG: Result message is None or empty")
-            
-        if result.is_success and result.message:
-            logger.info(f"Generated reintroductory narrative: '{result.message[:100]}...'")
-            logger.info("LIFECYCLE_DEBUG: Returning generated narrative content")
-            return result.message
-        else:
-            logger.warning("Failed to generate reintroductory narrative from LLM")
-            logger.warning(f"LIFECYCLE_DEBUG: Result details - Success: {result.is_success}, Message: {result.message}")
-            # Provide a simple fallback narrative
-            fallback_message = (
-                f"You find yourself at {current_location} as {time_of_day.lower()} settles in. "
-                f"The familiar surroundings remind you of your ongoing adventure."
-            )
-            logger.info("LIFECYCLE_DEBUG: Returning fallback narrative content")
-            return fallback_message
+        # Generate the narrative using structured narrator
+        try:
+            from core.game_flow.interaction_core import _build_interaction_context, _get_agent_response
+            from core.interaction.enums import InteractionMode
+            context = _build_interaction_context(game_state, InteractionMode.NARRATIVE, actor_id=getattr(game_state.player, 'id', None))
+            agent_output = _get_agent_response(engine, game_state, context, reintro_prompt, InteractionMode.NARRATIVE) or {}
+            # Log structured agent output for reintro
+            try:
+                import json as _json
+                logger.info(f"[LLM_AGENT_OUTPUT_STRUCTURED] {_json.dumps(agent_output, ensure_ascii=False)}")
+            except Exception:
+                logger.info("[LLM_AGENT_OUTPUT_STRUCTURED] <unavailable>")
+            narrative = agent_output.get('narrative')
+            if narrative:
+                # Advance time outside combat (NARRATIVE): use time_passage fallback to 1m
+                try:
+                    from core.utils.time_utils import parse_time_string, MINUTE
+                    tp = agent_output.get('time_passage')
+                    logger.info(f"[TIME_CAPTURE] raw_time_passage_field={tp!r}")
+                    seconds = parse_time_string(tp) if tp else None
+                    if seconds is None:
+                        seconds = 1 * MINUTE
+                    if getattr(game_state, 'world', None):
+                        logger.info(f"[TIME_CAPTURE] computed_seconds={seconds}")
+                        game_state.world.advance_time(seconds)
+                except Exception as e_time:
+                    logger.warning(f"Reintro time passage handling failed: {e_time}")
+                return narrative
+        except Exception as e:
+            logger.warning(f"Structured reintro generation failed: {e}")
+
+        # Fallback logic for when narrative generation fails or returns empty.
+        logger.warning("Failed to generate reintroductory narrative. Using fallback.")
+        fallback_message = (
+            f"You find yourself at {current_location} as {time_of_day.lower()} settles in. "
+            f"The familiar surroundings remind you of your ongoing adventure."
+        )
+        logger.info("LIFECYCLE_DEBUG: Returning fallback narrative content")
+        return fallback_message
             
     except Exception as e:
         logger.error(f"Error generating reintroductory narrative: {e}", exc_info=True)

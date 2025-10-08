@@ -146,13 +146,69 @@ def _process_skill_check_request(engine: 'GameEngine', game_state: 'GameState', 
         return f"System Error: Unexpected error during {skill_name_str or 'skill'} check."
 
 def _process_state_change_request(engine: 'GameEngine', game_state: 'GameState', request: Dict[str, Any], effective_actor_id: str) -> str:
-    """Processes a single state change request and returns the narrative result. Uses combat_name."""
+    """Processes a single state change request and returns the narrative result. Uses combat_name.
+    Also supports a simplified narrative-mode path when no CombatManager exists (applies to the player).
+    """
     # --- MODIFICATION: Get combat_name instead of ID ---
     target_combat_name = request.get("target_entity")
     # --- END MODIFICATION ---
     attribute = request.get("attribute")
     value = request.get("value")
     duration_str = request.get("duration")
+
+    # Narrative-mode support: if no CombatManager, apply basic state changes to the player via StatsManager
+    if not getattr(game_state, 'combat_manager', None):
+        try:
+            # Default target is the player in narrative mode
+            player_stats = engine.state_manager.stats_manager if hasattr(engine, 'state_manager') else get_stats_manager()
+            if not player_stats:
+                return ""
+            # Normalize attribute keys
+            attr_key = (str(attribute or "").strip().lower())
+            # Helper to coerce numeric value
+            try:
+                delta = float(value)
+            except Exception:
+                delta = None
+            from core.stats.stats_base import DerivedStatType
+            if attr_key in ("hp", "health") and delta is not None:
+                cur = player_stats.get_current_stat_value(DerivedStatType.HEALTH)
+                new_v = max(0.0, cur + delta)
+                ok = player_stats.set_current_stat(DerivedStatType.HEALTH, new_v)
+                if ok:
+                    max_v = player_stats.get_stat_value(DerivedStatType.MAX_HEALTH)
+                    if delta < 0:
+                        return f"You take {abs(delta):.0f} damage. Current HP: {new_v:.0f}/{max_v:.0f}."
+                    else:
+                        return f"You recover {delta:.0f} HP. Current HP: {new_v:.0f}/{max_v:.0f}."
+                return ""
+            if attr_key == "stamina" and delta is not None:
+                cur = player_stats.get_current_stat_value(DerivedStatType.STAMINA)
+                new_v = max(0.0, cur + delta)
+                ok = player_stats.set_current_stat(DerivedStatType.STAMINA, new_v)
+                if ok:
+                    max_v = player_stats.get_stat_value(DerivedStatType.MAX_STAMINA)
+                    if delta < 0:
+                        return f"You spend {abs(delta):.1f} stamina. Remaining: {new_v:.1f}/{max_v:.1f}."
+                    else:
+                        return f"You recover {delta:.1f} stamina. Current: {new_v:.1f}/{max_v:.1f}."
+                return ""
+            if attr_key == "mana" and delta is not None:
+                cur = player_stats.get_current_stat_value(DerivedStatType.MANA)
+                new_v = max(0.0, cur + delta)
+                ok = player_stats.set_current_stat(DerivedStatType.MANA, new_v)
+                if ok:
+                    max_v = player_stats.get_stat_value(DerivedStatType.MAX_MANA)
+                    if delta < 0:
+                        return f"You spend {abs(delta):.1f} mana. Remaining: {new_v:.1f}/{max_v:.1f}."
+                    else:
+                        return f"You recover {delta:.1f} mana. Current: {new_v:.1f}/{max_v:.1f}."
+                return ""
+            # Unknown or unsupported attribute in narrative mode: no error, ignore silently
+            return ""
+        except Exception:
+            # Be quiet in narrative mode
+            return ""
 
     duration_int: Optional[int] = None
     if duration_str is not None:
@@ -165,6 +221,76 @@ def _process_state_change_request(engine: 'GameEngine', game_state: 'GameState',
     if not target_combat_name or not attribute: # Check name
         logger.error(f"StateChangeRequest missing target_entity (combat_name) or attribute: {request}")
         return "System Error: State change request is incomplete."
+
+    # Handle inventory before any combat-specific lookups (no CombatManager required)
+    if attribute == "inventory":
+        try:
+            from core.inventory import get_inventory_manager, get_item_factory
+            inv = get_inventory_manager()
+            item_factory = get_item_factory()
+
+            change_type_raw = (request.get("change_type") or request.get("change") or "add").lower()
+            qty_raw = request.get("quantity", request.get("count", 1))
+            try:
+                quantity = int(qty_raw)
+            except Exception:
+                quantity = 1
+            if quantity <= 0:
+                quantity = 1
+
+            if change_type_raw in ("add", "give", "pickup", "obtain", "create"):
+                item_obj = None
+                item_spec = request.get("item_spec") or request.get("item_data")
+                if isinstance(item_spec, dict):
+                    try:
+                        item_obj = item_factory.create_item_from_spec(item_spec)
+                    except Exception:
+                        item_obj = None
+                if item_obj is None:
+                    template_id = request.get("template_id") or request.get("item_template")
+                    ref_item_id = request.get("item_id")
+                    if ref_item_id:
+                        existing = inv.get_item(ref_item_id)
+                        if existing:
+                            item_obj = existing
+                        elif not template_id:
+                            template_id = ref_item_id
+                    if item_obj is None and template_id:
+                        item_obj = item_factory.create_item_from_template(template_id, variation=False)
+                if item_obj is None:
+                    item_name = request.get("item_name") or request.get("name")
+                    if item_name:
+                        found = inv.find_items(name=item_name)
+                        if found:
+                            item_obj = found[0]
+                if item_obj is not None:
+                    inv.add_item(item_obj, quantity=quantity)
+                return ""  # silent
+            elif change_type_raw in ("remove", "drop", "discard", "consume", "delete"):
+                target_item = None
+                ref_item_id = request.get("item_id")
+                if ref_item_id:
+                    target_item = inv.get_item(ref_item_id)
+                if not target_item:
+                    template_id = request.get("template_id") or request.get("item_template")
+                    if template_id:
+                        for it in getattr(inv, "_items", {}).values():
+                            if getattr(it, "template_id", None) == template_id:
+                                target_item = it
+                                break
+                if not target_item:
+                    item_name = request.get("item_name") or request.get("name")
+                    if item_name:
+                        found = inv.find_items(name=item_name)
+                        if found:
+                            target_item = found[0]
+                if target_item is not None:
+                    inv.remove_item(target_item.id, quantity=quantity)
+                return ""  # silent regardless
+            else:
+                return ""
+        except Exception:
+            return ""
 
     try:
         # --- MODIFICATION: Find participant by combat_name ---
@@ -267,6 +393,7 @@ def _process_state_change_request(engine: 'GameEngine', game_state: 'GameState',
                      change_narrative = f"{participant_name_display} was not affected by {effect_name}."
             else:
                 change_narrative = f"System Error: Invalid status effect name '{value}'."
+
 
         elif attribute == "location":
             # Developer-only direct location change to support testing visit/explore objectives.
