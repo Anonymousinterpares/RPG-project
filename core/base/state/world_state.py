@@ -23,7 +23,9 @@ class WorldState:
     including time, weather, and global variables.
     """
     # Game time
-    game_time: float = field(default_factory=time.time)  # Seconds since epoch
+    # Phase 1: Do not initialize from real-world time. Start from 0.0 and
+    # advance explicitly via engine logic (LLM time_passage, etc.).
+    game_time: float = 0.0  # Seconds since epoch (logical counter)
     game_date: str = "Day 1"  # In-game calendar date
     
     # World conditions
@@ -187,7 +189,7 @@ class WorldState:
     def from_dict(cls, data: Dict[str, Any]) -> 'WorldState':
         """Create a WorldState from a dictionary."""
         return cls(
-            game_time=data.get("game_time", time.time()),
+            game_time=data.get("game_time", 0.0),
             game_date=data.get("game_date", "Day 1"),
             weather=data.get("weather", "Clear"),
             is_day=data.get("is_day", True),

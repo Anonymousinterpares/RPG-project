@@ -252,7 +252,8 @@ def parse_time_string(time_str: str) -> Optional[float]:
 
 def real_to_game_time(real_seconds: float, time_scale: float = DEFAULT_TIME_SCALE) -> float:
     """
-    Convert real time to game time.
+    DEPRECATED (Phase 1): Real-time based conversions are no longer used to advance
+    world time. This function remains for legacy compatibility only.
     
     Args:
         real_seconds: The real time in seconds.
@@ -261,12 +262,14 @@ def real_to_game_time(real_seconds: float, time_scale: float = DEFAULT_TIME_SCAL
     Returns:
         The game time in seconds.
     """
+    logger.warning("time_utils.real_to_game_time called (DEPRECATED in Phase 1)")
     return real_seconds * time_scale
 
 
 def game_to_real_time(game_seconds: float, time_scale: float = DEFAULT_TIME_SCALE) -> float:
     """
-    Convert game time to real time.
+    DEPRECATED (Phase 1): Real-time based conversions are no longer used to advance
+    world time. This function remains for legacy compatibility only.
     
     Args:
         game_seconds: The game time in seconds.
@@ -275,6 +278,7 @@ def game_to_real_time(game_seconds: float, time_scale: float = DEFAULT_TIME_SCAL
     Returns:
         The real time in seconds.
     """
+    logger.warning("time_utils.game_to_real_time called (DEPRECATED in Phase 1)")
     if time_scale <= 0:
         logger.warning(f"Invalid time scale: {time_scale}")
         return 0
@@ -285,7 +289,8 @@ def game_to_real_time(game_seconds: float, time_scale: float = DEFAULT_TIME_SCAL
 def get_current_game_time(start_time: float, elapsed_real: float, 
                         time_scale: float = DEFAULT_TIME_SCALE) -> float:
     """
-    Calculate the current game time based on elapsed real time.
+    DEPRECATED (Phase 1): Real-time based calculations are no longer used to
+    determine world time. This function remains for legacy compatibility only.
     
     Args:
         start_time: The starting game time.
@@ -295,6 +300,7 @@ def get_current_game_time(start_time: float, elapsed_real: float,
     Returns:
         The current game time.
     """
+    logger.warning("time_utils.get_current_game_time called (DEPRECATED in Phase 1)")
     return start_time + real_to_game_time(elapsed_real, time_scale)
 
 

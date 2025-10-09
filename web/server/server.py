@@ -884,7 +884,7 @@ async def create_new_game(request: NewGameRequest):
             pass
         logger.info(f"Created new game session {session_id} for player {request.player_name}")
         state = engine.state_manager.state
-        return SessionInfo(
+            return SessionInfo(
             session_id=session_id,
             player_name=request.player_name,
             created_at=datetime.now(),
@@ -895,7 +895,7 @@ async def create_new_game(request: NewGameRequest):
             character_image=state.player.character_image,
             llm_enabled=engine._use_llm,
             location=state.player.current_location,
-            game_time=state.game_time.get_formatted_time() if state else None
+            game_time=(state.world.time_of_day if state and getattr(state, 'world', None) else None)
         )
     except Exception as e:
         logger.error(f"Error creating new game: {e}")
@@ -925,7 +925,7 @@ async def process_command(session_id: str, request: CommandRequest, engine: Game
                     "level": state.player.level,
                     "location": state.world.current_location
                 },
-                "time": state.game_time.get_formatted_time(),
+                "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
                 "game_running": engine.game_loop.is_running,
             }
         }
@@ -1021,7 +1021,7 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
                     "level": state.player.level,
                     "location": state.world.current_location
                 },
-                "time": state.game_time.get_formatted_time(),
+                "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
                 "game_running": engine.game_loop.is_running,
                 # Include mode explicitly for clients that want to react immediately
                 "mode": (getattr(getattr(state, 'current_mode', None), 'name', str(getattr(state, 'current_mode', 'NARRATIVE'))) if state else 'NARRATIVE')

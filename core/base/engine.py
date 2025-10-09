@@ -64,6 +64,11 @@ class GameEngine(QObject):
         self._state_manager = StateManager()
         self._command_processor = CommandProcessor()
         self._game_loop = GameLoop()
+        # Phase 1: One-time log: GameLoop time advancement is disabled.
+        try:
+            logger.info("PHASE 1: GameLoop time advancement is DISABLED. World time advances only via LLM time_passage and post-combat increments.")
+        except Exception:
+            pass
 
         try:
             from core.character.npc_system import NPCSystem
@@ -102,6 +107,15 @@ class GameEngine(QObject):
         self._game_loop.add_tick_callback(self._handle_tick_callback)
         
         self._auto_save_interval = self._config.get("game.auto_save_interval", 300)  
+        
+        # Phase 1: migrate autosave to a real-time scheduler (independent of GameLoop ticks)
+        try:
+            self._autosave_timer_qt = None
+            self._autosave_thread = None
+            self._autosave_thread_running = False
+            self._start_autosave_scheduler()
+        except Exception as e:
+            logger.warning(f"Failed to start autosave scheduler: {e}")
 
         # Apply QSettings gameplay values (difficulty, encounter_size) into config if present
         try:
@@ -311,6 +325,36 @@ class GameEngine(QObject):
         # Delegate to the lifecycle module
         return lifecycle.save_game(self, filename, auto_save)
 
+    
+    def _start_autosave_scheduler(self) -> None:
+        """Start a real-time autosave scheduler independent of GameLoop tick."""
+        try:
+            from PySide6.QtCore import QTimer
+            # If Qt available, prefer QTimer on the engine QObject
+            self._autosave_timer_qt = QTimer(self)
+            self._autosave_timer_qt.setInterval(int(self._auto_save_interval) * 1000)
+            self._autosave_timer_qt.timeout.connect(lambda: lifecycle.save_game(self, auto_save=True))
+            self._autosave_timer_qt.start()
+            logger.info(f"Autosave scheduler started with Qt timer every {self._auto_save_interval}s")
+            return
+        except Exception:
+            # Fallback to thread-based scheduler
+            pass
+        
+        import threading, time as _time
+        def _autosave_loop():
+            logger.info(f"Autosave scheduler thread started. Interval={self._auto_save_interval}s")
+            while self._autosave_thread_running:
+                try:
+                    _time.sleep(float(self._auto_save_interval))
+                    lifecycle.save_game(self, auto_save=True)
+                except Exception as _e:
+                    logger.warning(f"Autosave thread iteration failed: {_e}")
+            logger.info("Autosave scheduler thread exiting")
+        
+        self._autosave_thread_running = True
+        self._autosave_thread = threading.Thread(target=_autosave_loop, name="AutosaveScheduler", daemon=True)
+        self._autosave_thread.start()
     
     def process_command(self, command_text: str) -> CommandResult:
         """
@@ -634,12 +678,12 @@ class GameEngine(QObject):
         Args:
             target_fps: The target frames per second.
         """
-        logger.info(f"Starting game engine with target FPS: {target_fps}")
+        logger.warning(f"Engine.run() invoked with target FPS: {target_fps}. Time advancement is DISABLED (Phase 1).")
         self._running = True
         self._game_loop.unpause()
         try:
             while self._running:
-                self._game_loop.tick()
+                self._game_loop.tick()  # no-op advancement
                 time.sleep(1.0 / target_fps)
         except KeyboardInterrupt:
             logger.info("Game engine interrupted")
@@ -654,6 +698,25 @@ class GameEngine(QObject):
         logger.info("Stopping game engine")
         self._running = False
         self._game_loop.pause()
+        # Stop autosave scheduler
+        try:
+            if self._autosave_timer_qt is not None:
+                try:
+                    self._autosave_timer_qt.stop()
+                except Exception:
+                    pass
+                self._autosave_timer_qt = None
+            if self._autosave_thread_running:
+                self._autosave_thread_running = False
+                if self._autosave_thread is not None and self._autosave_thread.is_alive():
+                    try:
+                        self._autosave_thread.join(timeout=1.0)
+                    except Exception:
+                        pass
+                self._autosave_thread = None
+            logger.info("Autosave scheduler stopped")
+        except Exception as e:
+            logger.warning(f"Error stopping autosave scheduler: {e}")
 
     def set_game_speed(self, speed: GameSpeed) -> None:
         """
@@ -664,7 +727,8 @@ class GameEngine(QObject):
         """
         self._game_loop.speed = speed
         logger.info(f"Game speed set to {speed.name}")
-        self._output("system", f"Game speed set to {speed.name.lower()}")
+        logger.warning("Note: Phase 1 – Time advancement is disabled; speed affects no time progression.")
+        self._output("system", f"Game speed set to {speed.name.lower()} (no time progression in Phase 1)")
 
     def toggle_pause(self) -> bool:
         """

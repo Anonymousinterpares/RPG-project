@@ -36,14 +36,22 @@ class GameTime:
     
     This class handles tracking and manipulating the game time,
     including conversions between real time and game time.
+    
+    NOTE: DEPRECATED (Phase 1): The project no longer advances time based on
+    real-world passage. Fields like `time_scale` and `start_time` are kept
+    for backward compatibility and serialization only and should not be used
+    to compute world time. Game time now advances only via explicit
+    game context (LLM `time_passage`) and the fixed post-combat increment.
     """
     # Current game time in seconds
     game_time: float = 0.0
     
     # Time scale (game seconds per real second)
-    time_scale: float = 60.0  # Default: 1 real second = 60 game seconds (1 minute)
+    # DEPRECATED: Retained for backward compatibility. Do not use.
+    time_scale: float = 60.0  # Default preserved for legacy reads
     
     # Game start timestamp (real time)
+    # DEPRECATED: Retained for backward compatibility. Do not use.
     start_time: float = field(default_factory=time.time)
     
     # Day cycle in seconds (24 hours)
@@ -206,6 +214,11 @@ class GameLoop:
         # Lock for thread safety
         self._lock = threading.RLock()
         
+        # Phase 1: Disable real-time advancement of game time.
+        # Time now advances only via explicit engine calls (LLM time_passage, post-combat increment).
+        self._time_advance_disabled: bool = True
+        logger.info("GameLoop initialized with time advancement DISABLED (Phase 1).")
+        
         self._initialized = True
     
     @property
@@ -230,13 +243,17 @@ class GameLoop:
     
     @speed.setter
     def speed(self, value: GameSpeed) -> None:
-        """Set the game speed."""
+        """Set the game speed.
+        NOTE: Phase 1 – time advancement is disabled; speed changes have no effect on time.
+        """
         if not isinstance(value, GameSpeed):
             raise TypeError(f"Expected GameSpeed, got {type(value)}")
         
         with self._lock:
             self._speed = value
             logger.debug(f"Game speed set to {value.name}")
+            if self._time_advance_disabled:
+                logger.warning("GameLoop speed changed while time advancement is DISABLED. This does not affect world time (Phase 1).")
     
     def set_world_state(self, world_state: WorldState) -> None:
         """
@@ -256,12 +273,16 @@ class GameLoop:
                 logger.debug("Game paused")
     
     def unpause(self) -> None:
-        """Unpause the game loop."""
+        """Unpause the game loop.
+        NOTE: Phase 1 – unpausing does not cause time progression by itself.
+        """
         with self._lock:
             if self._paused:
                 self._paused = False
                 self._last_tick_time = time.time()  # Reset the tick timer
                 logger.debug("Game unpaused")
+                if self._time_advance_disabled:
+                    logger.warning("GameLoop unpaused while time advancement is DISABLED. No time progression will occur (Phase 1).")
     
     def toggle_pause(self) -> bool:
         """
@@ -346,8 +367,9 @@ class GameLoop:
         """
         Process a single tick.
         
-        This method advances the game time based on the elapsed real time
-        and the current game speed, then processes any scheduled events.
+        Phase 1: Real-time based advancement is DISABLED. This tick will not advance
+        world time. It will only notify callbacks with 0 elapsed time to avoid
+        breaking any auxiliary logic that may still listen to ticks.
         """
         with self._lock:
             # Skip if paused
@@ -355,26 +377,22 @@ class GameLoop:
                 self._last_tick_time = time.time()
                 return
             
-            # Calculate elapsed real time
-            current_time = time.time()
-            elapsed_real = current_time - self._last_tick_time
-            self._last_tick_time = current_time
+            # Update last tick time to avoid drift in any external references
+            self._last_tick_time = time.time()
             
-            # Calculate elapsed game time
-            elapsed_game = elapsed_real * self._game_time.time_scale * self._speed.value
-            
-            # Advance game time
+            elapsed_game = 0.0
             old_game_time = self._game_time.game_time
-            self._game_time.advance(elapsed_game)
             
-            # Update world state if available
-            if self._world_state is not None:
-                self._world_state.advance_time(elapsed_game)
+            if not self._time_advance_disabled:
+                # Defensive: If someone re-enabled it, warn and still prevent advancement.
+                logger.error("GameLoop time advancement was re-enabled unexpectedly. Preventing advancement (Phase 1 invariant).")
+                self._time_advance_disabled = True
             
-            # Process events
-            self._process_events(old_game_time, self._game_time.game_time)
+            # Do NOT advance self._game_time or world_state here.
+            # Do NOT process scheduled events that depend on time progression.
+            # (If event processing by absolute time is needed in future, it must be driven by explicit time passage.)
             
-            # Call tick callbacks
+            # Call tick callbacks with 0 elapsed
             for callback in self._tick_callbacks:
                 try:
                     callback(elapsed_game)
@@ -384,9 +402,9 @@ class GameLoop:
             # Increment tick counter
             self._tick_count += 1
             
-            # Log tick data at debug level
+            # Log tick data at debug level periodically
             if self._tick_count % 100 == 0:
-                logger.debug(f"Tick {self._tick_count}, game time: {self._game_time.get_formatted_time()}")
+                logger.debug(f"Tick {self._tick_count} (no-op advancement). Game time remains: {self._game_time.get_formatted_time()}")
     
     def _process_events(self, from_time: float, to_time: float) -> None:
         """
@@ -427,7 +445,7 @@ class GameLoop:
         """
         Run the game loop at the specified framerate.
         
-        This method runs the game loop in the current thread until stopped.
+        Phase 1: Time advancement is disabled. This loop will not advance world time.
         
         Args:
             target_fps: The target frames per second.
@@ -435,14 +453,14 @@ class GameLoop:
         target_frame_time = 1.0 / target_fps
         running = True
         
-        logger.info(f"Starting game loop with target FPS: {target_fps}")
+        logger.warning(f"Starting GameLoop.run() with time advancement DISABLED (Phase 1). target_fps={target_fps}")
         
         try:
             while running:
                 # Record the start time
                 start_time = time.time()
                 
-                # Process a tick
+                # Process a tick (no-op advancement)
                 self.tick()
                 
                 # Calculate how long to sleep
@@ -467,6 +485,8 @@ class GameLoop:
                 "speed": self._speed.name,
                 "paused": self._paused,
                 "tick_count": self._tick_count,
+                # Phase 1 flag (for diagnostics only; not required for load)
+                "time_advance_disabled": True,
                 # Note: We don't serialize callbacks or events as they are function references
             }
     
@@ -487,6 +507,9 @@ class GameLoop:
             
             if "tick_count" in data:
                 instance._tick_count = data["tick_count"]
+            
+            # Enforce Phase 1 invariant regardless of persisted data
+            instance._time_advance_disabled = True
         
         return instance
 
