@@ -74,7 +74,8 @@ class GameStatusBar(QStatusBar):
             self.location_label.setText(f"Location: {location}")
         
         if game_time:
-            self.time_label.setText(f"Time: {game_time}")
+            capitalized_time = game_time.capitalize()
+            self.time_label.setText(f"Time: {capitalized_time}")
         
         if calendar:
             self.calendar_label.setText(f"Calendar: {calendar}")

@@ -2817,15 +2817,17 @@ addMessage(text, type = 'game', gradual = false) {
             if (locEl) locEl.textContent = ui.location||'-';
             if (timeEl) {
                 const t = ui.time||'-';
+                const capitalizedTime = t === '-' ? t : t.charAt(0).toUpperCase() + t.slice(1);
+
                 if (calEl) {
-                    timeEl.textContent = t;
+                    timeEl.textContent = capitalizedTime;
                     const calVal = (ui && (ui.calendar || (ui.state && ui.state.calendar))) || '';
                     calEl.textContent = calVal;
                 } else {
                     const calVal = (ui && (ui.calendar || (ui.state && ui.state.calendar))) || '';
                     // Fallback: append calendar after time if dedicated element missing
                     const cal = calVal ? ` | ${calVal}` : '';
-                    timeEl.textContent = `${t}${cal}`;
+                    timeEl.textContent = `${capitalizedTime}${cal}`;
                 }
             }
             if (pName) pName.textContent = ui.player.name||'-';
