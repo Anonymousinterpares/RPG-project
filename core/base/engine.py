@@ -8,6 +8,7 @@ between state management, command processing, and game loop components.
 
 
 import time
+import json
 from typing import Any, Dict, Optional
 from PySide6.QtCore import QObject, Signal, Slot
 from core.combat.enums import CombatStep, CombatState
@@ -693,6 +694,34 @@ class GameEngine(QObject):
                         self._maybe_autosave_after_narrative()
         except Exception as e:
             logger.debug(f"Turn-based autosave check skipped due to error: {e}")
+
+        # Dev-only time audit log after narrative outputs (disabled by default)
+        try:
+            state = self._state_manager.current_state
+            if role == "gm" and state is not None:
+                mode_name = getattr(getattr(state, 'current_mode', None), 'name', '')
+                if mode_name == 'NARRATIVE':
+                    from core.base.config import get_config as _get_cfg
+                    cfg = _get_cfg()
+                    enabled = bool(cfg.get('debug.time_audit_log_enabled', False))
+                    if enabled:
+                        w = getattr(state, 'world', None)
+                        if w is not None:
+                            payload = {
+                                'ts': int(time.time()),
+                                'mode': mode_name,
+                                'game_time_s': float(getattr(w, 'game_time', 0.0) or 0.0),
+                                'calendar_compact': getattr(w, 'calendar_compact', None),
+                                'period': getattr(w, 'time_of_day', None),
+                            }
+                            try:
+                                from core.utils.logging_config import get_logger as _gl
+                                _gl('TIME_AUDIT').info(json.dumps(payload, ensure_ascii=False))
+                            except Exception:
+                                pass
+        except Exception:
+            # Never let audit logging break gameplay
+            pass
 
     def _handle_tick_callback(self, elapsed_game_time: float) -> None:
         """Callback for game loop tick, delegates to lifecycle module."""

@@ -316,6 +316,33 @@ def get_location_info(game_state: GameState) -> Dict[str, Any]:
         logger.error(f"Error retrieving location information: {e}", exc_info=True)
         return {"error": f"Error retrieving location information: {str(e)}"}
 
+def get_calendar_info(game_state: GameState) -> Dict[str, Any]:
+    """
+    Get canonical calendar information for an LLM agent.
+
+    Returns a dict with canonical fields (era, cycle, phase, tide, span, day),
+    compact string, human-readable string, narrative period, and game time seconds.
+    """
+    logger.info("Retrieving calendar information for LLM agent")
+    try:
+        w = getattr(game_state, 'world', None)
+        if not w:
+            return {"error": "World state not available"}
+        cal = getattr(w, 'calendar', None)
+        cal_dict = cal.to_dict() if hasattr(cal, 'to_dict') else {}
+        data = {
+            **cal_dict,
+            "compact": getattr(w, 'calendar_compact', None),
+            "string": getattr(w, 'calendar_string', None),
+            "narrative_period": getattr(w, 'time_of_day', None),
+            "game_time_seconds": float(getattr(w, 'game_time', 0.0) or 0.0),
+        }
+        return data
+    except Exception as e:
+        logger.error(f"Error retrieving calendar info: {e}", exc_info=True)
+        return {"error": f"Error retrieving calendar info: {str(e)}"}
+
+
 def process_data_retrieval_command(command: str, args: str, game_state: GameState) -> Dict[str, Any]:
     """
     Process a data retrieval command.
@@ -336,6 +363,8 @@ def process_data_retrieval_command(command: str, args: str, game_state: GameStat
         "GET_STATS": get_character_stats,
         "GET_QUESTS": get_quest_data,
         "GET_LOCATION_INFO": get_location_info,
+        "GET_CALENDAR_INFO": get_calendar_info,
+        "GET_WORLD_CALENDAR": get_calendar_info,
     }
     
     # Get handler function

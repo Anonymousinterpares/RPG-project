@@ -54,6 +54,8 @@ class GameConfig:
         "canonical_lists": os.path.join("gameplay", "canonical_lists.json"),
         # Canonical calendar configuration (era/cycle/phase/tide/span/day)
         "calendar": os.path.join("gameplay", "calendar.json"),
+        # Calendar master reference for journal seeding
+        "calendar_master": os.path.join("gameplay", "calendar_master.json"),
         # New NPC configuration domains (families system)
         "npc_families": os.path.join("npc", "families.json"),
         "npc_families_factions": os.path.join("npc", "families_factions.json"),

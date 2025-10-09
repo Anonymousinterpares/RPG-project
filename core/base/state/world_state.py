@@ -74,16 +74,8 @@ class WorldState:
         # Recalculate canonical calendar from game time
         try:
             self.calendar.recalc_from_game_time(self.game_time)
-            # Update game_date string for backward compatibility / display
-            names = get_config().get("calendar.names", {}) or {}
-            self.game_date = (
-                f"{names.get('era','Era')} {self.calendar.era}, "
-                f"{names.get('cycle','Cycle')} {self.calendar.cycle}, "
-                f"{names.get('phase','Phase')} {self.calendar.phase}, "
-                f"{names.get('tide','Tide')} {self.calendar.tide}, "
-                f"{names.get('span','Span')} {self.calendar.span}, "
-                f"{names.get('day','Day')} {self.calendar.day}"
-            )
+            # Build rich calendar string (with names)
+            self.game_date = self._build_calendar_string()
         except Exception as e:
             logger.warning(f"Failed to recalc calendar on advance_time: {e}")
         
@@ -95,8 +87,67 @@ class WorldState:
         """Initialize or recalc calendar and date from current game_time at creation."""
         try:
             self.calendar.recalc_from_game_time(self.game_time)
+            self.game_date = self._build_calendar_string()
+        except Exception as e:
+            logger.debug(f"WorldState __post_init__ calendar setup skipped: {e}")
+    
+    def _build_calendar_string(self) -> str:
+        """Build a rich, named calendar string using config-driven names and current indices."""
+        try:
+            cfg = get_config()
+            units = cfg.get("calendar.units", {}) or {}
+            day_len = int(units.get("day_length_seconds", 86400)) or 86400
+            if day_len <= 0:
+                day_len = 86400
+            names_map = cfg.get("calendar.names", {}) or {}
+            year_label = names_map.get("year", "Year")
+            start_year = int(cfg.get("calendar.start_year", 1) or 1)
+            # Name arrays
+            era_names = cfg.get("calendar.era_names", []) or []
+            phase_names = cfg.get("calendar.phase_names", []) or []
+            tide_names = cfg.get("calendar.tide_names", []) or []
+            span_names = cfg.get("calendar.span_names", []) or []  # treat as months across a cycle (wrap around)
+            dow_names = cfg.get("calendar.day_of_week_names", []) or []
+            # Compute helper totals
+            total_days = int(max(0, self.game_time) // day_len)
+            # Year = cycle
+            era_name = None
+            if era_names:
+                era_name = era_names[(self.calendar.era - 1) % len(era_names)]
+            # Names for phase/tide
+            phase_name = phase_names[(self.calendar.phase - 1) % len(phase_names)] if phase_names else f"Phase {self.calendar.phase}"
+            tide_name = tide_names[(self.calendar.tide - 1) % len(tide_names)] if tide_names else f"Tide {self.calendar.tide}"
+            # Determine span index across the cycle for month name
+            span_days = int(units.get("span_length_days", 5)) or 5
+            tide_spans = int(units.get("tide_length_spans", 3)) or 3
+            phase_tides = int(units.get("phase_length_tides", 4)) or 4
+            cycle_phases = int(units.get("cycle_length_phases", 6)) or 6
+            days_per_span = max(1, span_days)
+            days_per_tide = days_per_span * max(1, tide_spans)
+            days_per_phase = days_per_tide * max(1, phase_tides)
+            days_per_cycle = days_per_phase * max(1, cycle_phases)
+            days_into_cycle = total_days % days_per_cycle
+            span_index_in_cycle = (days_into_cycle // days_per_span) + 1
+            month_name = span_names[(span_index_in_cycle - 1) % len(span_names)] if span_names else f"Span {span_index_in_cycle}"
+            # Day-of-week
+            if dow_names:
+                day_of_week_name = dow_names[total_days % len(dow_names)]
+            else:
+                day_of_week_name = f"Day {((total_days % 7) + 1)}"
+            # Compose
+            parts = []
+            parts.append(era_name if era_name else f"{names_map.get('era','Era')} {self.calendar.era}")
+            year_number = start_year + (self.calendar.cycle - 1)
+            parts.append(f"{year_label} {year_number}")
+            parts.append(phase_name)
+            parts.append(tide_name)
+            parts.append(f"{month_name} {self.calendar.day} ({day_of_week_name})")
+            return ", ".join(parts)
+        except Exception as e:
+            logger.debug(f"Failed to build calendar string: {e}")
+            # Fallback to numeric representation
             names = get_config().get("calendar.names", {}) or {}
-            self.game_date = (
+            return (
                 f"{names.get('era','Era')} {self.calendar.era}, "
                 f"{names.get('cycle','Cycle')} {self.calendar.cycle}, "
                 f"{names.get('phase','Phase')} {self.calendar.phase}, "
@@ -104,8 +155,41 @@ class WorldState:
                 f"{names.get('span','Span')} {self.calendar.span}, "
                 f"{names.get('day','Day')} {self.calendar.day}"
             )
-        except Exception as e:
-            logger.debug(f"WorldState __post_init__ calendar setup skipped: {e}")
+    
+    @property
+    def calendar_string(self) -> str:
+        """Public accessor for the rich calendar string."""
+        try:
+            return self._build_calendar_string()
+        except Exception:
+            return self.game_date or ""
+    
+    @property
+    def calendar_compact(self) -> str:
+        """
+        Return a compact canonical calendar string for auditing/debugging.
+        Format: E{era}.C{cycle}.PH{phase}.TD{tide}.SP{span}.D{day} HH:MM
+        """
+        try:
+            cfg = get_config()
+            units = cfg.get("calendar.units", {}) or {}
+            day_len = int(units.get("day_length_seconds", 86400)) or 86400
+            if day_len <= 0:
+                day_len = 86400
+            secs = int(max(0, self.game_time)) % day_len
+            hh = secs // 3600
+            mm = (secs % 3600) // 60
+            return (
+                f"E{self.calendar.era}.C{self.calendar.cycle}.PH{self.calendar.phase}."
+                f"TD{self.calendar.tide}.SP{self.calendar.span}.D{self.calendar.day} "
+                f"{hh:02d}:{mm:02d}"
+            )
+        except Exception:
+            # Fallback to numeric without time-of-day
+            return (
+                f"E{getattr(self.calendar, 'era', 1)}.C{getattr(self.calendar, 'cycle', 1)}.PH{getattr(self.calendar, 'phase', 1)}."
+                f"TD{getattr(self.calendar, 'tide', 1)}.SP{getattr(self.calendar, 'span', 1)}.D{getattr(self.calendar, 'day', 1)}"
+            )
     
     @property
     def time_of_day(self) -> str:
@@ -262,20 +346,15 @@ class WorldState:
         
         # Load or compute calendar state
         try:
-            if isinstance(data.get("calendar"), dict):
-                instance.calendar = CalendarState.from_dict(data.get("calendar"))
+            calendar_data = data.get("calendar")
+            logger.debug(f"WorldState.from_dict: calendar_data received: {calendar_data}")
+            if isinstance(calendar_data, dict):
+                instance.calendar = CalendarState.from_dict(calendar_data)
             else:
+                logger.debug("WorldState.from_dict: 'calendar' data not a dict or missing, recalculating from game_time.")
                 instance.calendar.recalc_from_game_time(instance.game_time)
-            # Update game_date string to reflect canonical calendar
-            names = get_config().get("calendar.names", {}) or {}
-            instance.game_date = (
-                f"{names.get('era','Era')} {instance.calendar.era}, "
-                f"{names.get('cycle','Cycle')} {instance.calendar.cycle}, "
-                f"{names.get('phase','Phase')} {instance.calendar.phase}, "
-                f"{names.get('tide','Tide')} {instance.calendar.tide}, "
-                f"{names.get('span','Span')} {instance.calendar.span}, "
-                f"{names.get('day','Day')} {instance.calendar.day}"
-            )
+            # Build rich calendar string
+            instance.game_date = instance._build_calendar_string()
         except Exception as e:
             logger.warning(f"Failed to initialize calendar from saved data: {e}")
         

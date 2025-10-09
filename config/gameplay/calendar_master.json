@@ -1,0 +1,10 @@
+{
+  "journal_entry": {
+    "id": "resonance_calendar",
+    "type": "lore",
+    "title": "The Resonance Calendar",
+    "summary": "An overview of the canonical cycles: eras, cycles (years), phases, tides, spans (months), and days.",
+    "body": "The Resonance Calendar divides time into Eras, Cycles (years), Phases, Tides, Spans (months), and Days. Each day is tracked precisely and grouped into spans, tides, and phases to reflect the world's metaphysical rhythms. This entry summarizes the structure used by scholars and navigators across Aetheris.",
+    "pinned": false
+  }
+}

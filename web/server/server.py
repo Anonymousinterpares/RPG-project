@@ -260,11 +260,22 @@ class UIStatusEffectEntry(BaseModel):
     name: str
     duration: Optional[int] = None
 
+class UICalendar(BaseModel):
+    era: int
+    cycle: int
+    phase: int
+    tide: int
+    span: int
+    day: int
+    compact: Optional[str] = None
+    string: Optional[str] = None
+
 class UIStateResponse(BaseModel):
     mode: str
     location: Optional[str] = None
     time: Optional[str] = None
     calendar: Optional[str] = None
+    calendar_obj: Optional[UICalendar] = None
     player: UIPlayerHeader
     resources: Dict[str, UIResourceBar]
     primary_stats: Dict[str, UIStatEntry]
@@ -930,6 +941,7 @@ async def process_command(session_id: str, request: CommandRequest, engine: Game
                 },
                 "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
                 "calendar": (getattr(state.world, 'calendar_string', None) if getattr(state, 'world', None) else None),
+                "calendar_obj": (getattr(state.world, 'calendar', None).to_dict() | {"compact": getattr(state.world, 'calendar_compact', None), "string": getattr(state.world, 'calendar_string', None)}) if getattr(state, 'world', None) and hasattr(getattr(state.world, 'calendar', None), 'to_dict') else None,
                 "game_running": engine.game_loop.is_running,
             }
         }
@@ -1027,6 +1039,7 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
                 },
                 "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
                 "calendar": (getattr(state.world, 'calendar_string', None) if getattr(state, 'world', None) else None),
+                "calendar_obj": (getattr(state.world, 'calendar', None).to_dict() | {"compact": getattr(state.world, 'calendar_compact', None), "string": getattr(state.world, 'calendar_string', None)}) if getattr(state, 'world', None) and hasattr(getattr(state.world, 'calendar', None), 'to_dict') else None,
                 "game_running": engine.game_loop.is_running,
                 # Include mode explicitly for clients that want to react immediately
                 "mode": (getattr(getattr(state, 'current_mode', None), 'name', str(getattr(state, 'current_mode', 'NARRATIVE'))) if state else 'NARRATIVE')
@@ -1188,21 +1201,40 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
         except Exception:
             mode = 'NARRATIVE'
         location = getattr(player, 'current_location', None)
-        # Provide narrative time-of-day period for UI instead of exact clock and calendar string
+        # Provide narrative time-of-day period and calendar info for UI
         try:
             game_time = state.world.time_of_day if getattr(state, 'world', None) else None
             calendar_str = None
+            calendar_obj = None
             if getattr(state, 'world', None):
                 try:
                     calendar_str = getattr(state.world, 'calendar_string', None)
                 except Exception:
                     calendar_str = None
+                # Build structured calendar object (with compact string) if possible
+                try:
+                    cal = getattr(state.world, 'calendar', None)
+                    if cal and hasattr(cal, 'to_dict'):
+                        cal_dict = cal.to_dict()
+                        compact_val = None
+                        try:
+                            compact_val = getattr(state.world, 'calendar_compact', None)
+                        except Exception:
+                            compact_val = None
+                        calendar_obj = {
+                            **cal_dict,
+                            'compact': compact_val if isinstance(compact_val, str) else None,
+                            'string': calendar_str
+                        }
+                except Exception:
+                    calendar_obj = None
                 if not calendar_str:
                     # Fallbacks to ensure non-empty string
                     calendar_str = getattr(state.world, 'game_date', None) or ''
         except Exception:
             game_time = None
             calendar_str = ''
+            calendar_obj = None
 
         # Combat info (basic)
         turn_order: List[str] = []
@@ -1224,6 +1256,7 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
             location=location,
             time=game_time,
             calendar=calendar_str,
+            calendar_obj=UICalendar(**calendar_obj) if isinstance(calendar_obj, dict) else None,
             player=header,
             resources=resources,
             primary_stats=primary_stats,

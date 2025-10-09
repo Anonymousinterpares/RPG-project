@@ -229,6 +229,33 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
     except Exception as e:
         logger.error(f"Failed to activate initial quests: {e}")
 
+    # Seed calendar journal entry (Resonance Calendar) if configured
+    try:
+        from core.base.config import get_config
+        cfg = get_config()
+        cal_entry = (cfg.get('calendar_master.journal_entry') or {}) if cfg else {}
+        if isinstance(cal_entry, dict) and cal_entry:
+            # Ensure journal exists
+            if not hasattr(game_state, 'journal') or not isinstance(getattr(game_state, 'journal'), dict):
+                game_state.journal = {"character": "", "quests": {}, "notes": []}
+            notes = game_state.journal.get('notes') if isinstance(game_state.journal, dict) else None
+            if isinstance(notes, list):
+                # Avoid duplicates by id or title
+                entry_id = cal_entry.get('id', 'resonance_calendar')
+                title = cal_entry.get('title', 'Resonance Calendar')
+                already = any((isinstance(n, dict) and (n.get('id') == entry_id or n.get('title') == title)) for n in notes)
+                if not already:
+                    notes.append({
+                        'id': entry_id,
+                        'type': cal_entry.get('type', 'lore'),
+                        'title': title,
+                        'summary': cal_entry.get('summary', ''),
+                        'content': cal_entry.get('body', cal_entry.get('content', '')),
+                        'pinned': bool(cal_entry.get('pinned', False)),
+                    })
+    except Exception as _e_seed:
+        logger.warning(f"Failed to seed calendar journal entry: {_e_seed}")
+
     # Send welcome message
     welcome_message_base = f"==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, {game_state.player.name} the {game_state.player.race} {game_state.player.path} from {game_state.player.background}!"
     

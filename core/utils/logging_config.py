@@ -9,7 +9,7 @@ import time
 from typing import Dict, Optional
 
 # Global configuration
-DEFAULT_LEVEL = logging.INFO
+DEFAULT_LEVEL = logging.DEBUG
 LOGGERS: Dict[str, logging.Logger] = {}
 LOGGER_FORMAT = '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -109,6 +109,33 @@ def get_logger(name: str) -> logging.Logger:
     
     # Create a new logger
     logger = logging.getLogger(name)
+    
+    # Special per-logger file sink for TIME_AUDIT
+    try:
+        if name == "TIME_AUDIT":
+            # Ensure log directory exists
+            if not os.path.exists(LOG_DIRECTORY):
+                os.makedirs(LOG_DIRECTORY)
+            audit_log_file = os.path.join(LOG_DIRECTORY, 'time_audit.log')
+            # Attach a rotating file handler specifically for audit lines
+            audit_handler = logging.handlers.RotatingFileHandler(
+                audit_log_file,
+                maxBytes=5*1024*1024,  # 5 MB
+                backupCount=3,
+                encoding='utf-8'
+            )
+            audit_handler.setLevel(logging.INFO)
+            audit_formatter = logging.Formatter('%(asctime)s [%(name)s] %(levelname)s: %(message)s', DATE_FORMAT)
+            audit_handler.setFormatter(audit_formatter)
+            # Avoid duplicate handlers if logger was created but not cached
+            if not any(isinstance(h, logging.handlers.RotatingFileHandler) and getattr(h, 'baseFilename', '') == audit_log_file for h in logger.handlers):
+                logger.addHandler(audit_handler)
+            logger.setLevel(logging.INFO)
+            # Let it also propagate to root if desired (kept True)
+            logger.propagate = True
+    except Exception:
+        # Never fail logger creation due to audit setup
+        pass
     
     # Cache the logger
     LOGGERS[name] = logger
