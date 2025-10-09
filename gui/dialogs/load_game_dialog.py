@@ -210,7 +210,55 @@ class LoadGameDialog(BaseDialog):
         # Connect save selection
         self.saves_table.itemSelectionChanged.connect(self._on_save_selected)
         self.saves_table.doubleClicked.connect(self._on_save_double_clicked)
-    
+        self.delete_button.clicked.connect(self._on_delete_clicked)
+
+    def _on_delete_clicked(self):
+        """Handle the delete save button click."""
+        if not self.selected_save:
+            return
+
+        from PySide6.QtWidgets import QMessageBox
+        from core.base.engine import get_game_engine
+
+        # Ask for confirmation
+        reply = QMessageBox.question(
+            self,
+            "Delete Save",
+            f"Are you sure you want to permanently delete the save file:\n\n'{self.selected_save}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            engine = get_game_engine()
+            # The state manager's delete_save is designed for simple files,
+            # but we can adapt the logic here to remove the directory.
+            saves_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "saves")
+            save_path_to_delete = os.path.join(saves_dir, self.selected_save)
+            
+            # The actual save file is a .json file, so we target that.
+            if os.path.exists(save_path_to_delete):
+                try:
+                    os.remove(save_path_to_delete)
+                    logging.info(f"Successfully deleted save file: {self.selected_save}")
+                    
+                    # Refresh the saves list
+                    self._load_saves()
+                    
+                    # Clear the details pane and disable buttons
+                    self.details_text.clear()
+                    self.selected_save = None
+                    self.load_button.setEnabled(False)
+                    self.delete_button.setEnabled(False)
+                    
+                    QMessageBox.information(self, "Success", "Save file deleted successfully.")
+                except Exception as e:
+                    logging.error(f"Error deleting save file {self.selected_save}: {e}")
+                    QMessageBox.warning(self, "Error", f"Could not delete the save file.\n\nError: {e}")
+            else:
+                QMessageBox.warning(self, "Error", "Save file not found. It may have already been deleted.")
+                self._load_saves() # Refresh list in case of mismatch
+
     def _load_saves(self):
         """Load saves into the table."""
         # Clear the table
