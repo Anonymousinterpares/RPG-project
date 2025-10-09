@@ -703,7 +703,11 @@ class GameEngine(QObject):
                 if mode_name == 'NARRATIVE':
                     from core.base.config import get_config as _get_cfg
                     cfg = _get_cfg()
-                    enabled = bool(cfg.get('debug.time_audit_log_enabled', False))
+                    enabled = bool(
+                        cfg.get('debug.time_audit_log_enabled', False) or
+                        cfg.get('system.debug.time_audit_log_enabled', False) or
+                        cfg.get('game.debug.time_audit_log_enabled', False)
+                    )
                     if enabled:
                         w = getattr(state, 'world', None)
                         if w is not None:
