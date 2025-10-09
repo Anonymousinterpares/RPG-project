@@ -62,6 +62,19 @@ class UiManager {
             llmEnabled: localStorage.getItem('rpg_llm_enabled') === 'true' || false
         };
 
+        // Gameplay and Sound Settings Elements
+        this.soundEnabledToggle = document.getElementById('sound-enabled-toggle');
+        this.masterVolumeSlider = document.getElementById('master-volume-slider');
+        this.masterVolumeValue = document.getElementById('master-volume-value');
+        this.musicVolumeSlider = document.getElementById('music-volume-slider');
+        this.musicVolumeValue = document.getElementById('music-volume-value');
+        this.effectsVolumeSlider = document.getElementById('effects-volume-slider');
+        this.effectsVolumeValue = document.getElementById('effects-volume-value');
+        this.difficultySelect = document.getElementById('difficulty-select');
+        this.encounterSizeSelect = document.getElementById('encounter-size-select');
+        this.autosaveIntervalSelect = document.getElementById('autosave-interval-select'); 
+        this.tutorialEnabledToggle = document.getElementById('tutorial-enabled-toggle');
+
         // Initialize theme
         this.applyTheme(this.settings.theme);
         
@@ -241,7 +254,7 @@ class UiManager {
     /**
      * Initialize UI event listeners
      */
-    initEventListeners() {
+ initEventListeners() {
         // Initialize agent provider change listeners
         const agentNames = ['narrator', 'rule-checker', 'context-evaluator'];
         agentNames.forEach(agent => {
@@ -293,6 +306,17 @@ class UiManager {
             });
         }
 
+        // Add listeners for new sound and gameplay sliders
+        const bindSlider = (slider, valueDisplay) => {
+            if (slider && valueDisplay) {
+                slider.addEventListener('input', () => {
+                    valueDisplay.textContent = `${slider.value}%`;
+                });
+            }
+        };
+        bindSlider(this.masterVolumeSlider, this.masterVolumeValue);
+        bindSlider(this.musicVolumeSlider, this.musicVolumeValue);
+        bindSlider(this.effectsVolumeSlider, this.effectsVolumeValue);
 
         // Initialize close buttons on all modals
         document.querySelectorAll('.close-modal, .cancel-btn').forEach(element => {
@@ -3455,6 +3479,21 @@ addMessage(text, type = 'game', gradual = false) {
             localStorage.setItem('rpg_llm_enabled', llmEnabledToggle.checked);
         }
 
+        // --- Save Gameplay and Sound settings to backend ---
+        try {
+            const gameplaySettings = this.collectGameplaySettings();
+            const gameplayResult = await apiClient.updateGameplaySettings(gameplaySettings);
+            if (gameplayResult.status === 'success') {
+                console.log('Gameplay settings saved successfully to backend');
+            } else {
+                throw new Error(gameplayResult.message || 'Failed to save gameplay settings');
+            }
+        } catch (error) {
+            console.error('Error saving gameplay settings via API:', error);
+            this.showNotification('Error saving gameplay settings', 'error');
+            // We can choose to stop or continue if this part fails
+        }
+
 
         // Save LLM settings to backend
         if (document.getElementById('llm-settings')) {
@@ -3508,6 +3547,50 @@ addMessage(text, type = 'game', gradual = false) {
              console.log("LLM settings tab not found, skipping backend save for LLM settings.");
         }
     }
+
+/**
+     * Load gameplay and sound settings from the API into the UI
+     */
+    async loadGameplaySettings() {
+        try {
+            const settings = await apiClient.getGameplaySettings();
+
+            if (this.soundEnabledToggle) this.soundEnabledToggle.checked = settings.sound_enabled;
+            if (this.masterVolumeSlider) this.masterVolumeSlider.value = settings.master_volume;
+            if (this.masterVolumeValue) this.masterVolumeValue.textContent = `${settings.master_volume}%`;
+            if (this.musicVolumeSlider) this.musicVolumeSlider.value = settings.music_volume;
+            if (this.musicVolumeValue) this.musicVolumeValue.textContent = `${settings.music_volume}%`;
+            if (this.effectsVolumeSlider) this.effectsVolumeSlider.value = settings.effects_volume;
+            if (this.effectsVolumeValue) this.effectsVolumeValue.textContent = `${settings.effects_volume}%`;
+
+            if (this.difficultySelect) this.difficultySelect.value = settings.difficulty;
+            if (this.encounterSizeSelect) this.encounterSizeSelect.value = settings.encounter_size;
+            if (this.autosaveIntervalSelect) this.autosaveIntervalSelect.value = settings.autosave_interval;
+            if (this.tutorialEnabledToggle) this.tutorialEnabledToggle.checked = settings.tutorial_enabled;
+            
+            console.log('Gameplay and sound settings loaded into UI.');
+        } catch (error) {
+            this.showNotification('Failed to load gameplay settings.', 'error');
+        }
+    }
+
+    /**
+     * Collect gameplay and sound settings from the UI form elements
+     * @returns {Object} The collected settings
+     */
+    collectGameplaySettings() {
+        return {
+            sound_enabled: this.soundEnabledToggle ? this.soundEnabledToggle.checked : true,
+            master_volume: this.masterVolumeSlider ? parseInt(this.masterVolumeSlider.value, 10) : 100,
+            music_volume: this.musicVolumeSlider ? parseInt(this.musicVolumeSlider.value, 10) : 100,
+            effects_volume: this.effectsVolumeSlider ? parseInt(this.effectsVolumeSlider.value, 10) : 100,
+            difficulty: this.difficultySelect ? this.difficultySelect.value : 'Normal',
+            encounter_size: this.encounterSizeSelect ? this.encounterSizeSelect.value : 'Solo',
+            autosave_interval: this.autosaveIntervalSelect ? parseInt(this.autosaveIntervalSelect.value, 10) : 0,
+            tutorial_enabled: this.tutorialEnabledToggle ? this.tutorialEnabledToggle.checked : true,
+        };
+    }    
+
 }
 
 // Make sure there's only one instance of UiManager

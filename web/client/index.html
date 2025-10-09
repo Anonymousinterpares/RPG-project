@@ -232,7 +232,7 @@
             </div>
         </div>
 
-        <!-- Settings Modal -->
+<!-- Settings Modal -->
         <div class="modal" id="settings-modal">
             <div class="modal-content">
                 <div class="modal-header">
@@ -243,6 +243,8 @@
                     <div class="settings-tabs">
                         <div class="tab-buttons">
                             <button class="tab-btn active" data-tab="display-settings">Display</button>
+                            <button class="tab-btn" data-tab="sound-settings">Sound</button>
+                            <button class="tab-btn" data-tab="gameplay-settings">Gameplay</button>
                             <button class="tab-btn" data-tab="llm-settings">LLM Settings</button>
                             <button class="tab-btn" data-tab="agent-settings">Agent Settings</button>
                             <button class="tab-btn" data-tab="style-tools">Style Tools</button>
@@ -271,6 +273,78 @@
                                         <select id="background-select">
                                             <option value="">Auto (first available)</option>
                                         </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sound Settings Tab -->
+                            <div class="tab-pane" id="sound-settings">
+                                <div class="settings-section">
+                                    <h3>Sound Settings</h3>
+                                    <div class="form-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="sound-enabled-toggle" checked>
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Enable Sound</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="master-volume-slider">Master Volume:</label>
+                                        <input type="range" id="master-volume-slider" min="0" max="100" value="100">
+                                        <span id="master-volume-value">100%</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="music-volume-slider">Music Volume:</label>
+                                        <input type="range" id="music-volume-slider" min="0" max="100" value="100">
+                                        <span id="music-volume-value">100%</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="effects-volume-slider">Effects Volume:</label>
+                                        <input type="range" id="effects-volume-slider" min="0" max="100" value="100">
+                                        <span id="effects-volume-value">100%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Gameplay Settings Tab -->
+                            <div class="tab-pane" id="gameplay-settings">
+                                <div class="settings-section">
+                                    <h3>Gameplay Settings</h3>
+                                    <div class="form-group">
+                                        <label for="difficulty-select">Difficulty:</label>
+                                        <select id="difficulty-select">
+                                            <option value="Story">Story</option>
+                                            <option value="Normal">Normal</option>
+                                            <option value="Hard">Hard</option>
+                                            <option value="Expert">Expert</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="encounter-size-select">Encounter Size:</label>
+                                        <select id="encounter-size-select">
+                                            <option value="Solo">Solo</option>
+                                            <option value="Pack">Pack</option>
+                                            <option value="Mixed">Mixed</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="autosave-interval-select">Autosave Interval:</label>
+                                        <select id="autosave-interval-select">
+                                            <option value="0">Off</option>
+                                            <option value="1">Every 1 turn</option>
+                                            <option value="3">Every 3 turns</option>
+                                            <option value="5">Every 5 turns</option>
+                                            <option value="10">Every 10 turns</option>
+                                            <option value="20">Every 20 turns</option>
+                                            <option value="50">Every 50 turns</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="tutorial-enabled-toggle" checked>
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Enable Tutorials</span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>

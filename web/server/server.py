@@ -35,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from starlette.responses import JSONResponse
 
-# Import Pydantic BaseModel
+from PySide6.QtCore import QSettings
 from pydantic import BaseModel, Field
 
 # Game engine imports
@@ -188,6 +188,16 @@ except Exception as e:
 
 # Simple OAuth2 password bearer for basic authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+class GameplaySettings(BaseModel):
+    sound_enabled: bool
+    master_volume: int = Field(..., ge=0, le=100)
+    music_volume: int = Field(..., ge=0, le=100)
+    effects_volume: int = Field(..., ge=0, le=100)
+    difficulty: str
+    encounter_size: str
+    autosave_interval: int = Field(..., ge=0)
+    tutorial_enabled: bool
 
 # Model for creating a new game
 class NewGameRequest(BaseModel):
@@ -1714,6 +1724,53 @@ async def update_llm_settings(providers: Optional[ProviderConfig] = None, agents
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating LLM settings: {str(e)}"
         )
+
+@app.get("/api/gameplay_settings", response_model=GameplaySettings)
+async def get_gameplay_settings():
+    """Get gameplay and sound settings from QSettings."""
+    try:
+        settings = QSettings("RPGGame", "Settings")
+        return GameplaySettings(
+            sound_enabled=settings.value("sound/enabled", True, type=bool),
+            master_volume=settings.value("sound/master_volume", 100, type=int),
+            music_volume=settings.value("sound/music_volume", 100, type=int),
+            effects_volume=settings.value("sound/effects_volume", 100, type=int),
+            difficulty=settings.value("gameplay/difficulty", "Normal", type=str),
+            encounter_size=settings.value("gameplay/encounter_size", "Solo", type=str),
+            autosave_interval=settings.value("gameplay/autosave_interval", 0, type=int),
+            tutorial_enabled=settings.value("gameplay/tutorial_enabled", True, type=bool),
+        )
+    except Exception as e:
+        logger.error(f"Error reading gameplay settings: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not read gameplay settings.")
+
+
+@app.post("/api/gameplay_settings")
+async def update_gameplay_settings(gameplay_settings: GameplaySettings):
+    """Update gameplay and sound settings in QSettings."""
+    try:
+        settings = QSettings("RPGGame", "Settings")
+        settings.setValue("sound/enabled", gameplay_settings.sound_enabled)
+        settings.setValue("sound/master_volume", gameplay_settings.master_volume)
+        settings.setValue("sound/music_volume", gameplay_settings.music_volume)
+        settings.setValue("sound/effects_volume", gameplay_settings.effects_volume)
+        settings.setValue("gameplay/difficulty", gameplay_settings.difficulty)
+        settings.setValue("gameplay/encounter_size", gameplay_settings.encounter_size)
+        settings.setValue("gameplay/autosave_interval", gameplay_settings.autosave_interval)
+        settings.setValue("gameplay/tutorial_enabled", gameplay_settings.tutorial_enabled)
+        settings.sync()  # Ensure changes are written to disk
+
+        # Reload settings in the active game engine if it exists
+        if active_sessions:
+            engine = next(iter(active_sessions.values()))
+            if hasattr(engine, 'reload_autosave_settings'):
+                engine.reload_autosave_settings()
+                logger.info("Reloaded engine autosave settings after update.")
+
+        return {"status": "success", "message": "Gameplay settings updated."}
+    except Exception as e:
+        logger.error(f"Error updating gameplay settings: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not update gameplay settings.")
 
 @app.post("/api/llm/toggle/{session_id}")
 async def toggle_llm(session_id: str, request: ToggleLLMRequest, engine: GameEngine = Depends(get_game_engine)):

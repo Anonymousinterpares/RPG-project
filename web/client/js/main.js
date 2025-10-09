@@ -117,12 +117,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settings-btn').addEventListener('click', async () => {
         uiManager.openModal('settings');
         
-        // Load LLM settings when settings dialog is opened
+        // Load both LLM and Gameplay settings when the modal opens
         try {
             await uiManager.loadLLMSettings();
+            await uiManager.loadGameplaySettings();
         } catch (error) {
-            console.error('Error loading LLM settings:', error);
-            uiManager.showNotification('Error loading LLM settings', 'error');
+            console.error('Error loading settings:', error);
+            uiManager.showNotification('Error loading settings', 'error');
         }
     });
     

@@ -44,6 +44,44 @@ class ApiClient {
     }
 
 /**
+     * Get gameplay and sound settings.
+     * @returns {Promise<Object>}
+     */
+    async getGameplaySettings() {
+        try {
+            const response = await fetch(this.buildUrl('gameplay_settings'), {
+                method: 'GET',
+                headers: this.getHeaders()
+            });
+            if (!response.ok) throw new Error('Failed to retrieve gameplay settings');
+            return await response.json();
+        } catch (error) {
+            console.error('Get gameplay settings error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update gameplay and sound settings.
+     * @param {Object} settings - Gameplay settings to update
+     * @returns {Promise<Object>}
+     */
+    async updateGameplaySettings(settings) {
+        try {
+            const response = await fetch(this.buildUrl('gameplay_settings'), {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(settings)
+            });
+            if (!response.ok) throw new Error('Failed to update gameplay settings');
+            return await response.json();
+        } catch (error) {
+            console.error('Update gameplay settings error:', error);
+            throw error;
+        }
+    }
+
+/**
      * Get rich HTML details for a single save file
      * @param {string} saveId - The filename of the save
      * @returns {Promise<Object>}
