@@ -53,14 +53,16 @@ class GameStatusBar(QStatusBar):
         # Create status labels
         self.location_label = QLabel("Location: Not in game")
         self.time_label = QLabel("Time: Not in game")
+        self.calendar_label = QLabel("Calendar: -")
         self.mode_label = QLabel("Mode: Normal")
         
         # Add permanent widgets
         self.addPermanentWidget(self.location_label)
         self.addPermanentWidget(self.time_label)
+        self.addPermanentWidget(self.calendar_label)
         self.addPermanentWidget(self.mode_label)
     
-    def update_status(self, location: str = "", game_time: str = "", mode: str = ""):
+    def update_status(self, location: str = "", game_time: str = "", calendar: str = "", mode: str = ""):
         """Update the status bar with the provided information.
         
         Args:
@@ -73,6 +75,9 @@ class GameStatusBar(QStatusBar):
         
         if game_time:
             self.time_label.setText(f"Time: {game_time}")
+        
+        if calendar:
+            self.calendar_label.setText(f"Calendar: {calendar}")
         
         # Update mode if provided
         if mode:

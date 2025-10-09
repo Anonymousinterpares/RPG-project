@@ -146,12 +146,11 @@ def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: 
     """Calls the appropriate LLM agent based on the mode and returns the structured output."""
     logger.debug(f"Getting agent response for Mode: {current_mode.name}, Intent: '{intent}'")
 
-    # Compute internal exact time for prompt (do not show to user)
+    # Compute internal exact calendar string for prompt (do not show to user)
     try:
-        from core.utils.time_utils import format_game_time
-        exact_time_str = format_game_time(getattr(game_state.world, 'game_time', 0.0)) if getattr(game_state, 'world', None) else ""
+        exact_time_str = getattr(getattr(game_state, 'world', None), 'game_date', '') or ''
     except Exception:
-        exact_time_str = ""
+        exact_time_str = ''
 
     # Provide richer world_state to the agent
     agent_context = AgentContext(
@@ -162,7 +161,8 @@ def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: 
             'time_of_day': context.get('time_of_day'),
             'is_day': getattr(getattr(game_state, 'world', None), 'is_day', True),
             'environment': context.get('environment'),
-            'exact_game_time': exact_time_str
+            'exact_game_time': exact_time_str,
+            'calendar': exact_time_str
         },
         player_input=intent, # Use the intent as the input
         conversation_history=game_state.conversation_history,

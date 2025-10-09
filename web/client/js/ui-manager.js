@@ -2811,10 +2811,21 @@ addMessage(text, type = 'game', gradual = false) {
             // Status bar
             const locEl = document.getElementById('current-location');
             const timeEl = document.getElementById('game-time');
+            const calEl = document.getElementById('game-calendar');
             const pName = document.getElementById('player-name');
             const pLvl = document.getElementById('player-level');
             if (locEl) locEl.textContent = ui.location||'-';
-            if (timeEl) timeEl.textContent = ui.time||'-';
+            if (timeEl) {
+                const t = ui.time||'-';
+                if (calEl) {
+                    timeEl.textContent = t;
+                    calEl.textContent = ui.calendar || '';
+                } else {
+                    // Fallback: append calendar after time if dedicated element missing
+                    const cal = ui.calendar ? ` | ${ui.calendar}` : '';
+                    timeEl.textContent = `${t}${cal}`;
+                }
+            }
             if (pName) pName.textContent = ui.player.name||'-';
             if (pLvl) pLvl.textContent = ui.player.level||'1';
             

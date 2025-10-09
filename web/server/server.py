@@ -215,6 +215,7 @@ class SessionInfo(BaseModel):
     llm_enabled: bool = Field(False, description="Whether LLM functionality is enabled")
     location: Optional[str] = Field(None, description="Current location")
     game_time: Optional[str] = Field(None, description="Current in-game time")
+    calendar: Optional[str] = Field(None, description="Canonical calendar string (Era/Cycle/Phase/Tide/Span/Day)")
     
 # Model for command request
 class CommandRequest(BaseModel):
@@ -263,6 +264,7 @@ class UIStateResponse(BaseModel):
     mode: str
     location: Optional[str] = None
     time: Optional[str] = None
+    calendar: Optional[str] = None
     player: UIPlayerHeader
     resources: Dict[str, UIResourceBar]
     primary_stats: Dict[str, UIStatEntry]
@@ -884,7 +886,7 @@ async def create_new_game(request: NewGameRequest):
             pass
         logger.info(f"Created new game session {session_id} for player {request.player_name}")
         state = engine.state_manager.state
-            return SessionInfo(
+        return SessionInfo(
             session_id=session_id,
             player_name=request.player_name,
             created_at=datetime.now(),
@@ -895,7 +897,8 @@ async def create_new_game(request: NewGameRequest):
             character_image=state.player.character_image,
             llm_enabled=engine._use_llm,
             location=state.player.current_location,
-            game_time=(state.world.time_of_day if state and getattr(state, 'world', None) else None)
+            game_time=(state.world.time_of_day if state and getattr(state, 'world', None) else None),
+            calendar=(state.world.game_date if state and getattr(state, 'world', None) else None)
         )
     except Exception as e:
         logger.error(f"Error creating new game: {e}")
@@ -926,6 +929,7 @@ async def process_command(session_id: str, request: CommandRequest, engine: Game
                     "location": state.world.current_location
                 },
                 "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
+                "calendar": (state.world.game_date if getattr(state, 'world', None) else None),
                 "game_running": engine.game_loop.is_running,
             }
         }
@@ -1022,6 +1026,7 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
                     "location": state.world.current_location
                 },
                 "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
+                "calendar": (state.world.game_date if getattr(state, 'world', None) else None),
                 "game_running": engine.game_loop.is_running,
                 # Include mode explicitly for clients that want to react immediately
                 "mode": (getattr(getattr(state, 'current_mode', None), 'name', str(getattr(state, 'current_mode', 'NARRATIVE'))) if state else 'NARRATIVE')
@@ -1183,11 +1188,13 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
         except Exception:
             mode = 'NARRATIVE'
         location = getattr(player, 'current_location', None)
-        # Provide narrative time-of-day period for UI instead of exact clock
+        # Provide narrative time-of-day period for UI instead of exact clock and calendar string
         try:
             game_time = state.world.time_of_day if getattr(state, 'world', None) else None
+            calendar_str = state.world.game_date if getattr(state, 'world', None) else None
         except Exception:
             game_time = None
+            calendar_str = None
 
         # Combat info (basic)
         turn_order: List[str] = []
@@ -1208,6 +1215,7 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
             mode=mode,
             location=location,
             time=game_time,
+            calendar=calendar_str,
             player=header,
             resources=resources,
             primary_stats=primary_stats,

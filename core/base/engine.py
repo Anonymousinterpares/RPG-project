@@ -342,8 +342,19 @@ class GameEngine(QObject):
             logger.warning(f"Could not reload autosave settings: {e}")
     
     def _maybe_autosave_after_narrative(self) -> None:
-        """Increment narrative turn counter and autosave if threshold reached."""
+        """Increment narrative turn counter and autosave if threshold reached.
+        Robustly re-reads the current setting from QSettings to respect runtime changes (OFF/turns).
+        """
         try:
+            # Re-read current setting to ensure immediate effect when user toggles OFF
+            try:
+                from PySide6.QtCore import QSettings
+                turns = QSettings("RPGGame", "Settings").value("gameplay/autosave_interval", 0, int)
+                self._autosave_turns = max(0, int(turns or 0))
+            except Exception:
+                # keep previous value if QSettings not available
+                pass
+            
             if self._autosave_turns and self._autosave_turns > 0:
                 self._turns_since_autosave += 1
                 if self._turns_since_autosave >= self._autosave_turns:

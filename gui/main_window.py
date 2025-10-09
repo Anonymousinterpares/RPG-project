@@ -704,7 +704,7 @@ class MainWindow(QMainWindow):
             state = self.game_engine.state_manager.current_state
             if not state:
                 logger.debug("MainWindow._update_ui: No game state to update UI from.")
-                self.status_bar.update_status(location="Not in game", game_time="", mode="N/A")
+                self.status_bar.update_status(location="Not in game", game_time="", calendar="", mode="N/A")
                 if hasattr(self.right_panel, 'character_sheet') and self.right_panel.character_sheet: 
                     self.right_panel.character_sheet._clear_stat_displays() 
                 
@@ -850,6 +850,7 @@ class MainWindow(QMainWindow):
             self.status_bar.update_status(
                 location=getattr(state.player, 'current_location', 'Unknown') if state.player else 'N/A',
                 game_time=getattr(state.world, 'time_of_day', ''),
+                calendar=getattr(state.world, 'game_date', ''),
                 mode=current_mode_name 
             )
 

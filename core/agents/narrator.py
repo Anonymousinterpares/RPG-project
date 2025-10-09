@@ -92,6 +92,7 @@ class NarratorAgent(BaseAgent):
         - Weather: {world_weather}
         - Current Interaction Mode: {mode_display}{stamina_note_for_prompt}
         - Exact Game Time (internal): {exact_game_time}
+        - Calendar (internal): {context.world_state.get('calendar', '')}
 
         ## Your Responsibilities
         1. Generate vivid narrative responses to player actions.
