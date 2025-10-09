@@ -898,7 +898,7 @@ async def create_new_game(request: NewGameRequest):
             llm_enabled=engine._use_llm,
             location=state.player.current_location,
             game_time=(state.world.time_of_day if state and getattr(state, 'world', None) else None),
-            calendar=(state.world.game_date if state and getattr(state, 'world', None) else None)
+            calendar=(getattr(state.world, 'calendar_string', None) if state and getattr(state, 'world', None) else None)
         )
     except Exception as e:
         logger.error(f"Error creating new game: {e}")
@@ -929,7 +929,7 @@ async def process_command(session_id: str, request: CommandRequest, engine: Game
                     "location": state.world.current_location
                 },
                 "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
-                "calendar": (state.world.game_date if getattr(state, 'world', None) else None),
+                "calendar": (getattr(state.world, 'calendar_string', None) if getattr(state, 'world', None) else None),
                 "game_running": engine.game_loop.is_running,
             }
         }
@@ -1026,7 +1026,7 @@ async def load_game(session_id: str, request: LoadGameRequest, engine: GameEngin
                     "location": state.world.current_location
                 },
                 "time": (state.world.time_of_day if getattr(state, 'world', None) else None),
-                "calendar": (state.world.game_date if getattr(state, 'world', None) else None),
+                "calendar": (getattr(state.world, 'calendar_string', None) if getattr(state, 'world', None) else None),
                 "game_running": engine.game_loop.is_running,
                 # Include mode explicitly for clients that want to react immediately
                 "mode": (getattr(getattr(state, 'current_mode', None), 'name', str(getattr(state, 'current_mode', 'NARRATIVE'))) if state else 'NARRATIVE')
@@ -1191,10 +1191,18 @@ async def get_ui_state(session_id: str, engine: GameEngine = Depends(get_game_en
         # Provide narrative time-of-day period for UI instead of exact clock and calendar string
         try:
             game_time = state.world.time_of_day if getattr(state, 'world', None) else None
-            calendar_str = state.world.game_date if getattr(state, 'world', None) else None
+            calendar_str = None
+            if getattr(state, 'world', None):
+                try:
+                    calendar_str = getattr(state.world, 'calendar_string', None)
+                except Exception:
+                    calendar_str = None
+                if not calendar_str:
+                    # Fallbacks to ensure non-empty string
+                    calendar_str = getattr(state.world, 'game_date', None) or ''
         except Exception:
             game_time = None
-            calendar_str = None
+            calendar_str = ''
 
         # Combat info (basic)
         turn_order: List[str] = []

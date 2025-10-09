@@ -2819,10 +2819,12 @@ addMessage(text, type = 'game', gradual = false) {
                 const t = ui.time||'-';
                 if (calEl) {
                     timeEl.textContent = t;
-                    calEl.textContent = ui.calendar || '';
+                    const calVal = (ui && (ui.calendar || (ui.state && ui.state.calendar))) || '';
+                    calEl.textContent = calVal;
                 } else {
+                    const calVal = (ui && (ui.calendar || (ui.state && ui.state.calendar))) || '';
                     // Fallback: append calendar after time if dedicated element missing
-                    const cal = ui.calendar ? ` | ${ui.calendar}` : '';
+                    const cal = calVal ? ` | ${calVal}` : '';
                     timeEl.textContent = `${t}${cal}`;
                 }
             }
