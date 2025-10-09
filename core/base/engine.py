@@ -321,10 +321,57 @@ class GameEngine(QObject):
         Returns:
             The path to the save file, or None if the save failed.
         """
-        # Delegate to the lifecycle module
-        return lifecycle.save_game(self, filename, auto_save)
+        if self._state_manager.current_state is None:
+            logger.error("Cannot save: No current game state")
+            self._output("system", "Cannot save: No game in progress")
+            return None
 
-    
+        # --- Generate Summaries using LLM ---
+        background_summary = None
+        last_events_summary = None
+        
+        if self._use_llm and self._agent_manager:
+            state = self._state_manager.current_state
+            
+            # 1. Summarize Background
+            try:
+                if state.player and state.player.background:
+                    prompt = (
+                        f"Summarize the following character background in one or two engaging sentences. "
+                        f"Focus on the character's origin and key identity.\n\n"
+                        f"BACKGROUND:\n{state.player.background}"
+                    )
+                    messages = [{"role": "user", "content": prompt}]
+                    response = self._agent_manager._narrator_agent._llm_manager.get_completion(messages, max_tokens=100)
+                    if response and response.content:
+                        background_summary = response.content.strip()
+                        logger.info("Generated background summary for save file.")
+            except Exception as e:
+                logger.error(f"Failed to generate background summary for save: {e}")
+
+            # 2. Summarize Last Events
+            try:
+                if state.conversation_history:
+                    # Get the last 10 entries for context
+                    recent_history = state.conversation_history[-10:]
+                    formatted_history = "\n".join([f"{entry['role']}: {entry['content']}" for entry in recent_history])
+                    prompt = (
+                        f"Based on the following recent conversation log, write a brief, one-paragraph summary "
+                        f"of the player's most recent activities and current situation. This is for a 'Last Events' "
+                        f"section in a game save file to remind the player what they were doing.\n\n"
+                        f"RECENT LOG:\n{formatted_history}"
+                    )
+                    messages = [{"role": "user", "content": prompt}]
+                    response = self._agent_manager._narrator_agent._llm_manager.get_completion(messages, max_tokens=150)
+                    if response and response.content:
+                        last_events_summary = response.content.strip()
+                        logger.info("Generated last events summary for save file.")
+            except Exception as e:
+                logger.error(f"Failed to generate last events summary for save: {e}")
+
+        # --- Pass summaries to StateManager's save_game method ---
+        return lifecycle.save_game(self, filename, auto_save, background_summary, last_events_summary)
+
     def reload_autosave_settings(self) -> None:
         """Reload autosave settings from QSettings. Uses turn-based interval.
         gameplay/autosave_interval: integer number of narrative turns between auto-saves. 0 means Off.

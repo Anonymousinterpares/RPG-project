@@ -329,41 +329,57 @@ class LoadGameDialog(BaseDialog):
             The save details as a formatted string.
         """
         try:
-            with open(save_path, "r") as f:
+            with open(save_path, "r", encoding='utf-8') as f:
                 save_data = json.load(f)
                 
-                # Extract details
                 player_data = save_data.get("player", {})
                 world_data = save_data.get("world", {})
                 
-                # Format details
                 details = []
                 
-                # Player details
+                # --- Character Information ---
                 if player_data:
-                    details.append("Character Information:")
-                    details.append(f"Name: {player_data.get('name', 'Unknown')}")
-                    details.append(f"Race: {player_data.get('race', 'Unknown')}")
-                    details.append(f"Class: {player_data.get('path', 'Unknown')}")
-                    details.append(f"Background: {player_data.get('background', 'Unknown')}")
-                    details.append(f"Level: {player_data.get('level', 1)}")
-                    details.append("")
+                    details.append("<b>Character Information:</b>")
+                    details.append(f"<b>Name:</b> {player_data.get('name', 'Unknown')}")
+                    details.append(f"<b>Race:</b> {player_data.get('race', 'Unknown')}")
+                    details.append(f"<b>Class:</b> {player_data.get('path', 'Unknown')}")
+                    details.append(f"<b>Level:</b> {player_data.get('level', 1)}")
+                    details.append("") # Spacer
                 
-                # World details
+                # --- Background Summary ---
+                background_summary = player_data.get('background_summary')
+                if background_summary:
+                    details.append("<b>Background:</b>")
+                    details.append(background_summary)
+                    details.append("") # Spacer
+                
+                # --- Last Events Summary ---
+                last_events_summary = save_data.get('last_events_summary')
+                if last_events_summary:
+                    details.append("<b>Last Events:</b>")
+                    details.append(last_events_summary)
+                    details.append("") # Spacer
+                
+                # --- World Information ---
                 if world_data:
-                    details.append("World Information:")
-                    details.append(f"Location: {world_data.get('current_location', 'Unknown')}")
-                    details.append(f"Time: {world_data.get('game_time', 'Unknown')}")
-                    details.append("")
-                
-                # Game details
+                    details.append("<b>World Information:</b>")
+                    details.append(f"<b>Location:</b> {player_data.get('current_location', 'Unknown')}")
+                    # Use the new, user-friendly calendar string and time of day
+                    calendar_str = world_data.get('calendar_string', 'Unknown Date')
+                    time_of_day = world_data.get('time_of_day', 'Unknown Time')
+                    details.append(f"<b>Time:</b> {calendar_str} ({time_of_day})")
+                    details.append("") # Spacer
+
+                # --- Save File Information ---
                 mod_time = datetime.fromtimestamp(os.path.getmtime(save_path))
-                details.append("Save Information:")
-                details.append(f"Created: {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
-                details.append(f"File: {os.path.basename(save_path)}")
+                details.append("<b>Save Information:</b>")
+                details.append(f"<b>Saved On:</b> {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                details.append(f"<b>File:</b> {os.path.basename(save_path)}")
                 
-                return "\n".join(details)
+                # Use html-like formatting for QTextEdit
+                return "<br>".join(details)
         except Exception as e:
+            logging.error(f"Error loading save details for '{save_path}': {e}", exc_info=True)
             return f"Error loading save details: {str(e)}"
     
     def _on_save_selected(self):

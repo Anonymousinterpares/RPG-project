@@ -316,7 +316,8 @@ class StateManager:
         return self._current_state
     
     def save_game(self, filename: Optional[str] = None, 
-                 auto_save: bool = False) -> Optional[str]:
+                 auto_save: bool = False, background_summary: Optional[str] = None, 
+                 last_events_summary: Optional[str] = None) -> Optional[str]:
         """
         Save the current game state.
         
@@ -326,6 +327,8 @@ class StateManager:
         Args:
             filename: The name of the save file. If None, uses a default name.
             auto_save: Whether this is an auto-save.
+            background_summary: An optional LLM-generated summary of the player's background.
+            last_events_summary: An optional LLM-generated summary of recent events.
         
         Returns:
             The path to the save file, or None if the save failed.
@@ -342,7 +345,7 @@ class StateManager:
             player_name = self._current_state.player.name
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             prefix = "auto_" if auto_save else ""
-            filename = f"{prefix}{player_name}_{timestamp}.json"
+            filename = f"{prefix}{player_name.replace(' ', '_')}_{timestamp}.json"
         
         # Ensure filename has .json extension
         if not filename.endswith(".json"):
@@ -351,6 +354,12 @@ class StateManager:
         # Prepare full state dict with enhanced data
         state_dict = self._current_state.to_dict()
         
+        # Add the generated summaries to the state_dict before saving
+        if background_summary:
+            state_dict['player']['background_summary'] = background_summary
+        if last_events_summary:
+            state_dict['last_events_summary'] = last_events_summary
+
         # Add stats data if available
         try:
             if self.stats_manager is not None:
@@ -401,7 +410,7 @@ class StateManager:
         except Exception as e:
             logger.error(f"Error saving game: {e}")
             return None
-    
+             
     def load_game(self, filename: str) -> Optional[GameState]:
         """
         Load a game state from a file.

@@ -611,7 +611,8 @@ def _generate_reintroductory_narrative_content(engine: 'GameEngine', game_state:
 
 
 def save_game(engine: 'GameEngine', filename: Optional[str] = None,
-              auto_save: bool = False) -> Optional[str]:
+              auto_save: bool = False, background_summary: Optional[str] = None, 
+              last_events_summary: Optional[str] = None) -> Optional[str]:
     """
     Save the current game.
 
@@ -619,6 +620,8 @@ def save_game(engine: 'GameEngine', filename: Optional[str] = None,
         engine: The GameEngine instance.
         filename: The name of the save file. If None, generates a name.
         auto_save: Whether this is an auto-save.
+        background_summary: An optional LLM-generated summary of the player's background.
+        last_events_summary: An optional LLM-generated summary of recent events.
 
     Returns:
         The path to the save file, or None if the save failed.
@@ -630,8 +633,8 @@ def save_game(engine: 'GameEngine', filename: Optional[str] = None,
         engine._output("system", "Cannot save: No game in progress")
         return None
 
-    # Save the game state
-    save_path = engine._state_manager.save_game(filename, auto_save)
+    # Pass the summaries to the state manager's save method
+    save_path = engine._state_manager.save_game(filename, auto_save, background_summary, last_events_summary)
 
     if save_path is None:
         logger.error("Failed to save game")

@@ -305,6 +305,9 @@ class WorldState:
             "magical_conditions": self.magical_conditions,
             "global_vars": self.global_vars,
             "active_events": self.active_events,
+            # Add computed properties for easy access in saves
+            "time_of_day": self.time_of_day,
+            "calendar_string": self.calendar_string,
         }
     
     @classmethod
