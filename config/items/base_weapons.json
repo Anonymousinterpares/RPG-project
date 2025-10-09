@@ -11,24 +11,7 @@
     "equip_slots": [
       "two_hand"
     ],
-    "stats": [
-      {
-        "name": "attack_speed",
-        "value": 0.7,
-        "display_name": "Attack Speed"
-      },
-      {
-        "name": "strength_requirement",
-        "value": 12,
-        "display_name": "Strength Requirement"
-      },
-      {
-        "name": "critical_chance",
-        "value": 5.0,
-        "display_name": "Critical Chance",
-        "is_percentage": true
-      }
-    ],
+    "stats": [],
     "dice_roll_effects": [
       {
         "effect_type": "slashing",
@@ -43,7 +26,16 @@
       "sword",
       "metal",
       "two-handed"
-    ]
+    ],
+    "is_consumable": false,
+    "is_quest_item": false,
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 15,
+        "piercing": 10,
+        "bludgeoning": 10
+      }
+    }
   },
   {
     "id": "template_bow_hunting",
@@ -57,18 +49,7 @@
     "equip_slots": [
       "two_hand"
     ],
-    "stats": [
-      {
-        "name": "attack_speed",
-        "value": 1.0,
-        "display_name": "Attack Speed"
-      },
-      {
-        "name": "range",
-        "value": 30,
-        "display_name": "Range"
-      }
-    ],
+    "stats": [],
     "dice_roll_effects": [
       {
         "effect_type": "piercing",
@@ -84,7 +65,14 @@
       "wood",
       "ranged",
       "two-handed"
-    ]
+    ],
+    "custom_properties": {
+      "typed_resistances": {
+        "piercing": 10
+      }
+    },
+    "is_consumable": false,
+    "is_quest_item": false
   },
   {
     "id": "template_sword_long",
@@ -96,20 +84,9 @@
     "value": 2500,
     "is_equippable": true,
     "equip_slots": [
-      "main_hand"
+      "two_hand"
     ],
-    "stats": [
-      {
-        "name": "attack_speed",
-        "value": 0.9,
-        "display_name": "Attack Speed"
-      },
-      {
-        "name": "reach",
-        "value": 1.5,
-        "display_name": "Reach"
-      }
-    ],
+    "stats": [],
     "dice_roll_effects": [
       {
         "effect_type": "slashing",
@@ -124,7 +101,17 @@
       "sword",
       "metal",
       "one-handed"
-    ]
+    ],
+    "is_consumable": false,
+    "is_quest_item": false,
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 15,
+        "piercing": 10,
+        "bludgeoning": 5,
+        "cold": 5
+      }
+    }
   },
   {
     "id": "template_sword_short",
@@ -160,7 +147,15 @@
       "sword",
       "metal",
       "one-handed"
-    ]
+    ],
+    "is_consumable": false,
+    "is_quest_item": false,
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 10,
+        "piercing": 5
+      }
+    }
   },
   {
     "id": "template_dagger_simple",
@@ -203,13 +198,22 @@
       "metal",
       "one-handed",
       "concealable"
-    ]
+    ],
+    "is_consumable": false,
+    "is_quest_item": false,
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 5,
+        "piercing": 5
+      }
+    }
   },
   {
     "description": "A common sword, often used by city guards or soldiers. Reliable and easy to maintain.",
     "durability": 100,
     "equip_slots": [
-      "main_hand"
+      "main_hand",
+      "off_hand"
     ],
     "id": "standard_issue_sword",
     "is_equippable": true,
@@ -230,6 +234,15 @@
     ],
     "value": 50,
     "weight": 3.0,
-    "current_durability": 100
+    "is_consumable": false,
+    "is_stackable": false,
+    "is_quest_item": false,
+    "dice_roll_effects": [],
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 10,
+        "piercing": 5
+      }
+    }
   }
 ]

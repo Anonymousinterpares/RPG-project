@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "description": "Canonical stat registry for editor validation and alias resolution. Keys map to engine-recognized stats. Unsupported entries are kept for validation but not applied by mechanics.",
+  "stats": [
+    {"key": "strength", "category": "primary", "label": "Strength", "aliases": ["str"], "supported": true},
+    {"key": "dexterity", "category": "primary", "label": "Dexterity", "aliases": ["dex", "agility"], "supported": true},
+    {"key": "constitution", "category": "primary", "label": "Constitution", "aliases": ["con"], "supported": true},
+    {"key": "intelligence", "category": "primary", "label": "Intelligence", "aliases": ["int"], "supported": true},
+    {"key": "wisdom", "category": "primary", "label": "Wisdom", "aliases": ["wis"], "supported": true},
+    {"key": "charisma", "category": "primary", "label": "Charisma", "aliases": ["cha"], "supported": true},
+    {"key": "willpower", "category": "primary", "label": "Willpower", "aliases": ["wil", "will"], "supported": true},
+    {"key": "insight", "category": "primary", "label": "Insight", "aliases": ["ins", "perception"], "supported": true},
+
+    {"key": "health", "category": "derived", "label": "Health", "aliases": ["hp"], "supported": true},
+    {"key": "max_health", "category": "derived", "label": "Max Health", "aliases": ["hp_max", "max_hp", "health_max"], "supported": true},
+    {"key": "mana", "category": "derived", "label": "Mana", "aliases": ["mp"], "supported": true},
+    {"key": "max_mana", "category": "derived", "label": "Max Mana", "aliases": ["mp_max", "max_mp", "mana_max"], "supported": true},
+    {"key": "stamina", "category": "derived", "label": "Stamina", "aliases": [], "supported": true},
+    {"key": "max_stamina", "category": "derived", "label": "Max Stamina", "aliases": ["stamina_max"], "supported": true},
+    {"key": "resolve", "category": "derived", "label": "Resolve", "aliases": [], "supported": true},
+    {"key": "max_resolve", "category": "derived", "label": "Max Resolve", "aliases": ["resolve_max"], "supported": true},
+
+    {"key": "melee_attack", "category": "derived", "label": "Melee Attack", "aliases": ["attack_bonus", "melee"], "supported": true},
+    {"key": "ranged_attack", "category": "derived", "label": "Ranged Attack", "aliases": ["ranged_bonus", "ranged"], "supported": true},
+    {"key": "magic_attack", "category": "derived", "label": "Magic Attack", "aliases": ["spell_attack", "spell_focus_bonus", "magic"], "supported": true},
+    {"key": "defense", "category": "derived", "label": "Defense", "aliases": ["armor", "armour"], "supported": true},
+    {"key": "magic_defense", "category": "derived", "label": "Magic Defense", "aliases": ["magic_resistance", "mres"], "supported": true},
+    {"key": "damage_reduction", "category": "derived", "label": "Damage Reduction", "aliases": ["dr"], "supported": true},
+    {"key": "initiative", "category": "derived", "label": "Initiative", "aliases": [], "supported": true},
+    {"key": "carry_capacity", "category": "derived", "label": "Carry Capacity", "aliases": ["carry", "carry_weight"], "supported": true},
+    {"key": "movement", "category": "derived", "label": "Movement", "aliases": ["movement_speed", "move_speed"], "supported": true},
+
+    {"key": "attack_speed", "category": "derived", "label": "Attack Speed", "aliases": ["atk_speed", "swing_speed"], "supported": false},
+    {"key": "crit_chance", "category": "derived", "label": "Critical Chance", "aliases": ["critical_chance", "crit"], "supported": false},
+    {"key": "accuracy", "category": "derived", "label": "Accuracy", "aliases": [], "supported": false},
+    {"key": "dodge", "category": "derived", "label": "Dodge", "aliases": ["evasion"], "supported": false},
+    {"key": "reach", "category": "derived", "label": "Reach", "aliases": [], "supported": false},
+    {"key": "range", "category": "derived", "label": "Range", "aliases": [], "supported": false},
+    {"key": "noise", "category": "derived", "label": "Noise", "aliases": ["nouse"], "supported": false}
+  ]
+}

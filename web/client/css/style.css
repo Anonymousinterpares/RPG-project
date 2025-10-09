@@ -1967,3 +1967,106 @@ body {
     overflow-wrap: break-word;
     max-width: 100%;
 }
+
+/* ===== Enhanced Load Game Modal Styles ===== */
+.modal-content.wide {
+    max-width: 800px; /* Make the modal wider */
+}
+
+.load-game-body {
+    display: grid;
+    grid-template-columns: 55% 45%; /* Two columns */
+    gap: 1rem;
+    padding: 1rem;
+    max-height: 500px;
+    overflow: hidden;
+}
+
+.saves-list-container {
+    max-height: 480px;
+    overflow-y: auto;
+    border: 1px solid var(--border-light);
+    border-radius: var(--border-radius);
+    background: rgba(0,0,0,0.1);
+}
+
+.save-item-web {
+    padding: 0.8rem;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+}
+
+.save-item-web:last-child {
+    border-bottom: none;
+}
+
+.save-item-web:hover {
+    background-color: var(--bg-hover);
+}
+
+.save-item-web.selected {
+    background-color: var(--color-secondary);
+    color: var(--text-light);
+}
+
+.save-item-header-web {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+}
+
+.save-item-name-web {
+    font-weight: bold;
+}
+
+.save-item-time-web {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.save-item-details-web {
+    font-size: 0.9rem;
+    margin-top: 0.3rem;
+    opacity: 0.9;
+}
+
+.save-details-container {
+    max-height: 480px;
+    overflow-y: auto;
+    background: #1E1E1E;
+    color: #E0E0E0;
+    border: 1px solid var(--border-main);
+    border-radius: var(--border-radius);
+}
+
+.save-details-content {
+    padding: 1rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.save-details-content.placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #888;
+    font-style: italic;
+    font-family: var(--font-main);
+}
+
+.modal-footer .danger {
+    background-color: #b71c1c;
+    color: #fff;
+}
+
+.modal-footer .danger:hover:not(:disabled) {
+    background-color: #d32f2f;
+}
+
+.modal-footer .danger:disabled {
+    background-color: #555;
+    color: #999;
+}

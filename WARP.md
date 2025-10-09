@@ -1,3 +1,5 @@
+***CURRENT TASK -> WORKING ON magic SYSTEMS -> ALWAYS REFER TO THE DRAFTER DIAGNOSIS & PLAN FROM magic_system_overhaul.md PLACED IN PROJECT ROOT FOLDER.
+If any step is finished, amend this file to reflect the latest stage***
 
 I. The Golden Rules (Most Important Principles)
 Separation of Concerns is Paramount: The core logic (game state, combat mechanics, stats) MUST NOT directly interact with the gui. The gui observes and reacts to changes in the core.

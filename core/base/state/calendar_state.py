@@ -38,7 +38,9 @@ class CalendarState:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CalendarState":
+        logger.debug(f"CalendarState.from_dict: data received: {data}")
         if not isinstance(data, dict):
+            logger.debug("CalendarState.from_dict: data is not a dict, returning default CalendarState.")
             return cls()
         return cls(
             era=int(data.get("era", 1) or 1),

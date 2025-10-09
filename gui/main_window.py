@@ -850,7 +850,7 @@ class MainWindow(QMainWindow):
             self.status_bar.update_status(
                 location=getattr(state.player, 'current_location', 'Unknown') if state.player else 'N/A',
                 game_time=getattr(state.world, 'time_of_day', ''),
-                calendar=getattr(state.world, 'game_date', ''),
+                calendar=getattr(state.world, 'calendar_string', ''),
                 mode=current_mode_name 
             )
 

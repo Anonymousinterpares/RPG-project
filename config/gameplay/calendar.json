@@ -4,8 +4,9 @@
     "cycle": "Cycle",
     "phase": "Phase",
     "tide": "Tide",
-    "span": "Span",
-    "day": "Day"
+    "span": "Month",
+    "day": "Day",
+    "year": "Year"
   },
   "units": {
     "day_length_seconds": 86400,
@@ -15,5 +16,53 @@
     "cycle_length_phases": 6,
     "era_length_cycles": 8
   },
-  "initial_time_of_day": "morning" 
+  "era_names": [
+    "Ancient Age",
+    "Classical Age",
+    "Medieval Age",
+    "Renaissance Age",
+    "Industrial Age",
+    "Age of Steam",
+    "Age of Discovery",
+    "Modern Age"
+  ],
+  "phase_names": [
+    "Awakening",
+    "Ascendance",
+    "Zenith",
+    "Decline",
+    "Twilight",
+    "Nadir"
+  ],
+  "tide_names": [
+    "Springtide",
+    "Summertide",
+    "Autumntide",
+    "Wintertide"
+  ],
+  "span_names": [
+    "Verdance",
+    "Solace",
+    "Ember",
+    "Zephyr",
+    "Harvest",
+    "Moontide",
+    "Starfall",
+    "Aurora",
+    "Frostfall",
+    "Dawnrise",
+    "Skylark",
+    "Nightveil"
+  ],
+  "day_of_week_names": [
+    "Firstday",
+    "Secondday",
+    "Thirdday",
+    "Fourthday",
+    "Fifthday",
+    "Sixthday",
+    "Seventhday"
+  ],
+  "start_year": 2442,
+  "initial_time_of_day": "Morning" 
 }

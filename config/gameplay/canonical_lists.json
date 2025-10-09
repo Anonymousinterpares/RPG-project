@@ -1,0 +1,24 @@
+{
+  "damage_types": [
+    "slashing",
+    "piercing",
+    "bludgeoning",
+    "fire",
+    "cold",
+    "lightning",
+    "poison",
+    "acid",
+    "arcane"
+  ],
+  "status_conditions": [
+    "Poisoned",
+    "Burning",
+    "Frozen",
+    "Stunned",
+    "Bleeding",
+    "Defending",
+    "Inspired",
+    "Regeneration",
+    "Berserk"
+  ]
+}

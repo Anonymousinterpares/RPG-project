@@ -46,6 +46,11 @@ def build_system_prompt(mode: str, ctx: AssistantContext) -> str:
             et = ctx.references.get("effect_types")
             if isinstance(et, list) and et:
                 base.append("When specifying dice_roll_effects.effect_type, choose only from: " + ", ".join(et))
+        # Typed resistances guidance
+        if ctx.references and isinstance(ctx.references, dict):
+            et = ctx.references.get("effect_types")
+            if isinstance(et, list) and et:
+                base.append("For custom_properties.typed_resistances: keys MUST be one of these types: " + ", ".join(et) + ". Values are integer percentages in [-100, 100]. Omit entries that are 0.")
         base.append(MODIFY_CONTRACT)
     elif mode == "create":
         # If existing names are provided in references, emphasize not to reuse them
@@ -53,6 +58,7 @@ def build_system_prompt(mode: str, ctx: AssistantContext) -> str:
             et = ctx.references.get("effect_types")
             if isinstance(et, list) and et:
                 base.append("When specifying dice_roll_effects.effect_type, choose only from: " + ", ".join(et))
+                base.append("If proposing custom_properties.typed_resistances, use only these types as keys; values are integer percentages in [-100, 100]; omit 0 entries.")
         if ctx.references and isinstance(ctx.references, dict):
             existing = ctx.references.get("existing_names") or ctx.references.get("existing_names_list")
             if existing and isinstance(existing, list) and existing:
@@ -85,6 +91,27 @@ def build_messages(mode: str, ctx: AssistantContext, user_text: str) -> List[dic
     if ctx.references:
         content_blocks.append("Reference Catalogs:\n" + json.dumps(ctx.references, ensure_ascii=False, indent=2))
 
+    # Heuristic guidance: if user mentions resistances, steer to typed_resistances path
+    try:
+        low = (user_text or "").lower()
+        if any(tok in low for tok in ["resistance", "resistances", "resistant", "typed resistance"]):
+            allowed = []
+            try:
+                if isinstance(ctx.references, dict):
+                    allowed = ctx.references.get("effect_types") or []
+            except Exception:
+                pass
+            hint = [
+                "Assistant Hint:",
+                "- Treat 'resistances' as custom_properties.typed_resistances, NOT dice_roll_effects.",
+                "- Only use allowed damage types as keys: " + ", ".join(allowed) if allowed else "- Use only valid damage types from references.",
+                "- Integer percentages in [-100, 100]. Omit 0 entries.",
+                "- In modify mode, return RFC6902 ops targeting /custom_properties/typed_resistances (add or replace).",
+            ]
+            content_blocks.append("\n".join(hint))
+    except Exception:
+        pass
+
     user_context = "\n\n".join(content_blocks)
 
     return [
@@ -114,6 +141,25 @@ def build_messages_analyze(history: List[dict], ctx: AssistantContext, user_text
             content_blocks.append("Schema Hints:\n" + json.dumps(ctx.schema, ensure_ascii=False, indent=2))
         if ctx.references:
             content_blocks.append("Reference Catalogs:\n" + json.dumps(ctx.references, ensure_ascii=False, indent=2))
+        try:
+            low = (user_text or "").lower()
+            if any(tok in low for tok in ["resistance", "resistances", "resistant", "typed resistance"]):
+                allowed = []
+                try:
+                    if isinstance(ctx.references, dict):
+                        allowed = ctx.references.get("effect_types") or []
+                except Exception:
+                    pass
+                hint = [
+                    "Assistant Hint:",
+                    "- Treat 'resistances' as custom_properties.typed_resistances, NOT dice_roll_effects.",
+                    "- Only use allowed damage types as keys: " + ", ".join(allowed) if allowed else "- Use only valid damage types from references.",
+                    "- Integer percentages in [-100, 100]. Omit 0 entries.",
+                    "- In modify mode, return RFC6902 ops targeting /custom_properties/typed_resistances (add or replace).",
+                ]
+                content_blocks.append("\n".join(hint))
+        except Exception:
+            pass
         user_context = "\n\n".join(content_blocks)
         return [
             {"role": "system", "content": sys},

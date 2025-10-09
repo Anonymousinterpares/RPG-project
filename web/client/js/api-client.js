@@ -43,6 +43,57 @@ class ApiClient {
         localStorage.removeItem('rpg_auth_token');
     }
 
+/**
+     * Get rich HTML details for a single save file
+     * @param {string} saveId - The filename of the save
+     * @returns {Promise<Object>}
+     */
+    async getSaveDetails(saveId) {
+        try {
+            const response = await fetch(this.buildUrl(`save_details/${encodeURIComponent(saveId)}`), {
+                method: 'GET',
+                headers: this.getHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to get save details');
+            }
+
+            return await response.json();
+
+        } catch (error) {
+            console.error('Get save details error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete a save file
+     * @param {string} saveId - The filename of the save to delete
+     * @returns {Promise<Object>}
+     */
+    async deleteSave(saveId) {
+        if (!this.sessionId) {
+            throw new Error('No active game session');
+        }
+        
+        try {
+            const response = await fetch(this.buildUrl(`delete_save/${this.sessionId}/${encodeURIComponent(saveId)}`), {
+                method: 'DELETE',
+                headers: this.getHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete save file');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Delete save error:', error);
+            throw error;
+        }
+    }
+
     /**
      * Clean up a session on the server
      */

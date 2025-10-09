@@ -1,38 +1,5 @@
 [
   {
-    "id": "template_armor_leather",
-    "name": "Leather Armor",
-    "description": "Basic protection made from tanned hides. Lightweight and flexible.",
-    "item_type": "armor",
-    "rarity": "common",
-    "weight": 8.0,
-    "value": 1500,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "armor",
-        "value": 4,
-        "display_name": "Armor"
-      },
-      {
-        "name": "movement_speed",
-        "value": -2,
-        "display_name": "Movement Speed Penalty",
-        "is_percentage": true
-      }
-    ],
-    "is_stackable": false,
-    "durability": 100,
-    "tags": [
-      "armor",
-      "leather",
-      "light"
-    ]
-  },
-  {
     "id": "template_armor_chainmail",
     "name": "Chainmail Armor",
     "description": "Armor made from interlocking metal rings. Offers good protection while maintaining flexibility.",
@@ -44,24 +11,7 @@
     "equip_slots": [
       "chest"
     ],
-    "stats": [
-      {
-        "name": "armor",
-        "value": 8,
-        "display_name": "Armor"
-      },
-      {
-        "name": "movement_speed",
-        "value": -5,
-        "display_name": "Movement Speed Penalty",
-        "is_percentage": true
-      },
-      {
-        "name": "noise",
-        "value": 15,
-        "display_name": "Noise"
-      }
-    ],
+    "stats": [],
     "is_stackable": false,
     "durability": 150,
     "tags": [
@@ -69,51 +19,47 @@
       "chainmail",
       "metal",
       "medium"
-    ]
+    ],
+    "is_consumable": false,
+    "is_quest_item": false,
+    "dice_roll_effects": [],
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 10,
+        "piercing": 5,
+        "bludgeoning": 15
+      }
+    }
   },
   {
-    "id": "template_armor_plate",
-    "name": "Plate Armor",
-    "description": "Heavy armor made from solid metal plates. Provides excellent protection at the cost of mobility.",
+    "id": "template_armor_leather",
+    "name": "Leather Armor",
+    "description": "Basic protection made from tanned hides. Lightweight and flexible.",
     "item_type": "armor",
-    "rarity": "rare",
-    "weight": 25.0,
-    "value": 7500,
+    "rarity": "common",
+    "weight": 8.0,
+    "value": 1500,
     "is_equippable": true,
     "equip_slots": [
       "chest"
     ],
-    "stats": [
-      {
-        "name": "armor",
-        "value": 15,
-        "display_name": "Armor"
-      },
-      {
-        "name": "movement_speed",
-        "value": -12,
-        "display_name": "Movement Speed Penalty",
-        "is_percentage": true
-      },
-      {
-        "name": "noise",
-        "value": 25,
-        "display_name": "Noise"
-      },
-      {
-        "name": "strength_requirement",
-        "value": 14,
-        "display_name": "Strength Requirement"
-      }
-    ],
+    "stats": [],
     "is_stackable": false,
-    "durability": 200,
+    "durability": 100,
     "tags": [
       "armor",
-      "plate",
-      "metal",
-      "heavy"
-    ]
+      "leather",
+      "light"
+    ],
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 5,
+        "piercing": 5
+      }
+    },
+    "is_consumable": false,
+    "is_quest_item": false,
+    "dice_roll_effects": []
   },
   {
     "id": "template_helmet_leather",
@@ -127,13 +73,7 @@
     "equip_slots": [
       "head"
     ],
-    "stats": [
-      {
-        "name": "armor",
-        "value": 2,
-        "display_name": "Armor"
-      }
-    ],
+    "stats": [],
     "is_stackable": false,
     "durability": 75,
     "tags": [
@@ -141,7 +81,49 @@
       "helmet",
       "leather",
       "light"
-    ]
+    ],
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 5,
+        "piercing": 5,
+        "bludgeoning": 5
+      }
+    },
+    "is_consumable": false,
+    "is_quest_item": false,
+    "dice_roll_effects": []
+  },
+  {
+    "id": "template_armor_plate",
+    "name": "Plate Armor",
+    "description": "Heavy armor made from solid metal plates. Provides excellent protection at the cost of mobility.",
+    "item_type": "armor",
+    "rarity": "rare",
+    "weight": 25.0,
+    "value": 7500,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [],
+    "is_stackable": false,
+    "durability": 200,
+    "tags": [
+      "armor",
+      "plate",
+      "metal",
+      "heavy"
+    ],
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 15,
+        "piercing": 10,
+        "bludgeoning": 20
+      }
+    },
+    "is_consumable": false,
+    "is_quest_item": false,
+    "dice_roll_effects": []
   },
   {
     "id": "template_shield_wooden",
@@ -155,25 +137,23 @@
     "equip_slots": [
       "off_hand"
     ],
-    "stats": [
-      {
-        "name": "block_chance",
-        "value": 15.0,
-        "display_name": "Block Chance",
-        "is_percentage": true
-      },
-      {
-        "name": "armor",
-        "value": 3,
-        "display_name": "Armor"
-      }
-    ],
+    "stats": [],
     "is_stackable": false,
     "durability": 120,
     "tags": [
       "shield",
       "wood",
       "medium"
-    ]
+    ],
+    "custom_properties": {
+      "typed_resistances": {
+        "slashing": 5,
+        "piercing": 5,
+        "bludgeoning": 10
+      }
+    },
+    "is_consumable": false,
+    "is_quest_item": false,
+    "dice_roll_effects": []
   }
 ]

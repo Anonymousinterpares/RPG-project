@@ -11,7 +11,6 @@ import uuid
 import logging
 import asyncio
 from typing import Dict, List, Optional, Any
-# Import datetime directly - CRITICAL - must be at global level for exec() to work
 from datetime import datetime
 
 # Define datetime at global level to make it available to exec() context
@@ -31,7 +30,7 @@ print(f"Project root: {project_root}")
 print(f"Python path: {sys.path}")
 
 # FastAPI imports
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Body, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Body, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from starlette.responses import JSONResponse
@@ -67,7 +66,7 @@ session_listeners: Dict[str, Dict[str, Any]] = {}
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
-from pathlib import Path
+from pathlib import Path as _PathlibPath
 
 # Get path to web client files
 # Try multiple approaches to find the client directory
@@ -75,11 +74,11 @@ possible_paths = []
 
 # First approach: Try using current working directory
 cwd = os.getcwd()
-client_dir_cwd = Path(cwd).joinpath('web', 'client')
+client_dir_cwd = _PathlibPath(cwd).joinpath('web', 'client')
 possible_paths.append(("CWD", client_dir_cwd))
 
 # Second approach: Try using relative path from server.py location
-server_dir = Path(os.path.abspath(__file__)).parent
+server_dir = _PathlibPath(os.path.abspath(__file__)).parent
 parent_dir = server_dir.parent.parent  # Go up two levels from server.py
 client_dir_relative = parent_dir.joinpath('web', 'client')
 possible_paths.append(("Relative", client_dir_relative))
@@ -145,10 +144,10 @@ def get_character_icons():
 
 def get_character_icons_filtered(race: Optional[str], class_name: Optional[str], sex: Optional[str]):
     """Scan for icons in subfolder images/character_icons/<Race_Class> and filter by sex keywords."""
-    from pathlib import Path
+    from pathlib import Path as _PathlibPath
     safe_race = (race or "").replace(" ", "_")
     safe_class = (class_name or "").replace(" ", "_")
-    base_dir = Path(project_root) / "images" / "character_icons"
+    base_dir = _PathlibPath(project_root) / "images" / "character_icons"
     subdir = base_dir / f"{safe_race}_{safe_class}"
     supported = {".png", ".jpg", ".jpeg", ".gif", ".svg"}
     results: List[Dict[str, str]] = []
@@ -2066,6 +2065,89 @@ async def api_delete_journal_note(session_id: str, note_id: str, engine: GameEng
     except Exception as e:
         logger.error(f"Error deleting note: {e}")
         raise HTTPException(status_code=500, detail="Error deleting note")
+    
+@app.get("/api/save_details/{save_id}")
+async def get_save_details(save_id: str = Path(..., description="The filename of the save file, e.g., 'my_save.json'")):
+    """Get the rich details for a single save file, formatted as HTML."""
+    try:
+        from core.base.state.state_manager import get_state_manager
+        sm = get_state_manager()
+        saves_dir = sm._saves_dir
+        save_path = os.path.join(saves_dir, save_id)
+
+        if not os.path.exists(save_path):
+            raise HTTPException(status_code=404, detail="Save file not found")
+
+        with open(save_path, "r", encoding='utf-8') as f:
+            save_data = json.load(f)
+
+            player_data = save_data.get("player", {})
+            world_data = save_data.get("world", {})
+            
+            details = []
+            
+            # --- Character Information ---
+            if player_data:
+                details.append("<b>Character Information:</b>")
+                details.append(f"<b>Name:</b> {player_data.get('name', 'Unknown')}")
+                details.append(f"<b>Race:</b> {player_data.get('race', 'Unknown')}")
+                details.append(f"<b>Class:</b> {player_data.get('path', 'Unknown')}")
+                details.append(f"<b>Level:</b> {player_data.get('level', 1)}")
+                details.append("")
+
+            # --- Background Summary ---
+            background_summary = player_data.get('background_summary')
+            if background_summary:
+                details.append("<b>Background:</b>")
+                details.append(background_summary)
+                details.append("")
+
+            # --- Last Events Summary ---
+            last_events_summary = save_data.get('last_events_summary')
+            if last_events_summary:
+                details.append("<b>Last Events:</b>")
+                details.append(last_events_summary)
+                details.append("")
+
+            # --- World Information ---
+            if world_data:
+                details.append("<b>World Information:</b>")
+                details.append(f"<b>Location:</b> {player_data.get('current_location', 'Unknown')}")
+                calendar_str = world_data.get('calendar_string', 'Unknown Date')
+                time_of_day = world_data.get('time_of_day', 'Unknown Time')
+                details.append(f"<b>Time:</b> {calendar_str} ({time_of_day})")
+                details.append("")
+
+            # --- Save File Information ---
+            mod_time = datetime.fromtimestamp(os.path.getmtime(save_path))
+            details.append("<b>Save Information:</b>")
+            details.append(f"<b>Saved On:</b> {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            details.append(f"<b>File:</b> {os.path.basename(save_path)}")
+            
+            return {"status": "success", "html": "<br>".join(details)}
+            
+    except Exception as e:
+        logger.error(f"Error getting save details for '{save_id}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error reading save details: {e}")
+
+@app.delete("/api/delete_save/{session_id}/{save_id}")
+async def delete_save(session_id: str, save_id: str = Path(..., description="The filename of the save to delete")):
+    """Delete a specific save file."""
+    try:
+        from core.base.state.state_manager import get_state_manager
+        sm = get_state_manager()
+        
+        # The StateManager's delete_save is simple, so we can rely on it
+        success = sm.delete_save(save_id)
+        
+        if success:
+            logger.info(f"Deleted save file '{save_id}' for session '{session_id}'")
+            return {"status": "success", "message": f"Save file '{save_id}' deleted."}
+        else:
+            raise HTTPException(status_code=404, detail=f"Save file '{save_id}' not found or could not be deleted.")
+    except Exception as e:
+        logger.error(f"Error deleting save '{save_id}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting save file: {e}")
 
 # Run server directly with: uvicorn server:app --reload
 if __name__ == "__main__":

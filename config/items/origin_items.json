@@ -1,5 +1,116 @@
 [
   {
+    "id": "academic_robes",
+    "name": "Academic Robes",
+    "description": "Formal robes of a scholar from the Resonance Academy, adorned with symbols of knowledge.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 1.5,
+    "value": 40,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "defense",
+        "value": 1,
+        "display_name": "Armor"
+      },
+      {
+        "name": "intelligence_bonus_research",
+        "value": 1,
+        "display_name": "Research Intelligence"
+      }
+    ],
+    "durability": 60,
+    "tags": [
+      "clothing",
+      "armor",
+      "academic",
+      "scholar"
+    ],
+    "is_consumable": false,
+    "is_stackable": false,
+    "is_quest_item": false,
+    "dice_roll_effects": []
+  },
+  {
+    "id": "ancestral_ash_container",
+    "name": "Ancestral Ash Container",
+    "description": "A specially crafted container made from obsidian and silver, designed to safely hold and preserve sacred ancestral ashes.",
+    "item_type": "container",
+    "rarity": "rare",
+    "weight": 0.5,
+    "value": 400,
+    "custom_properties": {
+      "spiritual_attunement": "high",
+      "preservation_quality": "excellent"
+    },
+    "tags": [
+      "container",
+      "cinderspawn",
+      "ash",
+      "ritual",
+      "ancestral"
+    ]
+  },
+  {
+    "id": "ancestral_focus_crystal",
+    "name": "Ancestral Focus Crystal",
+    "description": "A crystal passed down through generations, used by elves to channel and focus magical energies.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 0.2,
+    "value": 600,
+    "is_equippable": true,
+    "equip_slots": [
+      "off_hand",
+      "neck"
+    ],
+    "stats": [
+      {
+        "name": "spell_power_bonus",
+        "value": 1,
+        "display_name": "Spell Power"
+      }
+    ],
+    "tags": [
+      "tool",
+      "magic_focus",
+      "elven",
+      "crystal",
+      "ancestral"
+    ]
+  },
+  {
+    "id": "apprentice_robes",
+    "name": "Apprentice Robes",
+    "description": "Simple, functional robes identifying you as an apprentice of the Crystalline Enclave.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 1.0,
+    "value": 25,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "defense",
+        "value": 1,
+        "display_name": "Armor"
+      }
+    ],
+    "durability": 40,
+    "tags": [
+      "clothing",
+      "armor",
+      "crystalline_consortium",
+      "apprentice"
+    ]
+  },
+  {
     "id": "ash-treated_clothing",
     "name": "Ash-Treated Clothing",
     "description": "Simple, durable clothing treated with sacred ashes for resilience and a faint connection to ancestral spirits. Common among the Ashen Covenant.",
@@ -33,6 +144,210 @@
     ]
   },
   {
+    "id": "battlefield_trophy",
+    "name": "Battlefield Trophy",
+    "description": "A memento taken from a significant past battle – perhaps a tooth, a banner fragment, or a broken weapon piece.",
+    "item_type": "miscellaneous",
+    "rarity": "common",
+    "weight": 0.3,
+    "value": 10,
+    "tags": [
+      "trophy",
+      "memento",
+      "battle"
+    ]
+  },
+  {
+    "id": "between_token",
+    "name": "Between Token",
+    "description": "A smooth, dark stone that feels cold to the touch. It occasionally whispers in an unknown tongue. Given by an entity from The Between.",
+    "item_type": "miscellaneous",
+    "rarity": "rare",
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "custom_properties": {
+      "function": "communication_conduit_the_between"
+    },
+    "tags": [
+      "token",
+      "quest_item",
+      "ghost_market",
+      "ethereal"
+    ]
+  },
+  {
+    "id": "blank_journal",
+    "name": "Blank Journal",
+    "description": "A high-quality, empty journal ready to be filled with notes and discoveries.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 0.6,
+    "value": 12,
+    "tags": [
+      "tool",
+      "writing",
+      "notes"
+    ]
+  },
+  {
+    "id": "bottled_lightning",
+    "name": "Bottled Lightning",
+    "description": "A vial containing a swirling spark of contained lightning. Can be used as a light source or a volatile component.",
+    "item_type": "miscellaneous",
+    "rarity": "uncommon",
+    "weight": 0.3,
+    "value": 150,
+    "is_consumable": true,
+    "is_stackable": true,
+    "stack_limit": 5,
+    "custom_properties": {
+      "light_duration_minutes": 10,
+      "discharge_damage": "1d8_lightning_if_broken"
+    },
+    "tags": [
+      "lightning",
+      "consumable",
+      "light_source",
+      "component",
+      "maelstri"
+    ]
+  },
+  {
+    "id": "calculation_crystals",
+    "name": "Calculation Crystals",
+    "description": "A set of precisely cut crystals used in Crystalline Consortium mathematics and Facet Magic.",
+    "item_type": "tool",
+    "rarity": "uncommon",
+    "weight": 0.3,
+    "value": 200,
+    "custom_properties": {
+      "attunement_required": true
+    },
+    "tags": [
+      "tool",
+      "crystalline_consortium",
+      "magic_component",
+      "mathematics"
+    ]
+  },
+  {
+    "id": "captain's_contract",
+    "name": "Captain's Contract",
+    "description": "A signed contract securing your services as a navigator for a trading vessel in Tempest Harbor.",
+    "item_type": "document",
+    "rarity": "common",
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "contract",
+      "quest_item",
+      "tempest_harbor",
+      "navigation"
+    ]
+  },
+  {
+    "id": "cataloging_tools",
+    "name": "Cataloging Tools",
+    "description": "A set of specialized tools for handling, examining, and indexing delicate texts and artifacts.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 0.8,
+    "value": 60,
+    "stats": [
+      {
+        "name": "investigation_bonus_texts",
+        "value": 1,
+        "display_name": "Text Investigation Bonus"
+      }
+    ],
+    "tags": [
+      "tool",
+      "shifting_library",
+      "research",
+      "cataloging"
+    ]
+  },
+  {
+    "id": "clan_trade_contract",
+    "name": "Clan Trade Contract (Template)",
+    "description": "A formal contract template outlining terms for trade agreements on behalf of your dwarven clan.",
+    "item_type": "document",
+    "rarity": "uncommon",
+    "weight": 0.2,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "contract",
+      "dwarven",
+      "trade",
+      "quest_item"
+    ]
+  },
+  {
+    "id": "market_rumors_collection",
+    "name": "Collection of Market Rumors",
+    "description": "A bundle of notes, overheard conversations, and cryptic clues related to the Ghost Market and other illicit trade.",
+    "item_type": "document",
+    "rarity": "common",
+    "weight": 0.4,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "notes",
+      "rumors",
+      "ghost_market",
+      "quest_item"
+    ]
+  },
+  {
+    "id": "concealed_weapon",
+    "name": "Concealed Dagger",
+    "description": "A small, easily hidden dagger. Favored by those who prefer to remain unassuming.",
+    "item_type": "weapon",
+    "rarity": "common",
+    "weight": 0.3,
+    "value": 40,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand",
+      "off_hand"
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "piercing",
+        "dice_notation": "1d4-1"
+      }
+    ],
+    "durability": 50,
+    "tags": [
+      "weapon",
+      "dagger",
+      "concealed",
+      "stealth"
+    ]
+  },
+  {
+    "id": "consortium_authorization",
+    "name": "Consortium Research Authorization",
+    "description": "A high-level authorization grant from the Crystalline Consortium, permitting access to restricted data and locations.",
+    "item_type": "key",
+    "rarity": "rare",
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "key",
+      "crystalline_consortium",
+      "authorization",
+      "research"
+    ]
+  },
+  {
     "id": "covenant_pendant",
     "name": "Covenant Pendant",
     "description": "A small, carved bone pendant bearing the symbol of the Ashen Covenant. It's said to ward off minor malevolent spirits.",
@@ -58,213 +373,77 @@
     ]
   },
   {
-    "id": "small_pouch_of_ancestral_ash",
-    "name": "Small Pouch of Ancestral Ash",
-    "description": "A leather pouch containing a mixture of sacred ashes from revered ancestors of the Ashen Covenant. Used in rituals and for guidance.",
-    "item_type": "miscellaneous",
-    "rarity": "uncommon",
-    "weight": 0.2,
-    "value": 50,
-    "is_equippable": false,
-    "is_consumable": false,
-    "is_stackable": false,
-    "is_quest_item": true,
-    "tags": [
-      "ritual_component",
-      "ashen_covenant",
-      "spiritual",
-      "ash"
-    ]
-  },
-  {
-    "id": "fire_striker",
-    "name": "Fire Striker",
-    "description": "A reliable flint and steel for starting fires. Essential for survival and Covenant rituals.",
+    "id": "crystalline_implants",
+    "name": "Crystalline Implants (Interface)",
+    "description": "Subtle crystalline implants that allow a Prismal to interface with Consortium technology and enhance cognitive processing.",
     "item_type": "tool",
-    "rarity": "common",
-    "weight": 0.3,
-    "value": 5,
-    "is_equippable": false,
-    "is_consumable": false,
-    "is_stackable": false,
-    "tags": [
-      "tool",
-      "fire",
-      "survival"
-    ]
-  },
-  {
-    "id": "test_apple",
-    "name": "Test apple",
-    "description": "A test apple.",
-    "item_type": "miscellaneous",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 1,
-    "is_equippable": false,
-    "is_consumable": true,
-    "is_stackable": true,
-    "stack_limit": 20,
-    "tags": [
-      "miscellaneous",
-      "consumable",
-      "food"
-    ]
-  },
-  {
-    "id": "ritual_dagger",
-    "name": "Ritual Dagger",
-    "description": "A ceremonial dagger, sharp and well-balanced, used by the Ashen Covenant in their rites. It feels strangely warm to the touch.",
-    "item_type": "weapon",
-    "rarity": "uncommon",
-    "weight": 0.5,
-    "value": 75,
+    "rarity": "rare",
+    "weight": 0.0,
+    "value": 0,
     "is_equippable": true,
     "equip_slots": [
-      "main_hand",
-      "off_hand"
+      "head"
     ],
     "stats": [
       {
-        "name": "melee_attack",
-        "value": 1,
-        "display_name": "Attack Bonus"
-      }
-    ],
-    "dice_roll_effects": [
+        "name": "data_processing_speed",
+        "value": 2,
+        "display_name": "Data Processing"
+      },
       {
-        "effect_type": "piercing",
-        "dice_notation": "1d6",
-        "description": "Base weapon damage"
+        "name": "mathematical_aptitude",
+        "value": 1,
+        "display_name": "Mathematical Aptitude"
       }
     ],
-    "durability": 70,
     "tags": [
-      "weapon",
-      "dagger",
-      "ritual",
-      "ashen_covenant"
+      "implant",
+      "tool",
+      "prismal",
+      "crystalline_consortium",
+      "interface"
     ]
   },
   {
-    "id": "simple_clothing",
-    "name": "Simple Clothing",
-    "description": "Basic, practical clothing suitable for everyday wear in Harmonia.",
-    "item_type": "armor",
+    "id": "diplomatic_credentials",
+    "name": "Diplomatic Credentials",
+    "description": "Official credentials identifying you as a diplomat of Harmonia, granting certain privileges and access.",
+    "item_type": "document",
     "rarity": "common",
-    "weight": 1.5,
-    "value": 10,
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "credentials",
+      "diplomacy",
+      "harmonia",
+      "quest_item"
+    ]
+  },
+  {
+    "id": "diplomatic_insignia",
+    "name": "Diplomatic Insignia",
+    "description": "A broach or pin signifying your status as an emissary from your people.",
+    "item_type": "accessory",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 0,
     "is_equippable": true,
     "equip_slots": [
       "chest"
     ],
     "stats": [
       {
-        "name": "defense",
+        "name": "diplomacy_bonus",
         "value": 1,
-        "display_name": "Armor"
-      }
-    ],
-    "durability": 60,
-    "tags": [
-      "clothing",
-      "armor",
-      "commoner"
-    ]
-  },
-  {
-    "id": "harmonian_tattoo_kit",
-    "name": "Harmonian Tattoo Kit",
-    "description": "A set of fine needles, vibrant inks, and resonance-infused balms used for creating Attunement tattoos in Harmonia.",
-    "item_type": "tool",
-    "rarity": "uncommon",
-    "weight": 0.5,
-    "value": 150,
-    "tags": [
-      "tool",
-      "harmonia",
-      "attunement",
-      "artisan"
-    ]
-  },
-  {
-    "id": "resonance_amulet",
-    "name": "Resonance Amulet",
-    "description": "An amulet that hums faintly, designed to help stabilize its wearer during minor Resonance Events.",
-    "item_type": "accessory",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 100,
-    "is_equippable": true,
-    "equip_slots": [
-      "neck"
-    ],
-    "stats": [
-      {
-        "name": "resonance_stability",
-        "value": 5,
-        "display_name": "Resonance Stability"
+        "display_name": "Diplomacy Bonus"
       }
     ],
     "tags": [
-      "amulet",
-      "harmonia",
-      "planar",
-      "protection"
-    ]
-  },
-  {
-    "id": "bread",
-    "name": "Loaf of Bread",
-    "template_id": "template_food_bread",
-    "description": "A simple loaf of bread that provides sustenance.",
-    "item_type": "consumable",
-    "rarity": "common",
-    "weight": 0.5,
-    "value": 5,
-    "is_consumable": true,
-    "is_stackable": true,
-    "stack_limit": 5,
-    "stats": [
-      {
-        "name": "hunger_restore",
-        "value": 15
-      },
-      {
-        "name": "healing",
-        "value": 5
-      }
-    ],
-    "tags": [
-      "food",
-      "consumable"
-    ]
-  },
-  {
-    "id": "water_flask",
-    "name": "Water Flask",
-    "description": "A sturdy flask filled with fresh water.",
-    "item_type": "consumable",
-    "rarity": "common",
-    "weight": 1.0,
-    "value": 2,
-    "is_consumable": true,
-    "is_stackable": true,
-    "stack_limit": 3,
-    "stats": [
-      {
-        "name": "thirst_quench",
-        "value": 20
-      }
-    ],
-    "custom_properties": {
-      "charges": 3,
-      "refillable": true
-    },
-    "tags": [
-      "drink",
-      "consumable",
-      "survival"
+      "accessory",
+      "insignia",
+      "diplomacy"
     ]
   },
   {
@@ -283,70 +462,67 @@
     ]
   },
   {
-    "id": "formal_attire",
-    "name": "Formal Attire",
-    "description": "Well-made clothing suitable for diplomatic functions and formal occasions.",
-    "item_type": "armor",
+    "id": "ceremonial_flask",
+    "name": "Dwarven Ceremonial Flask",
+    "description": "An ornate flask, often filled with strong dwarven ale for rituals or important occasions.",
+    "item_type": "container",
     "rarity": "uncommon",
-    "weight": 2.5,
-    "value": 150,
+    "weight": 0.7,
+    "value": 120,
+    "custom_properties": {
+      "capacity_ml": 500,
+      "material": "silver_inlaid_steel"
+    },
+    "tags": [
+      "container",
+      "flask",
+      "dwarven",
+      "ceremonial"
+    ]
+  },
+  {
+    "id": "dwarven_forge_hammer",
+    "name": "Dwarven Forge Hammer",
+    "description": "A masterfully crafted hammer, perfectly balanced for smithing. It bears ancient dwarven runes.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 5.0,
+    "value": 800,
     "is_equippable": true,
     "equip_slots": [
-      "chest"
+      "main_hand"
     ],
     "stats": [
       {
-        "name": "charisma_bonus_social",
-        "value": 1,
-        "display_name": "Social Charisma"
+        "name": "crafting_smithing_bonus",
+        "value": 2,
+        "display_name": "Smithing Bonus"
       }
     ],
-    "durability": 50,
-    "tags": [
-      "clothing",
-      "armor",
-      "formal",
-      "diplomacy"
-    ]
-  },
-  {
-    "id": "journal",
-    "name": "Journal",
-    "description": "A blank, sturdy journal and a charcoal pencil for recording observations and notes.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 0.5,
-    "value": 10,
+    "dice_roll_effects": [
+      {
+        "effect_type": "physical_blunt_damage",
+        "dice_notation": "1d6"
+      }
+    ],
+    "durability": 200,
     "tags": [
       "tool",
-      "writing",
-      "notes"
+      "weapon",
+      "hammer",
+      "dwarven",
+      "crafting",
+      "smithing"
     ]
   },
   {
-    "id": "small_pouch_of_seeds",
-    "name": "Small Pouch of Seeds",
-    "description": "A collection of various seeds from your homeland, perhaps for trade or study.",
-    "item_type": "miscellaneous",
-    "rarity": "common",
-    "weight": 0.2,
-    "value": 20,
-    "is_stackable": true,
-    "stack_limit": 50,
-    "tags": [
-      "seeds",
-      "nature",
-      "trade_good"
-    ]
-  },
-  {
-    "id": "apprentice_robes",
-    "name": "Apprentice Robes",
-    "description": "Simple, functional robes identifying you as an apprentice of the Crystalline Enclave.",
+    "id": "elven_crafted_robes",
+    "name": "Elven Crafted Robes",
+    "description": "Elegant robes woven with subtle patterns that shimmer in the light, offering surprising resilience.",
     "item_type": "armor",
-    "rarity": "common",
+    "rarity": "uncommon",
     "weight": 1.0,
-    "value": 25,
+    "value": 250,
     "is_equippable": true,
     "equip_slots": [
       "chest"
@@ -354,96 +530,124 @@
     "stats": [
       {
         "name": "defense",
-        "value": 1,
+        "value": 2,
         "display_name": "Armor"
+      },
+      {
+        "name": "magic_resistance_minor",
+        "value": 5,
+        "display_name": "Minor Magic Resist",
+        "is_percentage": true
       }
     ],
-    "durability": 40,
+    "durability": 70,
     "tags": [
       "clothing",
       "armor",
-      "crystalline_consortium",
-      "apprentice"
+      "elven",
+      "magic"
     ]
   },
   {
-    "id": "calculation_crystals",
-    "name": "Calculation Crystals",
-    "description": "A set of precisely cut crystals used in Crystalline Consortium mathematics and Facet Magic.",
+    "id": "ember_renewal_tonic",
+    "name": "Ember Renewal Tonic",
+    "description": "A potent tonic that revitalizes a Cinderspawn's inner ember, hastening regeneration and enhancing flame-based abilities.",
+    "item_type": "consumable",
+    "rarity": "uncommon",
+    "weight": 0.2,
+    "value": 200,
+    "is_consumable": true,
+    "is_stackable": true,
+    "stack_limit": 3,
+    "stats": [
+      {
+        "name": "regeneration_boost",
+        "value": 50,
+        "display_name": "Regeneration Boost",
+        "is_percentage": true
+      },
+      {
+        "name": "flame_power_increase",
+        "value": 2,
+        "display_name": "Flame Power"
+      },
+      {
+        "name": "duration_minutes",
+        "value": 10,
+        "display_name": "Duration (Minutes)"
+      }
+    ],
+    "tags": [
+      "potion",
+      "consumable",
+      "cinderspawn",
+      "buff",
+      "fire"
+    ]
+  },
+  {
+    "id": "emergency_beacon",
+    "name": "Emergency Beacon",
+    "description": "A single-use beacon that, when activated, sends a distress signal detectable across short planar distances.",
     "item_type": "tool",
     "rarity": "uncommon",
     "weight": 0.3,
-    "value": 200,
-    "custom_properties": {
-      "attunement_required": true
-    },
+    "value": 150,
+    "is_consumable": true,
+    "is_stackable": true,
+    "stack_limit": 3,
     "tags": [
       "tool",
-      "crystalline_consortium",
-      "magic_component",
-      "mathematics"
+      "emergency",
+      "signal",
+      "consumable"
     ]
   },
   {
-    "id": "precision_tools",
-    "name": "Precision Tools",
-    "description": "A kit of fine tools for delicate work, often used by Consortium artisans and researchers.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 0.7,
-    "value": 75,
-    "stats": [
-      {
-        "name": "crafting_fine_bonus",
-        "value": 1,
-        "display_name": "Fine Crafting Bonus"
-      }
-    ],
-    "tags": [
-      "tool",
-      "crafting",
-      "research",
-      "crystalline_consortium"
-    ]
-  },
-  {
-    "id": "faceted_focusing_lens",
-    "name": "Faceted Focusing Lens",
-    "description": "A crystal lens with numerous facets, used to focus mental energies or manipulate light for Crystalline magic.",
+    "id": "enchanted_quill",
+    "name": "Enchanted Quill",
+    "description": "A quill that writes with self-replenishing ink and whose script remains stable across planar shifts.",
     "item_type": "tool",
     "rarity": "uncommon",
-    "weight": 0.2,
-    "value": 180,
-    "is_equippable": true,
-    "equip_slots": [
-      "off_hand"
-    ],
-    "stats": [
-      {
-        "name": "magic_attack",
-        "value": 1,
-        "display_name": "Spell Focus"
-      }
-    ],
-    "tags": [
-      "tool",
-      "magic_focus",
-      "crystalline_consortium",
-      "lens"
-    ]
-  },
-  {
-    "id": "notebook",
-    "name": "Notebook",
-    "description": "A well-made notebook for recording thoughts, observations, or calculations.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 0.4,
-    "value": 8,
+    "weight": 0.1,
+    "value": 220,
     "tags": [
       "tool",
       "writing",
-      "notes"
+      "magic",
+      "shifting_library"
+    ]
+  },
+  {
+    "id": "environmental_adaptation_tonic",
+    "name": "Environmental Adaptation Tonic",
+    "description": "A Mycoran tonic that temporarily enhances the imbiber's ability to adapt to hostile environments.",
+    "item_type": "consumable",
+    "rarity": "uncommon",
+    "weight": 0.2,
+    "value": 180,
+    "is_consumable": true,
+    "is_stackable": true,
+    "stack_limit": 3,
+    "stats": [
+      {
+        "name": "environmental_resistance_boost",
+        "value": 15,
+        "display_name": "Environmental Resist Boost",
+        "is_percentage": true
+      },
+      {
+        "name": "duration_minutes",
+        "value": 30,
+        "display_name": "Duration (Minutes)"
+      }
+    ],
+    "tags": [
+      "potion",
+      "consumable",
+      "mycora",
+      "adaptation",
+      "buff"
     ]
   },
   {
@@ -480,59 +684,445 @@
     ]
   },
   {
-    "id": "survival_kit",
-    "name": "Survival Kit",
-    "description": "A compact kit containing essentials for survival in the wilderness: tinder, fishing line, a small knife, bandages.",
+    "id": "faceted_focusing_lens",
+    "name": "Faceted Focusing Lens",
+    "description": "A crystal lens with numerous facets, used to focus mental energies or manipulate light for Crystalline magic.",
     "item_type": "tool",
-    "rarity": "common",
-    "weight": 1.5,
-    "value": 50,
-    "custom_properties": {
-      "contents_summary": "tinder, fishing_line, small_knife, bandages"
-    },
+    "rarity": "uncommon",
+    "weight": 0.2,
+    "value": 180,
+    "is_equippable": true,
+    "equip_slots": [
+      "off_hand"
+    ],
+    "stats": [
+      {
+        "name": "magic_attack",
+        "value": 1,
+        "display_name": "Spell Focus"
+      }
+    ],
     "tags": [
       "tool",
-      "survival",
-      "kit"
+      "magic_focus",
+      "crystalline_consortium",
+      "lens"
     ]
   },
   {
-    "id": "small_tent",
-    "name": "Small Tent",
-    "description": "A one-person tent, lightweight and easy to set up, providing shelter from the elements.",
+    "id": "faceted_light_source",
+    "name": "Faceted Light Source",
+    "description": "A Prismal light source that emits focused beams of coherent light, useful for analysis or as a weak cutting tool.",
     "item_type": "tool",
-    "rarity": "common",
-    "weight": 2.5,
-    "value": 60,
+    "rarity": "uncommon",
+    "weight": 0.4,
+    "value": 300,
     "custom_properties": {
-      "capacity": 1,
-      "shelter_rating": 5
+      "light_intensity_lumens": 500,
+      "focus_modes": [
+        "wide_beam",
+        "narrow_beam",
+        "pulse"
+      ]
     },
     "tags": [
       "tool",
-      "shelter",
-      "camping",
+      "prismal",
+      "light_source",
+      "analysis"
+    ]
+  },
+  {
+    "id": "family_heirloom",
+    "name": "Family Heirloom",
+    "description": "A small, worn trinket passed down through your family. Its true value might be sentimental, or perhaps something more.",
+    "item_type": "miscellaneous",
+    "rarity": "common",
+    "weight": 0.1,
+    "value": 5,
+    "is_quest_item": true,
+    "tags": [
+      "trinket",
+      "heirloom",
+      "sentimental",
+      "quest_item"
+    ]
+  },
+  {
+    "id": "family_signet_ring",
+    "name": "Family Signet Ring",
+    "description": "A ring bearing the crest of a fallen noble family. It might still carry some influence, or attract unwanted attention.",
+    "item_type": "accessory",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 120,
+    "is_equippable": true,
+    "equip_slots": [
+      "finger_1",
+      "finger_2",
+      "finger_3",
+      "finger_4",
+      "finger_5",
+      "finger_6",
+      "finger_7",
+      "finger_8",
+      "finger_9",
+      "finger_10"
+    ],
+    "stats": [
+      {
+        "name": "social_influence_minor",
+        "value": 1,
+        "display_name": "Minor Social Influence"
+      }
+    ],
+    "tags": [
+      "ring",
+      "accessory",
+      "noble",
+      "signet"
+    ]
+  },
+  {
+    "id": "fine_clothes_(worn)",
+    "name": "Fine Clothes (Worn)",
+    "description": "Once elegant attire, now showing signs of wear and travel. Still better than common rags.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 1.8,
+    "value": 35,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "defense",
+        "value": 1,
+        "display_name": "Armor"
+      }
+    ],
+    "durability": 40,
+    "current_durability": 25,
+    "tags": [
+      "clothing",
+      "armor",
+      "noble",
+      "worn"
+    ]
+  },
+  {
+    "id": "fire_striker",
+    "name": "Fire Striker",
+    "description": "A reliable flint and steel for starting fires. Essential for survival and Covenant rituals.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 0.3,
+    "value": 5,
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": false,
+    "tags": [
+      "tool",
+      "fire",
       "survival"
     ]
   },
   {
-    "id": "recording_crystal",
-    "name": "Recording Crystal",
-    "description": "A crystal that passively records ambient sounds and subtle planar energies. Glows faintly when active.",
-    "item_type": "tool",
+    "id": "flame-resistant_wrappings",
+    "name": "Flame-Resistant Wrappings",
+    "description": "Thick, specially treated cloth wrappings that offer significant protection against fire and extreme heat.",
+    "item_type": "armor",
     "rarity": "uncommon",
-    "weight": 0.3,
-    "value": 250,
+    "weight": 0.8,
+    "value": 120,
+    "is_equippable": true,
+    "equip_slots": [
+      "wrists",
+      "legs",
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "fire_resistance",
+        "value": 25,
+        "display_name": "Fire Resistance",
+        "is_percentage": true
+      }
+    ],
+    "durability": 90,
+    "tags": [
+      "clothing",
+      "armor",
+      "cinderspawn",
+      "fire_protection"
+    ]
+  },
+  {
+    "id": "forged_documents",
+    "name": "Forged Documents",
+    "description": "Passably crafted travel papers and identification that might fool a cursory inspection.",
+    "item_type": "document",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 150,
     "custom_properties": {
-      "storage_capacity_hours": 24,
-      "sensitivity": "medium"
+      "forgery_quality": "average"
     },
     "tags": [
+      "document",
+      "forgery",
+      "deception"
+    ]
+  },
+  {
+    "id": "formal_attire",
+    "name": "Formal Attire",
+    "description": "Well-made clothing suitable for diplomatic functions and formal occasions.",
+    "item_type": "armor",
+    "rarity": "uncommon",
+    "weight": 2.5,
+    "value": 150,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "charisma_bonus_social",
+        "value": 1,
+        "display_name": "Social Charisma"
+      }
+    ],
+    "durability": 50,
+    "tags": [
+      "clothing",
+      "armor",
+      "formal",
+      "diplomacy"
+    ]
+  },
+  {
+    "id": "formal_negotiation_attire",
+    "name": "Formal Negotiation Attire",
+    "description": "Impeccably tailored attire designed to convey authority and respect during high-stakes negotiations.",
+    "item_type": "armor",
+    "rarity": "uncommon",
+    "weight": 2.0,
+    "value": 200,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "persuasion_bonus",
+        "value": 1,
+        "display_name": "Persuasion Bonus"
+      },
+      {
+        "name": "social_standing_perception",
+        "value": 2,
+        "display_name": "Perceived Social Standing"
+      }
+    ],
+    "durability": 60,
+    "tags": [
+      "clothing",
+      "armor",
+      "formal",
+      "diplomacy",
+      "negotiation"
+    ]
+  },
+  {
+    "id": "geometric_calculation_device",
+    "name": "Geometric Calculation Device",
+    "description": "A complex Prismal device used for advanced geometric and multidimensional calculations.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 0.8,
+    "value": 900,
+    "stats": [
+      {
+        "name": "calculation_accuracy_bonus",
+        "value": 3,
+        "display_name": "Calculation Accuracy"
+      }
+    ],
+    "tags": [
       "tool",
-      "research",
-      "planar",
-      "crystal",
-      "recording"
+      "prismal",
+      "crystalline_consortium",
+      "mathematics",
+      "calculation"
+    ]
+  },
+  {
+    "id": "market_trinket",
+    "name": "Ghost Market Trinket",
+    "description": "A small, oddly shaped trinket of unknown material. It hums faintly when Resonance Events are near.",
+    "item_type": "accessory",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 70,
+    "is_equippable": true,
+    "equip_slots": [
+      "trinket_1",
+      "trinket_2"
+    ],
+    "stats": [
+      {
+        "name": "resonance_detection",
+        "value": 1,
+        "display_name": "Resonance Detection"
+      }
+    ],
+    "tags": [
+      "trinket",
+      "accessory",
+      "ghost_market",
+      "planar"
+    ]
+  },
+  {
+    "id": "gift_package_for_ambassadors",
+    "name": "Gift Package for Ambassadors",
+    "description": "A carefully selected assortment of gifts representing Harmonian culture, intended for presentation to foreign dignitaries.",
+    "item_type": "miscellaneous",
+    "rarity": "uncommon",
+    "weight": 2.5,
+    "value": 300,
+    "is_stackable": false,
+    "custom_properties": {
+      "contents_description": "Rare seeds, crystal prism, pure water vial"
+    },
+    "tags": [
+      "gift",
+      "diplomacy",
+      "harmonia",
+      "trade_good"
+    ]
+  },
+  {
+    "id": "guard_uniform",
+    "name": "Guard Uniform",
+    "description": "Standard issue uniform of the Harmonic Guard, offering decent protection and clear identification.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 10.0,
+    "value": 200,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest",
+      "legs",
+      "head"
+    ],
+    "stats": [
+      {
+        "name": "armor",
+        "value": 6,
+        "display_name": "Armor"
+      }
+    ],
+    "durability": 130,
+    "tags": [
+      "armor",
+      "uniform",
+      "harmonic_guard"
+    ]
+  },
+  {
+    "id": "haggler's_pendant",
+    "name": "Haggler's Pendant",
+    "description": "A pendant that subtly influences negotiations in the wearer's favor. Or so the seller claimed.",
+    "item_type": "accessory",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 200,
+    "is_equippable": true,
+    "equip_slots": [
+      "neck"
+    ],
+    "stats": [
+      {
+        "name": "bargaining_bonus",
+        "value": 1,
+        "display_name": "Bargaining Bonus"
+      }
+    ],
+    "tags": [
+      "pendant",
+      "accessory",
+      "trade",
+      "persuasion"
+    ]
+  },
+  {
+    "id": "harmonian_tattoo_kit",
+    "name": "Harmonian Tattoo Kit",
+    "description": "A set of fine needles, vibrant inks, and resonance-infused balms used for creating Attunement tattoos in Harmonia.",
+    "item_type": "tool",
+    "rarity": "uncommon",
+    "weight": 0.5,
+    "value": 150,
+    "tags": [
+      "tool",
+      "harmonia",
+      "attunement",
+      "artisan"
+    ]
+  },
+  {
+    "id": "heavy_weapon",
+    "name": "Heavy Orcish Cleaver",
+    "description": "A large, brutally effective cleaver favored by Orcish warriors. Requires considerable strength to wield effectively.",
+    "item_type": "weapon",
+    "rarity": "uncommon",
+    "weight": 7.0,
+    "value": 450,
+    "is_equippable": true,
+    "equip_slots": [
+      "two_hand"
+    ],
+    "stats": [
+      {
+        "name": "strength_requirement",
+        "value": 15,
+        "display_name": "Strength Req."
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "slashing",
+        "dice_notation": "1d12"
+      }
+    ],
+    "durability": 160,
+    "tags": [
+      "weapon",
+      "axe",
+      "orcish",
+      "heavy",
+      "two-handed"
+    ]
+  },
+  {
+    "id": "hidden_coin_purse",
+    "name": "Hidden Coin Purse",
+    "description": "A small, discreet coin purse designed to be easily concealed within clothing.",
+    "item_type": "container",
+    "rarity": "common",
+    "weight": 0.1,
+    "value": 15,
+    "custom_properties": {
+      "capacity_coins": 100,
+      "concealment_bonus": 2
+    },
+    "tags": [
+      "container",
+      "stealth",
+      "currency"
     ]
   },
   {
@@ -564,100 +1154,17 @@
     ]
   },
   {
-    "id": "weather-resistant_clothing",
-    "name": "Weather-Resistant Clothing",
-    "description": "Clothing treated to repel water and wind, suitable for unpredictable weather.",
-    "item_type": "armor",
-    "rarity": "common",
-    "weight": 2.2,
-    "value": 45,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "defense",
-        "value": 1,
-        "display_name": "Armor"
-      },
-      {
-        "name": "elemental_resistance_minor",
-        "value": 3,
-        "display_name": "Minor Elemental Resist",
-        "is_percentage": true
-      }
-    ],
-    "durability": 90,
-    "tags": [
-      "clothing",
-      "armor",
-      "protection",
-      "weather"
-    ]
-  },
-  {
-    "id": "small_trading_goods",
-    "name": "Small Trading Goods",
-    "description": "A small bundle of assorted goods suitable for minor trades, like spices, trinkets, or common tools.",
-    "item_type": "treasure",
-    "rarity": "common",
-    "weight": 1.0,
-    "value": 100,
-    "is_stackable": false,
-    "tags": [
-      "trade_good",
-      "bundle",
-      "miscellaneous"
-    ]
-  },
-  {
-    "id": "probability_dice",
-    "name": "Probability Dice",
-    "description": "A set of strangely weighted dice that seem to favor certain outcomes. Used by Tempest Flotilla gamblers.",
+    "id": "journal",
+    "name": "Journal",
+    "description": "A blank, sturdy journal and a charcoal pencil for recording observations and notes.",
     "item_type": "tool",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 300,
-    "custom_properties": {
-      "luck_influence": "minor_positive_bias"
-    },
+    "rarity": "common",
+    "weight": 0.5,
+    "value": 10,
     "tags": [
       "tool",
-      "gambling",
-      "tempest_flotilla",
-      "chance"
-    ]
-  },
-  {
-    "id": "storm_compass",
-    "name": "Storm Compass",
-    "description": "A compass that points towards the strongest nearby atmospheric or planar disturbance, rather than magnetic north.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 0.4,
-    "value": 500,
-    "tags": [
-      "tool",
-      "navigation",
-      "tempest_flotilla",
-      "planar"
-    ]
-  },
-  {
-    "id": "sealed_message",
-    "name": "Sealed Message",
-    "description": "A message scroll sealed with an unfamiliar sigil. Its contents are unknown.",
-    "item_type": "document",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "message",
-      "quest_item",
-      "sealed"
+      "writing",
+      "notes"
     ]
   },
   {
@@ -709,50 +1216,213 @@
     ]
   },
   {
-    "id": "cataloging_tools",
-    "name": "Cataloging Tools",
-    "description": "A set of specialized tools for handling, examining, and indexing delicate texts and artifacts.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 0.8,
-    "value": 60,
+    "id": "living_garments",
+    "name": "Living Garments",
+    "description": "Clothing woven from living plant fibers that subtly adapt to the wearer and environment. A hallmark of Mycora design.",
+    "item_type": "armor",
+    "rarity": "uncommon",
+    "weight": 0.5,
+    "value": 300,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
     "stats": [
       {
-        "name": "investigation_bonus_texts",
+        "name": "defense",
+        "value": 2,
+        "display_name": "Armor"
+      },
+      {
+        "name": "environmental_adaptation",
         "value": 1,
-        "display_name": "Text Investigation Bonus"
+        "display_name": "Environmental Adaptation"
+      }
+    ],
+    "durability": 80,
+    "tags": [
+      "clothing",
+      "armor",
+      "mycora",
+      "living",
+      "adaptive"
+    ]
+  },
+  {
+    "id": "bread",
+    "name": "Loaf of Bread",
+    "template_id": "template_food_bread",
+    "description": "A simple loaf of bread that provides sustenance.",
+    "item_type": "consumable",
+    "rarity": "common",
+    "weight": 0.5,
+    "value": 5,
+    "is_consumable": true,
+    "is_stackable": true,
+    "stack_limit": 5,
+    "stats": [
+      {
+        "name": "hunger_restore",
+        "value": 15
+      },
+      {
+        "name": "healing",
+        "value": 5
+      }
+    ],
+    "tags": [
+      "food",
+      "consumable"
+    ]
+  },
+  {
+    "id": "lucky_coin",
+    "name": "Lucky Coin",
+    "description": "A mundane coin that its owner believes brings good fortune. Its true power is likely psychological.",
+    "item_type": "miscellaneous",
+    "rarity": "common",
+    "weight": 0.01,
+    "value": 1,
+    "stats": [
+      {
+        "name": "luck_subtle",
+        "value": 0.1,
+        "display_name": "Subtle Luck (Placebo)"
+      }
+    ],
+    "tags": [
+      "coin",
+      "trinket",
+      "luck",
+      "sentimental"
+    ]
+  },
+  {
+    "id": "lunch_bundle",
+    "name": "Lunch Bundle",
+    "description": "A piece of fruit, some dried meat, and a small waterskin wrapped in cloth.",
+    "item_type": "consumable",
+    "rarity": "common",
+    "weight": 0.7,
+    "value": 10,
+    "is_consumable": true,
+    "is_stackable": false,
+    "custom_properties": {
+      "contains": "fruit, dried_meat, waterskin_1_charge"
+    },
+    "stats": [
+      {
+        "name": "hunger_restore",
+        "value": 20
+      },
+      {
+        "name": "healing",
+        "value": 8
+      }
+    ],
+    "tags": [
+      "food",
+      "consumable",
+      "bundle"
+    ]
+  },
+  {
+    "id": "master_crafting_tools",
+    "name": "Master Crafting Tools",
+    "description": "A comprehensive set of high-quality tools for various crafts, kept in a sturdy leather roll.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 3.0,
+    "value": 650,
+    "stats": [
+      {
+        "name": "crafting_general_bonus",
+        "value": 1,
+        "display_name": "General Crafting Bonus"
       }
     ],
     "tags": [
       "tool",
-      "shifting_library",
-      "research",
-      "cataloging"
+      "crafting",
+      "masterwork"
     ]
   },
   {
-    "id": "enchanted_quill",
-    "name": "Enchanted Quill",
-    "description": "A quill that writes with self-replenishing ink and whose script remains stable across planar shifts.",
-    "item_type": "tool",
-    "rarity": "uncommon",
+    "id": "mercenary_contract",
+    "name": "Mercenary Contract",
+    "description": "A binding contract detailing the terms of your employment, payment, and objectives for the current assignment.",
+    "item_type": "document",
+    "rarity": "common",
     "weight": 0.1,
-    "value": 220,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "contract",
+      "quest_item",
+      "mercenary"
+    ]
+  },
+  {
+    "id": "metal_samples",
+    "name": "Metal Samples",
+    "description": "Small ingots and pieces of various rare metals and alloys from your clan's mines.",
+    "item_type": "material",
+    "rarity": "uncommon",
+    "weight": 2.0,
+    "value": 400,
+    "is_stackable": true,
+    "stack_limit": 10,
+    "tags": [
+      "material",
+      "metal",
+      "dwarven",
+      "trade_good",
+      "crafting"
+    ]
+  },
+  {
+    "id": "multi-planar_currency",
+    "name": "Multi-Planar Currency Pouch",
+    "description": "A pouch containing a mix of currencies from various planes, useful for interplanar trade.",
+    "item_type": "treasure",
+    "rarity": "uncommon",
+    "weight": 0.5,
+    "value": 1000,
+    "custom_properties": {
+      "contents_description": "Mixed coins from Nexus, Verdant, Ashen, Crystalline, Tempest planes"
+    },
+    "tags": [
+      "currency",
+      "treasure",
+      "planar",
+      "trade_good"
+    ]
+  },
+  {
+    "id": "multidimensional_mapping_tools",
+    "name": "Multidimensional Mapping Tools",
+    "description": "A set of specialized tools for charting and navigating spaces with non-Euclidean or shifting geometries.",
+    "item_type": "tool",
+    "rarity": "epic",
+    "weight": 1.5,
+    "value": 1200,
     "tags": [
       "tool",
-      "writing",
-      "magic",
-      "shifting_library"
+      "prismal",
+      "mapping",
+      "planar",
+      "dimensional"
     ]
   },
   {
-    "id": "blank_journal",
-    "name": "Blank Journal",
-    "description": "A high-quality, empty journal ready to be filled with notes and discoveries.",
+    "id": "notebook",
+    "name": "Notebook",
+    "description": "A well-made notebook for recording thoughts, observations, or calculations.",
     "item_type": "tool",
     "rarity": "common",
-    "weight": 0.6,
-    "value": 12,
+    "weight": 0.4,
+    "value": 8,
     "tags": [
       "tool",
       "writing",
@@ -760,21 +1430,154 @@
     ]
   },
   {
-    "id": "researcher_equipment",
-    "name": "Researcher's Field Kit",
-    "description": "A collection of tools for field research: sample bags, measuring devices, a multi-tool, and basic first aid.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 2.5,
-    "value": 80,
+    "id": "old_map",
+    "name": "Old Map",
+    "description": "A hand-drawn map given to you by a mysterious traveler, showing unfamiliar lands and cryptic symbols.",
+    "item_type": "document",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "map",
+      "quest_item",
+      "adventure"
+    ]
+  },
+  {
+    "id": "ornate_dagger",
+    "name": "Ornate Dagger",
+    "description": "A finely crafted dagger, more decorative than practical, but still sharp. A reminder of a wealthier past.",
+    "item_type": "weapon",
+    "rarity": "uncommon",
+    "weight": 0.6,
+    "value": 100,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand",
+      "off_hand"
+    ],
+    "stats": [],
+    "dice_roll_effects": [
+      {
+        "effect_type": "piercing",
+        "dice_notation": "1d4"
+      }
+    ],
+    "durability": 60,
+    "tags": [
+      "weapon",
+      "dagger",
+      "ornate",
+      "noble"
+    ]
+  },
+  {
+    "id": "partial_armor_set",
+    "name": "Partial Plate Armor",
+    "description": "A mismatched set of plate armor pieces, offering good protection for vital areas. Likely scavenged or repaired.",
+    "item_type": "armor",
+    "rarity": "uncommon",
+    "weight": 18.0,
+    "value": 300,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest",
+      "shoulders"
+    ],
+    "stats": [
+      {
+        "name": "armor",
+        "value": 10,
+        "display_name": "Armor"
+      }
+    ],
+    "durability": 140,
+    "tags": [
+      "armor",
+      "plate",
+      "heavy",
+      "mismatched"
+    ]
+  },
+  {
+    "id": "partially_empty_memory_vial",
+    "name": "Partially Empty Memory Vial",
+    "description": "A crystal vial, cool to the touch, containing a swirling, faintly luminous mist. It feels like a part of you is missing when you hold it.",
+    "item_type": "miscellaneous",
+    "rarity": "rare",
+    "weight": 0.2,
+    "value": 0,
+    "is_quest_item": true,
     "custom_properties": {
-      "contents_summary": "sample_bags, measuring_tape, multi_tool, first_aid_basics"
+      "content": "fragmented_player_memories"
     },
     "tags": [
-      "tool",
-      "research",
-      "kit",
-      "field_work"
+      "vial",
+      "quest_item",
+      "memory",
+      "ghost_market",
+      "ethereal"
+    ]
+  },
+  {
+    "id": "pilgrimage_map",
+    "name": "Pilgrimage Map",
+    "description": "A map charted on fire-resistant hide, marking known sacred flame sites across various planes.",
+    "item_type": "document",
+    "rarity": "uncommon",
+    "weight": 0.2,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "map",
+      "cinderspawn",
+      "pilgrimage",
+      "quest_item"
+    ]
+  },
+  {
+    "id": "planar_map",
+    "name": "Planar Map Fragment",
+    "description": "A piece of an old map showing routes between Nexus and other, stranger planes. Some markings are unfamiliar.",
+    "item_type": "document",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 50,
+    "tags": [
+      "document",
+      "map",
+      "planar",
+      "navigation"
+    ]
+  },
+  {
+    "id": "planar_protection_amulet",
+    "name": "Planar Protection Amulet",
+    "description": "An amulet issued to those venturing into unstable planar regions, offering some resistance to harmful energies.",
+    "item_type": "accessory",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 280,
+    "is_equippable": true,
+    "equip_slots": [
+      "neck"
+    ],
+    "stats": [
+      {
+        "name": "planar_hazard_resistance",
+        "value": 10,
+        "display_name": "Planar Hazard Resist",
+        "is_percentage": true
+      }
+    ],
+    "tags": [
+      "amulet",
+      "accessory",
+      "protection",
+      "planar"
     ]
   },
   {
@@ -811,434 +1614,18 @@
     ]
   },
   {
-    "id": "specimen_containers",
-    "name": "Specimen Containers",
-    "description": "A set of reinforced, sealable containers for collecting and preserving biological or energetic samples.",
-    "item_type": "container",
-    "rarity": "common",
-    "weight": 1.0,
-    "value": 30,
-    "custom_properties": {
-      "capacity_units": 10,
-      "preservation_level": "medium"
-    },
-    "tags": [
-      "container",
-      "research",
-      "sample_collection"
-    ]
-  },
-  {
-    "id": "reality_anchor",
-    "name": "Reality Anchor (Personal)",
-    "description": "A device that creates a small field of stabilized reality, offering protection against minor spatial distortions.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 1.2,
-    "value": 700,
-    "custom_properties": {
-      "field_radius_meters": 1,
-      "stability_rating": 3
-    },
-    "tags": [
-      "tool",
-      "planar",
-      "protection",
-      "research"
-    ]
-  },
-  {
-    "id": "emergency_beacon",
-    "name": "Emergency Beacon",
-    "description": "A single-use beacon that, when activated, sends a distress signal detectable across short planar distances.",
+    "id": "portable_writing_desk",
+    "name": "Portable Writing Desk",
+    "description": "A small, foldable desk with compartments for ink, quills, and paper.",
     "item_type": "tool",
     "rarity": "uncommon",
-    "weight": 0.3,
-    "value": 150,
-    "is_consumable": true,
-    "is_stackable": true,
-    "stack_limit": 3,
+    "weight": 3.0,
+    "value": 90,
     "tags": [
       "tool",
-      "emergency",
-      "signal",
-      "consumable"
-    ]
-  },
-  {
-    "id": "strange_contract",
-    "name": "Strange Contract",
-    "description": "A rolled parchment tied with an ethereal ribbon. The script within is unsettling and shifts when not directly observed. It details a bargain made with an entity from The Between.",
-    "item_type": "document",
-    "rarity": "rare",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "contract",
-      "quest_item",
-      "ghost_market",
-      "ethereal"
-    ]
-  },
-  {
-    "id": "between_token",
-    "name": "Between Token",
-    "description": "A smooth, dark stone that feels cold to the touch. It occasionally whispers in an unknown tongue. Given by an entity from The Between.",
-    "item_type": "miscellaneous",
-    "rarity": "rare",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "custom_properties": {
-      "function": "communication_conduit_the_between"
-    },
-    "tags": [
-      "token",
-      "quest_item",
-      "ghost_market",
-      "ethereal"
-    ]
-  },
-  {
-    "id": "partially_empty_memory_vial",
-    "name": "Partially Empty Memory Vial",
-    "description": "A crystal vial, cool to the touch, containing a swirling, faintly luminous mist. It feels like a part of you is missing when you hold it.",
-    "item_type": "miscellaneous",
-    "rarity": "rare",
-    "weight": 0.2,
-    "value": 0,
-    "is_quest_item": true,
-    "custom_properties": {
-      "content": "fragmented_player_memories"
-    },
-    "tags": [
-      "vial",
-      "quest_item",
-      "memory",
-      "ghost_market",
-      "ethereal"
-    ]
-  },
-  {
-    "id": "planar_map",
-    "name": "Planar Map Fragment",
-    "description": "A piece of an old map showing routes between Nexus and other, stranger planes. Some markings are unfamiliar.",
-    "item_type": "document",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 50,
-    "tags": [
-      "document",
-      "map",
-      "planar",
-      "navigation"
-    ]
-  },
-  {
-    "id": "market_trinket",
-    "name": "Ghost Market Trinket",
-    "description": "A small, oddly shaped trinket of unknown material. It hums faintly when Resonance Events are near.",
-    "item_type": "accessory",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 70,
-    "is_equippable": true,
-    "equip_slots": [
-      "trinket_1",
-      "trinket_2"
-    ],
-    "stats": [
-      {
-        "name": "resonance_detection",
-        "value": 1,
-        "display_name": "Resonance Detection"
-      }
-    ],
-    "tags": [
-      "trinket",
-      "accessory",
-      "ghost_market",
-      "planar"
-    ]
-  },
-  {
-    "id": "fine_clothes_(worn)",
-    "name": "Fine Clothes (Worn)",
-    "description": "Once elegant attire, now showing signs of wear and travel. Still better than common rags.",
-    "item_type": "armor",
-    "rarity": "common",
-    "weight": 1.8,
-    "value": 35,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "defense",
-        "value": 1,
-        "display_name": "Armor"
-      }
-    ],
-    "durability": 40,
-    "current_durability": 25,
-    "tags": [
-      "clothing",
-      "armor",
-      "noble",
-      "worn"
-    ]
-  },
-  {
-    "id": "family_signet_ring",
-    "name": "Family Signet Ring",
-    "description": "A ring bearing the crest of a fallen noble family. It might still carry some influence, or attract unwanted attention.",
-    "item_type": "accessory",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 120,
-    "is_equippable": true,
-    "equip_slots": [
-      "finger_1",
-      "finger_2",
-      "finger_3",
-      "finger_4",
-      "finger_5",
-      "finger_6",
-      "finger_7",
-      "finger_8",
-      "finger_9",
-      "finger_10"
-    ],
-    "stats": [
-      {
-        "name": "social_influence_minor",
-        "value": 1,
-        "display_name": "Minor Social Influence"
-      }
-    ],
-    "tags": [
-      "ring",
-      "accessory",
-      "noble",
-      "signet"
-    ]
-  },
-  {
-    "id": "small_purse_of_coins",
-    "name": "Small Purse of Coins",
-    "description": "A leather purse containing a modest amount of mixed currency.",
-    "item_type": "treasure",
-    "rarity": "common",
-    "weight": 0.3,
-    "value": 500,
-    "is_stackable": false,
-    "custom_properties": {
-      "contains_copper": 500
-    },
-    "tags": [
-      "currency",
-      "container",
-      "treasure"
-    ]
-  },
-  {
-    "id": "sealed_letter_of_introduction",
-    "name": "Sealed Letter of Introduction",
-    "description": "A letter addressed to an influential figure, sealed with an unbroken noble crest.",
-    "item_type": "document",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "letter",
-      "quest_item",
-      "introduction"
-    ]
-  },
-  {
-    "id": "ornate_dagger",
-    "name": "Ornate Dagger",
-    "description": "A finely crafted dagger, more decorative than practical, but still sharp. A reminder of a wealthier past.",
-    "item_type": "weapon",
-    "rarity": "uncommon",
-    "weight": 0.6,
-    "value": 100,
-    "is_equippable": true,
-    "equip_slots": [
-      "main_hand",
-      "off_hand"
-    ],
-    "stats": [],
-    "dice_roll_effects": [
-      {
-        "effect_type": "piercing",
-        "dice_notation": "1d4"
-      }
-    ],
-    "durability": 60,
-    "tags": [
-      "weapon",
-      "dagger",
-      "ornate",
-      "noble"
-    ]
-  },
-  {
-    "id": "sturdy_work_clothes",
-    "name": "Sturdy Work Clothes",
-    "description": "Durable and practical clothes, patched in places but clean. Suited for manual labor or travel.",
-    "item_type": "armor",
-    "rarity": "common",
-    "weight": 2.0,
-    "value": 15,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "defense",
-        "value": 1,
-        "display_name": "Armor"
-      }
-    ],
-    "durability": 70,
-    "tags": [
-      "clothing",
-      "armor",
-      "commoner",
-      "workwear"
-    ]
-  },
-  {
-    "id": "family_heirloom",
-    "name": "Family Heirloom",
-    "description": "A small, worn trinket passed down through your family. Its true value might be sentimental, or perhaps something more.",
-    "item_type": "miscellaneous",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 5,
-    "is_quest_item": true,
-    "tags": [
-      "trinket",
-      "heirloom",
-      "sentimental",
-      "quest_item"
-    ]
-  },
-  {
-    "id": "simple_tool",
-    "name": "Simple Tool",
-    "description": "A basic tool related to your former trade (e.g., a hammer, a lute, a farming hoe).",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 1.0,
-    "value": 8,
-    "custom_properties": {
-      "tool_type": "generic_trade_tool"
-    },
-    "tags": [
-      "tool",
-      "commoner",
-      "trade_tool"
-    ]
-  },
-  {
-    "id": "lunch_bundle",
-    "name": "Lunch Bundle",
-    "description": "A piece of fruit, some dried meat, and a small waterskin wrapped in cloth.",
-    "item_type": "consumable",
-    "rarity": "common",
-    "weight": 0.7,
-    "value": 10,
-    "is_consumable": true,
-    "is_stackable": false,
-    "custom_properties": {
-      "contains": "fruit, dried_meat, waterskin_1_charge"
-    },
-    "stats": [
-      {
-        "name": "hunger_restore",
-        "value": 20
-      },
-      {
-        "name": "healing",
-        "value": 8
-      }
-    ],
-    "tags": [
-      "food",
-      "consumable",
-      "bundle"
-    ]
-  },
-  {
-    "id": "old_map",
-    "name": "Old Map",
-    "description": "A hand-drawn map given to you by a mysterious traveler, showing unfamiliar lands and cryptic symbols.",
-    "item_type": "document",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "map",
-      "quest_item",
-      "adventure"
-    ]
-  },
-  {
-    "id": "academic_robes",
-    "name": "Academic Robes",
-    "description": "Formal robes of a scholar from the Resonance Academy, adorned with symbols of knowledge.",
-    "item_type": "armor",
-    "rarity": "common",
-    "weight": 1.5,
-    "value": 40,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "defense",
-        "value": 1,
-        "display_name": "Armor"
-      },
-      {
-        "name": "intelligence_bonus_research",
-        "value": 1,
-        "display_name": "Research Intelligence"
-      }
-    ],
-    "durability": 60,
-    "tags": [
-      "clothing",
-      "armor",
+      "writing",
       "academic",
-      "scholar"
-    ]
-  },
-  {
-    "id": "research_notes",
-    "name": "Research Notes",
-    "description": "A collection of notes, theories, and references related to your current field of study.",
-    "item_type": "document",
-    "rarity": "common",
-    "weight": 0.8,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "notes",
-      "research",
-      "academic"
+      "portable"
     ]
   },
   {
@@ -1256,372 +1643,25 @@
     ]
   },
   {
-    "id": "portable_writing_desk",
-    "name": "Portable Writing Desk",
-    "description": "A small, foldable desk with compartments for ink, quills, and paper.",
+    "id": "precision_tools",
+    "name": "Precision Tools",
+    "description": "A kit of fine tools for delicate work, often used by Consortium artisans and researchers.",
     "item_type": "tool",
-    "rarity": "uncommon",
-    "weight": 3.0,
-    "value": 90,
-    "tags": [
-      "tool",
-      "writing",
-      "academic",
-      "portable"
-    ]
-  },
-  {
-    "id": "resonance_detector",
-    "name": "Resonance Detector",
-    "description": "A device that hums and glows in the presence of planar resonance or magical energies.",
-    "item_type": "tool",
-    "rarity": "uncommon",
+    "rarity": "common",
     "weight": 0.7,
-    "value": 350,
+    "value": 75,
     "stats": [
       {
-        "name": "perception_magic",
-        "value": 2,
-        "display_name": "Magic Perception"
-      }
-    ],
-    "tags": [
-      "tool",
-      "magic_detection",
-      "planar",
-      "research"
-    ]
-  },
-  {
-    "id": "guard_uniform",
-    "name": "Guard Uniform",
-    "description": "Standard issue uniform of the Harmonic Guard, offering decent protection and clear identification.",
-    "item_type": "armor",
-    "rarity": "common",
-    "weight": 10.0,
-    "value": 200,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest",
-      "legs",
-      "head"
-    ],
-    "stats": [
-      {
-        "name": "armor",
-        "value": 6,
-        "display_name": "Armor"
-      }
-    ],
-    "durability": 130,
-    "tags": [
-      "armor",
-      "uniform",
-      "harmonic_guard"
-    ]
-  },
-  {
-    "id": "standard_issue_weapon",
-    "name": "Standard Issue Guard Sword",
-    "description": "A durable, well-maintained sword, the standard armament for Harmonic Guard soldiers.",
-    "item_type": "weapon",
-    "rarity": "common",
-    "weight": 3.0,
-    "value": 180,
-    "is_equippable": true,
-    "equip_slots": [
-      "main_hand"
-    ],
-    "dice_roll_effects": [
-      {
-        "effect_type": "slashing",
-        "dice_notation": "1d6"
-      }
-    ],
-    "durability": 110,
-    "tags": [
-      "weapon",
-      "sword",
-      "harmonic_guard",
-      "standard_issue"
-    ]
-  },
-  {
-    "id": "planar_protection_amulet",
-    "name": "Planar Protection Amulet",
-    "description": "An amulet issued to those venturing into unstable planar regions, offering some resistance to harmful energies.",
-    "item_type": "accessory",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 280,
-    "is_equippable": true,
-    "equip_slots": [
-      "neck"
-    ],
-    "stats": [
-      {
-        "name": "planar_hazard_resistance",
-        "value": 10,
-        "display_name": "Planar Hazard Resist",
-        "is_percentage": true
-      }
-    ],
-    "tags": [
-      "amulet",
-      "accessory",
-      "protection",
-      "planar"
-    ]
-  },
-  {
-    "id": "rations_pack",
-    "name": "Rations Pack (3 Days)",
-    "description": "A pack containing enough preserved food and water for three days of travel.",
-    "item_type": "consumable",
-    "rarity": "common",
-    "weight": 2.0,
-    "value": 25,
-    "is_consumable": true,
-    "is_stackable": false,
-    "custom_properties": {
-      "days_of_sustenance": 3
-    },
-    "stats": [
-      {
-        "name": "hunger_restore_full_day",
-        "value": 3
-      }
-    ],
-    "tags": [
-      "food",
-      "consumable",
-      "survival",
-      "rations"
-    ]
-  },
-  {
-    "id": "sealed_orders",
-    "name": "Sealed Orders",
-    "description": "Official military orders, sealed with the mark of a high-ranking Harmonic Guard officer.",
-    "item_type": "document",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "orders",
-      "quest_item",
-      "military"
-    ]
-  },
-  {
-    "id": "worn_disguise",
-    "name": "Worn Disguise",
-    "description": "A set of commoner's clothes, a hooded cloak, and some makeup, used to alter one's appearance.",
-    "item_type": "armor",
-    "rarity": "common",
-    "weight": 1.5,
-    "value": 20,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest",
-      "head"
-    ],
-    "custom_properties": {
-      "disguise_effectiveness": "moderate"
-    },
-    "stats": [
-      {
-        "name": "stealth_bonus_urban",
-        "value": 2,
-        "display_name": "Urban Stealth"
-      }
-    ],
-    "durability": 40,
-    "tags": [
-      "clothing",
-      "armor",
-      "disguise",
-      "stealth"
-    ]
-  },
-  {
-    "id": "stolen_supplies",
-    "name": "Stolen Supplies",
-    "description": "A small sack containing pilfered food, water, and a few useful tools. Clearly not acquired legitimately.",
-    "item_type": "container",
-    "rarity": "common",
-    "weight": 3.0,
-    "value": -50,
-    "custom_properties": {
-      "contents": "food_1day, water_1day, lockpicks_basic"
-    },
-    "tags": [
-      "container",
-      "stolen",
-      "survival"
-    ]
-  },
-  {
-    "id": "forged_documents",
-    "name": "Forged Documents",
-    "description": "Passably crafted travel papers and identification that might fool a cursory inspection.",
-    "item_type": "document",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 150,
-    "custom_properties": {
-      "forgery_quality": "average"
-    },
-    "tags": [
-      "document",
-      "forgery",
-      "deception"
-    ]
-  },
-  {
-    "id": "concealed_weapon",
-    "name": "Concealed Dagger",
-    "description": "A small, easily hidden dagger. Favored by those who prefer to remain unassuming.",
-    "item_type": "weapon",
-    "rarity": "common",
-    "weight": 0.3,
-    "value": 40,
-    "is_equippable": true,
-    "equip_slots": [
-      "main_hand",
-      "off_hand"
-    ],
-    "dice_roll_effects": [
-      {
-        "effect_type": "piercing",
-        "dice_notation": "1d4-1"
-      }
-    ],
-    "durability": 50,
-    "tags": [
-      "weapon",
-      "dagger",
-      "concealed",
-      "stealth"
-    ]
-  },
-  {
-    "id": "wanted_poster",
-    "name": "Wanted Poster",
-    "description": "A weathered wanted poster bearing a crude likeness of someone... perhaps you?",
-    "item_type": "document",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "wanted",
-      "quest_item"
-    ]
-  },
-  {
-    "id": "elven_crafted_robes",
-    "name": "Elven Crafted Robes",
-    "description": "Elegant robes woven with subtle patterns that shimmer in the light, offering surprising resilience.",
-    "item_type": "armor",
-    "rarity": "uncommon",
-    "weight": 1.0,
-    "value": 250,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "defense",
-        "value": 2,
-        "display_name": "Armor"
-      },
-      {
-        "name": "magic_resistance_minor",
-        "value": 5,
-        "display_name": "Minor Magic Resist",
-        "is_percentage": true
-      }
-    ],
-    "durability": 70,
-    "tags": [
-      "clothing",
-      "armor",
-      "elven",
-      "magic"
-    ]
-  },
-  {
-    "id": "ancestral_focus_crystal",
-    "name": "Ancestral Focus Crystal",
-    "description": "A crystal passed down through generations, used by elves to channel and focus magical energies.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 0.2,
-    "value": 600,
-    "is_equippable": true,
-    "equip_slots": [
-      "off_hand",
-      "neck"
-    ],
-    "stats": [
-      {
-        "name": "spell_power_bonus",
+        "name": "crafting_fine_bonus",
         "value": 1,
-        "display_name": "Spell Power"
+        "display_name": "Fine Crafting Bonus"
       }
     ],
     "tags": [
       "tool",
-      "magic_focus",
-      "elven",
-      "crystal",
-      "ancestral"
-    ]
-  },
-  {
-    "id": "diplomatic_insignia",
-    "name": "Diplomatic Insignia",
-    "description": "A broach or pin signifying your status as an emissary from your people.",
-    "item_type": "accessory",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 0,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "diplomacy_bonus",
-        "value": 1,
-        "display_name": "Diplomacy Bonus"
-      }
-    ],
-    "tags": [
-      "accessory",
-      "insignia",
-      "diplomacy"
-    ]
-  },
-  {
-    "id": "resonance_journal",
-    "name": "Resonance Journal",
-    "description": "A journal specifically designed to record observations of planar resonance and magical phenomena.",
-    "item_type": "tool",
-    "rarity": "uncommon",
-    "weight": 0.6,
-    "value": 80,
-    "tags": [
-      "tool",
-      "writing",
+      "crafting",
       "research",
-      "planar",
-      "magic"
+      "crystalline_consortium"
     ]
   },
   {
@@ -1653,737 +1693,21 @@
     ]
   },
   {
-    "id": "dwarven_forge_hammer",
-    "name": "Dwarven Forge Hammer",
-    "description": "A masterfully crafted hammer, perfectly balanced for smithing. It bears ancient dwarven runes.",
+    "id": "probability_dice",
+    "name": "Probability Dice",
+    "description": "A set of strangely weighted dice that seem to favor certain outcomes. Used by Tempest Flotilla gamblers.",
     "item_type": "tool",
-    "rarity": "rare",
-    "weight": 5.0,
-    "value": 800,
-    "is_equippable": true,
-    "equip_slots": [
-      "main_hand"
-    ],
-    "stats": [
-      {
-        "name": "crafting_smithing_bonus",
-        "value": 2,
-        "display_name": "Smithing Bonus"
-      }
-    ],
-    "dice_roll_effects": [
-      {
-        "effect_type": "physical_blunt_damage",
-        "dice_notation": "1d6"
-      }
-    ],
-    "durability": 200,
-    "tags": [
-      "tool",
-      "weapon",
-      "hammer",
-      "dwarven",
-      "crafting",
-      "smithing"
-    ]
-  },
-  {
-    "id": "master_crafting_tools",
-    "name": "Master Crafting Tools",
-    "description": "A comprehensive set of high-quality tools for various crafts, kept in a sturdy leather roll.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 3.0,
-    "value": 650,
-    "stats": [
-      {
-        "name": "crafting_general_bonus",
-        "value": 1,
-        "display_name": "General Crafting Bonus"
-      }
-    ],
-    "tags": [
-      "tool",
-      "crafting",
-      "masterwork"
-    ]
-  },
-  {
-    "id": "clan_trade_contract",
-    "name": "Clan Trade Contract (Template)",
-    "description": "A formal contract template outlining terms for trade agreements on behalf of your dwarven clan.",
-    "item_type": "document",
     "rarity": "uncommon",
-    "weight": 0.2,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "contract",
-      "dwarven",
-      "trade",
-      "quest_item"
-    ]
-  },
-  {
-    "id": "metal_samples",
-    "name": "Metal Samples",
-    "description": "Small ingots and pieces of various rare metals and alloys from your clan's mines.",
-    "item_type": "material",
-    "rarity": "uncommon",
-    "weight": 2.0,
-    "value": 400,
-    "is_stackable": true,
-    "stack_limit": 10,
-    "tags": [
-      "material",
-      "metal",
-      "dwarven",
-      "trade_good",
-      "crafting"
-    ]
-  },
-  {
-    "id": "ceremonial_flask",
-    "name": "Dwarven Ceremonial Flask",
-    "description": "An ornate flask, often filled with strong dwarven ale for rituals or important occasions.",
-    "item_type": "container",
-    "rarity": "uncommon",
-    "weight": 0.7,
-    "value": 120,
-    "custom_properties": {
-      "capacity_ml": 500,
-      "material": "silver_inlaid_steel"
-    },
-    "tags": [
-      "container",
-      "flask",
-      "dwarven",
-      "ceremonial"
-    ]
-  },
-  {
-    "id": "living_garments",
-    "name": "Living Garments",
-    "description": "Clothing woven from living plant fibers that subtly adapt to the wearer and environment. A hallmark of Mycora design.",
-    "item_type": "armor",
-    "rarity": "uncommon",
-    "weight": 0.5,
-    "value": 300,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "defense",
-        "value": 2,
-        "display_name": "Armor"
-      },
-      {
-        "name": "environmental_adaptation",
-        "value": 1,
-        "display_name": "Environmental Adaptation"
-      }
-    ],
-    "durability": 80,
-    "tags": [
-      "clothing",
-      "armor",
-      "mycora",
-      "living",
-      "adaptive"
-    ]
-  },
-  {
-    "id": "spore_collection_kit",
-    "name": "Spore Collection Kit",
-    "description": "Tools for safely collecting, identifying, and preserving various types of fungal spores.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 0.6,
-    "value": 90,
-    "tags": [
-      "tool",
-      "mycora",
-      "research",
-      "spores",
-      "collection"
-    ]
-  },
-  {
-    "id": "symbiotic_communication_pod",
-    "name": "Symbiotic Communication Pod",
-    "description": "A living fungal pod that allows limited telepathic communication with the Mycora collective consciousness when attuned.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 0.3,
-    "value": 700,
-    "custom_properties": {
-      "range_km": 10,
-      "attunement_required": "Mycora_or_symbiote"
-    },
-    "tags": [
-      "tool",
-      "mycora",
-      "communication",
-      "telepathy",
-      "symbiotic"
-    ]
-  },
-  {
-    "id": "seed_vault",
-    "name": "Seed Vault",
-    "description": "A specially prepared container holding a diverse collection of rare and adaptable seeds from the Verdant plane.",
-    "item_type": "container",
-    "rarity": "rare",
-    "weight": 1.0,
-    "value": 500,
-    "custom_properties": {
-      "preservation_field_active": true,
-      "seed_variety_count": 50
-    },
-    "tags": [
-      "container",
-      "seeds",
-      "mycora",
-      "verdant_plane",
-      "preservation"
-    ]
-  },
-  {
-    "id": "environmental_adaptation_tonic",
-    "name": "Environmental Adaptation Tonic",
-    "description": "A Mycoran tonic that temporarily enhances the imbiber's ability to adapt to hostile environments.",
-    "item_type": "consumable",
-    "rarity": "uncommon",
-    "weight": 0.2,
-    "value": 180,
-    "is_consumable": true,
-    "is_stackable": true,
-    "stack_limit": 3,
-    "stats": [
-      {
-        "name": "environmental_resistance_boost",
-        "value": 15,
-        "display_name": "Environmental Resist Boost",
-        "is_percentage": true
-      },
-      {
-        "name": "duration_minutes",
-        "value": 30,
-        "display_name": "Duration (Minutes)"
-      }
-    ],
-    "tags": [
-      "potion",
-      "consumable",
-      "mycora",
-      "adaptation",
-      "buff"
-    ]
-  },
-  {
-    "id": "crystalline_implants",
-    "name": "Crystalline Implants (Interface)",
-    "description": "Subtle crystalline implants that allow a Prismal to interface with Consortium technology and enhance cognitive processing.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 0.0,
-    "value": 0,
-    "is_equippable": true,
-    "equip_slots": [
-      "head"
-    ],
-    "stats": [
-      {
-        "name": "data_processing_speed",
-        "value": 2,
-        "display_name": "Data Processing"
-      },
-      {
-        "name": "mathematical_aptitude",
-        "value": 1,
-        "display_name": "Mathematical Aptitude"
-      }
-    ],
-    "tags": [
-      "implant",
-      "tool",
-      "prismal",
-      "crystalline_consortium",
-      "interface"
-    ]
-  },
-  {
-    "id": "geometric_calculation_device",
-    "name": "Geometric Calculation Device",
-    "description": "A complex Prismal device used for advanced geometric and multidimensional calculations.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 0.8,
-    "value": 900,
-    "stats": [
-      {
-        "name": "calculation_accuracy_bonus",
-        "value": 3,
-        "display_name": "Calculation Accuracy"
-      }
-    ],
-    "tags": [
-      "tool",
-      "prismal",
-      "crystalline_consortium",
-      "mathematics",
-      "calculation"
-    ]
-  },
-  {
-    "id": "consortium_authorization",
-    "name": "Consortium Research Authorization",
-    "description": "A high-level authorization grant from the Crystalline Consortium, permitting access to restricted data and locations.",
-    "item_type": "key",
-    "rarity": "rare",
     "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "key",
-      "crystalline_consortium",
-      "authorization",
-      "research"
-    ]
-  },
-  {
-    "id": "multidimensional_mapping_tools",
-    "name": "Multidimensional Mapping Tools",
-    "description": "A set of specialized tools for charting and navigating spaces with non-Euclidean or shifting geometries.",
-    "item_type": "tool",
-    "rarity": "epic",
-    "weight": 1.5,
-    "value": 1200,
-    "tags": [
-      "tool",
-      "prismal",
-      "mapping",
-      "planar",
-      "dimensional"
-    ]
-  },
-  {
-    "id": "faceted_light_source",
-    "name": "Faceted Light Source",
-    "description": "A Prismal light source that emits focused beams of coherent light, useful for analysis or as a weak cutting tool.",
-    "item_type": "tool",
-    "rarity": "uncommon",
-    "weight": 0.4,
     "value": 300,
     "custom_properties": {
-      "light_intensity_lumens": 500,
-      "focus_modes": [
-        "wide_beam",
-        "narrow_beam",
-        "pulse"
-      ]
+      "luck_influence": "minor_positive_bias"
     },
     "tags": [
       "tool",
-      "prismal",
-      "light_source",
-      "analysis"
-    ]
-  },
-  {
-    "id": "ancestral_ash_container",
-    "name": "Ancestral Ash Container",
-    "description": "A specially crafted container made from obsidian and silver, designed to safely hold and preserve sacred ancestral ashes.",
-    "item_type": "container",
-    "rarity": "rare",
-    "weight": 0.5,
-    "value": 400,
-    "custom_properties": {
-      "spiritual_attunement": "high",
-      "preservation_quality": "excellent"
-    },
-    "tags": [
-      "container",
-      "cinderspawn",
-      "ash",
-      "ritual",
-      "ancestral"
-    ]
-  },
-  {
-    "id": "ember_renewal_tonic",
-    "name": "Ember Renewal Tonic",
-    "description": "A potent tonic that revitalizes a Cinderspawn's inner ember, hastening regeneration and enhancing flame-based abilities.",
-    "item_type": "consumable",
-    "rarity": "uncommon",
-    "weight": 0.2,
-    "value": 200,
-    "is_consumable": true,
-    "is_stackable": true,
-    "stack_limit": 3,
-    "stats": [
-      {
-        "name": "regeneration_boost",
-        "value": 50,
-        "display_name": "Regeneration Boost",
-        "is_percentage": true
-      },
-      {
-        "name": "flame_power_increase",
-        "value": 2,
-        "display_name": "Flame Power"
-      },
-      {
-        "name": "duration_minutes",
-        "value": 10,
-        "display_name": "Duration (Minutes)"
-      }
-    ],
-    "tags": [
-      "potion",
-      "consumable",
-      "cinderspawn",
-      "buff",
-      "fire"
-    ]
-  },
-  {
-    "id": "pilgrimage_map",
-    "name": "Pilgrimage Map",
-    "description": "A map charted on fire-resistant hide, marking known sacred flame sites across various planes.",
-    "item_type": "document",
-    "rarity": "uncommon",
-    "weight": 0.2,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "map",
-      "cinderspawn",
-      "pilgrimage",
-      "quest_item"
-    ]
-  },
-  {
-    "id": "flame-resistant_wrappings",
-    "name": "Flame-Resistant Wrappings",
-    "description": "Thick, specially treated cloth wrappings that offer significant protection against fire and extreme heat.",
-    "item_type": "armor",
-    "rarity": "uncommon",
-    "weight": 0.8,
-    "value": 120,
-    "is_equippable": true,
-    "equip_slots": [
-      "wrists",
-      "legs",
-      "chest"
-    ],
-    "stats": [
-      {
-        "name": "fire_resistance",
-        "value": 25,
-        "display_name": "Fire Resistance",
-        "is_percentage": true
-      }
-    ],
-    "durability": 90,
-    "tags": [
-      "clothing",
-      "armor",
-      "cinderspawn",
-      "fire_protection"
-    ]
-  },
-  {
-    "id": "ritual_igniter",
-    "name": "Ritual Igniter",
-    "description": "A Cinderspawn tool that can create a spark of intense, spiritually attuned flame, used to light sacred fires.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 0.3,
-    "value": 350,
-    "custom_properties": {
-      "uses_per_day": 3,
-      "flame_purity": "high"
-    },
-    "tags": [
-      "tool",
-      "cinderspawn",
-      "fire",
-      "ritual"
-    ]
-  },
-  {
-    "id": "storm_tattoo_kit",
-    "name": "Storm Tattoo Kit (Maelstri)",
-    "description": "A Maelstri kit containing inks made from condensed storm essence and needles carved from lightning-struck wood. Used to create tattoos that channel tempestuous energies.",
-    "item_type": "tool",
-    "rarity": "rare",
-    "weight": 0.4,
-    "value": 600,
-    "tags": [
-      "tool",
-      "maelstri",
-      "tattoo",
-      "storm_magic",
-      "artisan"
-    ]
-  },
-  {
-    "id": "weather_prediction_dice",
-    "name": "Weather Prediction Dice (Maelstri)",
-    "description": "A set of dice that, when thrown by a Maelstri, offer glimpses into short-term weather patterns and probability currents.",
-    "item_type": "tool",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 450,
-    "custom_properties": {
-      "prediction_accuracy": "moderate",
-      "range_hours": 6
-    },
-    "tags": [
-      "tool",
-      "maelstri",
-      "divination",
-      "weather",
-      "probability"
-    ]
-  },
-  {
-    "id": "captain's_contract",
-    "name": "Captain's Contract",
-    "description": "A signed contract securing your services as a navigator for a trading vessel in Tempest Harbor.",
-    "item_type": "document",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "contract",
-      "quest_item",
-      "tempest_harbor",
-      "navigation"
-    ]
-  },
-  {
-    "id": "bottled_lightning",
-    "name": "Bottled Lightning",
-    "description": "A vial containing a swirling spark of contained lightning. Can be used as a light source or a volatile component.",
-    "item_type": "miscellaneous",
-    "rarity": "uncommon",
-    "weight": 0.3,
-    "value": 150,
-    "is_consumable": true,
-    "is_stackable": true,
-    "stack_limit": 5,
-    "custom_properties": {
-      "light_duration_minutes": 10,
-      "discharge_damage": "1d8_lightning_if_broken"
-    },
-    "tags": [
-      "lightning",
-      "consumable",
-      "light_source",
-      "component",
-      "maelstri"
-    ]
-  },
-  {
-    "id": "temporal_compass",
-    "name": "Temporal Compass (Maelstri)",
-    "description": "A Maelstri compass that doesn't point north, but rather towards areas of significant temporal distortion or probability flux.",
-    "item_type": "tool",
-    "rarity": "epic",
-    "weight": 0.5,
-    "value": 1500,
-    "tags": [
-      "tool",
-      "maelstri",
-      "navigation",
-      "temporal",
-      "probability",
-      "planar"
-    ]
-  },
-  {
-    "id": "trading_ledger",
-    "name": "Trading Ledger",
-    "description": "A well-used ledger filled with notes on prices, contacts, and trade routes across various planes.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 0.7,
-    "value": 25,
-    "tags": [
-      "tool",
-      "trade",
-      "ledger",
-      "notes"
-    ]
-  },
-  {
-    "id": "sample_case_of_goods",
-    "name": "Sample Case of Goods",
-    "description": "A sturdy case containing a curated selection of exotic goods for showcasing to potential buyers.",
-    "item_type": "container",
-    "rarity": "common",
-    "weight": 3.0,
-    "value": 50,
-    "custom_properties": {
-      "max_item_showcase": 10,
-      "security_level": "basic"
-    },
-    "tags": [
-      "container",
-      "trade",
-      "sample_case"
-    ]
-  },
-  {
-    "id": "lucky_coin",
-    "name": "Lucky Coin",
-    "description": "A mundane coin that its owner believes brings good fortune. Its true power is likely psychological.",
-    "item_type": "miscellaneous",
-    "rarity": "common",
-    "weight": 0.01,
-    "value": 1,
-    "stats": [
-      {
-        "name": "luck_subtle",
-        "value": 0.1,
-        "display_name": "Subtle Luck (Placebo)"
-      }
-    ],
-    "tags": [
-      "coin",
-      "trinket",
-      "luck",
-      "sentimental"
-    ]
-  },
-  {
-    "id": "haggler's_pendant",
-    "name": "Haggler's Pendant",
-    "description": "A pendant that subtly influences negotiations in the wearer's favor. Or so the seller claimed.",
-    "item_type": "accessory",
-    "rarity": "uncommon",
-    "weight": 0.1,
-    "value": 200,
-    "is_equippable": true,
-    "equip_slots": [
-      "neck"
-    ],
-    "stats": [
-      {
-        "name": "bargaining_bonus",
-        "value": 1,
-        "display_name": "Bargaining Bonus"
-      }
-    ],
-    "tags": [
-      "pendant",
-      "accessory",
-      "trade",
-      "persuasion"
-    ]
-  },
-  {
-    "id": "hidden_coin_purse",
-    "name": "Hidden Coin Purse",
-    "description": "A small, discreet coin purse designed to be easily concealed within clothing.",
-    "item_type": "container",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 15,
-    "custom_properties": {
-      "capacity_coins": 100,
-      "concealment_bonus": 2
-    },
-    "tags": [
-      "container",
-      "stealth",
-      "currency"
-    ]
-  },
-  {
-    "id": "mercenary_contract",
-    "name": "Mercenary Contract",
-    "description": "A binding contract detailing the terms of your employment, payment, and objectives for the current assignment.",
-    "item_type": "document",
-    "rarity": "common",
-    "weight": 0.1,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "contract",
-      "quest_item",
-      "mercenary"
-    ]
-  },
-  {
-    "id": "heavy_weapon",
-    "name": "Heavy Orcish Cleaver",
-    "description": "A large, brutally effective cleaver favored by Orcish warriors. Requires considerable strength to wield effectively.",
-    "item_type": "weapon",
-    "rarity": "uncommon",
-    "weight": 7.0,
-    "value": 450,
-    "is_equippable": true,
-    "equip_slots": [
-      "two_hand"
-    ],
-    "stats": [
-      {
-        "name": "strength_requirement",
-        "value": 15,
-        "display_name": "Strength Req."
-      }
-    ],
-    "dice_roll_effects": [
-      {
-        "effect_type": "slashing",
-        "dice_notation": "1d12"
-      }
-    ],
-    "durability": 160,
-    "tags": [
-      "weapon",
-      "axe",
-      "orcish",
-      "heavy",
-      "two-handed"
-    ]
-  },
-  {
-    "id": "partial_armor_set",
-    "name": "Partial Plate Armor",
-    "description": "A mismatched set of plate armor pieces, offering good protection for vital areas. Likely scavenged or repaired.",
-    "item_type": "armor",
-    "rarity": "uncommon",
-    "weight": 18.0,
-    "value": 300,
-    "is_equippable": true,
-    "equip_slots": [
-      "chest",
-      "shoulders"
-    ],
-    "stats": [
-      {
-        "name": "armor",
-        "value": 10,
-        "display_name": "Armor"
-      }
-    ],
-    "durability": 140,
-    "tags": [
-      "armor",
-      "plate",
-      "heavy",
-      "mismatched"
+      "gambling",
+      "tempest_flotilla",
+      "chance"
     ]
   },
   {
@@ -2410,55 +1734,6 @@
       "accessory",
       "protection",
       "luck"
-    ]
-  },
-  {
-    "id": "battlefield_trophy",
-    "name": "Battlefield Trophy",
-    "description": "A memento taken from a significant past battle – perhaps a tooth, a banner fragment, or a broken weapon piece.",
-    "item_type": "miscellaneous",
-    "rarity": "common",
-    "weight": 0.3,
-    "value": 10,
-    "tags": [
-      "trophy",
-      "memento",
-      "battle"
-    ]
-  },
-  {
-    "id": "market_rumors_collection",
-    "name": "Collection of Market Rumors",
-    "description": "A bundle of notes, overheard conversations, and cryptic clues related to the Ghost Market and other illicit trade.",
-    "item_type": "document",
-    "rarity": "common",
-    "weight": 0.4,
-    "value": 0,
-    "is_quest_item": true,
-    "tags": [
-      "document",
-      "notes",
-      "rumors",
-      "ghost_market",
-      "quest_item"
-    ]
-  },
-  {
-    "id": "multi-planar_currency",
-    "name": "Multi-Planar Currency Pouch",
-    "description": "A pouch containing a mix of currencies from various planes, useful for interplanar trade.",
-    "item_type": "treasure",
-    "rarity": "uncommon",
-    "weight": 0.5,
-    "value": 1000,
-    "custom_properties": {
-      "contents_description": "Mixed coins from Nexus, Verdant, Ashen, Crystalline, Tempest planes"
-    },
-    "tags": [
-      "currency",
-      "treasure",
-      "planar",
-      "trade_good"
     ]
   },
   {
@@ -2491,9 +1766,260 @@
     ]
   },
   {
-    "id": "diplomatic_credentials",
-    "name": "Diplomatic Credentials",
-    "description": "Official credentials identifying you as a diplomat of Harmonia, granting certain privileges and access.",
+    "id": "rations_pack",
+    "name": "Rations Pack (3 Days)",
+    "description": "A pack containing enough preserved food and water for three days of travel.",
+    "item_type": "consumable",
+    "rarity": "common",
+    "weight": 2.0,
+    "value": 25,
+    "is_consumable": true,
+    "is_stackable": false,
+    "custom_properties": {
+      "days_of_sustenance": 3
+    },
+    "stats": [
+      {
+        "name": "hunger_restore_full_day",
+        "value": 3
+      }
+    ],
+    "tags": [
+      "food",
+      "consumable",
+      "survival",
+      "rations"
+    ]
+  },
+  {
+    "id": "reality_anchor",
+    "name": "Reality Anchor (Personal)",
+    "description": "A device that creates a small field of stabilized reality, offering protection against minor spatial distortions.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 1.2,
+    "value": 700,
+    "custom_properties": {
+      "field_radius_meters": 1,
+      "stability_rating": 3
+    },
+    "tags": [
+      "tool",
+      "planar",
+      "protection",
+      "research"
+    ]
+  },
+  {
+    "id": "recording_crystal",
+    "name": "Recording Crystal",
+    "description": "A crystal that passively records ambient sounds and subtle planar energies. Glows faintly when active.",
+    "item_type": "tool",
+    "rarity": "uncommon",
+    "weight": 0.3,
+    "value": 250,
+    "custom_properties": {
+      "storage_capacity_hours": 24,
+      "sensitivity": "medium"
+    },
+    "tags": [
+      "tool",
+      "research",
+      "planar",
+      "crystal",
+      "recording"
+    ]
+  },
+  {
+    "id": "research_notes",
+    "name": "Research Notes",
+    "description": "A collection of notes, theories, and references related to your current field of study.",
+    "item_type": "document",
+    "rarity": "common",
+    "weight": 0.8,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "notes",
+      "research",
+      "academic"
+    ]
+  },
+  {
+    "id": "researcher_equipment",
+    "name": "Researcher's Field Kit",
+    "description": "A collection of tools for field research: sample bags, measuring devices, a multi-tool, and basic first aid.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 2.5,
+    "value": 80,
+    "custom_properties": {
+      "contents_summary": "sample_bags, measuring_tape, multi_tool, first_aid_basics"
+    },
+    "tags": [
+      "tool",
+      "research",
+      "kit",
+      "field_work"
+    ]
+  },
+  {
+    "id": "resonance_amulet",
+    "name": "Resonance Amulet",
+    "description": "An amulet that hums faintly, designed to help stabilize its wearer during minor Resonance Events.",
+    "item_type": "accessory",
+    "rarity": "common",
+    "weight": 0.1,
+    "value": 100,
+    "is_equippable": true,
+    "equip_slots": [
+      "neck"
+    ],
+    "stats": [
+      {
+        "name": "resonance_stability",
+        "value": 5,
+        "display_name": "Resonance Stability"
+      }
+    ],
+    "tags": [
+      "amulet",
+      "harmonia",
+      "planar",
+      "protection"
+    ]
+  },
+  {
+    "id": "resonance_detector",
+    "name": "Resonance Detector",
+    "description": "A device that hums and glows in the presence of planar resonance or magical energies.",
+    "item_type": "tool",
+    "rarity": "uncommon",
+    "weight": 0.7,
+    "value": 350,
+    "stats": [
+      {
+        "name": "perception_magic",
+        "value": 2,
+        "display_name": "Magic Perception"
+      }
+    ],
+    "tags": [
+      "tool",
+      "magic_detection",
+      "planar",
+      "research"
+    ]
+  },
+  {
+    "id": "resonance_journal",
+    "name": "Resonance Journal",
+    "description": "A journal specifically designed to record observations of planar resonance and magical phenomena.",
+    "item_type": "tool",
+    "rarity": "uncommon",
+    "weight": 0.6,
+    "value": 80,
+    "tags": [
+      "tool",
+      "writing",
+      "research",
+      "planar",
+      "magic"
+    ]
+  },
+  {
+    "id": "ritual_dagger",
+    "name": "Ritual Dagger",
+    "description": "A ceremonial dagger, sharp and well-balanced, used by the Ashen Covenant in their rites. It feels strangely warm to the touch.",
+    "item_type": "weapon",
+    "rarity": "uncommon",
+    "weight": 0.5,
+    "value": 75,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand",
+      "off_hand"
+    ],
+    "stats": [
+      {
+        "name": "melee_attack",
+        "value": 1,
+        "display_name": "Attack Bonus"
+      }
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "piercing",
+        "dice_notation": "1d6",
+        "description": "Base weapon damage"
+      }
+    ],
+    "durability": 70,
+    "tags": [
+      "weapon",
+      "dagger",
+      "ritual",
+      "ashen_covenant"
+    ]
+  },
+  {
+    "id": "ritual_igniter",
+    "name": "Ritual Igniter",
+    "description": "A Cinderspawn tool that can create a spark of intense, spiritually attuned flame, used to light sacred fires.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 0.3,
+    "value": 350,
+    "custom_properties": {
+      "uses_per_day": 3,
+      "flame_purity": "high"
+    },
+    "tags": [
+      "tool",
+      "cinderspawn",
+      "fire",
+      "ritual"
+    ]
+  },
+  {
+    "id": "sample_case_of_goods",
+    "name": "Sample Case of Goods",
+    "description": "A sturdy case containing a curated selection of exotic goods for showcasing to potential buyers.",
+    "item_type": "container",
+    "rarity": "common",
+    "weight": 3.0,
+    "value": 50,
+    "custom_properties": {
+      "max_item_showcase": 10,
+      "security_level": "basic"
+    },
+    "tags": [
+      "container",
+      "trade",
+      "sample_case"
+    ]
+  },
+  {
+    "id": "sealed_letter_of_introduction",
+    "name": "Sealed Letter of Introduction",
+    "description": "A letter addressed to an influential figure, sealed with an unbroken noble crest.",
+    "item_type": "document",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "letter",
+      "quest_item",
+      "introduction"
+    ]
+  },
+  {
+    "id": "sealed_message",
+    "name": "Sealed Message",
+    "description": "A message scroll sealed with an unfamiliar sigil. Its contents are unknown.",
     "item_type": "document",
     "rarity": "common",
     "weight": 0.1,
@@ -2501,79 +2027,414 @@
     "is_quest_item": true,
     "tags": [
       "document",
-      "credentials",
-      "diplomacy",
-      "harmonia",
-      "quest_item"
+      "message",
+      "quest_item",
+      "sealed"
     ]
   },
   {
-    "id": "formal_negotiation_attire",
-    "name": "Formal Negotiation Attire",
-    "description": "Impeccably tailored attire designed to convey authority and respect during high-stakes negotiations.",
-    "item_type": "armor",
+    "id": "sealed_orders",
+    "name": "Sealed Orders",
+    "description": "Official military orders, sealed with the mark of a high-ranking Harmonic Guard officer.",
+    "item_type": "document",
     "rarity": "uncommon",
-    "weight": 2.0,
-    "value": 200,
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "orders",
+      "quest_item",
+      "military"
+    ]
+  },
+  {
+    "id": "seed_vault",
+    "name": "Seed Vault",
+    "description": "A specially prepared container holding a diverse collection of rare and adaptable seeds from the Verdant plane.",
+    "item_type": "container",
+    "rarity": "rare",
+    "weight": 1.0,
+    "value": 500,
+    "custom_properties": {
+      "preservation_field_active": true,
+      "seed_variety_count": 50
+    },
+    "tags": [
+      "container",
+      "seeds",
+      "mycora",
+      "verdant_plane",
+      "preservation"
+    ]
+  },
+  {
+    "id": "simple_clothing",
+    "name": "Simple Clothing",
+    "description": "Basic, practical clothing suitable for everyday wear in Harmonia.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 1.5,
+    "value": 10,
     "is_equippable": true,
     "equip_slots": [
       "chest"
     ],
     "stats": [
       {
-        "name": "persuasion_bonus",
+        "name": "defense",
         "value": 1,
-        "display_name": "Persuasion Bonus"
-      },
-      {
-        "name": "social_standing_perception",
-        "value": 2,
-        "display_name": "Perceived Social Standing"
+        "display_name": "Armor"
       }
     ],
     "durability": 60,
     "tags": [
       "clothing",
       "armor",
-      "formal",
-      "diplomacy",
-      "negotiation"
+      "commoner"
     ]
   },
   {
-    "id": "gift_package_for_ambassadors",
-    "name": "Gift Package for Ambassadors",
-    "description": "A carefully selected assortment of gifts representing Harmonian culture, intended for presentation to foreign dignitaries.",
-    "item_type": "miscellaneous",
-    "rarity": "uncommon",
-    "weight": 2.5,
-    "value": 300,
-    "is_stackable": false,
+    "id": "simple_tool",
+    "name": "Simple Tool",
+    "description": "A basic tool related to your former trade (e.g., a hammer, a lute, a farming hoe).",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 1.0,
+    "value": 8,
     "custom_properties": {
-      "contents_description": "Rare seeds, crystal prism, pure water vial"
+      "tool_type": "generic_trade_tool"
     },
     "tags": [
-      "gift",
-      "diplomacy",
-      "harmonia",
+      "tool",
+      "commoner",
+      "trade_tool"
+    ]
+  },
+  {
+    "id": "small_pouch_of_ancestral_ash",
+    "name": "Small Pouch of Ancestral Ash",
+    "description": "A leather pouch containing a mixture of sacred ashes from revered ancestors of the Ashen Covenant. Used in rituals and for guidance.",
+    "item_type": "miscellaneous",
+    "rarity": "uncommon",
+    "weight": 0.2,
+    "value": 50,
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": false,
+    "is_quest_item": true,
+    "tags": [
+      "ritual_component",
+      "ashen_covenant",
+      "spiritual",
+      "ash"
+    ]
+  },
+  {
+    "id": "small_pouch_of_seeds",
+    "name": "Small Pouch of Seeds",
+    "description": "A collection of various seeds from your homeland, perhaps for trade or study.",
+    "item_type": "miscellaneous",
+    "rarity": "common",
+    "weight": 0.2,
+    "value": 20,
+    "is_stackable": true,
+    "stack_limit": 50,
+    "tags": [
+      "seeds",
+      "nature",
       "trade_good"
     ]
   },
   {
-    "id": "treaty_drafts",
-    "name": "Treaty Drafts",
-    "description": "Drafts of proposed treaties and agreements, with various clauses and options for negotiation.",
-    "item_type": "document",
+    "id": "small_purse_of_coins",
+    "name": "Small Purse of Coins",
+    "description": "A leather purse containing a modest amount of mixed currency.",
+    "item_type": "treasure",
     "rarity": "common",
-    "weight": 0.5,
+    "weight": 0.3,
+    "value": 500,
+    "is_stackable": false,
+    "custom_properties": {
+      "contains_copper": 500
+    },
+    "tags": [
+      "currency",
+      "container",
+      "treasure"
+    ]
+  },
+  {
+    "id": "small_tent",
+    "name": "Small Tent",
+    "description": "A one-person tent, lightweight and easy to set up, providing shelter from the elements.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 2.5,
+    "value": 60,
+    "custom_properties": {
+      "capacity": 1,
+      "shelter_rating": 5
+    },
+    "tags": [
+      "tool",
+      "shelter",
+      "camping",
+      "survival"
+    ]
+  },
+  {
+    "id": "small_trading_goods",
+    "name": "Small Trading Goods",
+    "description": "A small bundle of assorted goods suitable for minor trades, like spices, trinkets, or common tools.",
+    "item_type": "treasure",
+    "rarity": "common",
+    "weight": 1.0,
+    "value": 100,
+    "is_stackable": false,
+    "tags": [
+      "trade_good",
+      "bundle",
+      "miscellaneous"
+    ]
+  },
+  {
+    "id": "specimen_containers",
+    "name": "Specimen Containers",
+    "description": "A set of reinforced, sealable containers for collecting and preserving biological or energetic samples.",
+    "item_type": "container",
+    "rarity": "common",
+    "weight": 1.0,
+    "value": 30,
+    "custom_properties": {
+      "capacity_units": 10,
+      "preservation_level": "medium"
+    },
+    "tags": [
+      "container",
+      "research",
+      "sample_collection"
+    ]
+  },
+  {
+    "id": "spore_collection_kit",
+    "name": "Spore Collection Kit",
+    "description": "Tools for safely collecting, identifying, and preserving various types of fungal spores.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 0.6,
+    "value": 90,
+    "tags": [
+      "tool",
+      "mycora",
+      "research",
+      "spores",
+      "collection"
+    ]
+  },
+  {
+    "id": "standard_issue_weapon",
+    "name": "Standard Issue Guard Sword",
+    "description": "A durable, well-maintained sword, the standard armament for Harmonic Guard soldiers.",
+    "item_type": "weapon",
+    "rarity": "common",
+    "weight": 3.0,
+    "value": 180,
+    "is_equippable": true,
+    "equip_slots": [
+      "main_hand"
+    ],
+    "dice_roll_effects": [
+      {
+        "effect_type": "slashing",
+        "dice_notation": "1d6"
+      }
+    ],
+    "durability": 110,
+    "tags": [
+      "weapon",
+      "sword",
+      "harmonic_guard",
+      "standard_issue"
+    ]
+  },
+  {
+    "id": "stolen_supplies",
+    "name": "Stolen Supplies",
+    "description": "A small sack containing pilfered food, water, and a few useful tools. Clearly not acquired legitimately.",
+    "item_type": "container",
+    "rarity": "common",
+    "weight": 3.0,
+    "value": -50,
+    "custom_properties": {
+      "contents": "food_1day, water_1day, lockpicks_basic"
+    },
+    "tags": [
+      "container",
+      "stolen",
+      "survival"
+    ]
+  },
+  {
+    "id": "storm_compass",
+    "name": "Storm Compass",
+    "description": "A compass that points towards the strongest nearby atmospheric or planar disturbance, rather than magnetic north.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 0.4,
+    "value": 500,
+    "tags": [
+      "tool",
+      "navigation",
+      "tempest_flotilla",
+      "planar"
+    ]
+  },
+  {
+    "id": "storm_tattoo_kit",
+    "name": "Storm Tattoo Kit (Maelstri)",
+    "description": "A Maelstri kit containing inks made from condensed storm essence and needles carved from lightning-struck wood. Used to create tattoos that channel tempestuous energies.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 0.4,
+    "value": 600,
+    "tags": [
+      "tool",
+      "maelstri",
+      "tattoo",
+      "storm_magic",
+      "artisan"
+    ]
+  },
+  {
+    "id": "strange_contract",
+    "name": "Strange Contract",
+    "description": "A rolled parchment tied with an ethereal ribbon. The script within is unsettling and shifts when not directly observed. It details a bargain made with an entity from The Between.",
+    "item_type": "document",
+    "rarity": "rare",
+    "weight": 0.1,
     "value": 0,
     "is_quest_item": true,
     "tags": [
       "document",
-      "treaty",
-      "diplomacy",
-      "negotiation",
-      "quest_item"
+      "contract",
+      "quest_item",
+      "ghost_market",
+      "ethereal"
+    ]
+  },
+  {
+    "id": "sturdy_work_clothes",
+    "name": "Sturdy Work Clothes",
+    "description": "Durable and practical clothes, patched in places but clean. Suited for manual labor or travel.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 2.0,
+    "value": 15,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "defense",
+        "value": 1,
+        "display_name": "Armor"
+      }
+    ],
+    "durability": 70,
+    "tags": [
+      "clothing",
+      "armor",
+      "commoner",
+      "workwear"
+    ]
+  },
+  {
+    "id": "survival_kit",
+    "name": "Survival Kit",
+    "description": "A compact kit containing essentials for survival in the wilderness: tinder, fishing line, a small knife, bandages.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 1.5,
+    "value": 50,
+    "custom_properties": {
+      "contents_summary": "tinder, fishing_line, small_knife, bandages"
+    },
+    "tags": [
+      "tool",
+      "survival",
+      "kit"
+    ]
+  },
+  {
+    "id": "symbiotic_communication_pod",
+    "name": "Symbiotic Communication Pod",
+    "description": "A living fungal pod that allows limited telepathic communication with the Mycora collective consciousness when attuned.",
+    "item_type": "tool",
+    "rarity": "rare",
+    "weight": 0.3,
+    "value": 700,
+    "custom_properties": {
+      "range_km": 10,
+      "attunement_required": "Mycora_or_symbiote"
+    },
+    "tags": [
+      "tool",
+      "mycora",
+      "communication",
+      "telepathy",
+      "symbiotic"
+    ]
+  },
+  {
+    "id": "temporal_compass",
+    "name": "Temporal Compass (Maelstri)",
+    "description": "A Maelstri compass that doesn't point north, but rather towards areas of significant temporal distortion or probability flux.",
+    "item_type": "tool",
+    "rarity": "epic",
+    "weight": 0.5,
+    "value": 1500,
+    "tags": [
+      "tool",
+      "maelstri",
+      "navigation",
+      "temporal",
+      "probability",
+      "planar"
+    ]
+  },
+  {
+    "id": "test_apple",
+    "name": "Test apple",
+    "description": "A test apple.",
+    "item_type": "miscellaneous",
+    "rarity": "common",
+    "weight": 0.1,
+    "value": 1,
+    "is_equippable": false,
+    "is_consumable": true,
+    "is_stackable": true,
+    "stack_limit": 20,
+    "tags": [
+      "miscellaneous",
+      "consumable",
+      "food"
+    ]
+  },
+  {
+    "id": "trading_ledger",
+    "name": "Trading Ledger",
+    "description": "A well-used ledger filled with notes on prices, contacts, and trade routes across various planes.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 0.7,
+    "value": 25,
+    "tags": [
+      "tool",
+      "trade",
+      "ledger",
+      "notes"
     ]
   },
   {
@@ -2597,6 +2458,149 @@
       "language",
       "translation",
       "verdant_collective"
+    ]
+  },
+  {
+    "id": "treaty_drafts",
+    "name": "Treaty Drafts",
+    "description": "Drafts of proposed treaties and agreements, with various clauses and options for negotiation.",
+    "item_type": "document",
+    "rarity": "common",
+    "weight": 0.5,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "treaty",
+      "diplomacy",
+      "negotiation",
+      "quest_item"
+    ]
+  },
+  {
+    "id": "wanted_poster",
+    "name": "Wanted Poster",
+    "description": "A weathered wanted poster bearing a crude likeness of someone... perhaps you?",
+    "item_type": "document",
+    "rarity": "common",
+    "weight": 0.1,
+    "value": 0,
+    "is_quest_item": true,
+    "tags": [
+      "document",
+      "wanted",
+      "quest_item"
+    ]
+  },
+  {
+    "id": "water_flask",
+    "name": "Water Flask",
+    "description": "A sturdy flask filled with fresh water.",
+    "item_type": "consumable",
+    "rarity": "common",
+    "weight": 1.0,
+    "value": 2,
+    "is_consumable": true,
+    "is_stackable": true,
+    "stack_limit": 3,
+    "stats": [
+      {
+        "name": "thirst_quench",
+        "value": 20
+      }
+    ],
+    "custom_properties": {
+      "charges": 3,
+      "refillable": true
+    },
+    "tags": [
+      "drink",
+      "consumable",
+      "survival"
+    ]
+  },
+  {
+    "id": "weather_prediction_dice",
+    "name": "Weather Prediction Dice (Maelstri)",
+    "description": "A set of dice that, when thrown by a Maelstri, offer glimpses into short-term weather patterns and probability currents.",
+    "item_type": "tool",
+    "rarity": "uncommon",
+    "weight": 0.1,
+    "value": 450,
+    "custom_properties": {
+      "prediction_accuracy": "moderate",
+      "range_hours": 6
+    },
+    "tags": [
+      "tool",
+      "maelstri",
+      "divination",
+      "weather",
+      "probability"
+    ]
+  },
+  {
+    "id": "weather-resistant_clothing",
+    "name": "Weather-Resistant Clothing",
+    "description": "Clothing treated to repel water and wind, suitable for unpredictable weather.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 2.2,
+    "value": 45,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest"
+    ],
+    "stats": [
+      {
+        "name": "defense",
+        "value": 1,
+        "display_name": "Armor"
+      },
+      {
+        "name": "elemental_resistance_minor",
+        "value": 3,
+        "display_name": "Minor Elemental Resist",
+        "is_percentage": true
+      }
+    ],
+    "durability": 90,
+    "tags": [
+      "clothing",
+      "armor",
+      "protection",
+      "weather"
+    ]
+  },
+  {
+    "id": "worn_disguise",
+    "name": "Worn Disguise",
+    "description": "A set of commoner's clothes, a hooded cloak, and some makeup, used to alter one's appearance.",
+    "item_type": "armor",
+    "rarity": "common",
+    "weight": 1.5,
+    "value": 20,
+    "is_equippable": true,
+    "equip_slots": [
+      "chest",
+      "head"
+    ],
+    "custom_properties": {
+      "disguise_effectiveness": "moderate"
+    },
+    "stats": [
+      {
+        "name": "stealth_bonus_urban",
+        "value": 2,
+        "display_name": "Urban Stealth"
+      }
+    ],
+    "durability": 40,
+    "tags": [
+      "clothing",
+      "armor",
+      "disguise",
+      "stealth"
     ]
   }
 ]

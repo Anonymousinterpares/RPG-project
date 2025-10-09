@@ -206,19 +206,26 @@
             </div>
         </div>
 
-        <!-- Load Game Modal -->
+    <!-- Load Game Modal -->
         <div class="modal" id="load-game-modal">
-            <div class="modal-content">
+            <div class="modal-content wide">
                 <div class="modal-header">
                     <h2>Load Game</h2>
                     <span class="close-modal">&times;</span>
                 </div>
-                <div class="modal-body">
-                    <div class="saves-list" id="saves-list">
+                <div class="modal-body load-game-body">
+                    <div class="saves-list-container" id="saves-list-container">
                         <div class="loading-saves">Loading saved games...</div>
+                    </div>
+                    <div class="save-details-container" id="save-details-container">
+                        <div class="save-details-content placeholder">
+                            Select a save file to see details.
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button id="delete-btn" class="cancel-btn danger" disabled>Delete Selected</button>
+                    <div style="flex-grow: 1;"></div> <!-- Spacer -->
                     <button id="load-btn" class="primary-btn" disabled>Load Selected</button>
                     <button class="cancel-btn">Cancel</button>
                 </div>

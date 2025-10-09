@@ -78,7 +78,7 @@ class CollapsibleRightPanel(QFrame):
         # Create animation properties
         self._expanded = True
         self._animation = None
-        self._expanded_width = 400
+        self._expanded_width = 480
         self._collapsed_width = 30
         
         # Set up the UI

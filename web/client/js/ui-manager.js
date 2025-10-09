@@ -14,6 +14,9 @@ class UiManager {
         // Stores { key: string, ts: number } for last few seconds
         this._recentMsgKeys = [];
 
+        // PROPERTY to track the selected save objec
+        this.selectedSave = null;
+
         // Game info elements
         this.playerNameElement = document.getElementById('player-name');
         this.playerLevelElement = document.getElementById('player-level');
@@ -262,6 +265,34 @@ class UiManager {
                 }
             }
         });
+
+        // LISTENER for the delete button
+        const deleteButton = document.getElementById('delete-btn');
+        if (deleteButton) {
+            deleteButton.addEventListener('click', async () => {
+                if (!this.selectedSave || !this.selectedSave.save_id) {
+                    this.showNotification('No save file selected.', 'warning');
+                    return;
+                }
+
+                if (!confirm(`Are you sure you want to permanently delete the save file:\n\n'${this.selectedSave.save_name}'?`)) {
+                    return;
+                }
+
+                try {
+                    await apiClient.deleteSave(this.selectedSave.save_id);
+                    this.showNotification('Save file deleted successfully.', 'success');
+                    // Refresh the saves list
+                    if (document.getElementById('load-game-modal').classList.contains('active')) {
+                        loadSavesList();
+                    }
+                } catch (error) {
+                    console.error('Delete save error:', error);
+                    this.showNotification('Failed to delete save file.', 'error');
+                }
+            });
+        }
+
 
         // Initialize close buttons on all modals
         document.querySelectorAll('.close-modal, .cancel-btn').forEach(element => {
@@ -1919,74 +1950,83 @@ addMessage(text, type = 'game', gradual = false) {
      * @param {Array} saves - Array of save objects
      */
     populateSavesList(saves) {
-        this.savesList.innerHTML = '';
+        const savesContainer = document.getElementById('saves-list-container');
+        const detailsContainer = document.getElementById('save-details-container');
+        savesContainer.innerHTML = '';
+        detailsContainer.innerHTML = `<div class="save-details-content placeholder">Select a save file to see details.</div>`;
+
+        this.selectedSave = null;
+        this.loadButton.disabled = true;
+        document.getElementById('delete-btn').disabled = true;
 
         if (!saves || saves.length === 0) {
             const message = document.createElement('div');
             message.className = 'no-saves';
             message.textContent = 'No saved games found.';
-            this.savesList.appendChild(message);
-            this.loadButton.disabled = true;
+            savesContainer.appendChild(message);
             return;
         }
 
-        this.loadButton.disabled = true;
-        let selectedSaveId = null;
-
         saves.forEach(save => {
             const saveItem = document.createElement('div');
-            saveItem.className = 'save-item';
+            saveItem.className = 'save-item-web';
             saveItem.dataset.saveId = save.save_id;
 
-            const header = document.createElement('div');
-            header.className = 'save-item-header';
+            saveItem.innerHTML = `
+                <div class="save-item-header-web">
+                    <div class="save-item-name-web">${save.save_name}</div>
+                    <div class="save-item-time-web">${save.formatted_save_time || new Date(save.save_time * 1000).toLocaleString()}</div>
+                </div>
+                <div class="save-item-details-web">
+                    ${save.player_name} (Level ${save.player_level}) - ${save.location}
+                </div>
+            `;
 
-            const name = document.createElement('div');
-            name.className = 'save-item-name';
-            name.textContent = save.save_name;
-
-            const time = document.createElement('div');
-            time.className = 'save-item-time';
-            time.textContent = save.formatted_save_time || new Date(save.save_time * 1000).toLocaleString();
-
-            header.appendChild(name);
-            header.appendChild(time);
-
-            const details = document.createElement('div');
-            details.className = 'save-item-details';
-            details.textContent = `${save.player_name} (Level ${save.player_level}) - ${save.location}`;
-
-            saveItem.appendChild(header);
-            saveItem.appendChild(details);
-
-            // Add click event to select the save
-            saveItem.addEventListener('click', () => {
-                // Remove selection from all saves
-                document.querySelectorAll('.save-item').forEach(item => {
-                    item.classList.remove('selected');
-                });
-
-                // Select this save
+            // Click event to select and show details
+            saveItem.addEventListener('click', async () => {
+                // Update selection state
+                document.querySelectorAll('.save-item-web').forEach(item => item.classList.remove('selected'));
                 saveItem.classList.add('selected');
-                selectedSaveId = save.save_id;
+                this.selectedSave = save;
                 this.loadButton.disabled = false;
+                document.getElementById('delete-btn').disabled = false;
+
+                // Fetch and display details
+                detailsContainer.innerHTML = `<div class="save-details-content placeholder">Loading details...</div>`;
+                try {
+                    const detailsResult = await apiClient.getSaveDetails(save.save_id);
+                    if (detailsResult.status === 'success') {
+                        detailsContainer.innerHTML = `<div class="save-details-content">${detailsResult.html}</div>`;
+                    } else {
+                        throw new Error(detailsResult.message || 'Failed to load details');
+                    }
+                } catch (error) {
+                    detailsContainer.innerHTML = `<div class="save-details-content placeholder">Error loading details.</div>`;
+                    console.error('Failed to show save details:', error);
+                }
             });
 
-            this.savesList.appendChild(saveItem);
+            // Double-click to load
+            saveItem.addEventListener('dblclick', () => {
+                if (save.save_id) {
+                    const event = new CustomEvent('load-save', { detail: { saveId: save.save_id } });
+                    document.dispatchEvent(event);
+                    this.closeAllModals();
+                }
+            });
+
+            savesContainer.appendChild(saveItem);
         });
 
-        // Set up load button to return the selected save
+        // Set up load button to use the selected save
         this.loadButton.onclick = () => {
-            if (selectedSaveId) {
-                const event = new CustomEvent('load-save', {
-                    detail: { saveId: selectedSaveId }
-                });
+            if (this.selectedSave && this.selectedSave.save_id) {
+                const event = new CustomEvent('load-save', { detail: { saveId: this.selectedSave.save_id } });
                 document.dispatchEvent(event);
                 this.closeAllModals();
             }
         };
     }
-
     /**
      * Apply a theme to the UI
      * @param {string} theme - The theme name
