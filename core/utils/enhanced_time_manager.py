@@ -14,6 +14,7 @@ from enum import Enum
 
 from core.utils.logging_config import get_logger
 from core.utils.time_utils import game_time_to_datetime, GAME_EPOCH
+from core.base.config import get_config
 
 logger = get_logger("TIME_MANAGER")
 
@@ -283,8 +284,20 @@ class EnhancedTimeManager:
         Returns:
             The appropriate TimePeriod enum value
         """
-        dt = game_time_to_datetime(game_time, GAME_EPOCH)
-        hour = dt.hour
+        # Compute an effective 24h hour-of-day based on configured day length
+        try:
+            cfg = get_config()
+            units = cfg.get("calendar.units", {}) or {}
+            day_len = int(units.get("day_length_seconds", 86400))
+            if day_len <= 0:
+                day_len = 86400
+            secs_in_day = game_time % day_len
+            # Map fraction of day to a 24h-style hour for period selection
+            hour = int((secs_in_day / float(day_len)) * 24.0)
+        except Exception:
+            # Fallback to datetime mapping
+            dt = game_time_to_datetime(game_time, GAME_EPOCH)
+            hour = dt.hour
         
         if 0 <= hour < 4:
             return TimePeriod.DEEP_NIGHT

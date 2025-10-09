@@ -143,6 +143,29 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
     else:
         logger.warning("No origin_id found on game_state.player. Cannot add starting items.")
 
+    # If starting time wasn't set by origin, use calendar initial_time_of_day from config
+    try:
+        if getattr(game_state.world, 'game_time', 0.0) in (0, 0.0):
+            from core.base.config import get_config
+            from core.utils.time_utils import HOUR
+            cfg = get_config()
+            init_period = (cfg.get("calendar.initial_time_of_day") or "morning").lower()
+            time_period_hours = {
+                'deep_night': 2, 'pre_dawn': 4.5, 'dawn': 6, 'morning': 9,
+                'noon': 12, 'afternoon': 15, 'evening': 18, 'sunset': 20.5, 'night': 22
+            }
+            target_hour = time_period_hours.get(init_period, 9)
+            game_state.world.game_time = float(target_hour) * HOUR
+            # Recalc calendar now that game_time is set
+            try:
+                from core.base.state.calendar_state import CalendarState
+                game_state.world.calendar.recalc_from_game_time(game_state.world.game_time)
+            except Exception:
+                pass
+            logger.info(f"Initialized starting time from calendar setting: {init_period} ({target_hour}:00)")
+    except Exception as _e_init_time:
+        logger.warning(f"Failed to apply calendar initial_time_of_day: {_e_init_time}")
+
     # --- Activate initial quests from origin ---
     try:
         origin_id = game_state.player.origin_id
@@ -595,24 +618,14 @@ def save_game(engine: 'GameEngine', filename: Optional[str] = None,
 
 def handle_tick(engine: 'GameEngine', elapsed_game_time: float) -> None:
     """
-    Handle a game loop tick, primarily for auto-saving.
+    DEPRECATED (Phase 1): Tick-driven autosave has been migrated to a scheduler
+    independent of GameLoop. This function remains for backward compatibility
+    but should no longer be used as a driver for autosave or time-based logic.
 
     Args:
         engine: The GameEngine instance.
         elapsed_game_time: The elapsed game time in seconds since the last tick.
     """
-    # Increment auto-save timer (assuming _auto_save_timer is still managed by engine)
-    engine._auto_save_timer += elapsed_game_time
-
-    # Auto-save if interval has passed
-    if engine._auto_save_timer >= engine._auto_save_interval:
-        engine._auto_save_timer = 0
-        save_game(engine, auto_save=True) # Call the save_game function in this module
-
-    # Process time-based quest deadlines
-    try:
-        if engine._state_manager and engine._state_manager.current_state:
-            from core.game_flow.quest_updates import process_time_for_quests
-            process_time_for_quests(engine, engine._state_manager.current_state)
-    except Exception as e:
-        logger.warning(f"Tick quest deadline processing failed: {e}")
+    logger.debug("handle_tick called but deprecated in Phase 1; no autosave triggered here.")
+    # If any future non-time-driving periodic tasks are needed, they can be handled elsewhere.
+    return

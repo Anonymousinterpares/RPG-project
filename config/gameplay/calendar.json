@@ -1,0 +1,19 @@
+{
+  "names": {
+    "era": "Era",
+    "cycle": "Cycle",
+    "phase": "Phase",
+    "tide": "Tide",
+    "span": "Span",
+    "day": "Day"
+  },
+  "units": {
+    "day_length_seconds": 86400,
+    "span_length_days": 5,
+    "tide_length_spans": 3,
+    "phase_length_tides": 4,
+    "cycle_length_phases": 6,
+    "era_length_cycles": 8
+  },
+  "initial_time_of_day": "morning" 
+}

@@ -49,6 +49,11 @@ class GameConfig:
         "quests": os.path.join("world", "scenarios", "quests.json"),
         "locations": os.path.join("world", "locations", "locations.json"),
         "aliases": os.path.join("world", "aliases.json"),
+        # Character stats and canonical registries
+        "stat_registry": os.path.join("character", "stat_registry.json"),
+        "canonical_lists": os.path.join("gameplay", "canonical_lists.json"),
+        # Canonical calendar configuration (era/cycle/phase/tide/span/day)
+        "calendar": os.path.join("gameplay", "calendar.json"),
         # New NPC configuration domains (families system)
         "npc_families": os.path.join("npc", "families.json"),
         "npc_families_factions": os.path.join("npc", "families_factions.json"),

@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Any
 
 from core.utils.logging_config import get_logger
 from core.utils.enhanced_time_manager import get_enhanced_time_manager
+from core.base.state.calendar_state import CalendarState
+from core.base.config import get_config
 
 # Get the module logger
 logger = get_logger("WORLD")
@@ -27,6 +29,9 @@ class WorldState:
     # advance explicitly via engine logic (LLM time_passage, etc.).
     game_time: float = 0.0  # Seconds since epoch (logical counter)
     game_date: str = "Day 1"  # In-game calendar date
+    
+    # Canonical calendar (era/cycle/phase/tide/span/day)
+    calendar: CalendarState = field(default_factory=CalendarState)
     
     # World conditions
     weather: str = "Clear"
@@ -66,9 +71,41 @@ class WorldState:
         """
         self.game_time += seconds
         
+        # Recalculate canonical calendar from game time
+        try:
+            self.calendar.recalc_from_game_time(self.game_time)
+            # Update game_date string for backward compatibility / display
+            names = get_config().get("calendar.names", {}) or {}
+            self.game_date = (
+                f"{names.get('era','Era')} {self.calendar.era}, "
+                f"{names.get('cycle','Cycle')} {self.calendar.cycle}, "
+                f"{names.get('phase','Phase')} {self.calendar.phase}, "
+                f"{names.get('tide','Tide')} {self.calendar.tide}, "
+                f"{names.get('span','Span')} {self.calendar.span}, "
+                f"{names.get('day','Day')} {self.calendar.day}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to recalc calendar on advance_time: {e}")
+        
         # Update day/night cycle using enhanced time manager
         time_manager = get_enhanced_time_manager()
         self.is_day = time_manager.is_daylight_period(self.game_time)
+    
+    def __post_init__(self):
+        """Initialize or recalc calendar and date from current game_time at creation."""
+        try:
+            self.calendar.recalc_from_game_time(self.game_time)
+            names = get_config().get("calendar.names", {}) or {}
+            self.game_date = (
+                f"{names.get('era','Era')} {self.calendar.era}, "
+                f"{names.get('cycle','Cycle')} {self.calendar.cycle}, "
+                f"{names.get('phase','Phase')} {self.calendar.phase}, "
+                f"{names.get('tide','Tide')} {self.calendar.tide}, "
+                f"{names.get('span','Span')} {self.calendar.span}, "
+                f"{names.get('day','Day')} {self.calendar.day}"
+            )
+        except Exception as e:
+            logger.debug(f"WorldState __post_init__ calendar setup skipped: {e}")
     
     @property
     def time_of_day(self) -> str:
@@ -178,6 +215,7 @@ class WorldState:
         return {
             "game_time": self.game_time,
             "game_date": self.game_date,
+            "calendar": self.calendar.to_dict(),
             "weather": self.weather,
             "is_day": self.is_day,
             "magical_conditions": self.magical_conditions,
@@ -187,9 +225,33 @@ class WorldState:
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'WorldState':
-        """Create a WorldState from a dictionary."""
-        return cls(
-            game_time=data.get("game_time", 0.0),
+        """Create a WorldState from a dictionary with legacy fallbacks."""
+        # Legacy fallback: if game_time is missing but time_of_day provided, map to an approximate hour
+        game_time_val = data.get("game_time")
+        if game_time_val is None and isinstance(data.get("time_of_day"), str):
+            try:
+                from core.utils.time_utils import HOUR
+                time_period_hours = {
+                    'deep_night': 2, 'pre_dawn': 4.5, 'dawn': 6, 'morning': 9,
+                    'noon': 12, 'afternoon': 15, 'evening': 18, 'sunset': 20.5, 'night': 22
+                }
+                period = str(data.get("time_of_day")).strip().lower()
+                # Normalize some common human words
+                aliases = {
+                    'midday': 'noon', 'dusk': 'sunset', 'twilight': 'sunset', 'daybreak': 'dawn', 'sunrise': 'dawn'
+                }
+                if period in aliases:
+                    period = aliases[period]
+                hour = time_period_hours.get(period, 9)
+                game_time_val = hour * HOUR
+            except Exception:
+                game_time_val = 0.0
+        if game_time_val is None:
+            game_time_val = 0.0
+        
+        # Construct instance
+        instance = cls(
+            game_time=game_time_val,
             game_date=data.get("game_date", "Day 1"),
             weather=data.get("weather", "Clear"),
             is_day=data.get("is_day", True),
@@ -197,3 +259,24 @@ class WorldState:
             global_vars=data.get("global_vars", {}),
             active_events=data.get("active_events", []),
         )
+        
+        # Load or compute calendar state
+        try:
+            if isinstance(data.get("calendar"), dict):
+                instance.calendar = CalendarState.from_dict(data.get("calendar"))
+            else:
+                instance.calendar.recalc_from_game_time(instance.game_time)
+            # Update game_date string to reflect canonical calendar
+            names = get_config().get("calendar.names", {}) or {}
+            instance.game_date = (
+                f"{names.get('era','Era')} {instance.calendar.era}, "
+                f"{names.get('cycle','Cycle')} {instance.calendar.cycle}, "
+                f"{names.get('phase','Phase')} {instance.calendar.phase}, "
+                f"{names.get('tide','Tide')} {instance.calendar.tide}, "
+                f"{names.get('span','Span')} {instance.calendar.span}, "
+                f"{names.get('day','Day')} {instance.calendar.day}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to initialize calendar from saved data: {e}")
+        
+        return instance
