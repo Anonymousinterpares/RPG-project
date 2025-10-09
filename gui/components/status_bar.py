@@ -60,13 +60,12 @@ class GameStatusBar(QStatusBar):
         self.addPermanentWidget(self.time_label)
         self.addPermanentWidget(self.mode_label)
     
-    def update_status(self, location: str = "", game_time: str = "", speed: str = "", mode: str = ""):
+    def update_status(self, location: str = "", game_time: str = "", mode: str = ""):
         """Update the status bar with the provided information.
         
         Args:
             location: The current location name.
             game_time: The current game time.
-            speed: The current game speed.
             mode: The current game mode (Normal, Combat, Barter).
         """
         if location:
@@ -84,15 +83,3 @@ class GameStatusBar(QStatusBar):
                 # If invalid mode name, default to Normal
                 self.current_mode = GameMode.NORMAL
                 self.mode_label.setText(f"Mode: {self.current_mode.value}")
-        
-        # If no mode specified but speed is, derive from speed
-        elif speed:
-            if speed.lower() == "combat":
-                self.current_mode = GameMode.COMBAT
-            elif speed.lower() == "pause":
-                # Paused but maintain the current mode type
-                pass
-            else:
-                self.current_mode = GameMode.NORMAL
-                
-            self.mode_label.setText(f"Mode: {self.current_mode.value}")

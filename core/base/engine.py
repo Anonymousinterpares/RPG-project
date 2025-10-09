@@ -106,16 +106,14 @@ class GameEngine(QObject):
 
         self._game_loop.add_tick_callback(self._handle_tick_callback)
         
-        self._auto_save_interval = self._config.get("game.auto_save_interval", 300)  
-        
-        # Phase 1: migrate autosave to a real-time scheduler (independent of GameLoop ticks)
+        # Phase 1 autosave refactor: turn-based autosave settings
+        self._autosave_turns: int = 0  # 0 = off
+        self._turns_since_autosave: int = 0
         try:
-            self._autosave_timer_qt = None
-            self._autosave_thread = None
-            self._autosave_thread_running = False
-            self._start_autosave_scheduler()
+            self.reload_autosave_settings()
+            logger.info(f"Autosave configured: every {self._autosave_turns} turns (0=off)")
         except Exception as e:
-            logger.warning(f"Failed to start autosave scheduler: {e}")
+            logger.warning(f"Failed to load autosave settings: {e}")
 
         # Apply QSettings gameplay values (difficulty, encounter_size) into config if present
         try:
@@ -326,35 +324,37 @@ class GameEngine(QObject):
         return lifecycle.save_game(self, filename, auto_save)
 
     
-    def _start_autosave_scheduler(self) -> None:
-        """Start a real-time autosave scheduler independent of GameLoop tick."""
+    def reload_autosave_settings(self) -> None:
+        """Reload autosave settings from QSettings. Uses turn-based interval.
+        gameplay/autosave_interval: integer number of narrative turns between auto-saves. 0 means Off.
+        """
         try:
-            from PySide6.QtCore import QTimer
-            # If Qt available, prefer QTimer on the engine QObject
-            self._autosave_timer_qt = QTimer(self)
-            self._autosave_timer_qt.setInterval(int(self._auto_save_interval) * 1000)
-            self._autosave_timer_qt.timeout.connect(lambda: lifecycle.save_game(self, auto_save=True))
-            self._autosave_timer_qt.start()
-            logger.info(f"Autosave scheduler started with Qt timer every {self._auto_save_interval}s")
-            return
-        except Exception:
-            # Fallback to thread-based scheduler
-            pass
-        
-        import threading, time as _time
-        def _autosave_loop():
-            logger.info(f"Autosave scheduler thread started. Interval={self._auto_save_interval}s")
-            while self._autosave_thread_running:
-                try:
-                    _time.sleep(float(self._auto_save_interval))
-                    lifecycle.save_game(self, auto_save=True)
-                except Exception as _e:
-                    logger.warning(f"Autosave thread iteration failed: {_e}")
-            logger.info("Autosave scheduler thread exiting")
-        
-        self._autosave_thread_running = True
-        self._autosave_thread = threading.Thread(target=_autosave_loop, name="AutosaveScheduler", daemon=True)
-        self._autosave_thread.start()
+            from PySide6.QtCore import QSettings
+            s = QSettings("RPGGame", "Settings")
+            turns = s.value("gameplay/autosave_interval", 0, int)
+            if turns is None:
+                turns = 0
+            self._autosave_turns = max(0, int(turns))
+            # Reset counter when changing policy to avoid immediate autosave on change
+            self._turns_since_autosave = 0
+            logger.info(f"Reloaded autosave setting: {self._autosave_turns} turns (0=off)")
+        except Exception as e:
+            logger.warning(f"Could not reload autosave settings: {e}")
+    
+    def _maybe_autosave_after_narrative(self) -> None:
+        """Increment narrative turn counter and autosave if threshold reached."""
+        try:
+            if self._autosave_turns and self._autosave_turns > 0:
+                self._turns_since_autosave += 1
+                if self._turns_since_autosave >= self._autosave_turns:
+                    self._turns_since_autosave = 0
+                    try:
+                        lifecycle.save_game(self, auto_save=True)
+                        logger.info("Auto-saved game after reaching narrative turn threshold.")
+                    except Exception as e:
+                        logger.warning(f"Autosave failed: {e}")
+        except Exception as e:
+            logger.warning(f"Autosave counter error: {e}")
     
     def process_command(self, command_text: str) -> CommandResult:
         """
@@ -666,6 +666,22 @@ class GameEngine(QObject):
             logger.error(f"RuntimeError emitting output_generated signal: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Error emitting output_generated signal: {e}", exc_info=True)
+        
+        # After emitting, handle turn-based autosave on narrative outputs (NARRATIVE mode only)
+        try:
+            state = self._state_manager.current_state
+            if role == "gm" and state is not None:
+                try:
+                    from core.interaction.enums import InteractionMode as _IM
+                    if getattr(state, 'current_mode', None) == _IM.NARRATIVE:
+                        self._maybe_autosave_after_narrative()
+                except Exception:
+                    # Fallback: if enum import fails, attempt name check
+                    mode = getattr(getattr(state, 'current_mode', None), 'name', '')
+                    if mode == 'NARRATIVE':
+                        self._maybe_autosave_after_narrative()
+        except Exception as e:
+            logger.debug(f"Turn-based autosave check skipped due to error: {e}")
 
     def _handle_tick_callback(self, elapsed_game_time: float) -> None:
         """Callback for game loop tick, delegates to lifecycle module."""
@@ -698,25 +714,11 @@ class GameEngine(QObject):
         logger.info("Stopping game engine")
         self._running = False
         self._game_loop.pause()
-        # Stop autosave scheduler
+        # No autosave scheduler to stop (turn-based autosave only)
         try:
-            if self._autosave_timer_qt is not None:
-                try:
-                    self._autosave_timer_qt.stop()
-                except Exception:
-                    pass
-                self._autosave_timer_qt = None
-            if self._autosave_thread_running:
-                self._autosave_thread_running = False
-                if self._autosave_thread is not None and self._autosave_thread.is_alive():
-                    try:
-                        self._autosave_thread.join(timeout=1.0)
-                    except Exception:
-                        pass
-                self._autosave_thread = None
-            logger.info("Autosave scheduler stopped")
-        except Exception as e:
-            logger.warning(f"Error stopping autosave scheduler: {e}")
+            self._turns_since_autosave = 0
+        except Exception:
+            pass
 
     def set_game_speed(self, speed: GameSpeed) -> None:
         """

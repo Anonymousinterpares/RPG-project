@@ -704,7 +704,7 @@ class MainWindow(QMainWindow):
             state = self.game_engine.state_manager.current_state
             if not state:
                 logger.debug("MainWindow._update_ui: No game state to update UI from.")
-                self.status_bar.update_status(location="Not in game", game_time="", speed="", mode="N/A")
+                self.status_bar.update_status(location="Not in game", game_time="", mode="N/A")
                 if hasattr(self.right_panel, 'character_sheet') and self.right_panel.character_sheet: 
                     self.right_panel.character_sheet._clear_stat_displays() 
                 
@@ -850,7 +850,6 @@ class MainWindow(QMainWindow):
             self.status_bar.update_status(
                 location=getattr(state.player, 'current_location', 'Unknown') if state.player else 'N/A',
                 game_time=getattr(state.world, 'time_of_day', ''),
-                speed=self.game_engine.game_loop.speed.name,
                 mode=current_mode_name 
             )
 
@@ -1111,6 +1110,13 @@ class MainWindow(QMainWindow):
             # Update UI based on new settings (e.g., status bar, panels)
             # self._update_ui() # Update UI can be complex, might re-trigger things, maybe call specific updates?
             # Let's rely on the window state change and styling update for now.
+
+            # Reload autosave settings (turn-based) in the engine
+            try:
+                if hasattr(self.game_engine, 'reload_autosave_settings'):
+                    self.game_engine.reload_autosave_settings()
+            except Exception as e:
+                logger.warning(f"Failed to reload autosave settings after saving: {e}")
 
             # Show confirmation
             self.game_output.append_system_message("Settings saved successfully.")

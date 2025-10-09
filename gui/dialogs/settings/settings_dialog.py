@@ -281,12 +281,17 @@ class SettingsDialog(BaseDialog):
         self.encounter_combo.addItem("Mixed")
         form_layout.addRow("Encounter Size:", self.encounter_combo)
 
-        # Create auto-save interval setting
-        self.autosave_spin = QSpinBox()
-        self.autosave_spin.setRange(0, 60)
-        self.autosave_spin.setSuffix(" minutes")
-        self.autosave_spin.setSpecialValueText("Off")
-        form_layout.addRow("Auto-save Interval:", self.autosave_spin)
+        # Create auto-save interval setting (turn-based)
+        self.autosave_combo = QComboBox()
+        # Off = 0 turns; provide common presets
+        self.autosave_combo.addItem("Off", 0)
+        self.autosave_combo.addItem("Every 1 turn", 1)
+        self.autosave_combo.addItem("Every 3 turns", 3)
+        self.autosave_combo.addItem("Every 5 turns", 5)
+        self.autosave_combo.addItem("Every 10 turns", 10)
+        self.autosave_combo.addItem("Every 20 turns", 20)
+        self.autosave_combo.addItem("Every 50 turns", 50)
+        form_layout.addRow("Auto-save:", self.autosave_combo)
 
         # Create tutorial checkbox
         self.tutorial_check = QCheckBox("Show Tutorial Tips")
@@ -397,7 +402,15 @@ class SettingsDialog(BaseDialog):
                     self.encounter_combo.setCurrentIndex(i)
                     break
 
-        self.autosave_spin.setValue(int(self.settings.value("gameplay/autosave_interval", 0)))
+        # Load autosave (turns). Backward-compat: if value was minutes, treat as off
+        autosave_turns = int(self.settings.value("gameplay/autosave_interval", 0))
+        # Find matching index; default to Off if not found
+        found_idx = -1
+        for i in range(self.autosave_combo.count()):
+            if int(self.autosave_combo.itemData(i)) == autosave_turns:
+                found_idx = i
+                break
+        self.autosave_combo.setCurrentIndex(found_idx if found_idx >= 0 else 0)
         tutorial_enabled = self.settings.value("gameplay/tutorial_enabled", True)
         if isinstance(tutorial_enabled, str): tutorial_enabled = tutorial_enabled.lower() == "true"
         self.tutorial_check.setChecked(tutorial_enabled)
@@ -474,7 +487,8 @@ class SettingsDialog(BaseDialog):
         # Save gameplay settings
         self.settings.setValue("gameplay/difficulty", self.difficulty_combo.currentText())
         self.settings.setValue("gameplay/encounter_size", self.encounter_combo.currentText())
-        self.settings.setValue("gameplay/autosave_interval", self.autosave_spin.value())
+        # Save autosave turns (0=Off)
+        self.settings.setValue("gameplay/autosave_interval", int(self.autosave_combo.currentData()))
         self.settings.setValue("gameplay/tutorial_enabled", self.tutorial_check.isChecked())
 
         # Reflect gameplay settings into in-memory GameConfig for immediate effect
