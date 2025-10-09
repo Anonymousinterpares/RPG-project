@@ -309,7 +309,8 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
                     seconds = 1 * MINUTE
                 if getattr(game_state, 'world', None):
                     logger.info(f"[TIME_CAPTURE] computed_seconds={seconds}")
-                    game_state.world.advance_time(seconds)
+                    from core.time.time_controller import get_time_controller
+                    get_time_controller().apply_llm_increment(game_state.world, seconds)
             except Exception as e_time:
                 logger.warning(f"Welcome time passage handling failed: {e_time}")
         except Exception as e:
@@ -586,7 +587,8 @@ def _generate_reintroductory_narrative_content(engine: 'GameEngine', game_state:
                         seconds = 1 * MINUTE
                     if getattr(game_state, 'world', None):
                         logger.info(f"[TIME_CAPTURE] computed_seconds={seconds}")
-                        game_state.world.advance_time(seconds)
+                        from core.time.time_controller import get_time_controller
+                        get_time_controller().apply_llm_increment(game_state.world, seconds)
                 except Exception as e_time:
                     logger.warning(f"Reintro time passage handling failed: {e_time}")
                 return narrative

@@ -210,6 +210,13 @@ class GameConfig:
                 "default_save_slot": "auto",
                 "auto_save_interval": 300,  # seconds
                 "max_save_slots": 10,
+                "debug": {
+                    "time_audit_log_enabled": True
+                },
+                "time": {
+                    "tick_enabled": False,
+                    "post_combat_increment_seconds": 300
+                }
             },
             "system": {
                 "log_level": "INFO",

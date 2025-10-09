@@ -413,9 +413,9 @@ class GameEngine(QObject):
                 game_state.set_interaction_mode(InteractionMode.NARRATIVE)
                 # Advance a default 5 minutes to capture combat duration immersively
                 try:
-                    from core.utils.time_utils import MINUTE
                     if getattr(game_state, 'world', None):
-                        game_state.world.advance_time(5 * MINUTE)
+                        from core.time.time_controller import get_time_controller
+                        get_time_controller().apply_post_combat_increment(game_state.world)
                 except Exception:
                     pass
                 final_combat_outcome = combat_manager.state.name if combat_manager.state else "Unknown"
@@ -531,9 +531,9 @@ class GameEngine(QObject):
             game_state.set_interaction_mode(InteractionMode.NARRATIVE)
             # Advance a default 5 minutes to capture combat duration immersively
             try:
-                from core.utils.time_utils import MINUTE
                 if getattr(game_state, 'world', None):
-                    game_state.world.advance_time(5 * MINUTE)
+                    from core.time.time_controller import get_time_controller
+                    get_time_controller().apply_post_combat_increment(game_state.world)
             except Exception:
                 pass
             final_combat_outcome = combat_manager.state.name if getattr(combat_manager, 'state', None) else "Unknown"
@@ -703,10 +703,12 @@ class GameEngine(QObject):
                 if mode_name == 'NARRATIVE':
                     from core.base.config import get_config as _get_cfg
                     cfg = _get_cfg()
+                    # Default ON via game domain if not explicitly set
+                    val_debug = cfg.get('debug.time_audit_log_enabled', None)
+                    val_system = cfg.get('system.debug.time_audit_log_enabled', None)
+                    val_game = cfg.get('game.debug.time_audit_log_enabled', None)
                     enabled = bool(
-                        cfg.get('debug.time_audit_log_enabled', False) or
-                        cfg.get('system.debug.time_audit_log_enabled', False) or
-                        cfg.get('game.debug.time_audit_log_enabled', False)
+                        (val_debug is True) or (val_system is True) or (val_game if val_game is not None else True)
                     )
                     if enabled:
                         w = getattr(state, 'world', None)
