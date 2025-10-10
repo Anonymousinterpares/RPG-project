@@ -108,7 +108,7 @@ class NarratorAgent(BaseAgent):
         "requests": [
             {{
             "action": "request_skill_check",
-            "actor_id": "{player_id}",
+            "actor_id": "{{player_id}}",
             "skill_name": "LOCKPICKING",
             "stat_name": "DEXTERITY",
             "target_actor_id": null,
@@ -118,7 +118,7 @@ class NarratorAgent(BaseAgent):
             }},
             {{
             "action": "request_state_change",
-            "target_entity": "{player_id}",
+            "target_entity": "{{player_id}}",
             "attribute": "stamina",
             "change_type": "add",
             "value": 5,
@@ -148,7 +148,7 @@ class NarratorAgent(BaseAgent):
             }},
             {{
             "action": "request_state_change",
-            "target_entity": "{player_id}",
+            "target_entity": "{{player_id}}",
             "attribute": "inventory",
             "change_type": "add",
             "item_template": "test_apple",
@@ -190,12 +190,28 @@ class NarratorAgent(BaseAgent):
         - **Inventory Changes (CRITICAL):** When the player gives, offers, drops, leaves behind, discards, sacrifices, or consumes an item, include a `request_state_change` with `attribute: "inventory"`.
           • Prefer `template_id` if known; otherwise use `item_id` (when present) or `item_name`.
           • Use `change_type: "remove"` for removals; include `quantity`.
-          • Example: {{"action":"request_state_change","target_entity":"{player_id}","attribute":"inventory","change_type":"remove","template_id":"ritual_dagger","quantity":1,"context":"Player offers the dagger to the Elder as part of the ritual."}}
+          • Example: {{"action":"request_state_change","target_entity":"{{player_id}}","attribute":"inventory","change_type":"remove","template_id":"ritual_dagger","quantity":1,"context":"Player offers the dagger to the Elder as part of the ritual."}}
         - **Stamina Regeneration (NARRATIVE Mode):** If the 'System Note' indicates player stamina is not full, evaluate if context (time passed, player actions) warrants regeneration. If yes, include a `request_state_change` for 'stamina' with a positive 'value' and narrate briefly (e.g., "You feel somewhat refreshed."). If not appropriate, omit this request.
         - **Mode Transitions:** If player input clearly initiates combat ("attack", "fight"), trade ("trade", "buy", "sell"), or social conflict ("confront", "intimidate"), YOU MUST include a `request_mode_transition` in the `requests` list.
-        - **Spawn Hints for COMBAT (Optional):** When requesting COMBAT, include a compact spawn specification only if needed:
+- **Spawn Hints for COMBAT (Optional):** When requesting COMBAT, include a compact spawn specification only if needed:
           * Prefer setting `enemy_template` to a known family/variant id (e.g., `beast_easy_base`, `verdant_alpha`).
-          * If you do not know a valid id, include `spawn_hints` with `actor_type`, `threat_tier`, and optional `species_tags`, `role_hint`, `is_boss`, `overlay`.
+          * If you do not know a valid id, include `spawn_hints` with:
+            - `actor_type`, `threat_tier`, optional `species_tags`, `role_hint`, `is_boss`, `overlay`
+            - `name` (the display name to use, e.g., "Wolf", "White Wolf", "Ogre")
+            - `classification`: `{{ "variant_id": string | null, "family_id": string | null }}` (at least one when known)
+          * For multiple different enemies, prefer an `enemies` array instead of a single `enemy_template`/`spawn_hints`:
+            ```json
+            {{
+              "action": "request_mode_transition",
+              "target_mode": "COMBAT",
+              "origin_mode": "NARRATIVE",
+              "reason": "Player attacks nearby threats.",
+              "enemies": [
+                {{ "name": "Wolf", "count": 1, "level": 1, "spawn_hints": {{ "actor_type": "beast", "threat_tier": "easy", "classification": {{ "family_id": "beast_easy_base" }}, "species_tags": ["wolf"] }} }},
+                {{ "name": "Ogre", "count": 1, "level": 2, "spawn_hints": {{ "actor_type": "beast", "threat_tier": "normal", "classification": {{ "family_id": "beast_normal_base" }} }} }}
+              ]
+            }}
+            ```
           * Also include `additional_context.original_intent` containing the exact natural language phrase that triggered combat.
           * Keep this section minimal and structured; do not dump lists or catalogs.
         - **Skill Checks:** Identify verbs implying effort/uncertainty ("try", "attempt", "search", "sneak", "persuade"). Infer the skill (e.g., `LOCKPICKING`, `PERCEPTION`, `STEALTH`, `PERSUASION`). Use `skill_name` from the available skill list.
