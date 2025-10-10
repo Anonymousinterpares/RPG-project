@@ -93,6 +93,12 @@ Phase 3 — Engine Integration of Spells
   - [ ] Spell name resolution and typos:
     - [x] Fuzzy-match the input against the player's known spell IDs and names (case-insensitive). Resolve to the closest known spell when unambiguous; only reject if no reasonable match exists.
     - [x] In Developer Mode, allow relaxed gating (e.g., bypass or more permissive mapping) for rapid testing; otherwise enforce strictly.
+  - [ ] Target selection rules (combat):
+    - [ ] Offensive spells (damage/debuff): target enemies. If exactly one enemy is alive, auto-target that enemy. If multiple enemies and target unspecified (text path), fallback to a RANDOM alive enemy. Grimoire UI will present an enemy dropdown filtered to alive enemies.
+    - [ ] Defensive / recovery (heal, buff, shield, cleanse, status_remove): target self or ally. In 1:1 battles, default to self. In battles with allies, require explicit selection (self or ally); fallback to self if unspecified.
+    - [ ] Non-combat-only spells (utility like lockpicking/teleportation): disabled in combat; routed to Narrative mode only.
+  - [ ] Design decision: execute_cast_spell remains pure (no DisplayEvents). Real gameplay in combat uses SpellAction + handler for orchestration; dev commands use execute_cast_spell for testing.
+  - [ ] Future: introduce CostCalculator to compute final mana cost/casting time from base spell data plus active modifiers (items/statuses/passives).
   - [ ] Only after Stage 0 and Stage 2 pass, enqueue the NARRATIVE_ATTEMPT and create the CombatAction; proceed to RESOLVING_ACTION_MECHANICS.
 - [ ] Ensure LLM time_passage is excluded during combat (already the case); keep advancing time only outside combat
 
@@ -117,7 +123,8 @@ Phase 5 — GUI (PySide6) Magic UI per MAGIC_SYSTEM_UI_design_doc.md
 - [ ] Cast button
   - [ ] Enabled only in COMBAT mode (disabled in NARRATIVE)
   - [ ] On click: present target menu based on selector and current combatants
-  - [ ] Dispatch to engine.execute_cast_spell(spell_id, target_id)
+  - [ ] Targeting rules in UI: offensive → enemy list (auto-select if only one); defensive/recovery → self or ally list (default self in 1:1); non-combat-only spells are disabled in combat
+  - [ ] Dispatch to engine via CombatManager by creating a SpellAction (do not call execute_cast_spell directly from UI)
   - [ ] Do not call UI from core. Observe orchestrated DisplayEvents
 - [ ] Resource bars and status areas
   - [ ] Ensure modifier/status effects applied by spells render correctly via signals
@@ -140,6 +147,12 @@ Phase 7 — LLM Integration (Narrator + CombatNarrator)
 - [ ] In Narrative mode: LLM may mention spells, but execution remains deterministic
   - [ ] For “cast” intents outside combat, Narrator proposes state changes and narrative only; engine may deny/confirm based on context
   - [ ] Enforce that time_passage remains a narrative-only construct; world.advance_time excluded in COMBAT
+- [ ] Narrative-mode magic usage (non-combat):
+  - [ ] LLM-driven creation of NPC entities on-the-fly (when user interacts with a newly described NPC): assign id, basic stats, and items; persist so they become part of the world state.
+  - [ ] Gating: verify player knows the spell and has resources; resolve utility/healing-type spells via effects engine deterministically.
+  - [ ] Offensive spells in Narrative mode trigger COMBAT immediately with a surprise opening (magic) attack; ensure the surprise logic is implemented (future subtask) and CombatManager is initialized correctly.
+  - [ ] Apply effects to NPC stats even though NPC stats are hidden in UI outside combat; update player’s visible stats in non-combat when applicable (e.g., self-heals, mana costs).
+  - [ ] Track out-of-combat durations via the time controller (minutes). On world time advance, purge/expire effects appropriately.
 - [ ] In Combat mode: ensure CombatNarrator does not advance time
   - [ ] Optional: Support structured request to “cast_spell” resolving to engine.execute_cast_spell (safe routing)
 - [ ] Tighten rule checker policies if needed (e.g., restrict spell names to known catalog; prohibit time manipulation in combat)
@@ -149,6 +162,7 @@ Phase 8 — Persistence, Save/Load, and Edge Cases
 - [ ] Persist any active status effects and modifier groups (already supported)
 - [ ] Persist out-of-combat effect expirations by absolute game_time (expires_at)
 - [ ] On load: re-hydrate and purge any expired effects immediately
+- [ ] Non-combat UI: update player stats immediately in the GUI when spells affect the player outside combat; NPC stats remain hidden.
 - [ ] Guardrails: never crash on missing or renamed spells; provide fallback messages
 
 
