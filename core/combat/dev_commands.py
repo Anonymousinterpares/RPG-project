@@ -274,15 +274,123 @@ def dev_known_spells(game_state: GameState, args: List[str]) -> CommandResult:
 
 
 def dev_cast_spell(game_state: GameState, args: List[str]) -> CommandResult:
-    """Execute a spell by id (optional target id)."""
+    """Execute a spell by id or name (optional target id). In combat, route via CombatManager with proper orchestration."""
     if not args:
-        return CommandResult.invalid("Usage: //cast <spell_id> [target_id]")
-    spell_id = args[0]
-    target_id = args[1] if len(args) > 1 else None
+        return CommandResult.invalid("Usage: //cast <spell_id_or_name> [target_id]")
+
+    raw_query = str(args[0]).strip()
+    explicit_target_id = str(args[1]).strip() if len(args) > 1 and args[1] else None
+
     try:
         from core.base.engine import get_game_engine
         engine = get_game_engine()
-        return engine.execute_cast_spell(spell_id, target_id)
+
+        # If not in combat, use pure engine path for quick testing (no orchestrated events)
+        if game_state.current_mode != InteractionMode.COMBAT or not getattr(game_state, 'combat_manager', None):
+            try:
+                # Resolve fuzzy id first to avoid confusion out of combat
+                from core.magic.spell_catalog import get_spell_catalog
+                cat = get_spell_catalog()
+                player_known = getattr(game_state.player, 'known_spells', []) or []
+                # Allow broad scope for dev casts out of combat
+                resolved_id = cat.resolve_spell_id(raw_query, scope_ids=player_known, allow_broad_scope=True) or raw_query
+                result = engine.execute_cast_spell(resolved_id, explicit_target_id)
+                # Emit feedback in narrative log if available
+                _emit_dev_feedback(result.message if hasattr(result, 'message') else str(result), is_combat=False)
+                return result
+            except Exception as inner_e:
+                logger.error(f"Out-of-combat dev cast failed: {inner_e}", exc_info=True)
+                return CommandResult.error(f"Failed to cast: {inner_e}")
+
+        # In COMBAT: build a proper CombatAction (SpellAction) and let orchestrator handle
+        cm = game_state.combat_manager
+        if not cm:
+            return CommandResult.error("Combat manager not available.")
+
+        # Resolve canonical spell id from query against player's known spells, fallback to full catalog in Dev Mode
+        try:
+            from PySide6.QtCore import QSettings
+            dev_enabled = bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool))
+        except Exception:
+            dev_enabled = False
+
+        from core.magic.spell_catalog import get_spell_catalog
+        cat = get_spell_catalog()
+        player_known = getattr(game_state.player, 'known_spells', []) or []
+        resolved_sid = cat.resolve_spell_id(raw_query, scope_ids=player_known, allow_broad_scope=dev_enabled)
+        if not resolved_sid:
+            # Last resort: scan free-text query
+            resolved_sid = cat.resolve_spell_from_text(raw_query, scope_ids=player_known, allow_broad_scope=dev_enabled)
+        if not resolved_sid:
+            msg = f"Cannot resolve spell from '{raw_query}'."
+            _emit_dev_feedback(msg, is_combat=True)
+            return CommandResult.failure(msg)
+
+        sp = cat.get_spell_by_id(resolved_sid)
+        if not sp:
+            msg = f"Unknown spell id: {resolved_sid}"
+            _emit_dev_feedback(msg, is_combat=True)
+            return CommandResult.failure(msg)
+
+        # Determine mana cost from catalog
+        try:
+            catalog_cost = float((sp.data or {}).get('mana_cost', 5.0))
+        except Exception:
+            catalog_cost = 5.0
+
+        # Determine performer and target(s)
+        performer_id = getattr(cm, '_player_entity_id', None)
+        if not performer_id:
+            # Fallback: find player entity
+            try:
+                from core.combat.combat_entity import EntityType
+                player_entity = next((e for e in cm.entities.values() if getattr(e, 'entity_type', None) == EntityType.PLAYER), None)
+                performer_id = player_entity.id if player_entity else None
+            except Exception:
+                performer_id = None
+        if not performer_id:
+            msg = "Developer cast aborted: player entity not found in combat."
+            _emit_dev_feedback(msg, is_combat=True)
+            return CommandResult.failure(msg)
+
+        final_target_ids: List[str] = []
+        if explicit_target_id:
+            final_target_ids = [explicit_target_id]
+        else:
+            role = getattr(sp, 'combat_role', 'offensive') or 'offensive'
+            if role == 'defensive':
+                final_target_ids = [performer_id]
+            elif role == 'offensive':
+                try:
+                    from core.combat.combat_entity import EntityType
+                    alive_enemies = [e.id for e in cm.entities.values() if getattr(e, 'entity_type', None) == EntityType.ENEMY and getattr(e, 'is_active_in_combat', True) and e.is_alive()]
+                    if len(alive_enemies) == 1:
+                        final_target_ids = alive_enemies
+                    elif len(alive_enemies) > 1:
+                        import random
+                        final_target_ids = [random.choice(alive_enemies)]
+                except Exception:
+                    final_target_ids = []
+            else: # utility in combat -> blocked
+                msg = "This spell can only be used outside of combat."
+                _emit_dev_feedback(msg, is_combat=True)
+                return CommandResult.failure(msg)
+
+        # Create and enqueue the SpellAction
+        try:
+            from core.combat.combat_action import SpellAction
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+            # Attempt narrative is typically generated by agent; for dev cast, issue a system line
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=f"[DEV] Casting {sp.name} ({sp.id})", target_display=DisplayTarget.COMBAT_LOG))
+            cm._pending_action = SpellAction(performer_id=performer_id, spell_name=sp.id, target_ids=final_target_ids, cost_mp=catalog_cost, dice_notation="")
+            cm.current_step = CombatStep.RESOLVING_ACTION_MECHANICS
+            cm.waiting_for_display_completion = True
+            _emit_dev_feedback(f"Queued spell {sp.id} for casting.", is_combat=True)
+            return CommandResult.success(f"Casting {sp.id} queued.")
+        except Exception as queue_err:
+            logger.error(f"Failed to queue dev spell action: {queue_err}", exc_info=True)
+            return CommandResult.error(f"Failed to queue cast: {queue_err}")
+
     except Exception as e:
         logger.error(f"cast failed: {e}", exc_info=True)
         return CommandResult.error(f"Failed to cast: {e}")
