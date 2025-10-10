@@ -42,11 +42,19 @@ class SpellCatalog:
 
     def _index(self) -> None:
         try:
-            for sys_entry in (self._systems or []):
+            iterable = []
+            if isinstance(self._systems, list):
+                iterable = self._systems
+            elif isinstance(self._systems, dict):
+                iterable = list(self._systems.values())
+            for sys_entry in (iterable or []):
                 if not isinstance(sys_entry, dict):
                     continue
                 system_id = str(sys_entry.get("id") or "").strip()
                 spells = sys_entry.get("spells") or []
+                # Support both list or dict for spells
+                if isinstance(spells, dict):
+                    spells = list(spells.values())
                 if not system_id or not isinstance(spells, list):
                     continue
                 for sp in spells:
@@ -82,12 +90,20 @@ def get_spell_catalog(force_reload: bool = False) -> SpellCatalog:
         if isinstance(systems, dict) and "magic_systems" in systems:
             # Some files are wrapped; accept top-level key as well
             systems = systems["magic_systems"]
+        # Normalize to a list of system dicts
         if systems is None:
-            systems = []
-        if not isinstance(systems, list):
-            logger.warning("magic_systems config is not a list; initializing empty catalog")
-            systems = []
-        _catalog = SpellCatalog(systems=systems)
+            systems_list: List[Dict[str, Any]] = []
+        elif isinstance(systems, list):
+            systems_list = systems  # already list of system entries
+        elif isinstance(systems, dict):
+            # Convert mapping (id -> system_dict) to a list of dicts
+            try:
+                systems_list = list(systems.values())
+            except Exception:
+                systems_list = []
+        else:
+            systems_list = []
+        _catalog = SpellCatalog(systems=systems_list)
         logger.info(f"SpellCatalog loaded with {len(_catalog.list_known_spells())} spells")
     except Exception as e:
         logger.error(f"Failed to load SpellCatalog: {e}")

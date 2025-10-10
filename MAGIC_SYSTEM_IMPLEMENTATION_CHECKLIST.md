@@ -61,25 +61,28 @@ Phase 2 — Minimal Effects Interpreter (core-only, no UI coupling)
 
 
 Phase 3 — Engine Integration of Spells
-- [ ] Define a spell catalog loader in core (no direct file I/O):
-  - [ ] Read magic systems via get_config().get("magic_systems")
-  - [ ] Build an in-memory SpellCatalog (id -> spell definition + effect atoms + metadata)
-  - [ ] Cache and expose getters (e.g., get_spell_by_id, list_known_spells_for_character)
-- [ ] Known Spells store on player:
-  - [ ] Add known_spells to PlayerState (persisted)
-  - [ ] Add helpers: add_known_spell, remove_known_spell, list_known_spells
-  - [ ] Developer Mode commands (gated by settings):
-    - [ ] //learn_spell <spell_id>
-    - [ ] //forget_spell <spell_id>
-    - [ ] //known_spells
-- [ ] Implement execute_cast_spell(spell_id, actor_id, target_id=None):
-  - [ ] (Dev phase) Allow casting regardless of known_spells; (Release) gate on known_spells
+- [x] Define a spell catalog loader in core (no direct file I/O):
+  - [x] Read magic systems via get_config().get("magic_systems")
+  - [x] Build an in-memory SpellCatalog (id -> spell definition + effect atoms + metadata)
+  - [x] Cache and expose getters (e.g., get_spell_by_id, list_known_spells)
+  - [x] Loader supports dict-of-systems and dict-of-spells structures (in addition to lists)
+- [x] Known Spells store on player:
+  - [x] Add known_spells to PlayerState (persisted)
+  - [x] Add helpers: add_known_spell, remove_known_spell, list_known_spells
+  - [x] Developer Mode commands (gated by settings):
+    - [x] //learn_spell <spell_id>
+    - [x] //forget_spell <spell_id>
+    - [x] //known_spells
+- [~] Implement execute_cast_spell(spell_id, actor_id, target_id=None):
+  - [x] Dev phase: allow casting regardless of known_spells (current behavior)
+  - [ ] Enforce: gate on known_spells (release behavior)
   - [ ] Validate resources (mana cost, components, etc.)
   - [ ] Determine targets (based on selector) and call effects_engine.apply_effects
   - [ ] Deduct costs (e.g., mana)
   - [ ] Emit DisplayEvents via CombatOutputOrchestrator (narrative/system/VFX placeholders)
   - [ ] Return a CommandResult/EffectResult for downstream narration
 - [ ] Integrate with combat action handlers so combat turns include casting (queue the action instead of immediate application; Orchestrator-driven display)
+  - [ ] In COMBAT: when input intent maps to spell casting, validate player's known_spells BEFORE creating SpellAction. If unknown, queue a SYSTEM_MESSAGE to the Combat Log (via orchestrator) like "You do not know this spell." and remain at AWAITING_PLAYER_INPUT; do not proceed with action. (Location: core/combat/combat_manager.py::_step_processing_player_action)
 - [ ] Ensure LLM time_passage is excluded during combat (already the case); keep advancing time only outside combat
 
 

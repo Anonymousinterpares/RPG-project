@@ -716,6 +716,15 @@ class CommandProcessor:
             if handler is None:
                 return CommandResult.invalid(f"Unknown developer command: {command_name}")
             
+            # Gate all developer commands behind QSettings dev/enabled
+            try:
+                from PySide6.QtCore import QSettings
+                dev_enabled = bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool))
+            except Exception:
+                dev_enabled = False
+            if not dev_enabled:
+                return CommandResult.failure("Developer Mode is disabled. Enable it in Settings to use developer commands.")
+            
             try:
                 # Execute the command
                 logger.debug(f"Executing developer command: {command_name} with args: {args}")

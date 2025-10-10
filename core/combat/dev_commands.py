@@ -49,6 +49,29 @@ def register_combat_dev_commands(command_processor: CommandProcessor):
         examples=["list_spells"]
     )
 
+    # Player spellbook management (Developer Mode)
+    command_processor.register_dev_command(
+        name="learn_spell",
+        handler=dev_learn_spell,
+        syntax="//learn_spell <spell_id>",
+        description="Learn a spell by id and add it to the player's known spells.",
+        examples=["learn_spell prismatic_bolt"]
+    )
+    command_processor.register_dev_command(
+        name="forget_spell",
+        handler=dev_forget_spell,
+        syntax="//forget_spell <spell_id>",
+        description="Forget a spell by id, removing it from the player's known spells.",
+        examples=["forget_spell prismatic_bolt"]
+    )
+    command_processor.register_dev_command(
+        name="known_spells",
+        handler=dev_known_spells,
+        syntax="//known_spells",
+        description="List the player's currently known spells.",
+        examples=["known_spells"]
+    )
+
     # Execute a spell by id, optional target id
     command_processor.register_dev_command(
         name="cast",
@@ -56,8 +79,8 @@ def register_combat_dev_commands(command_processor: CommandProcessor):
         syntax="//cast <spell_id> [target_id]",
         description="Execute a spell by id using the effects interpreter (optional target id).",
         examples=[
-            "cast sun_lance",
-            "cast sun_lance ghoul_1"
+            "cast prismatic_bolt",
+            "cast prismatic_bolt ghoul_1"
         ]
     )
     
@@ -142,15 +165,112 @@ def dev_list_spells(game_state: GameState, args: List[str]) -> CommandResult:
     """List known spells from the SpellCatalog."""
     try:
         from core.magic.spell_catalog import get_spell_catalog
-        cat = get_spell_catalog()
+        cat = get_spell_catalog(force_reload=True)
         ids = cat.list_known_spells()
         if not ids:
-            return CommandResult.success("No spells found in catalog.")
+            msg = "No spells found in catalog."
+            _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+            return CommandResult.success(msg)
         out = ["Known spells:"] + [f"- {sid}" for sid in ids]
-        return CommandResult.success("\n".join(out))
+        msg = "\n".join(out)
+        _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+        return CommandResult.success(msg)
     except Exception as e:
         logger.error(f"list_spells failed: {e}", exc_info=True)
-        return CommandResult.error(f"Failed to list spells: {e}")
+        msg = f"Failed to list spells: {e}"
+        _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+        return CommandResult.error(msg)
+
+
+def _emit_dev_feedback(message: str, is_combat: bool) -> None:
+    """Helper to route dev command feedback to the right channel."""
+    try:
+        from core.base.engine import get_game_engine
+        engine = get_game_engine()
+        if is_combat and hasattr(engine, '_combat_orchestrator'):
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+            engine._combat_orchestrator.add_event_to_queue(
+                DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=message, target_display=DisplayTarget.COMBAT_LOG)
+            )
+        else:
+            engine._output("system", message)
+    except Exception:
+        # As a fallback, just log it
+        logger.info(message)
+
+
+def dev_learn_spell(game_state: GameState, args: List[str]) -> CommandResult:
+    """Learn a spell by id and add it to the player's known spells (Developer Mode)."""
+    if not args:
+        return CommandResult.invalid("Usage: //learn_spell <spell_id>")
+    spell_id = str(args[0]).strip()
+    try:
+        from core.magic.spell_catalog import get_spell_catalog
+        catalog = get_spell_catalog(force_reload=True)
+        sp = catalog.get_spell_by_id(spell_id)
+        if not sp:
+            msg = f"Unknown spell id: {spell_id}"
+            _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+            return CommandResult.failure(msg)
+        added = game_state.player.add_known_spell(spell_id)
+        if added:
+            msg = f"Learned spell '{sp.name}' ({sp.id})."
+        else:
+            msg = f"Spell '{sp.id}' is already known."
+        _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+        return CommandResult.success(msg)
+    except Exception as e:
+        logger.error(f"learn_spell failed: {e}", exc_info=True)
+        return CommandResult.error(f"Failed to learn spell: {e}")
+
+
+def dev_forget_spell(game_state: GameState, args: List[str]) -> CommandResult:
+    """Forget a spell by id, removing it from the player's known spells (Developer Mode)."""
+    if not args:
+        return CommandResult.invalid("Usage: //forget_spell <spell_id>")
+    spell_id = str(args[0]).strip()
+    try:
+        removed = game_state.player.remove_known_spell(spell_id)
+        if removed:
+            msg = f"Forgot spell '{spell_id}'."
+            status = CommandResult.success
+        else:
+            msg = f"Spell '{spell_id}' not found in known spells."
+            status = CommandResult.failure
+        _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+        return status(msg)
+    except Exception as e:
+        logger.error(f"forget_spell failed: {e}", exc_info=True)
+        return CommandResult.error(f"Failed to forget spell: {e}")
+
+
+def dev_known_spells(game_state: GameState, args: List[str]) -> CommandResult:
+    """List the player's currently known spells (Developer Mode)."""
+    try:
+        known = game_state.player.list_known_spells()
+        if not known:
+            msg = "You do not know any spells yet."
+            _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+            return CommandResult.success(msg)
+        # Optionally resolve names from catalog
+        try:
+            from core.magic.spell_catalog import get_spell_catalog
+            cat = get_spell_catalog()
+            lines = ["Known spells:"]
+            for sid in sorted(known):
+                sp = cat.get_spell_by_id(sid)
+                if sp:
+                    lines.append(f"- {sp.id} ({sp.name})")
+                else:
+                    lines.append(f"- {sid}")
+            msg = "\n".join(lines)
+        except Exception:
+            msg = "Known spells:\n" + "\n".join(f"- {sid}" for sid in sorted(known))
+        _emit_dev_feedback(msg, is_combat=(game_state.current_mode == InteractionMode.COMBAT))
+        return CommandResult.success(msg)
+    except Exception as e:
+        logger.error(f"known_spells failed: {e}", exc_info=True)
+        return CommandResult.error(f"Failed to list known spells: {e}")
 
 
 def dev_cast_spell(game_state: GameState, args: List[str]) -> CommandResult:

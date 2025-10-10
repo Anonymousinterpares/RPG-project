@@ -49,6 +49,9 @@ class PlayerState:
     active_quests: List[str] = field(default_factory=list)  # quest_ids
     completed_quests: List[str] = field(default_factory=list)  # quest_ids
 
+    # Magic & abilities
+    known_spells: List[str] = field(default_factory=list)  # spell_ids the player has learned
+
     # Dynamic state related to social/combat
     current_resolve: float = 0.0 # Current social 'health'
     active_social_effects: List[StatusEffectData] = field(default_factory=list)
@@ -69,6 +72,49 @@ class PlayerState:
         """
         return 100 * self.level
 
+    # --- Known Spells Helpers ---
+    def add_known_spell(self, spell_id: str) -> bool:
+        """Add a spell to the player's known spells.
+
+        Args:
+            spell_id: The canonical spell id to learn.
+        Returns:
+            True if added, False if already known or invalid.
+        """
+        try:
+            sid = str(spell_id).strip()
+            if not sid:
+                return False
+            if sid in self.known_spells:
+                return False
+            self.known_spells.append(sid)
+            return True
+        except Exception:
+            return False
+
+    def remove_known_spell(self, spell_id: str) -> bool:
+        """Remove a spell from the player's known spells.
+
+        Args:
+            spell_id: The canonical spell id to forget.
+        Returns:
+            True if removed, False if not found.
+        """
+        try:
+            sid = str(spell_id).strip()
+            if not sid:
+                return False
+            if sid in self.known_spells:
+                self.known_spells = [s for s in self.known_spells if s != sid]
+                return True
+            return False
+        except Exception:
+            return False
+
+    def list_known_spells(self) -> List[str]:
+        """Return a list of spell ids the player knows."""
+        return list(self.known_spells)
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert PlayerState to a dictionary for serialization."""
         return {
@@ -87,6 +133,7 @@ class PlayerState:
             "equipped_items": self.equipped_items,
             "active_quests": self.active_quests,
             "completed_quests": self.completed_quests,
+            "known_spells": list(self.known_spells),
             "character_image": self.character_image,
             "current_resolve": self.current_resolve,
             "active_social_effects": [effect.to_dict() for effect in self.active_social_effects],
@@ -111,6 +158,7 @@ class PlayerState:
             equipped_items=data.get("equipped_items", {}),
             active_quests=data.get("active_quests", []),
             completed_quests=data.get("completed_quests", []),
+            known_spells=data.get("known_spells", []),
             character_image=data.get("character_image"),
             current_resolve=data.get("current_resolve", 0.0),
             active_social_effects=[
