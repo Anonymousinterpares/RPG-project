@@ -1,0 +1,33 @@
+[
+  {
+    "type": "damage",
+    "selector": "enemy",
+    "damage_type": "fire",
+    "magnitude": { "dice": "2d6+3" },
+    "tags": ["spell", "projectile"]
+  },
+  {
+    "type": "buff",
+    "selector": "ally",
+    "modifiers": [
+      { "stat": "MELEE_ATTACK", "value": 2 }
+    ],
+    "duration": { "unit": "turns", "value": 3 },
+    "stacking_rule": "refresh",
+    "tags": ["martial"]
+  },
+  {
+    "type": "status_apply",
+    "selector": "enemy",
+    "status": "Burning",
+    "duration": { "unit": "turns", "value": 2 },
+    "tags": ["fire"]
+  },
+  {
+    "type": "resource_change",
+    "selector": "self",
+    "resource": "MANA",
+    "magnitude": { "flat": -12 },
+    "tags": ["cost"]
+  }
+]

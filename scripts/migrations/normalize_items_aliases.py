@@ -21,7 +21,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PROJECT_ROOT not in sys.path:
@@ -53,7 +53,10 @@ def _save_json(path: str, data: Any) -> bool:
 def _gather_item_files(root: str) -> List[str]:
     items_dir = os.path.join(root, "config", "items")
     matches: List[str] = []
-    for base, _dirs, files in os.walk(items_dir):
+    # Walk the items directory, skipping any subdirectories named exactly 'backup'
+    for base, dirs, files in os.walk(items_dir):
+        # Prevent descending into 'backup' directories at any depth
+        dirs[:] = [d for d in dirs if d.lower() != "backup"]
         for fn in files:
             if fn.lower().endswith(".json"):
                 matches.append(os.path.join(base, fn))
@@ -69,12 +72,15 @@ def _normalize_stats_list(stats: Any) -> Tuple[Any, Dict[str, Any]]:
         "renamed": [],  # list of {from, to}
         "unknown": [],  # list of names that could not resolve
         "unsupported": [],  # list of names that resolve but not supported by engine
+        # details for report enhancement (Option A)
+        "unknown_details": [],  # list of {index, raw_value}
+        "unsupported_details": [],  # list of {index, raw_value}
     }
     if not isinstance(stats, list):
         return stats, info
 
     new_list = []
-    for entry in stats:
+    for idx, entry in enumerate(stats):
         if not isinstance(entry, dict):
             continue
         info["entries"] += 1
@@ -87,6 +93,7 @@ def _normalize_stats_list(stats: Any) -> Tuple[Any, Dict[str, Any]]:
         if enum_val is None:
             # Could not resolve; keep as-is and report
             info["unknown"].append(name_raw)
+            info["unknown_details"].append({"index": idx, "raw_value": name_raw})
             new_list.append(entry)
             continue
         # We have an engine enum: use its enum member name (UPPERCASE) as canonical id
@@ -96,6 +103,7 @@ def _normalize_stats_list(stats: Any) -> Tuple[Any, Dict[str, Any]]:
         # Check supported status
         if not is_supported(name_raw):
             info["unsupported"].append(name_raw)
+            info["unsupported_details"].append({"index": idx, "raw_value": name_raw})
         # Write back normalized name
         new_entry = dict(entry)
         new_entry["name"] = canon_enum_name
@@ -125,19 +133,79 @@ def _validate_dice_effects(data: Dict[str, Any], allowed_effect_types: List[str]
     info = {
         "effects": 0,
         "unknown_effect_types": [],
+        # details for report enhancement (Option A)
+        "unknown_effect_types_details": [],  # list of {index, raw_value}
     }
     dre = data.get("dice_roll_effects")
     if not isinstance(dre, list):
         return info
     allowed = {et.strip().lower() for et in (allowed_effect_types or [])}
-    for e in dre:
+    for idx, e in enumerate(dre):
         if not isinstance(e, dict):
             continue
         info["effects"] += 1
-        et = str(e.get("effect_type", "")).strip().lower()
+        raw = e.get("effect_type", "")
+        et = str(raw).strip().lower()
         if allowed and et and et not in allowed:
             info["unknown_effect_types"].append(et)
+            info["unknown_effect_types_details"].append({"index": idx, "raw_value": raw})
     return info
+
+
+def _guess_unknown_category(raw_value: str, allowed_effect_types: Optional[List[str]] = None) -> str:
+    """Heuristically guess a category for unknown identifiers to aid triage.
+    Categories: stat_modifier, effect_or_spell, effect_parameter, skill_related, other.
+    """
+    s = (raw_value or "").lower()
+
+    # Effect parameters
+    if any(k in s for k in ["duration", "minutes"]):
+        return "effect_parameter"
+
+    # Direct effect or spell cues
+    if s in {"healing", "mana_restore", "poison_cure", "bleed_cure", "thirst_quench"}:
+        return "effect_or_spell"
+    if any(k in s for k in ["heal", "restore", "cure", "regener", "quench"]):
+        return "effect_or_spell"
+
+    # Damage-type resistances (typed or generic)
+    if s.endswith("_resistance") or "resistance" in s:
+        base = s[:-len("_resistance")].replace("-", "_") if s.endswith("_resistance") else s.replace("-", "_")
+        if allowed_effect_types:
+            allowed = {t.strip().lower() for t in allowed_effect_types}
+            # Treat typed resistances as stat modifiers regardless of presence in allowed list
+            # because they still represent modifiers in our taxonomy
+            if any(dt in base for dt in allowed):
+                return "stat_modifier"
+        return "stat_modifier"
+
+    # Requirements (not really stats; separate category if needed)
+    if s.endswith("_requirement"):
+        return "requirement"
+
+    # Magic/skill-ish domains
+    if any(k in s for k in ["resonance", "environmental"]):
+        return "effect_or_spell"
+
+    # Bonus patterns: try to distinguish skill vs stat
+    if "bonus" in s or "boost" in s or "increase" in s:
+        primary_stats = {"strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "willpower", "insight"}
+        # Prefer skill if explicit skill-like words appear
+        if any(k in s for k in ["craft", "investigat", "diplom", "persuas", "bargain", "stealth", "language", "calculat", "perception", "social"]):
+            return "skill_related"
+        if any(ps in s for ps in primary_stats) or any(k in s for k in ["crit", "damage", "attack", "defense", "resistance", "power", "speed", "capacity", "accuracy", "influence"]):
+            return "stat_modifier"
+        return "stat_modifier"
+
+    # Direct stat-like keywords
+    if any(k in s for k in ["attack_speed", "critical", "crit", "reach", "range", "carry", "capacity", "movement", "initiative", "accuracy", "dodge", "noise", "power", "influence", "speed"]):
+        return "stat_modifier"
+
+    # Survival mechanics
+    if any(k in s for k in ["hunger", "thirst"]):
+        return "effect_or_spell"
+
+    return "other"
 
 
 def main():
@@ -160,8 +228,15 @@ def main():
             "total_unknown": 0,
             "total_unsupported": 0,
             "total_unknown_effect_types": 0,
-        }
+        },
+        # Option A enhancement fields
+        "unknown_stats_detail": [],
+        "unknown_effect_types_detail": [],
     }
+
+    # Aggregators (group by raw value)
+    aggregated_unknown_stats: Dict[str, Dict[str, Any]] = {}
+    aggregated_unknown_effect_types: Dict[str, Dict[str, Any]] = {}
 
     for fp in files:
         original = _load_json(fp)
@@ -191,6 +266,7 @@ def main():
             nonlocal file_stats_entries, file_renamed, file_unknown, file_unsupported, file_unknown_effect_types, changed
             if not isinstance(it, dict):
                 return it
+            item_identifier = it.get("id") or it.get("name")
             # top-level typos
             before_keys = set(it.keys())
             it = _normalize_top_level_fields(it)
@@ -206,9 +282,89 @@ def main():
             file_renamed += len(info_stats["renamed"])
             file_unknown += len(info_stats["unknown"])
             file_unsupported += len(info_stats["unsupported"])
+            # record detailed unknown/unsupported stats
+            for ud in info_stats.get("unknown_details", []):
+                # detail list (back-compat)
+                detail = {
+                    "path": fp,
+                    "item_id": str(item_identifier) if item_identifier is not None else None,
+                    "json_path": f"/stats/{ud['index']}/name",
+                    "raw_value": ud["raw_value"],
+                    "note": "unresolved",
+                }
+                report["unknown_stats_detail"].append(detail)
+                # aggregated
+                rv = ud["raw_value"]
+                agg = aggregated_unknown_stats.get(rv)
+                if not agg:
+                    agg = {
+                        "raw_value": rv,
+                        "guess_category": _guess_unknown_category(rv, allowed_effect_types),
+                        "notes": set(),
+                        "occurrences": [],
+                    }
+                    aggregated_unknown_stats[rv] = agg
+                agg["notes"].add("unresolved")
+                agg["occurrences"].append({
+                    "path": fp,
+                    "item_id": str(item_identifier) if item_identifier is not None else None,
+                    "json_path": detail["json_path"],
+                })
+            for ud in info_stats.get("unsupported_details", []):
+                # detail list (back-compat)
+                detail = {
+                    "path": fp,
+                    "item_id": str(item_identifier) if item_identifier is not None else None,
+                    "json_path": f"/stats/{ud['index']}/name",
+                    "raw_value": ud["raw_value"],
+                    "note": "unsupported",
+                }
+                report["unknown_stats_detail"].append(detail)
+                # aggregated
+                rv = ud["raw_value"]
+                agg = aggregated_unknown_stats.get(rv)
+                if not agg:
+                    agg = {
+                        "raw_value": rv,
+                        "guess_category": _guess_unknown_category(rv, allowed_effect_types),
+                        "notes": set(),
+                        "occurrences": [],
+                    }
+                    aggregated_unknown_stats[rv] = agg
+                agg["notes"].add("unsupported")
+                agg["occurrences"].append({
+                    "path": fp,
+                    "item_id": str(item_identifier) if item_identifier is not None else None,
+                    "json_path": detail["json_path"],
+                })
             # dice effects validation
             info_dre = _validate_dice_effects(it, allowed_effect_types)
             file_unknown_effect_types += len(info_dre["unknown_effect_types"])
+            for det in info_dre.get("unknown_effect_types_details", []):
+                # detail list (back-compat)
+                detail = {
+                    "path": fp,
+                    "item_id": str(item_identifier) if item_identifier is not None else None,
+                    "json_path": f"/dice_roll_effects/{det['index']}/effect_type",
+                    "raw_value": det["raw_value"],
+                    "note": "non_canonical_effect_type",
+                }
+                report["unknown_effect_types_detail"].append(detail)
+                # aggregated
+                rv = det["raw_value"]
+                agg = aggregated_unknown_effect_types.get(rv)
+                if not agg:
+                    agg = {
+                        "raw_value": rv,
+                        "guess_category": "effect_type_non_canonical",
+                        "occurrences": [],
+                    }
+                    aggregated_unknown_effect_types[rv] = agg
+                agg["occurrences"].append({
+                    "path": fp,
+                    "item_id": str(item_identifier) if item_identifier is not None else None,
+                    "json_path": detail["json_path"],
+                })
             return it
 
         if isinstance(target_list, list):
@@ -242,6 +398,33 @@ def main():
 
         if args.apply and changed:
             _save_json(fp, data)
+
+    # Finalize aggregated fields: convert sets and dicts to JSON-friendly lists
+    if aggregated_unknown_stats:
+        aggregated_list = []
+        for rv, agg in aggregated_unknown_stats.items():
+            aggregated_list.append({
+                "raw_value": rv,
+                "guess_category": agg.get("guess_category"),
+                "notes": sorted(list(agg.get("notes", []))),
+                "occurrences": agg.get("occurrences", []),
+            })
+        # sort by raw_value for stable diffs
+        report["unknown_stats_aggregated"] = sorted(aggregated_list, key=lambda x: str(x["raw_value"]).lower())
+    else:
+        report["unknown_stats_aggregated"] = []
+
+    if aggregated_unknown_effect_types:
+        aggregated_list_et = []
+        for rv, agg in aggregated_unknown_effect_types.items():
+            aggregated_list_et.append({
+                "raw_value": rv,
+                "guess_category": agg.get("guess_category"),
+                "occurrences": agg.get("occurrences", []),
+            })
+        report["unknown_effect_types_aggregated"] = sorted(aggregated_list_et, key=lambda x: str(x["raw_value"]).lower())
+    else:
+        report["unknown_effect_types_aggregated"] = []
 
     # Write report
     _save_json(args.report, report)

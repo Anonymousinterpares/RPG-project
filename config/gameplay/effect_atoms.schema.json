@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/effect_atoms.schema.json",
+  "title": "Effect Atom Schema",
+  "description": "Shared schema for spell/item/ability effect atoms. Validates deterministic effect definitions consumed by the core interpreter.",
+  "oneOf": [
+    { "$ref": "#/$defs/EffectSequence" },
+    { "$ref": "#/$defs/EffectAtom" }
+  ],
+  "$defs": {
+    "Duration": {
+      "type": "object",
+      "properties": {
+        "unit": { "type": "string", "enum": ["turns", "minutes"] },
+        "value": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["unit", "value"],
+      "additionalProperties": false
+    },
+    "DiceMagnitude": {
+      "type": "object",
+      "properties": {
+        "dice": {
+          "type": "string",
+          "pattern": "^\\d+d\\d+(?:[+-]\\d+)?$",
+          "description": "NdS±M, e.g., 2d6+3"
+        }
+      },
+      "required": ["dice"],
+      "additionalProperties": false
+    },
+    "FlatMagnitude": {
+      "type": "object",
+      "properties": {
+        "flat": { "type": "number" }
+      },
+      "required": ["flat"],
+      "additionalProperties": false
+    },
+    "StatBasedMagnitude": {
+      "type": "object",
+      "properties": {
+        "stat": { "type": "string", "pattern": "^[A-Z_]+$", "description": "Canonical enum name, e.g., STRENGTH, MELEE_ATTACK" },
+        "coeff": { "type": "number" },
+        "base": { "type": "number" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      },
+      "required": ["stat", "coeff"],
+      "additionalProperties": false
+    },
+    "Magnitude": {
+      "oneOf": [
+        { "$ref": "#/$defs/FlatMagnitude" },
+        { "$ref": "#/$defs/DiceMagnitude" },
+        { "$ref": "#/$defs/StatBasedMagnitude" }
+      ]
+    },
+    "ModifierEntry": {
+      "type": "object",
+      "properties": {
+        "stat": { "type": "string", "pattern": "^[A-Z_]+$" },
+        "value": { "type": "number" },
+        "is_percentage": { "type": "boolean", "default": false },
+        "description": { "type": "string" }
+      },
+      "required": ["stat", "value"],
+      "additionalProperties": false
+    },
+    "StackingRule": { "type": "string", "enum": ["none", "stack", "refresh", "replace"] },
+    "Selector": { "type": "string", "enum": ["self", "ally", "enemy", "area"] },
+
+    "EffectAtom": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "damage",
+            "heal",
+            "resource_change",
+            "buff",
+            "debuff",
+            "status_apply",
+            "status_remove",
+            "cleanse",
+            "shield"
+          ]
+        },
+        "selector": { "$ref": "#/$defs/Selector" },
+        "target_id": { "type": "string", "description": "Optional explicit target override (runtime)" },
+
+        "magnitude": { "$ref": "#/$defs/Magnitude" },
+        "damage_type": { "type": "string", "description": "Canonical damage type (must match config/gameplay/canonical_lists.json)" },
+        "resource": { "type": "string", "pattern": "^[A-Z_]+$", "description": "For resource_change: HEALTH|MANA|STAMINA|RESOLVE (use enum names)" },
+        "modifiers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ModifierEntry" },
+          "minItems": 1
+        },
+        "status": { "type": "string", "description": "Named status condition for apply/remove (e.g., Burning, Stunned)" },
+        "status_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Used by cleanse/status_remove to target sets of statuses"
+        },
+        "duration": { "$ref": "#/$defs/Duration" },
+        "stacking_rule": { "$ref": "#/$defs/StackingRule" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "source_id": { "type": "string", "description": "Stable id for grouping/removal of related effects" },
+        "notes": { "type": "string" }
+      },
+      "required": ["type", "selector"],
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "damage" } } },
+          "then": { "required": ["magnitude", "damage_type"] } },
+        { "if": { "properties": { "type": { "const": "heal" } } },
+          "then": { "required": ["magnitude"] } },
+        { "if": { "properties": { "type": { "const": "resource_change" } } },
+          "then": { "required": ["resource", "magnitude"] } },
+        { "if": { "properties": { "type": { "const": "buff" } } },
+          "then": { "required": ["modifiers"], "properties": { "duration": { "$ref": "#/$defs/Duration" } } } },
+        { "if": { "properties": { "type": { "const": "debuff" } } },
+          "then": { "required": ["modifiers"], "properties": { "duration": { "$ref": "#/$defs/Duration" } } } },
+        { "if": { "properties": { "type": { "const": "status_apply" } } },
+          "then": { "required": ["status", "duration"] } },
+        { "if": { "properties": { "type": { "const": "status_remove" } } },
+          "then": { "oneOf": [ { "required": ["status"] }, { "required": ["status_types"] } ] } },
+        { "if": { "properties": { "type": { "const": "cleanse" } } },
+          "then": { "required": ["status_types"] } },
+        { "if": { "properties": { "type": { "const": "shield" } } },
+          "then": { "required": ["magnitude"], "properties": { "damage_type": { "type": "string" } } } }
+      ]
+    },
+
+    "EffectSequence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EffectAtom" },
+      "minItems": 1
+    }
+  }
+}

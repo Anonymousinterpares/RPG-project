@@ -431,6 +431,58 @@ class GameEngine(QObject):
         # Delegate command processing to the command router module
         return command_router.route_command(self, command_text)
         
+    def execute_cast_spell(self, spell_id: str, target_id: Optional[str] = None) -> CommandResult:
+        """Execute a spell by id using the minimal effects interpreter.
+
+        This is additive and safe: it resolves atoms from the SpellCatalog and applies them deterministically.
+        It does not directly call any UI methods; callers may enqueue DisplayEvents if desired.
+        """
+        try:
+            game_state = self._state_manager.current_state
+            if not game_state:
+                return CommandResult.error("No game in progress.")
+
+            # Load spell
+            from core.magic.spell_catalog import get_spell_catalog
+            catalog = get_spell_catalog()
+            spell = catalog.get_spell_by_id(spell_id)
+            if not spell:
+                return CommandResult.error(f"Spell not found: {spell_id}")
+
+            atoms = spell.effect_atoms
+            if not atoms:
+                return CommandResult.error(f"Spell '{spell_id}' has no effect atoms to apply.")
+
+            # Build caster context (player for now)
+            from core.stats.stats_manager import get_stats_manager
+            from core.effects.effects_engine import apply_effects, TargetContext
+            caster_sm = get_stats_manager()
+            caster_ctx = TargetContext(id=getattr(game_state.player, 'id', 'player'), name=getattr(game_state.player, 'name', 'Player'), stats_manager=caster_sm)
+
+            # Resolve targets: minimal safe behavior
+            targets: List[TargetContext] = []
+            if target_id and getattr(game_state, 'combat_manager', None):
+                try:
+                    entity = game_state.combat_manager.get_entity_by_id(target_id)
+                    if entity and hasattr(entity, 'stats_manager'):
+                        targets.append(TargetContext(id=getattr(entity, 'id', target_id), name=getattr(entity, 'name', target_id), stats_manager=entity.stats_manager))
+                except Exception:
+                    pass
+            if not targets:
+                # Default to self-target if no valid target found/provided
+                targets.append(caster_ctx)
+
+            effect_result = apply_effects(atoms=atoms, caster=caster_ctx, targets=targets)
+            if effect_result.success:
+                return CommandResult.success(f"Spell '{spell.name}' executed. Applied {len(effect_result.applied)} effect(s).")
+            else:
+                # Partial failures are surfaced as an error string with details
+                details = "; ".join(effect_result.errors) if effect_result.errors else "Unknown error"
+                return CommandResult.error(f"Spell '{spell.name}' applied with errors: {details}")
+        except Exception as e:
+            logger.error(f"execute_cast_spell failed: {e}", exc_info=True)
+            return CommandResult.error(f"Spell execution failed: {e}")
+
     def process_input(self, command_text: str) -> CommandResult:
         """
         Process player input. Checks for combat end state first.

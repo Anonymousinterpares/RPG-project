@@ -52,6 +52,7 @@ class GameConfig:
         # Character stats and canonical registries
         "stat_registry": os.path.join("character", "stat_registry.json"),
         "canonical_lists": os.path.join("gameplay", "canonical_lists.json"),
+        "magic_systems": os.path.join("world", "base", "magic_systems.json"),
         # Canonical calendar configuration (era/cycle/phase/tide/span/day)
         "calendar": os.path.join("gameplay", "calendar.json"),
         # Calendar master reference for journal seeding

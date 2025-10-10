@@ -39,6 +39,27 @@ def register_combat_dev_commands(command_processor: CommandProcessor):
             "start_combat goblin 2 3"
         ]
     )
+
+    # List authored spells
+    command_processor.register_dev_command(
+        name="list_spells",
+        handler=dev_list_spells,
+        syntax="//list_spells",
+        description="List known spell IDs from the SpellCatalog.",
+        examples=["list_spells"]
+    )
+
+    # Execute a spell by id, optional target id
+    command_processor.register_dev_command(
+        name="cast",
+        handler=dev_cast_spell,
+        syntax="//cast <spell_id> [target_id]",
+        description="Execute a spell by id using the effects interpreter (optional target id).",
+        examples=[
+            "cast sun_lance",
+            "cast sun_lance ghoul_1"
+        ]
+    )
     
     logger.info("Registered combat developer commands")
     
@@ -116,6 +137,36 @@ def create_enemy_combat_entity(npc, combat_name: str) -> CombatEntity:
         max_stamina=max_stamina,
         description=getattr(npc, 'description', '')
     )
+
+def dev_list_spells(game_state: GameState, args: List[str]) -> CommandResult:
+    """List known spells from the SpellCatalog."""
+    try:
+        from core.magic.spell_catalog import get_spell_catalog
+        cat = get_spell_catalog()
+        ids = cat.list_known_spells()
+        if not ids:
+            return CommandResult.success("No spells found in catalog.")
+        out = ["Known spells:"] + [f"- {sid}" for sid in ids]
+        return CommandResult.success("\n".join(out))
+    except Exception as e:
+        logger.error(f"list_spells failed: {e}", exc_info=True)
+        return CommandResult.error(f"Failed to list spells: {e}")
+
+
+def dev_cast_spell(game_state: GameState, args: List[str]) -> CommandResult:
+    """Execute a spell by id (optional target id)."""
+    if not args:
+        return CommandResult.invalid("Usage: //cast <spell_id> [target_id]")
+    spell_id = args[0]
+    target_id = args[1] if len(args) > 1 else None
+    try:
+        from core.base.engine import get_game_engine
+        engine = get_game_engine()
+        return engine.execute_cast_spell(spell_id, target_id)
+    except Exception as e:
+        logger.error(f"cast failed: {e}", exc_info=True)
+        return CommandResult.error(f"Failed to cast: {e}")
+
 
 def dev_start_combat(game_state: GameState, args: List[str]) -> CommandResult:
     """

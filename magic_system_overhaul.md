@@ -215,6 +215,51 @@ D) Bridging “skills”
   - Exercise in combat, exploration, and social scenes.
 
 8) Open questions to align before implementation
+
+9) Effect atom mapping (Phase 1 guidance)
+- Purpose: define a deterministic, engine-consumable layer for authored spells and items.
+- Where: use config/gameplay/effect_atoms.schema.json to validate effect definitions.
+- Targets and duration:
+  - selector must be one of: self, ally, enemy, area.
+  - duration uses unit turns in combat and minutes outside combat (interpreter will translate minutes to absolute world time).
+- Mapping rules (from authored spell fields to effect atoms):
+  - effects[].effect_type == "damage" -> { type: "damage", damage_type, magnitude }
+    - Use dice_notation if present: { magnitude: { dice: "NdS±M" } }
+    - Else use base/variance if provided: { magnitude: { flat: base } } (variance can be baked in via dice later)
+  - effects[].effect_type == "healing" -> { type: "heal", magnitude }
+  - effects[].effect_type == "stat_modification" -> { type: "buff" | "debuff", modifiers: [{ stat: UPPERCASE_ENUM, value, is_percentage? }], duration }
+    - Choose buff vs debuff based on sign of value (positive -> buff, negative -> debuff), unless explicitly specified.
+    - stat must resolve to canonical engine stat (unified registry). If not, flag for review.
+  - effects[].effect_type == "status_effect" -> { type: "status_apply", status: Name, duration }
+    - status should be in canonical status_conditions (config/gameplay/canonical_lists.json); otherwise mark for validation warning.
+  - Cleanse/Dispel (if present in authored data) -> { type: "cleanse", status_types: [ ... ] }
+  - Resource changes (e.g., mana costs as discrete atoms) -> { type: "resource_change", resource: MANA, magnitude }
+- Targeting translation:
+  - spell.target or targeting.type maps to selector:
+    - self -> self
+    - ally/friendly -> ally
+    - enemy/hostile/single -> enemy
+    - area/aoe -> area (interpreter may expand to all enemies/allies; keep simple for now)
+- Examples:
+  - Damage spell with dice:
+    {
+      "type": "damage", "selector": "enemy", "damage_type": "fire",
+      "magnitude": { "dice": "2d6+3" }
+    }
+  - Buff with duration (in turns):
+    {
+      "type": "buff", "selector": "ally",
+      "modifiers": [{ "stat": "MELEE_ATTACK", "value": 2 }],
+      "duration": { "unit": "turns", "value": 3 },
+      "stacking_rule": "refresh"
+    }
+- Validation:
+  - Use effect_atoms.schema.json to validate atoms inside spells/items in world_configurator (Phase 4 will wire UI warnings).
+  - damage_type must exist in config/gameplay/canonical_lists.json damage_types.
+  - status must be known or explicitly accepted by policy for narrative-only status.
+- Notes:
+  - Keep authored spell components (voice/gesture/focus) and costs outside atoms; interpreter enforces mechanical effects only.
+  - Save/crit mechanics remain in the core; atoms define raw intent (damage/heal/buff/etc.).
 - What is the exact set of primary and derived stats the engine currently recognizes for characters? Please list them so the registry can match 1:1.
 - Which damage types and conditions are canonical already (if any)? If not decided, which ~6–10 do you want to start with?
 - Do you want “creativity leeway” set at the magic system level, spell level, or both?
