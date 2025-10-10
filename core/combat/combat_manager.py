@@ -1450,12 +1450,45 @@ class CombatManager:
                                     self.waiting_for_display_completion = True
                                     self._current_intent = None
                                     return
-                                # Look up canonical mana cost from catalog; ignore any request-side cost hints
+                                # Look up canonical mana cost and role from catalog; ignore any request-side cost hints
                                 spell_obj = cat.get_spell_by_id(resolved_sid)
                                 try:
                                     catalog_cost = float((spell_obj.data or {}).get('mana_cost', 5.0))
                                 except Exception:
                                     catalog_cost = 5.0
+                                role = getattr(spell_obj, 'combat_role', 'offensive') or 'offensive'
+
+                                # Determine final target based on combat_role when target unspecified
+                                final_target_ids: List[str] = []
+                                if target_internal_id:
+                                    final_target_ids = [target_internal_id]
+                                else:
+                                    if role == 'offensive':
+                                        # Auto-target single enemy or random among alive enemies
+                                        try:
+                                            from core.combat.combat_entity import EntityType
+                                            alive_enemies = [e.id for e in self.entities.values() if getattr(e, 'entity_type', None) == EntityType.ENEMY and getattr(e, 'is_active_in_combat', True) and e.is_alive()]
+                                            if len(alive_enemies) == 1:
+                                                final_target_ids = alive_enemies
+                                            elif len(alive_enemies) > 1:
+                                                import random
+                                                final_target_ids = [random.choice(alive_enemies)]
+                                            else:
+                                                final_target_ids = []
+                                        except Exception:
+                                            final_target_ids = []
+                                    elif role == 'defensive':
+                                        # Default to self (player) when unspecified
+                                        final_target_ids = [player_id]
+                                    else: # 'utility' spells are disabled in combat
+                                        engine._combat_orchestrator.add_event_to_queue(
+                                            DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=f"This spell can only be used outside of combat.", target_display=DisplayTarget.COMBAT_LOG)
+                                        )
+                                        self.current_step = CombatStep.AWAITING_PLAYER_INPUT
+                                        self.waiting_for_display_completion = True
+                                        self._current_intent = None
+                                        return
+
                                 # Now it is safe to enqueue attempt narrative
                                 if attempt_narrative_text:
                                     engine._combat_orchestrator.add_event_to_queue(
@@ -1464,7 +1497,7 @@ class CombatManager:
                                 self._pending_action = SpellAction(
                                     performer_id=player_id,
                                     spell_name=resolved_sid,  # store canonical id in name field for traceability
-                                    target_ids=[target_internal_id] if target_internal_id else [],
+                                    target_ids=final_target_ids,
                                     cost_mp=catalog_cost,
                                     dice_notation=action_request.get("dice_notation", "1d8")
                                 )

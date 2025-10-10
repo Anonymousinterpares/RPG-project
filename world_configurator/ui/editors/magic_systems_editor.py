@@ -236,6 +236,19 @@ class SpellDialog(QDialog):
             self.target_combo.setCurrentText(self.spell.target)
         basic_layout.addRow("Target:", self.target_combo)
 
+        # Combat Role field (new)
+        self.combat_role_combo = QComboBox()
+        self.combat_role_combo.addItems(["offensive", "defensive", "utility"])
+        try:
+            # Default to 'offensive' if missing
+            current_role = getattr(self.spell, 'combat_role', 'offensive') or 'offensive'
+            if current_role not in ["offensive", "defensive", "utility"]:
+                current_role = 'offensive'
+            self.combat_role_combo.setCurrentText(current_role)
+        except Exception:
+            self.combat_role_combo.setCurrentText('offensive')
+        basic_layout.addRow("Combat Role:", self.combat_role_combo)
+
         # Components field
         self.components_edit = QLineEdit(", ".join(self.spell.components))
         self.components_edit.setPlaceholderText("component1, component2, ...")
@@ -395,6 +408,12 @@ class SpellDialog(QDialog):
         # Update components and tags (split by comma)
         self.spell.components = [s.strip() for s in self.components_edit.text().split(',') if s.strip()]
         self.spell.tags = [s.strip() for s in self.tags_edit.text().split(',') if s.strip()]
+
+        # Update combat role (new)
+        try:
+            self.spell.combat_role = self.combat_role_combo.currentText()
+        except Exception:
+            self.spell.combat_role = 'offensive'
 
         # Update effects
         self.spell.effects = []

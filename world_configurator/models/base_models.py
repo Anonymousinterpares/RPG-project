@@ -422,6 +422,7 @@ class Spell(BaseModel):
     level: int = 1
     components: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
+    combat_role: Literal["offensive", "defensive", "utility"] = "offensive"
 
     @classmethod
     def create_new(cls, name: str, description: str) -> 'Spell':
@@ -430,7 +431,8 @@ class Spell(BaseModel):
         return cls(
             id=spell_id,
             name=name,
-            description=description
+            description=description,
+            combat_role="offensive"
         )
 
     @classmethod
@@ -445,6 +447,18 @@ class Spell(BaseModel):
                 elif isinstance(effect_data, SpellEffect):
                     effects.append(effect_data)
             data_copy['effects'] = effects
+        # Normalize combat_role if present; default to 'offensive'
+        if 'combat_role' in data_copy:
+            try:
+                role = str(data_copy['combat_role']).strip().lower()
+                if role in ("offensive", "defensive", "utility"):
+                    data_copy['combat_role'] = role
+                else:
+                    data_copy['combat_role'] = "offensive"
+            except Exception:
+                data_copy['combat_role'] = "offensive"
+        else:
+            data_copy['combat_role'] = "offensive"
 
         known_fields = {f.name for f in fields(cls)}
         filtered_data = {k: v for k, v in data_copy.items() if k in known_fields}

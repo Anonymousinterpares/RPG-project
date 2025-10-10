@@ -26,6 +26,16 @@ class Spell:
     data: Dict[str, Any]
 
     @property
+    def combat_role(self) -> str:
+        try:
+            role = str(self.data.get("combat_role", "offensive")).strip().lower()
+            if role in ("offensive", "defensive", "utility"):
+                return role
+        except Exception:
+            pass
+        return "offensive"
+
+    @property
     def effect_atoms(self) -> List[Dict[str, Any]]:
         atoms = self.data.get("effect_atoms")
         if isinstance(atoms, list):
