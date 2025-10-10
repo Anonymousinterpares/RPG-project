@@ -82,7 +82,7 @@ Phase 3 — Engine Integration of Spells
   - [ ] Emit DisplayEvents via CombatOutputOrchestrator (narrative/system/VFX placeholders)
   - [ ] Return a CommandResult/EffectResult for downstream narration
 - [ ] Integrate with combat action handlers so combat turns include casting (queue the action instead of immediate application; Orchestrator-driven display)
-  - [ ] Stage 0 (Pre-validation): In COMBAT, validate the player's raw intent with RuleCheckerAgent BEFORE any attempt narrative. If invalid (lore/physics/capability), enqueue a SYSTEM_MESSAGE explaining why and remain at AWAITING_PLAYER_INPUT (do not advance the turn; no attempt narrative queued).
+  - [x] Stage 0 (Pre-validation): In COMBAT, validate the player's raw intent with RuleCheckerAgent BEFORE any attempt narrative. If invalid (lore/physics/capability), enqueue a SYSTEM_MESSAGE explaining why and remain at AWAITING_PLAYER_INPUT (do not advance the turn; no attempt narrative queued).
   - [ ] Stage 2 (Mechanical gating): when input intent maps to spell/skill/item, validate deterministically BEFORE creating the action object:
     - [ ] Spells: verify player's known_spells. If unknown, queue a SYSTEM_MESSAGE (e.g., "You do not know this spell.") and remain at AWAITING_PLAYER_INPUT.
     - [ ] Items: verify possession/equipped (as applicable). If missing, queue a SYSTEM_MESSAGE and remain at AWAITING_PLAYER_INPUT.

@@ -1316,23 +1316,33 @@ class CombatManager:
             engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=err_msg, target_display=DisplayTarget.COMBAT_LOG))
             self.current_step = CombatStep.AWAITING_PLAYER_INPUT 
         else:
-            if agent_output["narrative"]:
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=agent_output["narrative"], role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name))
-            
+            # Defer attempt narrative for controlled gating (especially for spells)
+            attempt_narrative_text = agent_output.get("narrative") or ""
+
             self._pending_action = None 
             validated_requests = agent_output.get("requests", [])
 
             if not validated_requests:
-                no_req_msg = f"{player_entity.combat_name} considers their options but doesn't commit to an action."
+                # Preserve previous behavior: output the attempt narrative (if any), then the fallback narrative
+                if attempt_narrative_text:
+                    engine._combat_orchestrator.add_event_to_queue(
+                        DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
+                    )
+                no_req_msg = f"{player_entity.combat_name} considers their options but doesn't act this turn."
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.NARRATIVE_GENERAL, content=no_req_msg, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG))
                 self.current_step = CombatStep.APPLYING_STATUS_EFFECTS 
                 action_processed_this_step = True
-            else:
+            else: # Process first request to form an action
                 action_request = validated_requests[0]
                 
                 if action_request.get("action") == "request_mode_transition":
                     action_processed_this_step = True
                     logger.info(f"Player action interpreted as mode transition: {action_request}")
+                    # Show attempt narrative for transitions (preserve previous behavior)
+                    if attempt_narrative_text:
+                        engine._combat_orchestrator.add_event_to_queue(
+                            DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
+                        )
                     # Ensure actor_id from request is valid, fallback to current player_entity if needed
                     actor_combat_name_from_req = action_request.get("actor_id", player_entity.combat_name)
                     actor_for_transition = self._find_entity_by_combat_name(actor_combat_name_from_req)
@@ -1407,9 +1417,64 @@ class CombatManager:
                             else: engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=f"Cannot perform action: Target '{target_combat_name_req}' not found.", target_display=DisplayTarget.COMBAT_LOG))
                         
                         if combat_action_type == ActionType.ATTACK and target_internal_id:
+                            # Non-spell: enqueue attempt narrative before creating action (preserve behavior)
+                            if attempt_narrative_text:
+                                engine._combat_orchestrator.add_event_to_queue(
+                                    DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
+                                )
                             self._pending_action = AttackAction(performer_id=player_id, target_id=target_internal_id, weapon_name=normalized_skill_for_action_name, dice_notation=action_request.get("dice_notation", "1d6"))
                         elif combat_action_type == ActionType.SPELL:
-                            self._pending_action = SpellAction(performer_id=player_id, spell_name=normalized_skill_for_action_name, target_ids=[target_internal_id] if target_internal_id else [], cost_mp=float(action_request.get("cost_mp", 5.0)), dice_notation=action_request.get("dice_notation", "1d8"))
+                            # Stage 2a–2d: resolve and gate spells BEFORE attempt narrative
+                            try:
+                                from core.magic.spell_catalog import get_spell_catalog
+                                cat = get_spell_catalog()
+                                # Determine Dev Mode (relaxed mapping allowed)
+                                try:
+                                    from PySide6.QtCore import QSettings
+                                    dev_enabled = bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool))
+                                except Exception:
+                                    dev_enabled = False
+                                player_known = getattr(game_state.player, 'known_spells', []) or []
+                                # Use the skill_name (original intended spell token)
+                                intended_token = skill_name or normalized_skill_for_action_name
+                                resolved_sid = cat.resolve_spell_id(intended_token, scope_ids=player_known, allow_broad_scope=dev_enabled)
+                                if not resolved_sid:
+                                    # Try to infer from raw intent text
+                                    resolved_sid = cat.resolve_spell_from_text(self._current_intent or '', scope_ids=player_known, allow_broad_scope=dev_enabled)
+                                if not resolved_sid:
+                                    # Inform and stay on player's turn
+                                    engine._combat_orchestrator.add_event_to_queue(
+                                        DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=f"You do not know this spell.", target_display=DisplayTarget.COMBAT_LOG)
+                                    )
+                                    self.current_step = CombatStep.AWAITING_PLAYER_INPUT
+                                    self.waiting_for_display_completion = True
+                                    self._current_intent = None
+                                    return
+                                # Look up canonical mana cost from catalog; ignore any request-side cost hints
+                                spell_obj = cat.get_spell_by_id(resolved_sid)
+                                try:
+                                    catalog_cost = float((spell_obj.data or {}).get('mana_cost', 5.0))
+                                except Exception:
+                                    catalog_cost = 5.0
+                                # Now it is safe to enqueue attempt narrative
+                                if attempt_narrative_text:
+                                    engine._combat_orchestrator.add_event_to_queue(
+                                        DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
+                                    )
+                                self._pending_action = SpellAction(
+                                    performer_id=player_id,
+                                    spell_name=resolved_sid,  # store canonical id in name field for traceability
+                                    target_ids=[target_internal_id] if target_internal_id else [],
+                                    cost_mp=catalog_cost,
+                                    dice_notation=action_request.get("dice_notation", "1d8")
+                                )
+                            except Exception as spell_gate_err:
+                                logger.error(f"Spell gating error: {spell_gate_err}", exc_info=True)
+                                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=f"System Error: Could not resolve spell.", target_display=DisplayTarget.COMBAT_LOG))
+                                self.current_step = CombatStep.AWAITING_PLAYER_INPUT
+                                self.waiting_for_display_completion = True
+                                self._current_intent = None
+                                return
                         elif combat_action_type == ActionType.DEFEND:
                             self._pending_action = DefendAction(performer_id=player_id)
                         elif combat_action_type == ActionType.FLEE: # Explicit or inferred FleeAction

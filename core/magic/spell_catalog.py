@@ -9,7 +9,8 @@ Spell catalog loader and accessors (Phase 3, additive).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from difflib import get_close_matches
 
 from core.base.config import get_config
 from core.utils.logging_config import get_logger
@@ -39,6 +40,86 @@ class SpellCatalog:
         self._systems = systems
         self._spells_by_id: Dict[str, Spell] = {}
         self._index()
+
+    def _iter_scope_ids(self, scope_ids: Optional[List[str]], allow_broad_scope: bool) -> List[str]:
+        if scope_ids and not allow_broad_scope:
+            return [sid for sid in scope_ids if sid in self._spells_by_id]
+        # Broad scope: all known catalog ids
+        return list(self._spells_by_id.keys())
+
+    def resolve_spell_id(self, query: str, scope_ids: Optional[List[str]] = None, allow_broad_scope: bool = False) -> Optional[str]:
+        """Resolve a spell id from a user query by id or name with fuzzy matching.
+        - scope_ids limits candidates (e.g., player.known_spells). When allow_broad_scope is True, falls back to all catalog spells.
+        - returns canonical spell id or None if not resolved.
+        """
+        try:
+            if not isinstance(query, str) or not query.strip():
+                return None
+            q = query.strip().lower()
+            candidates = self._iter_scope_ids(scope_ids, allow_broad_scope)
+            if not candidates:
+                return None
+            # Exact id (case-insensitive)
+            for sid in candidates:
+                if sid.lower() == q:
+                    return sid
+            # Exact name (case-insensitive)
+            for sid in candidates:
+                sp = self._spells_by_id.get(sid)
+                if sp and sp.name and sp.name.strip().lower() == q:
+                    return sid
+            # Fuzzy match among ids and names
+            keys: List[Tuple[str, str]] = []  # (display_key, spell_id)
+            for sid in candidates:
+                sp = self._spells_by_id.get(sid)
+                if not sp:
+                    continue
+                keys.append((sid.lower(), sid))
+                if sp.name:
+                    keys.append((sp.name.strip().lower(), sid))
+            key_strings = [k for (k, _) in keys]
+            close = get_close_matches(q, key_strings, n=1, cutoff=0.7)
+            if close:
+                picked = close[0]
+                for k, sid in keys:
+                    if k == picked:
+                        return sid
+        except Exception as e:
+            logger.warning(f"resolve_spell_id error for '{query}': {e}")
+        return None
+
+    def resolve_spell_from_text(self, text: str, scope_ids: Optional[List[str]] = None, allow_broad_scope: bool = False) -> Optional[str]:
+        """Resolve a spell id by scanning free-form text for known spell names/ids.
+        Prefers exact substring matches (case-insensitive) within the provided scope; can fall back to the entire catalog if allow_broad_scope is True.
+        Returns the canonical spell id on success or None.
+        """
+        try:
+            if not isinstance(text, str) or not text.strip():
+                return None
+            t = text.lower()
+            candidates = self._iter_scope_ids(scope_ids, allow_broad_scope)
+            if not candidates:
+                return None
+            best_sid = None
+            best_len = 0
+            for sid in candidates:
+                sp = self._spells_by_id.get(sid)
+                if not sp:
+                    continue
+                # Check id substring
+                sid_l = sid.lower()
+                if sid_l in t and len(sid_l) > best_len:
+                    best_sid = sid
+                    best_len = len(sid_l)
+                # Check name substring
+                name_l = (sp.name or '').strip().lower()
+                if name_l and name_l in t and len(name_l) > best_len:
+                    best_sid = sid
+                    best_len = len(name_l)
+            return best_sid
+        except Exception as e:
+            logger.warning(f"resolve_spell_from_text error: {e}")
+            return None
 
     def _index(self) -> None:
         try:
