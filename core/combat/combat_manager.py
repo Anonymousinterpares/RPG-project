@@ -1743,7 +1743,8 @@ class CombatManager:
             queued_turn_message = True
         
         # Determine the actual next game step (AWAITING_PLAYER_INPUT or AWAITING_NPC_INTENT)
-        self._set_next_actor_step(next_entity_id) 
+        # Pass engine so TURN_ORDER_UPDATE is queued for UI
+        self._set_next_actor_step(next_entity_id, engine) 
         # self.current_step is now updated by _set_next_actor_step
 
         if queued_turn_message:

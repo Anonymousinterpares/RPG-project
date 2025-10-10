@@ -501,6 +501,54 @@ def load_game(engine: 'GameEngine', filename: str) -> Optional[GameState]:
         f"Welcome back, {game_state.player.name}! You are currently at {game_state.player.current_location}."
     )
 
+    # If we loaded into an active combat, rehydrate turn order UI and log
+    try:
+        from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+        from core.interaction.enums import InteractionMode
+        state = engine._state_manager.current_state
+        cm = getattr(state, 'combat_manager', None)
+        if state and state.current_mode == InteractionMode.COMBAT and cm and hasattr(engine, '_combat_orchestrator'):
+            # 1) Rehydrate combat log HTML if present
+            html = getattr(cm, 'display_log_html', '') or ''
+            if html:
+                engine._combat_orchestrator.add_event_to_queue(
+                    DisplayEvent(
+                        type=DisplayEventType.COMBAT_LOG_SET_HTML,
+                        content=html,
+                        target_display=DisplayTarget.COMBAT_LOG,
+                        gradual_visual_display=False,
+                        source_step='LOAD_GAME_REHYDRATE'
+                    )
+                )
+            # 2) Emit a TURN_ORDER_UPDATE for CharacterSheet
+            active_id = cm.get_current_entity_id() if hasattr(cm, 'get_current_entity_id') else getattr(cm, '_active_entity_id', None)
+            turn_order_display_list = []
+            for eid in getattr(cm, 'turn_order', []) or []:
+                entity = cm.entities.get(eid)
+                if not entity:
+                    continue
+                if not getattr(entity, 'is_active_in_combat', True) or not entity.is_alive():
+                    turn_order_display_list.append(f"  [{getattr(entity, 'combat_name', entity.name)} - Defeated/Inactive]")
+                else:
+                    prefix = "→ " if eid == active_id else "  "
+                    turn_order_display_list.append(f"{prefix}{getattr(entity, 'combat_name', entity.name)}")
+            turn_order_event_content = {
+                "turn_order_display_list": turn_order_display_list,
+                "active_entity_combat_name": getattr(cm.entities.get(active_id), 'combat_name', '') if active_id in cm.entities else '',
+                "is_surprise": getattr(cm, '_is_surprise_round', False),
+                "round_number": getattr(cm, 'round_number', 1)
+            }
+            engine._combat_orchestrator.add_event_to_queue(
+                DisplayEvent(
+                    type=DisplayEventType.TURN_ORDER_UPDATE,
+                    content=turn_order_event_content,
+                    target_display=DisplayTarget.MAIN_GAME_OUTPUT,
+                    source_step='LOAD_GAME_REHYDRATE'
+                )
+            )
+    except Exception as rehyd_err:
+        logger.warning(f"Could not rehydrate combat UI on load: {rehyd_err}")
+
     # Output system info about time using narrative description
     world_state = game_state.world
     time_description = world_state.time_of_day

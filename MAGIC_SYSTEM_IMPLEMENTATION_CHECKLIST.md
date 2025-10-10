@@ -61,10 +61,10 @@ Phase 2 — Minimal Effects Interpreter (core-only, no UI coupling)
 
 
 Phase 3 — Engine Integration of Spells
-- [ ] Introduce spell.combat_role (offensive | defensive | utility)
-  - [ ] Add combat_role to spell JSON in config/world/base/magic_systems.json (backfill existing spells)
-  - [ ] SpellCatalog: surface combat_role from spell data; default to 'offensive' if missing (temporary until backfill)
-  - [ ] Core targeting uses combat_role for fallbacks (see rules below) and gating of utility in combat
+- [x] Introduce spell.combat_role (offensive | defensive | utility)
+  - [x] Add combat_role to spell JSON in config/world/base/magic_systems.json (backfill existing spells)
+  - [x] SpellCatalog: surface combat_role from spell data; default to 'offensive' if missing (temporary until backfill)
+  - [x] Core targeting uses combat_role for fallbacks (see rules below) and gating of utility in combat
 - [x] Define a spell catalog loader in core (no direct file I/O):
   - [x] Read magic systems via get_config().get("magic_systems")
   - [x] Build an in-memory SpellCatalog (id -> spell definition + effect atoms + metadata)
@@ -98,11 +98,11 @@ Phase 3 — Engine Integration of Spells
     - [x] Fuzzy-match the input against the player's known spell IDs and names (case-insensitive). Resolve to the closest known spell when unambiguous; only reject if no reasonable match exists.
     - [x] In Developer Mode, allow relaxed gating (e.g., bypass or more permissive mapping) for rapid testing; otherwise enforce strictly.
   - [ ] Target selection rules (combat):
-    - [ ] Role source: spell.combat_role enumerated as {'offensive','defensive','utility'}
-    - [ ] Validation: warn on unknown/missing role; default to 'offensive' temporarily until backfill complete
-    - [ ] Offensive spells (damage/debuff): target enemies. If exactly one enemy is alive, auto-target that enemy. If multiple enemies and target unspecified (text path), fallback to a RANDOM alive enemy. Grimoire UI will present an enemy dropdown filtered to alive enemies.
-    - [ ] Defensive / recovery (heal, buff, shield, cleanse, status_remove): target self or ally. In 1:1 battles, default to self. In battles with allies, require explicit selection (self or ally); fallback to self if unspecified.
-    - [ ] Non-combat-only spells (utility like lockpicking/teleportation): disabled in combat; routed to Narrative mode only.
+    - [x] Role source: spell.combat_role enumerated as {'offensive','defensive','utility'}
+    - [~] Validation: warn on unknown/missing role; default to 'offensive' temporarily until backfill complete
+    - [x] Offensive spells (damage/debuff): target enemies. If exactly one enemy is alive, auto-target that enemy. If multiple enemies and target unspecified (text path), fallback to a RANDOM alive enemy. Grimoire UI will present an enemy dropdown filtered to alive enemies.
+    - [x] Defensive / recovery (heal, buff, shield, cleanse, status_remove): target self or ally. In 1:1 battles, default to self. In battles with allies, require explicit selection (self or ally); fallback to self if unspecified.
+    - [x] Non-combat-only spells (utility like lockpicking/teleportation): disabled in combat; routed to Narrative mode only.
   - [ ] Design decision: execute_cast_spell remains pure (no DisplayEvents). Real gameplay in combat uses SpellAction + handler for orchestration; dev commands use execute_cast_spell for testing.
   - [ ] Future: introduce CostCalculator to compute final mana cost/casting time from base spell data plus active modifiers (items/statuses/passives).
   - [ ] Only after Stage 0 and Stage 2 pass, enqueue the NARRATIVE_ATTEMPT and create the CombatAction; proceed to RESOLVING_ACTION_MECHANICS.
@@ -110,10 +110,10 @@ Phase 3 — Engine Integration of Spells
 
 
 Phase 4 — World Configurator Validation & Data Entry (no runtime behavior change)
-- [ ] Update models and editor for spell.combat_role
-  - [ ] world_configurator/models/base_models.py: add Spell.combat_role: Literal['offensive','defensive','utility'] with default 'offensive'; update from_dict/to_dict
-  - [ ] world_configurator/ui/editors/magic_systems_editor.py (SpellDialog): add 'Combat Role' dropdown with the three values; persist selection
-  - [ ] Export/import: ensure magic_systems.json round-trips combat_role
+- [x] Update models and editor for spell.combat_role
+  - [x] world_configurator/models/base_models.py: add Spell.combat_role: Literal['offensive','defensive','utility'] with default 'offensive'; update from_dict/to_dict
+  - [x] world_configurator/ui/editors/magic_systems_editor.py (SpellDialog): add 'Combat Role' dropdown with the three values; persist selection
+  - [x] Export/import: ensure magic_systems.json round-trips combat_role
   - [ ] Validation: highlight spells with missing/unknown combat_role; offer quick-fix default
 - [ ] Hook stat_registry + canonical_lists into world_configurator validators
 - [ ] Hook stat_registry + canonical_lists into world_configurator validators
