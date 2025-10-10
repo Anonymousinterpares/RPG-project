@@ -81,18 +81,18 @@ Phase 3 — Engine Integration of Spells
   - [ ] Deduct costs (e.g., mana)
   - [ ] Emit DisplayEvents via CombatOutputOrchestrator (narrative/system/VFX placeholders)
   - [ ] Return a CommandResult/EffectResult for downstream narration
-- [ ] Integrate with combat action handlers so combat turns include casting (queue the action instead of immediate application; Orchestrator-driven display)
+- [~] Integrate with combat action handlers so combat turns include casting (queue the action instead of immediate application; Orchestrator-driven display)
   - [x] Stage 0 (Pre-validation): In COMBAT, validate the player's raw intent with RuleCheckerAgent BEFORE any attempt narrative. If invalid (lore/physics/capability), enqueue a SYSTEM_MESSAGE explaining why and remain at AWAITING_PLAYER_INPUT (do not advance the turn; no attempt narrative queued).
   - [ ] Stage 2 (Mechanical gating): when input intent maps to spell/skill/item, validate deterministically BEFORE creating the action object:
-    - [ ] Spells: verify player's known_spells. If unknown, queue a SYSTEM_MESSAGE (e.g., "You do not know this spell.") and remain at AWAITING_PLAYER_INPUT.
+    - [x] Spells: verify player's known_spells. If unknown, queue a SYSTEM_MESSAGE (e.g., "You do not know this spell.") and remain at AWAITING_PLAYER_INPUT.
     - [ ] Items: verify possession/equipped (as applicable). If missing, queue a SYSTEM_MESSAGE and remain at AWAITING_PLAYER_INPUT.
     - [ ] Skills: verify known/valid via StatsManager and class/path constraints if defined. If not known, queue a SYSTEM_MESSAGE and remain at AWAITING_PLAYER_INPUT.
   - [ ] Resource semantics in combat:
     - [ ] Ignore player-specified resource amounts in the input (e.g., "cast X using 0 mana"). Resource costs are computed mechanically from spell data.
     - [ ] Do NOT pre-block casting due to insufficient resources; allow the cast attempt to proceed. If costs cannot be met, the turn is effectively wasted with appropriate SYSTEM_MESSAGE(s), matching current gameplay behavior.
   - [ ] Spell name resolution and typos:
-    - [ ] Fuzzy-match the input against the player's known spell IDs and names (case-insensitive). Resolve to the closest known spell when unambiguous; only reject if no reasonable match exists.
-    - [ ] In Developer Mode, allow relaxed gating (e.g., bypass or more permissive mapping) for rapid testing; otherwise enforce strictly.
+    - [x] Fuzzy-match the input against the player's known spell IDs and names (case-insensitive). Resolve to the closest known spell when unambiguous; only reject if no reasonable match exists.
+    - [x] In Developer Mode, allow relaxed gating (e.g., bypass or more permissive mapping) for rapid testing; otherwise enforce strictly.
   - [ ] Only after Stage 0 and Stage 2 pass, enqueue the NARRATIVE_ATTEMPT and create the CombatAction; proceed to RESOLVING_ACTION_MECHANICS.
 - [ ] Ensure LLM time_passage is excluded during combat (already the case); keep advancing time only outside combat
 
