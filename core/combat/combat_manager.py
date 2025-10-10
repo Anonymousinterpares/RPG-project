@@ -1277,6 +1277,33 @@ class CombatManager:
             additional_context=context_dict
         )
 
+        # --- Stage 0: Pre-validation with RuleChecker (before any attempt narrative) ---
+        try:
+            if hasattr(engine, '_rule_checker') and engine._rule_checker is not None:
+                validation_context = AgentContext(
+                    game_state=context_dict,
+                    player_state=context_dict.get('player', {}),
+                    world_state={k: v for k, v in context_dict.items() if k in ['location', 'time_of_day', 'environment']},
+                    player_input=self._current_intent,
+                    conversation_history=game_state.conversation_history if game_state else [],
+                    additional_context=context_dict
+                )
+                is_valid, reason = engine._rule_checker.validate_action(validation_context)
+                if not is_valid:
+                    from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+                    msg = f"Action cannot be performed: {reason}" if reason else "Action cannot be performed."
+                    engine._combat_orchestrator.add_event_to_queue(
+                        DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=msg, target_display=DisplayTarget.COMBAT_LOG)
+                    )
+                    # Remain on player's input; do not enqueue attempt narrative or create actions
+                    self.current_step = CombatStep.AWAITING_PLAYER_INPUT
+                    self.waiting_for_display_completion = True
+                    self._current_intent = None
+                    return
+        except Exception as e_validate:
+            logger.warning(f"RuleChecker pre-validation failed or unavailable; proceeding without pre-check: {e_validate}")
+        # --- End Stage 0 ---
+
         agent_output = None
         try:
             agent_output = engine._combat_narrator_agent.process(agent_context)
