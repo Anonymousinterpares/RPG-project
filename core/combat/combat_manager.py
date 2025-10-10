@@ -1319,6 +1319,11 @@ class CombatManager:
                 if spells_hint:
                     # Place hint under a clear, namespaced key to avoid collisions
                     context_dict['player_known_spells_hint'] = spells_hint
+                    context_dict['spell_hint_policy'] = (
+                        "When the player's intent appears to involve magic, use the 'player_known_spells_hint' list "
+                        "to recognize spell names, tolerating minor spelling mistakes (1-2 character edits) and "
+                        "treating spaces and underscores as interchangeable. Consider each entry's 'variants' as synonyms."
+                    )
         except Exception as e_hint:
             logger.debug(f"Spells hint computation skipped: {e_hint}")
 

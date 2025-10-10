@@ -193,6 +193,11 @@ def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: 
                 })
             if spells_hint:
                 context['player_known_spells_hint'] = spells_hint
+                context['spell_hint_policy'] = (
+                    "When the player's intent appears to involve magic, use the 'player_known_spells_hint' list "
+                    "to recognize spell names, tolerating minor spelling mistakes (1-2 character edits) and "
+                    "treating spaces and underscores as interchangeable. Consider each entry's 'variants' as synonyms."
+                )
     except Exception as e_hint:
         logger.debug(f"Narrative spells hint skipped: {e_hint}")
 

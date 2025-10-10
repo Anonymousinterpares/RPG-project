@@ -386,6 +386,11 @@ def dev_cast_spell(game_state: GameState, args: List[str]) -> CommandResult:
             cm.current_step = CombatStep.RESOLVING_ACTION_MECHANICS
             cm.waiting_for_display_completion = True
             _emit_dev_feedback(f"Queued spell {sp.id} for casting.", is_combat=True)
+            # Nudge the combat loop to proceed
+            try:
+                cm.process_combat_step(engine)
+            except Exception as nudge_err:
+                logger.debug(f"Non-fatal: direct process_combat_step nudge failed: {nudge_err}")
             return CommandResult.success(f"Casting {sp.id} queued.")
         except Exception as queue_err:
             logger.error(f"Failed to queue dev spell action: {queue_err}", exc_info=True)
