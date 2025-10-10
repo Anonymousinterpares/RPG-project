@@ -1,6 +1,6 @@
 {
-    "provider_type": "GOOGLE",
-    "model": "gemini-2.0-flash",
+    "provider_type": "OPENROUTER",
+    "model": "z-ai/glm-4-32b",
     "temperature": 0.8,
     "max_tokens": 1000,
     "timeout_seconds": 40,

@@ -199,6 +199,10 @@ class NarratorAgent(BaseAgent):
             - `actor_type`, `threat_tier`, optional `species_tags`, `role_hint`, `is_boss`, `overlay`
             - `name` (the display name to use, e.g., "Wolf", "White Wolf", "Ogre")
             - `classification`: `{{ "variant_id": string | null, "family_id": string | null }}` (at least one when known)
+          * Do NOT invent any family_id. Provide classification ONLY via enums:
+            - actor_type ∈ {{beast, humanoid, undead, construct, elemental, spirit}}
+            - threat_tier ∈ {{harmless, easy, normal, dangerous, ferocious, mythic}}
+            * Provide these under spawn_hints.classification and omit family_id.
           * For multiple different enemies, prefer an `enemies` array instead of a single `enemy_template`/`spawn_hints`:
             ```json
             {{

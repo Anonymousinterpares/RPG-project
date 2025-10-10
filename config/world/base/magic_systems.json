@@ -117,7 +117,7 @@
           "id": "harmonic_healing",
           "name": "Harmonic Healing",
           "description": "A soothing melody that accelerates natural healing processes in the target.",
-          "mana_cost": 15,
+          "mana_cost": 15.0,
           "casting_time": "10 seconds",
           "range": "5m",
           "target": "single",
@@ -152,13 +152,14 @@
             "healing",
             "regeneration",
             "restoration"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "resonant_shield": {
           "id": "resonant_shield",
           "name": "Resonant Shield",
           "description": "Creates a barrier of sound waves that deflects incoming attacks.",
-          "mana_cost": 20,
+          "mana_cost": 20.0,
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
@@ -183,13 +184,14 @@
             "protection",
             "defense",
             "sound"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "chorus_of_clarity": {
           "id": "chorus_of_clarity",
           "name": "Chorus of Clarity",
           "description": "A harmonizing melody that clears the mind and enhances perception.",
-          "mana_cost": 10,
+          "mana_cost": 10.0,
           "casting_time": "5 seconds",
           "range": "10m",
           "target": "multiple",
@@ -224,13 +226,14 @@
             "enhancement",
             "mind",
             "perception"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "dirge_of_despair": {
           "id": "dirge_of_despair",
           "name": "Dirge of Despair",
           "description": "A haunting melody that instills dread and weakens resolve.",
-          "mana_cost": 25,
+          "mana_cost": 25.0,
           "casting_time": "1 action",
           "range": "15m",
           "target": "area",
@@ -266,13 +269,14 @@
             "debuff",
             "fear",
             "control"
-          ]
+          ],
+          "combat_role": "offensive"
         },
         "planar_harmonization": {
           "id": "planar_harmonization",
           "name": "Planar Harmonization",
           "description": "A complex melody that resonates with the natural frequencies of different planes, facilitating travel and communication between them.",
-          "mana_cost": 40,
+          "mana_cost": 40.0,
           "casting_time": "1 minute",
           "range": "30m",
           "target": "area",
@@ -299,13 +303,14 @@
             "planar",
             "utility",
             "ritual"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "song_of_mending": {
           "id": "song_of_mending",
           "name": "Song of Mending",
           "description": "A gentle tune that repairs physical objects and mends broken items.",
-          "mana_cost": 15,
+          "mana_cost": 15.0,
           "casting_time": "30 seconds",
           "range": "5m",
           "target": "single",
@@ -330,7 +335,8 @@
             "utility",
             "restoration",
             "crafting"
-          ]
+          ],
+          "combat_role": "defensive"
         }
       }
     },
@@ -454,7 +460,7 @@
           "id": "stability_field",
           "name": "Stability Field",
           "description": "Creates a field where planar fluctuations are suppressed, providing safety during Resonance Events.",
-          "mana_cost": 30,
+          "mana_cost": 30.0,
           "casting_time": "30 seconds",
           "range": "20m radius",
           "target": "area",
@@ -490,13 +496,14 @@
             "protection",
             "planar",
             "area effect"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "reality_tether": {
           "id": "reality_tether",
           "name": "Reality Tether",
           "description": "Anchors a person or object to their home plane, protecting them from planar shifts and dimensional effects.",
-          "mana_cost": 25,
+          "mana_cost": 25.0,
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
@@ -522,13 +529,14 @@
             "protection",
             "planar",
             "anchoring"
-          ]
+          ],
+          "combat_role": "offensive"
         },
         "planar_sight": {
           "id": "planar_sight",
           "name": "Planar Sight",
           "description": "Grants the ability to see planar boundaries, resonance patterns, and entities from other planes that might otherwise be invisible.",
-          "mana_cost": 20,
+          "mana_cost": 20.0,
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
@@ -553,13 +561,14 @@
             "divination",
             "planar",
             "perception"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "boundary_distortion": {
           "id": "boundary_distortion",
           "name": "Boundary Distortion",
           "description": "Temporarily weakens planar boundaries in a small area, allowing for partial merging of planes or extraction of planar energy.",
-          "mana_cost": 35,
+          "mana_cost": 35.0,
           "casting_time": "1 minute",
           "range": "10m radius",
           "target": "area",
@@ -586,13 +595,14 @@
             "planar",
             "manipulation",
             "advanced"
-          ]
+          ],
+          "combat_role": "offensive"
         },
         "resonance_shield": {
           "id": "resonance_shield",
           "name": "Resonance Shield",
           "description": "Creates a personal barrier that absorbs planar energy and harmful resonance effects.",
-          "mana_cost": 25,
+          "mana_cost": 25.0,
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
@@ -628,13 +638,14 @@
             "protection",
             "planar",
             "defensive"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "planar_transit": {
           "id": "planar_transit",
           "name": "Planar Transit",
           "description": "Creates a stable corridor between planes, allowing safe passage for a short time. Only works between planes currently in resonance.",
-          "mana_cost": 50,
+          "mana_cost": 50.0,
           "casting_time": "5 minutes",
           "range": "5m radius",
           "target": "area",
@@ -663,7 +674,8 @@
             "travel",
             "advanced",
             "ritual"
-          ]
+          ],
+          "combat_role": "utility"
         }
       }
     },
@@ -786,7 +798,7 @@
           "id": "echo_capture",
           "name": "Echo Capture",
           "description": "Captures a lingering planar echo and stores it temporarily for later use.",
-          "mana_cost": 15,
+          "mana_cost": 15.0,
           "casting_time": "30 seconds",
           "range": "5m",
           "target": "area",
@@ -812,13 +824,14 @@
             "utility",
             "planar",
             "gathering"
-          ]
+          ],
+          "combat_role": "utility"
         },
         "bind_echo": {
           "id": "bind_echo",
           "name": "Bind Echo",
           "description": "Binds a captured echo to an object or person, transferring its planar properties.",
-          "mana_cost": 20,
+          "mana_cost": 20.0,
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
@@ -844,13 +857,14 @@
             "enchantment",
             "planar",
             "binding"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "echo_sight": {
           "id": "echo_sight",
           "name": "Echo Sight",
           "description": "Grants the ability to see lingering echoes and assess their properties and potential uses.",
-          "mana_cost": 10,
+          "mana_cost": 10.0,
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
@@ -875,13 +889,14 @@
             "divination",
             "planar",
             "perception"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "weapon_echo": {
           "id": "weapon_echo",
           "name": "Weapon Echo",
           "description": "Binds a combat-oriented echo to a weapon, granting it planar offensive properties.",
-          "mana_cost": 25,
+          "mana_cost": 25.0,
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
@@ -918,13 +933,14 @@
             "combat",
             "enhancement",
             "planar"
-          ]
+          ],
+          "combat_role": "offensive"
         },
         "echo_ward": {
           "id": "echo_ward",
           "name": "Echo Ward",
           "description": "Creates a protective barrier using protective echoes, shielding against both physical and planar threats.",
-          "mana_cost": 30,
+          "mana_cost": 30.0,
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
@@ -960,13 +976,14 @@
             "protection",
             "defensive",
             "planar"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "echo_mimicry": {
           "id": "echo_mimicry",
           "name": "Echo Mimicry",
           "description": "Binds an entity echo to the caster, temporarily granting traits, abilities, or appearance of creatures from other planes.",
-          "mana_cost": 40,
+          "mana_cost": 40.0,
           "casting_time": "2 minutes",
           "range": "self",
           "target": "self",
@@ -1003,7 +1020,8 @@
             "transformation",
             "planar",
             "mimicry"
-          ]
+          ],
+          "combat_role": "defensive"
         }
       }
     },
@@ -1124,7 +1142,7 @@
           "id": "prismatic_bolt",
           "name": "Prismatic Bolt",
           "description": "Creates a beam of concentrated light energy that strikes with geometric precision.",
-          "mana_cost": 15,
+          "mana_cost": 15.0,
           "casting_time": "1 action",
           "range": "30m",
           "target": "single",
@@ -1150,13 +1168,14 @@
             "attack",
             "precision",
             "light"
-          ]
+          ],
+          "combat_role": "offensive"
         },
         "crystalline_shield": {
           "id": "crystalline_shield",
           "name": "Crystalline Shield",
           "description": "Forms a perfect geometric barrier of faceted energy that absorbs damage.",
-          "mana_cost": 20,
+          "mana_cost": 20.0,
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
@@ -1181,13 +1200,14 @@
             "protection",
             "defensive",
             "barrier"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "computational_enhancement": {
           "id": "computational_enhancement",
           "name": "Computational Enhancement",
           "description": "Enhances mental faculties through crystalline resonance with the brain's natural patterns.",
-          "mana_cost": 25,
+          "mana_cost": 25.0,
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
@@ -1213,13 +1233,14 @@
             "enhancement",
             "mental",
             "intellect"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "perfect_analysis": {
           "id": "perfect_analysis",
           "name": "Perfect Analysis",
           "description": "Uses crystalline resonance to perfectly analyze an object, creature, or phenomenon.",
-          "mana_cost": 15,
+          "mana_cost": 15.0,
           "casting_time": "1 minute",
           "range": "5m",
           "target": "single",
@@ -1245,13 +1266,14 @@
             "divination",
             "knowledge",
             "analysis"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "geometric_restructuring": {
           "id": "geometric_restructuring",
           "name": "Geometric Restructuring",
           "description": "Manipulates the physical structure of non-living matter by precisely realigning its internal geometry.",
-          "mana_cost": 30,
+          "mana_cost": 30.0,
           "casting_time": "5 minutes",
           "range": "touch",
           "target": "single",
@@ -1278,13 +1300,14 @@
             "transmutation",
             "repair",
             "crafting"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "crystal_prison": {
           "id": "crystal_prison",
           "name": "Crystal Prison",
           "description": "Encases the target in a perfect crystalline structure that restricts movement.",
-          "mana_cost": 35,
+          "mana_cost": 35.0,
           "casting_time": "1 action",
           "range": "15m",
           "target": "single",
@@ -1320,7 +1343,8 @@
             "control",
             "restraint",
             "crystal"
-          ]
+          ],
+          "combat_role": "offensive"
         }
       }
     },
@@ -1442,7 +1466,7 @@
           "id": "minor_projection",
           "name": "Minor Projection",
           "description": "Temporarily transfers a small portion of consciousness into the Ashen plane, allowing limited perception beyond physical barriers.",
-          "mana_cost": 10,
+          "mana_cost": 10.0,
           "casting_time": "30 seconds",
           "range": "50m",
           "target": "self",
@@ -1467,13 +1491,14 @@
             "perception",
             "divination",
             "espionage"
-          ]
+          ],
+          "combat_role": "utility"
         },
         "ashen_transit": {
           "id": "ashen_transit",
           "name": "Ashen Transit",
           "description": "Fully transfers consciousness into the Ashen plane, leaving the physical body in a trance-like state.",
-          "mana_cost": 25,
+          "mana_cost": 25.0,
           "casting_time": "1 minute",
           "range": "self",
           "target": "self",
@@ -1509,13 +1534,14 @@
             "transportation",
             "planar",
             "espionage"
-          ]
+          ],
+          "combat_role": "offensive"
         },
         "whispers_of_ash": {
           "id": "whispers_of_ash",
           "name": "Whispers of Ash",
           "description": "Allows communication through the Ashen plane to another individual, regardless of distance, so long as both parties have access to ash from the same source.",
-          "mana_cost": 15,
+          "mana_cost": 15.0,
           "casting_time": "1 minute",
           "range": "unlimited",
           "target": "single",
@@ -1540,13 +1566,14 @@
             "communication",
             "utility",
             "social"
-          ]
+          ],
+          "combat_role": "utility"
         },
         "ashen_knowledge": {
           "id": "ashen_knowledge",
           "name": "Ashen Knowledge",
           "description": "Accesses the collective memory of the Ashen plane to retrieve lost or forgotten knowledge about a specific subject or location.",
-          "mana_cost": 30,
+          "mana_cost": 30.0,
           "casting_time": "10 minutes",
           "range": "self",
           "target": "self",
@@ -1573,13 +1600,14 @@
             "knowledge",
             "divination",
             "history"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "ash_veil": {
           "id": "ash_veil",
           "name": "Ash Veil",
           "description": "Creates a cloud of animate ash that obscures vision and can be mentally controlled by the caster.",
-          "mana_cost": 20,
+          "mana_cost": 20.0,
           "casting_time": "1 action",
           "range": "15m radius",
           "target": "area",
@@ -1604,13 +1632,14 @@
             "concealment",
             "control",
             "defense"
-          ]
+          ],
+          "combat_role": "offensive"
         },
         "ashen_body": {
           "id": "ashen_body",
           "name": "Ashen Body",
           "description": "Temporarily transforms the caster's physical form into ash, allowing them to flow through small openings and resist physical damage.",
-          "mana_cost": 35,
+          "mana_cost": 35.0,
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
@@ -1646,7 +1675,8 @@
             "transformation",
             "defense",
             "movement"
-          ]
+          ],
+          "combat_role": "defensive"
         }
       }
     },
@@ -1767,7 +1797,7 @@
           "id": "healing_touch",
           "name": "Healing Touch",
           "description": "Channels divine energy through the caster's hands to heal wounds and injuries.",
-          "mana_cost": 15,
+          "mana_cost": 15.0,
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
@@ -1793,13 +1823,14 @@
             "healing",
             "restoration",
             "touch"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "purify_body": {
           "id": "purify_body",
           "name": "Purify Body",
           "description": "Cleanses the body of disease, poison, and other harmful substances through divine intervention.",
-          "mana_cost": 20,
+          "mana_cost": 20.0,
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
@@ -1836,13 +1867,14 @@
             "purification",
             "restoration",
             "protection"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "divine_restoration": {
           "id": "divine_restoration",
           "name": "Divine Restoration",
           "description": "A powerful healing spell that mends severe injuries, regenerates damaged tissue, and restores vitality.",
-          "mana_cost": 35,
+          "mana_cost": 35.0,
           "casting_time": "5 minutes",
           "range": "touch",
           "target": "single",
@@ -1880,13 +1912,14 @@
             "healing",
             "restoration",
             "regeneration"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "circle_of_healing": {
           "id": "circle_of_healing",
           "name": "Circle of Healing",
           "description": "Creates a sacred circle that radiates healing energy to all within its bounds.",
-          "mana_cost": 30,
+          "mana_cost": 30.0,
           "casting_time": "1 minute",
           "range": "10m radius",
           "target": "area",
@@ -1922,13 +1955,14 @@
             "healing",
             "area effect",
             "support"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "protective_blessing": {
           "id": "protective_blessing",
           "name": "Protective Blessing",
           "description": "Invokes divine protection to shield the target from harm and enhance their resilience.",
-          "mana_cost": 25,
+          "mana_cost": 25.0,
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
@@ -1964,13 +1998,14 @@
             "protection",
             "defensive",
             "blessing"
-          ]
+          ],
+          "combat_role": "defensive"
         },
         "revitalize": {
           "id": "revitalize",
           "name": "Revitalize",
           "description": "Restores energy and vitality to the exhausted, removing fatigue and granting renewed strength.",
-          "mana_cost": 20,
+          "mana_cost": 20.0,
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
@@ -2006,7 +2041,8 @@
             "restoration",
             "enhancement",
             "recovery"
-          ]
+          ],
+          "combat_role": "defensive"
         }
       }
     }

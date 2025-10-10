@@ -1,5 +1,5 @@
 {
-    "default_provider_type": "GOOGLE",
+    "default_provider_type": "OPENROUTER",
     "timeout_seconds": 30,
     "retry_attempts": 3,
     "retry_delay_seconds": 2,

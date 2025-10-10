@@ -9,7 +9,7 @@ between state management, command processing, and game loop components.
 
 import time
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QObject, Signal, Slot
 from core.combat.enums import CombatStep, CombatState
 from core.interaction.enums import InteractionMode

@@ -1,6 +1,6 @@
 {
-    "provider_type": "GOOGLE",
-    "model": "gemini-2.0-flash",
+    "provider_type": "OPENROUTER",
+    "model": "google/gemini-2.0-flash-exp:free",
     "temperature": 0.6,
     "max_tokens": 1000,
     "timeout_seconds": 30,

@@ -326,7 +326,24 @@ class CombatNarratorAgent(BaseAgent):
                 logger.error("Failed to parse LLM response as valid JSON AgentOutput.")
                 # **Fallback:** Create a default basic attack request if parsing fails during combat
                 # This prevents combat from stalling completely if the LLM messes up JSON.
-                if context.game_state.get("mode") == InteractionMode.COMBAT:
+                # Determine combat mode robustly (additional_context or game_state; enum or string)
+                mode_val = context.additional_context.get('mode') if hasattr(context, 'additional_context') else None
+                if not mode_val and hasattr(context, 'game_state'):
+                    try:
+                        mode_val = context.game_state.get('mode')
+                    except Exception:
+                        mode_val = None
+                is_combat_mode = False
+                try:
+                    from core.interaction.enums import InteractionMode as _IM
+                    if isinstance(mode_val, _IM):
+                        is_combat_mode = (mode_val == _IM.COMBAT)
+                    else:
+                        is_combat_mode = str(mode_val).upper() == 'COMBAT'
+                except Exception:
+                    is_combat_mode = str(mode_val).upper() == 'COMBAT'
+
+                if is_combat_mode:
                     logger.warning("Applying fallback: Generating basic attack request due to JSON failure.")
                     # Find a likely target (first enemy)
                     target_id = None
@@ -337,8 +354,8 @@ class CombatNarratorAgent(BaseAgent):
                         p_id = p.get('id')
                         p_type = p.get('entity_type') # Assuming type is available
                         if p_id != player_id and p_type == 'ENEMY': # Find first enemy
-                             target_id = p_id
-                             break
+                            target_id = p_id
+                            break
 
                     if target_id:
                         fallback_request = {
@@ -357,17 +374,17 @@ class CombatNarratorAgent(BaseAgent):
                         }
                         logger.info("Generated fallback basic attack request.")
                     else:
-                         # If no target found, return error narrative
-                         agent_output = {
-                             "narrative": "You attempt an action, but something goes wrong. (LLM Response Error)",
-                             "requests": []
-                         }
+                        # If no target found, return error narrative
+                        agent_output = {
+                            "narrative": "You attempt an action, but something goes wrong. (LLM Response Error)",
+                            "requests": []
+                        }
                 else:
-                     # If not in combat, just return error narrative
-                     agent_output = {
+                    # If not in combat, just return error narrative
+                    agent_output = {
                         "narrative": "There was an issue processing the response. (LLM Response Error)",
                         "requests": []
-                     }
+                    }
 
         except Exception as e:
             logger.exception(f"Error during CombatNarrator processing: {e}")

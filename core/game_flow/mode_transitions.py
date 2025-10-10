@@ -116,46 +116,116 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
         from core.character.npc_system import NPCSystem
         npc_system = NPCSystem()
 
+    # Helper: compute canonical family id from enums with validation/fallback
+    def _canonical_family_id(actor_type: str, threat_tier: str) -> str:
+        try:
+            from core.base.config import get_config
+            cfg_local = get_config()
+            fams = cfg_local.get("npc_families.families") or {}
+            if not isinstance(fams, dict):
+                fams = {}
+        except Exception:
+            fams = {}
+        at = (actor_type or "").lower()
+        tt = (threat_tier or "").lower()
+        if at not in {"beast", "humanoid", "undead", "construct", "elemental", "spirit"}:
+            at = "beast"
+        if tt not in {"harmless", "easy", "normal", "dangerous", "ferocious", "mythic"}:
+            tt = "normal"
+        candidate = f"{at}_{tt}_base"
+        if candidate in fams:
+            return candidate
+        # Nearest-tier fallback for humanoid_harmless (missing today)
+        if at == "humanoid" and tt == "harmless":
+            fallback = "humanoid_easy_base"
+            return fallback if fallback in fams else (next(iter(fams.keys())) if fams else "beast_normal_base")
+        # If actor type family missing, degrade to beast at same tier
+        beast_candidate = f"beast_{tt}_base"
+        if beast_candidate in fams:
+            return beast_candidate
+        # Final resort
+        return next(iter(fams.keys())) if fams else "beast_normal_base"
+
     # Helper: compute template id from a spec (variant/family/actor_type+tier) and overlay
-    def _compute_template_id(spec: Dict[str, Any]) -> str:
-        """Return final enemy_type id string for NPCSystem (supports variant or family ids and overlays)."""
-        # Try embedded classification first
-        classification = spec.get("classification") if isinstance(spec.get("classification"), dict) else None
-        if not classification:
-            # Also support nested under spawn_hints
-            sh = spec.get("spawn_hints") if isinstance(spec.get("spawn_hints"), dict) else {}
-            classification = sh.get("classification") if isinstance(sh.get("classification"), dict) else None
+    def _compute_template_id(spec: Dict[str, Any], display_name: Optional[str] = None, narrative_hint: Optional[str] = None) -> str:
+        """Return final enemy_type id string for NPCSystem.
+        Rules:
+        - Ignore any LLM-provided family_id string. Only accept a known variant_id.
+        - Prefer enums (actor_type, threat_tier) to build family_id.
+        - If enums are missing, ask the EntityClassifierAgent with name/context.
+        - Overlay is applied via ::overlay.
+        """
+        # Normalize overlay/boss
         overlay = spec.get("overlay") or (spec.get("spawn_hints", {}) or {}).get("overlay")
         is_boss = bool(spec.get("is_boss") or (spec.get("spawn_hints", {}) or {}).get("is_boss", False))
         overlay_id = overlay or ("default_boss" if is_boss else None)
 
+        # 1) Variant id (validate)
         variant_id = None
-        family_id = None
+        classification = spec.get("classification") if isinstance(spec.get("classification"), dict) else None
+        if not classification:
+            sh = spec.get("spawn_hints") if isinstance(spec.get("spawn_hints"), dict) else {}
+            classification = sh.get("classification") if isinstance(sh.get("classification"), dict) else None
         if classification:
-            variant_id = classification.get("variant_id") or classification.get("variant")
-            family_id = classification.get("family_id") or classification.get("family")
+            cand_variant = classification.get("variant_id") or classification.get("variant")
+            if isinstance(cand_variant, str):
+                try:
+                    from core.base.config import get_config
+                    variants = (get_config().get("npc_variants.variants") or {})
+                    if isinstance(variants, dict) and cand_variant in variants:
+                        variant_id = cand_variant
+                except Exception:
+                    variant_id = None
 
-        # Prefer variant id
-        base_id = None
+        # If we have a valid variant id, use it now (overlay applied later)
         if variant_id:
-            base_id = str(variant_id)
-        elif family_id:
-            base_id = str(family_id)
+            base_id = variant_id
         else:
-            # Build from actor_type + threat_tier
-            atype = (spec.get("actor_type") or (spec.get("spawn_hints", {}) or {}).get("actor_type") or "").lower()
-            tier = (spec.get("threat_tier") or (spec.get("spawn_hints", {}) or {}).get("threat_tier") or "").lower()
-            if atype and tier:
-                base_id = f"{atype}_{tier}_base"
-
-        # Fallback to provided enemy_template if present on spec
-        if not base_id:
-            base_id = spec.get("enemy_template") or enemy_template
+            # 2) Try enums from hints/classification
+            atype = (spec.get("actor_type") or (spec.get("spawn_hints", {}) or {}).get("actor_type") or (classification or {}).get("actor_type") or "").lower()
+            tier = (spec.get("threat_tier") or (spec.get("spawn_hints", {}) or {}).get("threat_tier") or (classification or {}).get("threat_tier") or "").lower()
+            if not (atype and tier):
+                # 3) Ask classifier LLM (name + short context)
+                try:
+                    from core.agents.entity_classifier import get_entity_classifier_agent
+                    from core.agents.base_agent import AgentContext
+                    agent = get_entity_classifier_agent()
+                    # Build compact prompt input
+                    nm = display_name or spec.get("name") or (spec.get("spawn_hints", {}) or {}).get("name") or "Unknown"
+                    species_tags = spec.get("species_tags") or (spec.get("spawn_hints", {}) or {}).get("species_tags") or []
+                    intent = narrative_hint or ("; ").join([str(nm), f"tags={species_tags}"])
+                    ctx = AgentContext(
+                        game_state={"mode": "CLASSIFY"},
+                        player_state={},
+                        world_state={},
+                        player_input=intent,
+                        conversation_history=[],
+                        relevant_memories=[],
+                        additional_context={}
+                    )
+                    out = agent.process(ctx) or {}
+                    atype = str(out.get("actor_type", "beast"))
+                    tier = str(out.get("threat_tier", "normal"))
+                    # Optional: if classifier suggested a valid variant_id, prefer it
+                    v = out.get("variant_id")
+                    if isinstance(v, str):
+                        try:
+                            from core.base.config import get_config
+                            variants = (get_config().get("npc_variants.variants") or {})
+                            if isinstance(variants, dict) and v in variants:
+                                variant_id = v
+                        except Exception:
+                            pass
+                except Exception as e:
+                    atype = atype or "beast"
+                    tier = tier or "normal"
+            if variant_id:
+                base_id = variant_id
+            else:
+                base_id = _canonical_family_id(atype, tier)
 
         # Apply overlay syntax if needed
-        if overlay_id and base_id:
-            return f"{base_id}::{overlay_id}"
-        return base_id or "beast_easy_base"
+        return f"{base_id}::{overlay_id}" if overlay_id and base_id else (base_id or "beast_normal_base")
 
     # Helper: compute a human-readable name for a spec
     def _compute_display_name(spec: Dict[str, Any]) -> Optional[str]:
@@ -213,8 +283,9 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
                             if k not in merged and k in spec['spawn_hints']:
                                 merged[k] = spec['spawn_hints'][k]
                 # Compute template id and display name
-                template_id = _compute_template_id(merged)
                 display_name = _compute_display_name(merged)
+                narrative_hint = (request.get("additional_context", {}) or {}).get("original_intent") or request.get("reason")
+                template_id = _compute_template_id(merged, display_name=display_name, narrative_hint=narrative_hint)
                 count = int(merged.get("count", 1) or 1)
                 level = int(merged.get("level", request.get("enemy_level", 1)) or 1)
 
@@ -309,6 +380,28 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
             npcs_to_process.append(target_npc)
             logger.info(f"Targeting NPC '{getattr(target_npc, 'name', 'Unknown')}' for combat.")
         elif enemy_template and npc_system:  # If we didn't have a target, but have a template
+            # Validate provided template; if invalid, resolve universally via classifier/hints
+            try:
+                from core.base.config import get_config
+                cfg = get_config()
+                families = cfg.get("npc_families.families") or {}
+                variants = cfg.get("npc_variants.variants") or {}
+            except Exception:
+                families, variants = {}, {}
+            base_id = enemy_template.split("::", 1)[0]
+            if not (isinstance(variants, dict) and base_id in variants) and not (isinstance(families, dict) and base_id in families):
+                narrative_hint = (request.get("additional_context", {}) or {}).get("original_intent") or request.get("reason")
+                spec_for_compute = {
+                    "actor_type": actor_type_hint,
+                    "threat_tier": threat_tier_hint,
+                    "spawn_hints": {"classification": provided_classification or {}},
+                    "name": provided_display_name,
+                    "species_tags": species_tags,
+                }
+                resolved_id = _compute_template_id(spec_for_compute, display_name=provided_display_name, narrative_hint=narrative_hint)
+                logger.info(f"Template '{enemy_template}' invalid; resolved universally to '{resolved_id}'.")
+                enemy_template = resolved_id
+
             logger.info(f"Creating {enemy_count} enemies from template '{enemy_template}' (Level {enemy_level})")
             for i in range(enemy_count):
                 # Choose a readable name: prefer provided name/species, else derive from template id
