@@ -1270,6 +1270,58 @@ class CombatManager:
             return
             
         context_dict = ContextBuilder().build_context(game_state, InteractionMode.COMBAT, actor_id=player_id)
+
+        # Selectively include player's known spells to help the LLM when magic is intended
+        try:
+            intent_lc = (self._current_intent or '').lower()
+            magic_keywords = ("cast", "spell", "magic")
+            magic_intent = any(k in intent_lc for k in magic_keywords)
+            # If not already triggered by keywords, check for known spell name/id mentions
+            if not magic_intent:
+                from core.magic.spell_catalog import get_spell_catalog
+                cat = get_spell_catalog()
+                known_ids = getattr(game_state.player, 'known_spells', []) or []
+                for sid in known_ids:
+                    sp = cat.get_spell_by_id(sid)
+                    if not sp:
+                        continue
+                    name_lc = (sp.name or '').strip().lower()
+                    sid_lc = sid.strip().lower()
+                    name_us = name_lc.replace(' ', '_') if name_lc else ''
+                    sid_sp = sid_lc.replace('_', ' ')
+                    for variant in (name_lc, name_us, sid_lc, sid_sp):
+                        if variant and variant in intent_lc:
+                            magic_intent = True
+                            break
+                    if magic_intent:
+                        break
+            if magic_intent:
+                from core.magic.spell_catalog import get_spell_catalog
+                cat = get_spell_catalog()
+                known_ids = getattr(game_state.player, 'known_spells', []) or []
+                spells_hint = []
+                for sid in known_ids:
+                    sp = cat.get_spell_by_id(sid)
+                    if not sp:
+                        continue
+                    name_lc = (sp.name or '').strip()
+                    entry = {
+                        'id': sp.id,
+                        'name': name_lc,
+                        'variants': [
+                            sp.id,
+                            sp.id.replace('_', ' '),
+                            name_lc,
+                            name_lc.replace(' ', '_') if name_lc else ''
+                        ]
+                    }
+                    spells_hint.append(entry)
+                if spells_hint:
+                    # Place hint under a clear, namespaced key to avoid collisions
+                    context_dict['player_known_spells_hint'] = spells_hint
+        except Exception as e_hint:
+            logger.debug(f"Spells hint computation skipped: {e_hint}")
+
         agent_context = AgentContext(
             game_state=context_dict, player_state=context_dict.get('player', {}),
             world_state={k: v for k, v in context_dict.items() if k in ['location', 'time_of_day', 'environment']},

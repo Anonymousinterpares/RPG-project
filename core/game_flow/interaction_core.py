@@ -153,6 +153,49 @@ def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: 
         exact_time_str = ''
 
     # Provide richer world_state to the agent
+    # Selectively include player's known spells to help the LLM when magic is intended (Narrative mode too)
+    try:
+        intent_lc = (intent or '').lower()
+        magic_keywords = ("cast", "spell", "magic")
+        magic_intent = any(k in intent_lc for k in magic_keywords)
+        if not magic_intent:
+            from core.magic.spell_catalog import get_spell_catalog
+            cat = get_spell_catalog()
+            known_ids = getattr(game_state.player, 'known_spells', []) or []
+            for sid in known_ids:
+                sp = cat.get_spell_by_id(sid)
+                if not sp:
+                    continue
+                name_lc = (sp.name or '').strip().lower()
+                sid_lc = sid.strip().lower()
+                name_us = name_lc.replace(' ', '_') if name_lc else ''
+                sid_sp = sid_lc.replace('_', ' ')
+                for variant in (name_lc, name_us, sid_lc, sid_sp):
+                    if variant and variant in intent_lc:
+                        magic_intent = True
+                        break
+                if magic_intent:
+                    break
+        if magic_intent:
+            from core.magic.spell_catalog import get_spell_catalog
+            cat = get_spell_catalog()
+            known_ids = getattr(game_state.player, 'known_spells', []) or []
+            spells_hint = []
+            for sid in known_ids:
+                sp = cat.get_spell_by_id(sid)
+                if not sp:
+                    continue
+                name_val = (sp.name or '').strip()
+                spells_hint.append({
+                    'id': sp.id,
+                    'name': name_val,
+                    'variants': [sp.id, sp.id.replace('_', ' '), name_val, name_val.replace(' ', '_') if name_val else '']
+                })
+            if spells_hint:
+                context['player_known_spells_hint'] = spells_hint
+    except Exception as e_hint:
+        logger.debug(f"Narrative spells hint skipped: {e_hint}")
+
     agent_context = AgentContext(
         game_state=context, # Pass context dict as game_state for agent
         player_state=context.get('player', {}),
