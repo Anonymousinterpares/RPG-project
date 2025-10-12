@@ -282,7 +282,10 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
     return current_result_detail
 
 def _handle_spell_action(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict) -> Dict[str, Any]:
-    """Handle a spell casting action, including damage and effects. Queues DisplayEvents."""
+    """Handle a spell casting action, including damage and effects. Queues DisplayEvents.
+    
+    Prioritizes effect_atoms from the spell catalog over legacy dice_notation.
+    """
     from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
     
     queued_events_this_handler = False
@@ -296,7 +299,207 @@ def _handle_spell_action(manager: 'CombatManager', action: CombatAction, perform
         current_result_detail["message"] = "No target specified for spell."
         return current_result_detail 
 
+    # Try to get spell from catalog and use effects engine if it has effect_atoms
+    spell_obj = None
+    effect_atoms = []
+    try:
+        from core.magic.spell_catalog import get_spell_catalog
+        catalog = get_spell_catalog()
+        # SpellAction stores canonical spell id in the name field for traceability
+        spell_obj = catalog.get_spell_by_id(action.name)
+        if spell_obj:
+            effect_atoms = spell_obj.effect_atoms
+    except Exception as e:
+        logger.debug(f"Could not load spell from catalog for action {action.name}: {e}")
+    
+    # Use effects engine if we have effect_atoms, otherwise fallback to legacy handling
+    if effect_atoms and spell_obj:
+        return _handle_spell_with_effects_engine(manager, action, performer, performer_stats_manager, engine, current_result_detail, spell_obj, effect_atoms)
+    else:
+        return _handle_spell_legacy_dice(manager, action, performer, performer_stats_manager, engine, current_result_detail)
+
+
+def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict, spell_obj, effect_atoms: List) -> Dict[str, Any]:
+    """Handle spell using the new effects engine."""
+    from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+    from core.effects.effects_engine import apply_effects, TargetContext
+    
+    queued_events_this_handler = False
+    
+    # Apply and display resource costs first
+    try:
+        stamina_spent = current_result_detail.get("stamina_spent", 0)
+        mana_spent = current_result_detail.get("mana_spent", 0)
+        if stamina_spent and stamina_spent > 0:
+            prev_stam = performer_stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
+            new_stam = max(0, prev_stam - stamina_spent)
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                type=DisplayEventType.UI_BAR_UPDATE_PHASE1, content={},
+                metadata={"entity_id": performer.id, "bar_type": "stamina", "old_value": prev_stam, "new_value_preview": new_stam, "max_value": performer.max_stamina}
+            ))
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                type=DisplayEventType.APPLY_ENTITY_RESOURCE_UPDATE,
+                content={},
+                metadata={"entity_id": performer.id, "bar_type": "stamina", "final_new_value": new_stam, "max_value": performer.max_stamina}
+            ))
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
+                metadata={"entity_id": performer.id, "bar_type": "stamina", "final_new_value": new_stam, "max_value": performer.max_stamina}
+            ))
+            manager._add_to_log(f"{performer.combat_name} spent {stamina_spent:.1f} stamina. Rem: {new_stam:.1f}")
+        if mana_spent and mana_spent > 0:
+            prev_mp = performer_stats_manager.get_current_stat_value(DerivedStatType.MANA)
+            new_mp = max(0, prev_mp - mana_spent)
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                type=DisplayEventType.UI_BAR_UPDATE_PHASE1, content={},
+                metadata={"entity_id": performer.id, "bar_type": "mana", "old_value": prev_mp, "new_value_preview": new_mp, "max_value": performer.max_mp}
+            ))
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                type=DisplayEventType.APPLY_ENTITY_RESOURCE_UPDATE,
+                content={},
+                metadata={"entity_id": performer.id, "bar_type": "mana", "final_new_value": new_mp, "max_value": performer.max_mp}
+            ))
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
+                metadata={"entity_id": performer.id, "bar_type": "mana", "final_new_value": new_mp, "max_value": performer.max_mp}
+            ))
+            manager._add_to_log(f"{performer.combat_name} spent {mana_spent:.1f} mana. Rem: {new_mp:.1f}")
+    except Exception as e_cost:
+        logger.warning(f"Failed to apply/display resource costs after spell cast: {e_cost}")
+    
+    # Build caster and target contexts
+    caster_ctx = TargetContext(
+        id=performer.id,
+        name=performer.combat_name,
+        stats_manager=performer_stats_manager
+    )
+    
+    targets = []
+    for target_id in action.targets:
+        target_entity = manager.entities.get(target_id)
+        if target_entity and target_entity.is_alive():
+            target_sm = manager._get_entity_stats_manager(target_id)
+            if target_sm:
+                targets.append(TargetContext(
+                    id=target_entity.id,
+                    name=target_entity.combat_name,
+                    stats_manager=target_sm
+                ))
+    
+    if not targets:
+        current_result_detail.update({"success": False, "message": "No valid targets for spell.", "queued_events": queued_events_this_handler})
+        return current_result_detail
+    
+    # Apply effects using the effects engine
+    try:
+        effect_result = apply_effects(atoms=effect_atoms, caster=caster_ctx, targets=targets)
+        
+        # Queue effect messages
+        spell_name = getattr(spell_obj, 'name', action.name)
+        cast_msg = f"{performer.combat_name} casts {spell_name}!"
+        engine._combat_orchestrator.add_event_to_queue(
+            DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cast_msg, target_display=DisplayTarget.COMBAT_LOG)
+        )
+        manager._add_to_log(cast_msg)
+        queued_events_this_handler = True
+        
+        # Display effect results (summarize per atom)
+        id_to_name = {t.id: t.name for t in targets}
+        for applied in effect_result.applied:
+            try:
+                atom_type = getattr(applied, 'atom_type', 'effect')
+                amount = getattr(applied, 'amount', None)
+                target_names = [id_to_name.get(tid, tid) for tid in getattr(applied, 'target_ids', [])]
+                tn = ", ".join(target_names) if target_names else "target"
+                if atom_type == 'damage' and amount is not None:
+                    msg = f"  {tn} takes {abs(amount):.0f} damage."
+                elif atom_type == 'heal' and amount is not None:
+                    msg = f"  {tn} is healed for {abs(amount):.0f}."
+                elif atom_type in ('buff','debuff'):
+                    msg = f"  {atom_type.capitalize()} applied to {tn}."
+                elif atom_type in ('status_apply','cleanse','status_remove'):
+                    name = getattr(applied, 'status_name', None) or atom_type
+                    msg = f"  {tn}: {name} applied."
+                else:
+                    msg = f"  {atom_type.capitalize()} applied to {tn}."
+                engine._combat_orchestrator.add_event_to_queue(
+                    DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=msg, target_display=DisplayTarget.COMBAT_LOG)
+                )
+                manager._add_to_log(msg)
+                queued_events_this_handler = True
+            except Exception:
+                pass
+        
+        # Check for defeated targets (effects engine may have updated HP)
+        for target_ctx in targets:
+            target_entity = manager.entities.get(target_ctx.id)
+            if target_entity and not target_entity.is_alive():
+                defeat_msg = f"{target_entity.combat_name} is defeated by {spell_name}!"
+                engine._combat_orchestrator.add_event_to_queue(
+                    DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)
+                )
+                manager._add_to_log(defeat_msg)
+                queued_events_this_handler = True
+                
+                # Handle combat end conditions
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                    type=DisplayEventType.APPLY_ENTITY_STATE_UPDATE,
+                    content={},
+                    metadata={"entity_id": target_entity.id, "is_active_in_combat": False}
+                ))
+                
+                try:
+                    from core.combat.combat_entity import EntityType
+                    if target_entity.entity_type == EntityType.PLAYER:
+                        manager.state = CombatState.PLAYER_DEFEAT
+                        manager.current_step = CombatStep.ENDING_COMBAT
+                        manager.waiting_for_display_completion = True
+                    else:
+                        remaining_enemies = [e for e in manager.entities.values() 
+                                           if e.entity_type == EntityType.ENEMY and e.is_active_in_combat and e.is_alive()]
+                        if len(remaining_enemies) == 0:
+                            manager.state = CombatState.PLAYER_VICTORY
+                            manager.current_step = CombatStep.ENDING_COMBAT
+                            manager.waiting_for_display_completion = True
+                except Exception:
+                    pass
+        
+        if effect_result.success:
+            current_result_detail.update({
+                "success": True,
+                "message": f"{spell_name} was cast successfully.",
+                "effects_applied": len(effect_result.applied),
+                "queued_events": queued_events_this_handler
+            })
+        else:
+            error_details = "; ".join(effect_result.errors) if effect_result.errors else "Unknown error"
+            current_result_detail.update({
+                "success": False,
+                "message": f"{spell_name} had errors: {error_details}",
+                "queued_events": queued_events_this_handler
+            })
+    except Exception as e:
+        logger.error(f"Effects engine error for spell {action.name}: {e}", exc_info=True)
+        current_result_detail.update({
+            "success": False,
+            "message": f"System error casting {action.name}: {e}",
+            "queued_events": queued_events_this_handler
+        })
+    
+    return current_result_detail
+
+
+def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict) -> Dict[str, Any]:
+    """Handle spells using legacy dice notation approach (fallback)."""
+    from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+    
+    queued_events_this_handler = False
     at_least_one_target_processed = False
+    
+    # Add targets_processed tracking for legacy compatibility
+    if "targets_processed" not in current_result_detail:
+        current_result_detail["targets_processed"] = []
+        
     for target_id in action.targets:
         target = manager.entities.get(target_id)
         target_processing_summary = {"target_id": target_id, "target_name": "Unknown", "effects_applied": [], "damage_done": 0, "healing_done": 0, "defeated": False}

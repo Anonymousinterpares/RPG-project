@@ -77,35 +77,35 @@ Phase 3 — Engine Integration of Spells
     - [x] //learn_spell <spell_id>
     - [x] //forget_spell <spell_id>
     - [x] //known_spells
-- [~] Implement execute_cast_spell(spell_id, actor_id, target_id=None):
+- [x] Implement execute_cast_spell(spell_id, actor_id, target_id=None):
   - [x] Dev phase: allow casting regardless of known_spells (current behavior)
-  - [ ] Enforce: gate on known_spells (release behavior)
-  - [ ] Validate resources (mana cost, components, etc.)
-  - [ ] Determine targets (based on selector) and call effects_engine.apply_effects
-  - [ ] Deduct costs (e.g., mana)
-  - [ ] Emit DisplayEvents via CombatOutputOrchestrator (narrative/system/VFX placeholders)
-  - [ ] Return a CommandResult/EffectResult for downstream narration
-- [~] Integrate with combat action handlers so combat turns include casting (queue the action instead of immediate application; Orchestrator-driven display)
+  - [x] Enforce: gate on known_spells (release behavior)
+  - [x] Validate resources (mana cost, components, etc.)
+  - [x] Determine targets (based on selector) and call effects_engine.apply_effects
+  - [x] Deduct costs (e.g., mana)
+  - [x] Emit DisplayEvents via CombatOutputOrchestrator (narrative/system/VFX placeholders)
+  - [x] Return a CommandResult/EffectResult for downstream narration
+- [x] Integrate with combat action handlers so combat turns include casting (queue the action instead of immediate application; Orchestrator-driven display)
   - [x] Stage 0 (Pre-validation): In COMBAT, validate the player's raw intent with RuleCheckerAgent BEFORE any attempt narrative. If invalid (lore/physics/capability), enqueue a SYSTEM_MESSAGE explaining why and remain at AWAITING_PLAYER_INPUT (do not advance the turn; no attempt narrative queued).
-  - [ ] Stage 2 (Mechanical gating): when input intent maps to spell/skill/item, validate deterministically BEFORE creating the action object:
+  - [x] Stage 2 (Mechanical gating): when input intent maps to spell/skill/item, validate deterministically BEFORE creating the action object:
     - [x] Spells: verify player's known_spells. If unknown, queue a SYSTEM_MESSAGE (e.g., "You do not know this spell.") and remain at AWAITING_PLAYER_INPUT.
     - [ ] Items: verify possession/equipped (as applicable). If missing, queue a SYSTEM_MESSAGE and remain at AWAITING_PLAYER_INPUT.
     - [ ] Skills: verify known/valid via StatsManager and class/path constraints if defined. If not known, queue a SYSTEM_MESSAGE and remain at AWAITING_PLAYER_INPUT.
-  - [ ] Resource semantics in combat:
-    - [ ] Ignore player-specified resource amounts in the input (e.g., "cast X using 0 mana"). Resource costs are computed mechanically from spell data.
-    - [ ] Do NOT pre-block casting due to insufficient resources; allow the cast attempt to proceed. If costs cannot be met, the turn is effectively wasted with appropriate SYSTEM_MESSAGE(s), matching current gameplay behavior.
-  - [ ] Spell name resolution and typos:
+  - [x] Resource semantics in combat:
+    - [x] Ignore player-specified resource amounts in the input (e.g., "cast X using 0 mana"). Resource costs are computed mechanically from spell data.
+    - [x] Do NOT pre-block casting due to insufficient resources; allow the cast attempt to proceed. If costs cannot be met, the turn is effectively wasted with appropriate SYSTEM_MESSAGE(s), matching current gameplay behavior.
+  - [x] Spell name resolution and typos:
     - [x] Fuzzy-match the input against the player's known spell IDs and names (case-insensitive). Resolve to the closest known spell when unambiguous; only reject if no reasonable match exists.
     - [x] In Developer Mode, allow relaxed gating (e.g., bypass or more permissive mapping) for rapid testing; otherwise enforce strictly.
-  - [ ] Target selection rules (combat):
+  - [x] Target selection rules (combat):
     - [x] Role source: spell.combat_role enumerated as {'offensive','defensive','utility'}
-    - [~] Validation: warn on unknown/missing role; default to 'offensive' temporarily until backfill complete
+    - [x] Validation: warn on unknown/missing role; default to 'offensive' temporarily until backfill complete
     - [x] Offensive spells (damage/debuff): target enemies. If exactly one enemy is alive, auto-target that enemy. If multiple enemies and target unspecified (text path), fallback to a RANDOM alive enemy. Grimoire UI will present an enemy dropdown filtered to alive enemies.
     - [x] Defensive / recovery (heal, buff, shield, cleanse, status_remove): target self or ally. In 1:1 battles, default to self. In battles with allies, require explicit selection (self or ally); fallback to self if unspecified.
     - [x] Non-combat-only spells (utility like lockpicking/teleportation): disabled in combat; routed to Narrative mode only.
-  - [ ] Design decision: execute_cast_spell remains pure (no DisplayEvents). Real gameplay in combat uses SpellAction + handler for orchestration; dev commands use execute_cast_spell for testing.
+  - [x] Design decision: execute_cast_spell remains pure (no DisplayEvents). Real gameplay in combat uses SpellAction + handler for orchestration; dev commands use execute_cast_spell for testing.
   - [ ] Future: introduce CostCalculator to compute final mana cost/casting time from base spell data plus active modifiers (items/statuses/passives).
-  - [ ] Only after Stage 0 and Stage 2 pass, enqueue the NARRATIVE_ATTEMPT and create the CombatAction; proceed to RESOLVING_ACTION_MECHANICS.
+  - [x] Only after Stage 0 and Stage 2 pass, enqueue the NARRATIVE_ATTEMPT and create the CombatAction; proceed to RESOLVING_ACTION_MECHANICS.
 - [ ] Ensure LLM time_passage is excluded during combat (already the case); keep advancing time only outside combat
 
 

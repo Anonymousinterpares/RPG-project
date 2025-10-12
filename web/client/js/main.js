@@ -444,6 +444,10 @@ function connectWebSocket(sessionId, options = {}) {
     // Live UI updates from server events
     webSocketClient.on('stats_changed', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
     webSocketClient.on('turn_order_update', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
+    // Music state from server -> WebAudio manager
+    webSocketClient.on('music_state', (data) => {
+        try { if (window.webMusicManager) window.webMusicManager.applyState(data||{}); } catch (e) { console.warn(e); }
+    });
     webSocketClient.on('ui_bar_update_phase1', (data) => { try { uiManager.updateResourceBarPhase1(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
     webSocketClient.on('ui_bar_update_phase2', (data) => { try { uiManager.updateResourceBarPhase2(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
     // Combat log HTML updates

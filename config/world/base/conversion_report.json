@@ -1,0 +1,187 @@
+{
+  "converted": [
+    {
+      "spell_id": "harmonic_healing",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "resonant_shield",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "chorus_of_clarity",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "dirge_of_despair",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "planar_harmonization",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "song_of_mending",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "stability_field",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "reality_tether",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "planar_sight",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "boundary_distortion",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "resonance_shield",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "planar_transit",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "echo_capture",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "bind_echo",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "echo_sight",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "weapon_echo",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "echo_ward",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "echo_mimicry",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "prismatic_bolt",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "crystalline_shield",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "computational_enhancement",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "perfect_analysis",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "geometric_restructuring",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "crystal_prison",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "minor_projection",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "ashen_transit",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "whispers_of_ash",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "ashen_knowledge",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "ash_veil",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "ashen_body",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "healing_touch",
+      "atoms": 1,
+      "skipped": []
+    },
+    {
+      "spell_id": "purify_body",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "divine_restoration",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "circle_of_healing",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "protective_blessing",
+      "atoms": 2,
+      "skipped": []
+    },
+    {
+      "spell_id": "revitalize",
+      "atoms": 2,
+      "skipped": []
+    }
+  ],
+  "skipped": [],
+  "validation_ok": true,
+  "validation_errors": []
+}

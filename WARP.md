@@ -1,5 +1,11 @@
+# WARP.md
+
+This file provides guidance to WARP (warp.dev) when working with code in this repository.
+
 ***CURRENT TASK -> WORKING ON magic SYSTEMS -> ALWAYS REFER TO THE DRAFTER DIAGNOSIS & PLAN FROM magic_system_overhaul.md PLACED IN PROJECT ROOT FOLDER.
 If any step is finished, amend this file to reflect the latest stage***
+
+TREAT USER AS A PRODUCT/GAME MANAGER, NOT A DEVELOPER -> ALWAYS TRANSLATE TECHNICAL SOLUTION TO A NON-CODE LOGIC WHILE EXPLAIN SOMETHING
 
 I. The Golden Rules (Most Important Principles)
 Separation of Concerns is Paramount: The core logic (game state, combat mechanics, stats) MUST NOT directly interact with the gui. The gui observes and reacts to changes in the core.
@@ -81,7 +87,8 @@ Docstrings: All new classes and public methods MUST have clear, concise docstrin
 folders to be ignored:
 backup, .pytest_cache, .vscode, __pycache__, tests, web, images, log_viewer_tool, world_configurator.egg-info
 
-"refer to the content of root_causes.MD file from the project root to avoid making same mistakes"
+never commit/push without USER's EXPLICIT COMFIRMATION
+NEVER ASSUME RESOLUTION - always double check with the user while providing a clear instruction how to test proposed solution
 
 important directories:
 project root: D:\coding\RPG project\latest version

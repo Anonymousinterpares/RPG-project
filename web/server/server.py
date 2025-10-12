@@ -830,7 +830,23 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
     except Exception as e:
         logger.warning(f"Failed connecting output_generated listener: {e}")
 
-    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn, "out_conn": out_conn}
+    # Music state listener from engine's MusicDirector (if present)
+    music_conn = None
+    try:
+        md = getattr(engine, 'get_music_director', lambda: None)()
+        if md and hasattr(md, 'add_state_listener'):
+            def on_music_state(payload: dict):
+                try:
+                    _emit_ws({"type": "music_state", "data": payload})
+                except Exception as e:
+                    logger.warning(f"WS music_state emit failed: {e}")
+            md.add_state_listener(on_music_state)
+            music_conn = on_music_state
+    except Exception as e:
+        logger.warning(f"Failed to attach music state listener: {e}
+")
+
+    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn, "out_conn": out_conn, "music_conn": music_conn}
 
 def _cleanup_session(session_id: str):
     """Clean up a session's resources."""

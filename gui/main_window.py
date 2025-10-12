@@ -345,6 +345,49 @@ class MainWindow(QMainWindow):
         # Add music controls to the top-right corner
         self.main_layout.insertWidget(0, music_widget, 0, Qt.AlignRight)
         
+        # Wire button actions to MusicDirector: play/pause acts as mute toggle; next triggers next track;
+        try:
+            self._btn_music_play_pause = play_pause_button
+            self._btn_music_next = next_button
+            self._btn_music_volume = volume_button
+            # Toggle mute
+            def _on_play_pause():
+                try:
+                    director = getattr(self.game_engine, 'get_music_director', lambda: None)()
+                    if director:
+                        # Read current muted state heuristically: assume toggling
+                        # We don't have a direct getter; use a hidden closure capturing state via QSettings
+                        from PySide6.QtCore import QSettings
+                        s = QSettings("RPGGame", "Settings")
+                        enabled = s.value("sound/enabled", True)
+                        new_muted = bool(not enabled) is False  # invert
+                        # Better approach: toggle by reading a remembered flag
+                        # We'll simply call set_muted(not current)
+                        director.set_muted(True) if enabled else director.set_muted(False)
+                        # Update QSettings enabled accordingly
+                        s.setValue("sound/enabled", not enabled)
+                except Exception:
+                    pass
+            play_pause_button.clicked.connect(_on_play_pause)
+            # Next track
+            def _on_next():
+                try:
+                    director = getattr(self.game_engine, 'get_music_director', lambda: None)()
+                    if director:
+                        director.next_track("user_skip")
+                except Exception:
+                    pass
+            next_button.clicked.connect(_on_next)
+            # Volume button -> open Settings dialog focused on Sound tab
+            def _on_open_settings():
+                try:
+                    self._show_settings_dialog()
+                except Exception:
+                    pass
+            volume_button.clicked.connect(_on_open_settings)
+        except Exception:
+            pass
+
         # Return the widget for reference
         return music_widget
     
@@ -1118,6 +1161,21 @@ class MainWindow(QMainWindow):
                     self.game_engine.reload_autosave_settings()
             except Exception as e:
                 logger.warning(f"Failed to reload autosave settings after saving: {e}")
+
+            # Update MusicDirector volumes/mute immediately
+            try:
+                from PySide6.QtCore import QSettings
+                s = QSettings("RPGGame", "Settings")
+                master = int(s.value("sound/master_volume", 100))
+                music  = int(s.value("sound/music_volume", 100))
+                effects= int(s.value("sound/effects_volume", 100))
+                enabled= s.value("sound/enabled", True)
+                director = getattr(self.game_engine, 'get_music_director', lambda: None)()
+                if director:
+                    director.set_volumes(master, music, effects)
+                    director.set_muted(not bool(enabled))
+            except Exception as e:
+                logger.warning(f"Failed to apply sound settings to MusicDirector: {e}")
 
             # Show confirmation
             self.game_output.append_system_message("Settings saved successfully.")

@@ -142,6 +142,27 @@ class GameEngine(QObject):
         self._waiting_for_closing_narrative_display: bool = False # New flag for ECFA
         self._post_combat_finalization_in_progress: bool = False  # Prevent duplicate auto-finalization
         
+        # Initialize Music Director and desktop backend (VLC)
+        try:
+            from PySide6.QtCore import QSettings
+            from core.music.director import get_music_director
+            from core.music.backend_vlc import VLCBackend
+            self._music_director = get_music_director(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
+            self._music_backend = VLCBackend()
+            self._music_director.set_backend(self._music_backend)
+            # Apply QSettings sound immediately
+            s = QSettings("RPGGame", "Settings")
+            master = int(s.value("sound/master_volume", 100))
+            music  = int(s.value("sound/music_volume", 100))
+            effects= int(s.value("sound/effects_volume", 100))
+            enabled= s.value("sound/enabled", True)
+            muted = not bool(enabled)
+            self._music_director.set_volumes(master, music, effects)
+            self._music_director.set_muted(muted)
+            logger.info(f"Music system initialized (enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
+        except Exception as e:
+            logger.warning(f"Failed to initialize music system: {e}")
+
         self._initialized = True
         logger.info("GameEngine initialized")
     
@@ -288,6 +309,13 @@ class GameEngine(QObject):
         if background: # background from params is the origin description
             game_state.player.background = background # Ensure it's set if not already set by StateManager
 
+        # Start initial ambient music (non-blocking)
+        try:
+            if hasattr(self, '_music_director') and self._music_director:
+                self._music_director.hard_set("ambient", intensity=0.3, reason="new_game")
+        except Exception:
+            pass
+
         return lifecycle.start_new_game_with_state(
             self, game_state
         )
@@ -431,57 +459,196 @@ class GameEngine(QObject):
         # Delegate command processing to the command router module
         return command_router.route_command(self, command_text)
         
-    def execute_cast_spell(self, spell_id: str, target_id: Optional[str] = None) -> CommandResult:
+    def execute_cast_spell(self, spell_id: str, target_id: Optional[str] = None, enforce_known_spells: bool = True) -> CommandResult:
         """Execute a spell by id using the minimal effects interpreter.
 
         This is additive and safe: it resolves atoms from the SpellCatalog and applies them deterministically.
         It does not directly call any UI methods; callers may enqueue DisplayEvents if desired.
+        
+        Args:
+            spell_id: The spell ID to cast
+            target_id: Optional target entity ID
+            enforce_known_spells: Whether to enforce known_spells gating (dev mode can disable)
         """
         try:
             game_state = self._state_manager.current_state
             if not game_state:
                 return CommandResult.error("No game in progress.")
 
-            # Load spell
+            # Load spell catalog
             from core.magic.spell_catalog import get_spell_catalog
             catalog = get_spell_catalog()
             spell = catalog.get_spell_by_id(spell_id)
             if not spell:
                 return CommandResult.error(f"Spell not found: {spell_id}")
 
+            # Check if spell has effect atoms
             atoms = spell.effect_atoms
             if not atoms:
                 return CommandResult.error(f"Spell '{spell_id}' has no effect atoms to apply.")
 
+            # Enforce known spells gating (release behavior)
+            if enforce_known_spells:
+                known_spells = game_state.player.list_known_spells()
+                if spell_id not in known_spells:
+                    return CommandResult.error(f"You do not know the spell '{spell.name}'.")
+
             # Build caster context (player for now)
             from core.stats.stats_manager import get_stats_manager
             from core.effects.effects_engine import apply_effects, TargetContext
+            from core.stats.stats_base import DerivedStatType
+            
             caster_sm = get_stats_manager()
             caster_ctx = TargetContext(id=getattr(game_state.player, 'id', 'player'), name=getattr(game_state.player, 'name', 'Player'), stats_manager=caster_sm)
 
-            # Resolve targets: minimal safe behavior
-            targets: List[TargetContext] = []
-            if target_id and getattr(game_state, 'combat_manager', None):
-                try:
-                    entity = game_state.combat_manager.get_entity_by_id(target_id)
-                    if entity and hasattr(entity, 'stats_manager'):
-                        targets.append(TargetContext(id=getattr(entity, 'id', target_id), name=getattr(entity, 'name', target_id), stats_manager=entity.stats_manager))
-                except Exception:
-                    pass
-            if not targets:
-                # Default to self-target if no valid target found/provided
-                targets.append(caster_ctx)
+            # Validate and deduct mana cost
+            mana_cost = spell.data.get('mana_cost', 0)
+            if mana_cost > 0:
+                current_mana = caster_sm.get_current_stat_value(DerivedStatType.MANA)
+                if current_mana < mana_cost:
+                    return CommandResult.error(f"Insufficient mana. Need {mana_cost}, have {current_mana:.1f}.")
+                
+                # Deduct mana cost
+                new_mana = max(0, current_mana - mana_cost)
+                caster_sm.set_current_stat(DerivedStatType.MANA, new_mana)
+                logger.info(f"Deducted {mana_cost} mana for spell '{spell.name}'. Remaining: {new_mana:.1f}")
 
+            # Resolve targets based on spell combat role and selector
+            targets: List[TargetContext] = self._resolve_spell_targets(spell, target_id, game_state, caster_ctx)
+            if not targets:
+                return CommandResult.error(f"No valid targets found for spell '{spell.name}'.")
+
+            # Apply effects
             effect_result = apply_effects(atoms=atoms, caster=caster_ctx, targets=targets)
+            
+            # Emit DisplayEvents if we have a combat orchestrator
+            if hasattr(self, '_combat_orchestrator') and self._combat_orchestrator:
+                from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+                
+                # Emit spell casting message
+                cast_msg = f"{caster_ctx.name} casts {spell.name}!"
+                if mana_cost > 0:
+                    cast_msg += f" (Cost: {mana_cost} mana)"
+                    
+                self._combat_orchestrator.add_event_to_queue(
+                    DisplayEvent(
+                        type=DisplayEventType.SYSTEM_MESSAGE,
+                        content=cast_msg,
+                        target_display=DisplayTarget.COMBAT_LOG
+                    )
+                )
+                
+                # Emit effect results
+                for applied_effect in effect_result.applied:
+                    effect_msg = f"  {applied_effect.get('description', 'Effect applied')}"
+                    self._combat_orchestrator.add_event_to_queue(
+                        DisplayEvent(
+                            type=DisplayEventType.SYSTEM_MESSAGE,
+                            content=effect_msg,
+                            target_display=DisplayTarget.COMBAT_LOG
+                        )
+                    )
+            
             if effect_result.success:
                 return CommandResult.success(f"Spell '{spell.name}' executed. Applied {len(effect_result.applied)} effect(s).")
             else:
                 # Partial failures are surfaced as an error string with details
                 details = "; ".join(effect_result.errors) if effect_result.errors else "Unknown error"
                 return CommandResult.error(f"Spell '{spell.name}' applied with errors: {details}")
+                
         except Exception as e:
             logger.error(f"execute_cast_spell failed: {e}", exc_info=True)
             return CommandResult.error(f"Spell execution failed: {e}")
+    
+    def _resolve_spell_targets(self, spell, target_id: Optional[str], game_state, caster_ctx) -> List:
+        """Resolve spell targets based on combat role and selector.
+        
+        Args:
+            spell: Spell object with combat_role property
+            target_id: Optional specific target ID
+            game_state: Current game state
+            caster_ctx: Caster target context
+        
+        Returns:
+            List of TargetContext objects
+        """
+        from core.effects.effects_engine import TargetContext
+        from core.combat.combat_entity import EntityType
+        import random
+        
+        targets = []
+        combat_role = spell.combat_role
+        
+        # If in combat, use combat-specific targeting
+        if hasattr(game_state, 'combat_manager') and game_state.combat_manager:
+            combat_manager = game_state.combat_manager
+            
+            if combat_role == 'offensive':
+                # Target enemies - user should select, fallback to random if unspecified
+                if target_id:
+                    # Specific target requested by user
+                    entity = combat_manager.get_entity_by_id(target_id)
+                    if entity and entity.entity_type == EntityType.ENEMY and entity.is_alive():
+                        stats_manager = combat_manager._get_entity_stats_manager(target_id)
+                        if stats_manager:
+                            targets.append(TargetContext(
+                                id=entity.id,
+                                name=getattr(entity, 'combat_name', entity.id),
+                                stats_manager=stats_manager
+                            ))
+                else:
+                    # Fallback: if one enemy, target it; if multiple, pick random alive enemy
+                    # NOTE: UI should present enemy selection before this fallback is reached
+                    alive_enemies = [e for e in combat_manager.entities.values() 
+                                   if e.entity_type == EntityType.ENEMY and e.is_alive()]
+                    if len(alive_enemies) == 1:
+                        # Only one enemy - safe to auto-target
+                        enemy = alive_enemies[0]
+                        stats_manager = combat_manager._get_entity_stats_manager(enemy.id)
+                        if stats_manager:
+                            targets.append(TargetContext(
+                                id=enemy.id,
+                                name=getattr(enemy, 'combat_name', enemy.id),
+                                stats_manager=stats_manager
+                            ))
+                    elif len(alive_enemies) > 1:
+                        # Multiple enemies - fallback to random (UI should handle selection)
+                        # This is only reached when target selection wasn't handled by UI
+                        enemy = random.choice(alive_enemies)
+                        stats_manager = combat_manager._get_entity_stats_manager(enemy.id)
+                        if stats_manager:
+                            targets.append(TargetContext(
+                                id=enemy.id,
+                                name=getattr(enemy, 'combat_name', enemy.id),
+                                stats_manager=stats_manager
+                            ))
+                            
+            elif combat_role in ['defensive', 'utility']:
+                # Target self or ally
+                if target_id:
+                    # Specific target requested (could be self or ally)
+                    entity = combat_manager.get_entity_by_id(target_id)
+                    if entity and entity.entity_type == EntityType.PLAYER and entity.is_alive():
+                        stats_manager = combat_manager._get_entity_stats_manager(target_id)
+                        if stats_manager:
+                            targets.append(TargetContext(
+                                id=entity.id,
+                                name=getattr(entity, 'combat_name', entity.id),
+                                stats_manager=stats_manager
+                            ))
+                else:
+                    # Default to self-targeting for defensive spells
+                    targets.append(caster_ctx)
+        else:
+            # Non-combat context: generally allow self-targeting or specific targets
+            if target_id:
+                # Try to find the specific target (for future expansion)
+                targets.append(caster_ctx)  # For now, fallback to self
+            else:
+                # Default to self
+                targets.append(caster_ctx)
+                
+        return targets
 
     def process_input(self, command_text: str) -> CommandResult:
         """
@@ -964,6 +1131,12 @@ class GameEngine(QObject):
             self._waiting_for_closing_narrative_display = False
             # Potentially trigger UI re-enable or next game prompt if needed here.
             # For now, just unblocks further input in process_input.
+
+# Convenience function (remains the same)
+    
+    # --- Music accessors for GUI/Server ---
+    def get_music_director(self):
+        return getattr(self, '_music_director', None)
 
 # Convenience function (remains the same)
 def get_game_engine() -> GameEngine:

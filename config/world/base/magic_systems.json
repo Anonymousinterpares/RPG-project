@@ -121,28 +121,6 @@
           "casting_time": "10 seconds",
           "range": "5m",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "healing",
-              "value": 20.0,
-              "stat_affected": "",
-              "status_effect": "",
-              "duration": 0,
-              "dice_notation": "2d6+8",
-              "description": "Immediate healing of wounds and ailments"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 2.0,
-              "stat_affected": "HP Regeneration",
-              "status_effect": "",
-              "duration": 3,
-              "dice_notation": "",
-              "description": "Accelerated natural healing for a short duration"
-            }
-          ],
           "level": 2,
           "components": [
             "voice",
@@ -153,7 +131,45 @@
             "regeneration",
             "restoration"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "heal",
+              "selector": "ally",
+              "magnitude": {
+                "dice": "2d6+8"
+              },
+              "source_id": "harmonic_healing",
+              "tags": [
+                "healing",
+                "regeneration",
+                "restoration"
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 2.0
+              },
+              "source_id": "harmonic_healing",
+              "tags": [
+                "healing",
+                "regeneration",
+                "restoration"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 3
+              },
+              "modifiers": [
+                {
+                  "stat": "HP_REGENERATION",
+                  "value": 2.0
+                }
+              ]
+            }
+          ]
         },
         "resonant_shield": {
           "id": "resonant_shield",
@@ -163,18 +179,6 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 5.0,
-              "stat_affected": "Defense",
-              "status_effect": "",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Sound waves deflect physical and magical attacks"
-            }
-          ],
           "level": 2,
           "components": [
             "voice",
@@ -185,7 +189,32 @@
             "defense",
             "sound"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 5.0
+              },
+              "source_id": "resonant_shield",
+              "tags": [
+                "protection",
+                "defense",
+                "sound"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "modifiers": [
+                {
+                  "stat": "DEFENSE",
+                  "value": 5.0
+                }
+              ]
+            }
+          ]
         },
         "chorus_of_clarity": {
           "id": "chorus_of_clarity",
@@ -195,28 +224,6 @@
           "casting_time": "5 seconds",
           "range": "10m",
           "target": "multiple",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 2.0,
-              "stat_affected": "INT",
-              "status_effect": "",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Temporarily enhances intellectual capabilities"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 2.0,
-              "stat_affected": "WIS",
-              "status_effect": "",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Temporarily enhances perceptive capabilities"
-            }
-          ],
           "level": 1,
           "components": [
             "voice",
@@ -227,7 +234,55 @@
             "mind",
             "perception"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 2.0
+              },
+              "source_id": "chorus_of_clarity",
+              "tags": [
+                "enhancement",
+                "mind",
+                "perception"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "modifiers": [
+                {
+                  "stat": "INT",
+                  "value": 2.0
+                }
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 2.0
+              },
+              "source_id": "chorus_of_clarity",
+              "tags": [
+                "enhancement",
+                "mind",
+                "perception"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "modifiers": [
+                {
+                  "stat": "WIS",
+                  "value": 2.0
+                }
+              ]
+            }
+          ]
         },
         "dirge_of_despair": {
           "id": "dirge_of_despair",
@@ -237,28 +292,6 @@
           "casting_time": "1 action",
           "range": "15m",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": -2.0,
-              "stat_affected": "CHA",
-              "status_effect": "",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Weakens social presence and confidence"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Frightened",
-              "duration": 3,
-              "dice_notation": "",
-              "description": "Targets feel a deep sense of dread and fear"
-            }
-          ],
           "level": 3,
           "components": [
             "voice",
@@ -270,7 +303,50 @@
             "fear",
             "control"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": -2.0
+              },
+              "source_id": "dirge_of_despair",
+              "tags": [
+                "debuff",
+                "fear",
+                "control"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "modifiers": [
+                {
+                  "stat": "CHA",
+                  "value": -2.0
+                }
+              ]
+            },
+            {
+              "type": "status_apply",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "dirge_of_despair",
+              "tags": [
+                "debuff",
+                "fear",
+                "control"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 3
+              },
+              "status": "Frightened"
+            }
+          ]
         },
         "planar_harmonization": {
           "id": "planar_harmonization",
@@ -280,18 +356,6 @@
           "casting_time": "1 minute",
           "range": "30m",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 10.0,
-              "stat_affected": "Planar Resonance",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Enhances ability to perceive and interact with planar energies"
-            }
-          ],
           "level": 5,
           "components": [
             "voice",
@@ -304,7 +368,32 @@
             "utility",
             "ritual"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 10.0
+              },
+              "source_id": "planar_harmonization",
+              "tags": [
+                "planar",
+                "utility",
+                "ritual"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "PLANAR_RESONANCE",
+                  "value": 10.0
+                }
+              ]
+            }
+          ]
         },
         "song_of_mending": {
           "id": "song_of_mending",
@@ -314,18 +403,6 @@
           "casting_time": "30 seconds",
           "range": "5m",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "healing",
-              "value": 30.0,
-              "stat_affected": "",
-              "status_effect": "",
-              "duration": 0,
-              "dice_notation": "",
-              "description": "Repairs damage to a non-living object"
-            }
-          ],
           "level": 2,
           "components": [
             "voice",
@@ -336,7 +413,22 @@
             "restoration",
             "crafting"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "heal",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 30.0
+              },
+              "source_id": "song_of_mending",
+              "tags": [
+                "utility",
+                "restoration",
+                "crafting"
+              ]
+            }
+          ]
         }
       }
     },
@@ -464,28 +556,6 @@
           "casting_time": "30 seconds",
           "range": "20m radius",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 15.0,
-              "stat_affected": "Planar Stability",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Maintains the current plane's physics and prevents planar bleeding"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 3.0,
-              "stat_affected": "Defense",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "The stability field provides minor protection against normal attacks as well"
-            }
-          ],
           "level": 3,
           "components": [
             "gesture",
@@ -497,7 +567,55 @@
             "planar",
             "area effect"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 15.0
+              },
+              "source_id": "stability_field",
+              "tags": [
+                "protection",
+                "planar",
+                "area effect"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "PLANAR_STABILITY",
+                  "value": 15.0
+                }
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 3.0
+              },
+              "source_id": "stability_field",
+              "tags": [
+                "protection",
+                "planar",
+                "area effect"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "DEFENSE",
+                  "value": 3.0
+                }
+              ]
+            }
+          ]
         },
         "reality_tether": {
           "id": "reality_tether",
@@ -507,18 +625,6 @@
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": -10.0,
-              "stat_affected": "Planar Resonance",
-              "status_effect": "",
-              "duration": 60,
-              "dice_notation": "",
-              "description": "Reduces susceptibility to planar effects and dimensional displacement"
-            }
-          ],
           "level": 2,
           "components": [
             "touch",
@@ -530,7 +636,32 @@
             "planar",
             "anchoring"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": -10.0
+              },
+              "source_id": "reality_tether",
+              "tags": [
+                "protection",
+                "planar",
+                "anchoring"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 60
+              },
+              "modifiers": [
+                {
+                  "stat": "PLANAR_RESONANCE",
+                  "value": -10.0
+                }
+              ]
+            }
+          ]
         },
         "planar_sight": {
           "id": "planar_sight",
@@ -540,18 +671,6 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 10.0,
-              "stat_affected": "Perception",
-              "status_effect": "",
-              "duration": 15,
-              "dice_notation": "",
-              "description": "Allows visibility of planar boundaries and cross-planar entities"
-            }
-          ],
           "level": 2,
           "components": [
             "gesture",
@@ -562,7 +681,32 @@
             "planar",
             "perception"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 10.0
+              },
+              "source_id": "planar_sight",
+              "tags": [
+                "divination",
+                "planar",
+                "perception"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 15
+              },
+              "modifiers": [
+                {
+                  "stat": "PERCEPTION",
+                  "value": 10.0
+                }
+              ]
+            }
+          ]
         },
         "boundary_distortion": {
           "id": "boundary_distortion",
@@ -572,18 +716,6 @@
           "casting_time": "1 minute",
           "range": "10m radius",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": -20.0,
-              "stat_affected": "Planar Stability",
-              "status_effect": "",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Creates a controlled destabilization of planar boundaries"
-            }
-          ],
           "level": 4,
           "components": [
             "gesture",
@@ -596,7 +728,32 @@
             "manipulation",
             "advanced"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": -20.0
+              },
+              "source_id": "boundary_distortion",
+              "tags": [
+                "planar",
+                "manipulation",
+                "advanced"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "modifiers": [
+                {
+                  "stat": "PLANAR_STABILITY",
+                  "value": -20.0
+                }
+              ]
+            }
+          ]
         },
         "resonance_shield": {
           "id": "resonance_shield",
@@ -606,28 +763,6 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 15.0,
-              "stat_affected": "Planar Resistance",
-              "status_effect": "",
-              "duration": 20,
-              "dice_notation": "",
-              "description": "Provides immunity to harmful effects from planar resonance and instability"
-            },
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 5.0,
-              "stat_affected": "Magic Resistance",
-              "status_effect": "",
-              "duration": 20,
-              "dice_notation": "",
-              "description": "The shield also provides some protection against conventional magic"
-            }
-          ],
           "level": 3,
           "components": [
             "gesture",
@@ -639,7 +774,55 @@
             "planar",
             "defensive"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 15.0
+              },
+              "source_id": "resonance_shield",
+              "tags": [
+                "protection",
+                "planar",
+                "defensive"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 20
+              },
+              "modifiers": [
+                {
+                  "stat": "PLANAR_RESISTANCE",
+                  "value": 15.0
+                }
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 5.0
+              },
+              "source_id": "resonance_shield",
+              "tags": [
+                "protection",
+                "planar",
+                "defensive"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 20
+              },
+              "modifiers": [
+                {
+                  "stat": "MAGIC_RESISTANCE",
+                  "value": 5.0
+                }
+              ]
+            }
+          ]
         },
         "planar_transit": {
           "id": "planar_transit",
@@ -649,18 +832,6 @@
           "casting_time": "5 minutes",
           "range": "5m radius",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Planar Transit",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Creates a controlled passage between planes in resonance"
-            }
-          ],
           "level": 5,
           "components": [
             "gesture",
@@ -675,7 +846,28 @@
             "advanced",
             "ritual"
           ],
-          "combat_role": "utility"
+          "combat_role": "utility",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "planar_transit",
+              "tags": [
+                "planar",
+                "travel",
+                "advanced",
+                "ritual"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "status": "Planar Transit"
+            }
+          ]
         }
       }
     },
@@ -802,18 +994,6 @@
           "casting_time": "30 seconds",
           "range": "5m",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Echo Contained",
-              "duration": 60,
-              "dice_notation": "",
-              "description": "Captures a planar echo for later binding"
-            }
-          ],
           "level": 1,
           "components": [
             "gesture",
@@ -825,7 +1005,27 @@
             "planar",
             "gathering"
           ],
-          "combat_role": "utility"
+          "combat_role": "utility",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "echo_capture",
+              "tags": [
+                "utility",
+                "planar",
+                "gathering"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 60
+              },
+              "status": "Echo Contained"
+            }
+          ]
         },
         "bind_echo": {
           "id": "bind_echo",
@@ -835,18 +1035,6 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 10.0,
-              "stat_affected": "Planar Essence",
-              "status_effect": "",
-              "duration": 120,
-              "dice_notation": "",
-              "description": "Transfers captured echo properties to the target"
-            }
-          ],
           "level": 2,
           "components": [
             "gesture",
@@ -858,7 +1046,32 @@
             "planar",
             "binding"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 10.0
+              },
+              "source_id": "bind_echo",
+              "tags": [
+                "enchantment",
+                "planar",
+                "binding"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 120
+              },
+              "modifiers": [
+                {
+                  "stat": "PLANAR_ESSENCE",
+                  "value": 10.0
+                }
+              ]
+            }
+          ]
         },
         "echo_sight": {
           "id": "echo_sight",
@@ -868,18 +1081,6 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 15.0,
-              "stat_affected": "Echo Perception",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Allows visibility of planar echoes and understanding of their properties"
-            }
-          ],
           "level": 1,
           "components": [
             "gesture",
@@ -890,7 +1091,32 @@
             "planar",
             "perception"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 15.0
+              },
+              "source_id": "echo_sight",
+              "tags": [
+                "divination",
+                "planar",
+                "perception"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "ECHO_PERCEPTION",
+                  "value": 15.0
+                }
+              ]
+            }
+          ]
         },
         "weapon_echo": {
           "id": "weapon_echo",
@@ -900,28 +1126,6 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 6.0,
-              "stat_affected": "Damage",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Adds planar damage to weapon attacks"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Planar Disruption",
-              "duration": 3,
-              "dice_notation": "",
-              "description": "Weapon attacks can disrupt planar abilities of targets"
-            }
-          ],
           "level": 3,
           "components": [
             "gesture",
@@ -934,7 +1138,50 @@
             "enhancement",
             "planar"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": 6.0
+              },
+              "source_id": "weapon_echo",
+              "tags": [
+                "combat",
+                "enhancement",
+                "planar"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "DAMAGE",
+                  "value": 6.0
+                }
+              ]
+            },
+            {
+              "type": "status_apply",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "weapon_echo",
+              "tags": [
+                "combat",
+                "enhancement",
+                "planar"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 3
+              },
+              "status": "Planar Disruption"
+            }
+          ]
         },
         "echo_ward": {
           "id": "echo_ward",
@@ -944,28 +1191,6 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 7.0,
-              "stat_affected": "Defense",
-              "status_effect": "",
-              "duration": 60,
-              "dice_notation": "",
-              "description": "Protects against physical attacks"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 12.0,
-              "stat_affected": "Planar Resistance",
-              "status_effect": "",
-              "duration": 60,
-              "dice_notation": "",
-              "description": "Protects against planar effects and energies"
-            }
-          ],
           "level": 3,
           "components": [
             "gesture",
@@ -977,7 +1202,55 @@
             "defensive",
             "planar"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 7.0
+              },
+              "source_id": "echo_ward",
+              "tags": [
+                "protection",
+                "defensive",
+                "planar"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 60
+              },
+              "modifiers": [
+                {
+                  "stat": "DEFENSE",
+                  "value": 7.0
+                }
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 12.0
+              },
+              "source_id": "echo_ward",
+              "tags": [
+                "protection",
+                "defensive",
+                "planar"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 60
+              },
+              "modifiers": [
+                {
+                  "stat": "PLANAR_RESISTANCE",
+                  "value": 12.0
+                }
+              ]
+            }
+          ]
         },
         "echo_mimicry": {
           "id": "echo_mimicry",
@@ -987,28 +1260,6 @@
           "casting_time": "2 minutes",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 8.0,
-              "stat_affected": "Varied",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Grants traits and abilities based on the specific echo bound"
-            },
-            {
-              "target_type": "caster",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Echo Transformation",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Physically transforms aspects of the caster to match the echo source"
-            }
-          ],
           "level": 4,
           "components": [
             "gesture",
@@ -1021,7 +1272,50 @@
             "planar",
             "mimicry"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 8.0
+              },
+              "source_id": "echo_mimicry",
+              "tags": [
+                "transformation",
+                "planar",
+                "mimicry"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "VARIED",
+                  "value": 8.0
+                }
+              ]
+            },
+            {
+              "type": "status_apply",
+              "selector": "self",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "echo_mimicry",
+              "tags": [
+                "transformation",
+                "planar",
+                "mimicry"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "status": "Echo Transformation"
+            }
+          ]
         }
       }
     },
@@ -1146,18 +1440,6 @@
           "casting_time": "1 action",
           "range": "30m",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "damage",
-              "value": 25.0,
-              "stat_affected": "",
-              "status_effect": "",
-              "duration": 0,
-              "dice_notation": "3d8+4",
-              "description": "Pure light energy strikes the target with unerring accuracy"
-            }
-          ],
           "level": 2,
           "components": [
             "octahedral crystal",
@@ -1169,7 +1451,23 @@
             "precision",
             "light"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "damage",
+              "selector": "enemy",
+              "magnitude": {
+                "dice": "3d8+4"
+              },
+              "source_id": "prismatic_bolt",
+              "tags": [
+                "attack",
+                "precision",
+                "light"
+              ],
+              "damage_type": "arcane"
+            }
+          ]
         },
         "crystalline_shield": {
           "id": "crystalline_shield",
@@ -1179,18 +1477,6 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 8.0,
-              "stat_affected": "Defense",
-              "status_effect": "",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Creates a perfectly calculated defensive barrier"
-            }
-          ],
           "level": 2,
           "components": [
             "cubic crystal",
@@ -1201,7 +1487,32 @@
             "defensive",
             "barrier"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 8.0
+              },
+              "source_id": "crystalline_shield",
+              "tags": [
+                "protection",
+                "defensive",
+                "barrier"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "modifiers": [
+                {
+                  "stat": "DEFENSE",
+                  "value": 8.0
+                }
+              ]
+            }
+          ]
         },
         "computational_enhancement": {
           "id": "computational_enhancement",
@@ -1211,18 +1522,6 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 4.0,
-              "stat_affected": "INT",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Temporarily boosts intellectual capacity and computational ability"
-            }
-          ],
           "level": 3,
           "components": [
             "dodecahedral crystal",
@@ -1234,7 +1533,32 @@
             "mental",
             "intellect"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 4.0
+              },
+              "source_id": "computational_enhancement",
+              "tags": [
+                "enhancement",
+                "mental",
+                "intellect"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "INT",
+                  "value": 4.0
+                }
+              ]
+            }
+          ]
         },
         "perfect_analysis": {
           "id": "perfect_analysis",
@@ -1244,18 +1568,6 @@
           "casting_time": "1 minute",
           "range": "5m",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 20.0,
-              "stat_affected": "Knowledge",
-              "status_effect": "",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Grants precise information about the target's composition, properties, and nature"
-            }
-          ],
           "level": 2,
           "components": [
             "tetrahedral crystal",
@@ -1267,7 +1579,32 @@
             "knowledge",
             "analysis"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 20.0
+              },
+              "source_id": "perfect_analysis",
+              "tags": [
+                "divination",
+                "knowledge",
+                "analysis"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "modifiers": [
+                {
+                  "stat": "KNOWLEDGE",
+                  "value": 20.0
+                }
+              ]
+            }
+          ]
         },
         "geometric_restructuring": {
           "id": "geometric_restructuring",
@@ -1277,18 +1614,6 @@
           "casting_time": "5 minutes",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "healing",
-              "value": 40.0,
-              "stat_affected": "",
-              "status_effect": "",
-              "duration": 0,
-              "dice_notation": "",
-              "description": "Repairs and restructures non-living matter according to precise calculations"
-            }
-          ],
           "level": 3,
           "components": [
             "icosahedral crystal",
@@ -1301,7 +1626,22 @@
             "repair",
             "crafting"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "heal",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 40.0
+              },
+              "source_id": "geometric_restructuring",
+              "tags": [
+                "transmutation",
+                "repair",
+                "crafting"
+              ]
+            }
+          ]
         },
         "crystal_prison": {
           "id": "crystal_prison",
@@ -1311,28 +1651,6 @@
           "casting_time": "1 action",
           "range": "15m",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Restrained",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Target is encased in a precisely calculated crystalline structure"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": -5.0,
-              "stat_affected": "DEX",
-              "status_effect": "",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Crystal severely restricts movement"
-            }
-          ],
           "level": 4,
           "components": [
             "cubic crystal",
@@ -1344,7 +1662,50 @@
             "restraint",
             "crystal"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "crystal_prison",
+              "tags": [
+                "control",
+                "restraint",
+                "crystal"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "status": "Restrained"
+            },
+            {
+              "type": "buff",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": -5.0
+              },
+              "source_id": "crystal_prison",
+              "tags": [
+                "control",
+                "restraint",
+                "crystal"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "modifiers": [
+                {
+                  "stat": "DEX",
+                  "value": -5.0
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -1470,18 +1831,6 @@
           "casting_time": "30 seconds",
           "range": "50m",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Ash Perception",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Allows perception through solid objects within range"
-            }
-          ],
           "level": 1,
           "components": [
             "pinch of ash",
@@ -1492,7 +1841,27 @@
             "divination",
             "espionage"
           ],
-          "combat_role": "utility"
+          "combat_role": "utility",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "self",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "minor_projection",
+              "tags": [
+                "perception",
+                "divination",
+                "espionage"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "status": "Ash Perception"
+            }
+          ]
         },
         "ashen_transit": {
           "id": "ashen_transit",
@@ -1502,28 +1871,6 @@
           "casting_time": "1 minute",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Ash Walking",
-              "duration": 15,
-              "dice_notation": "",
-              "description": "Consciousness fully transfers to the Ashen plane"
-            },
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": -10.0,
-              "stat_affected": "Physical Defense",
-              "status_effect": "",
-              "duration": 15,
-              "dice_notation": "",
-              "description": "Physical body is vulnerable while consciousness is elsewhere"
-            }
-          ],
           "level": 3,
           "components": [
             "handful of ashes",
@@ -1535,7 +1882,50 @@
             "planar",
             "espionage"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "self",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "ashen_transit",
+              "tags": [
+                "transportation",
+                "planar",
+                "espionage"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 15
+              },
+              "status": "Ash Walking"
+            },
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": -10.0
+              },
+              "source_id": "ashen_transit",
+              "tags": [
+                "transportation",
+                "planar",
+                "espionage"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 15
+              },
+              "modifiers": [
+                {
+                  "stat": "PHYSICAL_DEFENSE",
+                  "value": -10.0
+                }
+              ]
+            }
+          ]
         },
         "whispers_of_ash": {
           "id": "whispers_of_ash",
@@ -1545,18 +1935,6 @@
           "casting_time": "1 minute",
           "range": "unlimited",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Ash Communication",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Establishes a mental link through the Ashen plane"
-            }
-          ],
           "level": 2,
           "components": [
             "shared ash source",
@@ -1567,7 +1945,27 @@
             "utility",
             "social"
           ],
-          "combat_role": "utility"
+          "combat_role": "utility",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "self",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "whispers_of_ash",
+              "tags": [
+                "communication",
+                "utility",
+                "social"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "status": "Ash Communication"
+            }
+          ]
         },
         "ashen_knowledge": {
           "id": "ashen_knowledge",
@@ -1577,18 +1975,6 @@
           "casting_time": "10 minutes",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 15.0,
-              "stat_affected": "Knowledge",
-              "status_effect": "",
-              "duration": 1,
-              "dice_notation": "",
-              "description": "Grants specific knowledge about a subject from the collective memory of the Ashen plane"
-            }
-          ],
           "level": 4,
           "components": [
             "ash from location or subject",
@@ -1601,7 +1987,32 @@
             "divination",
             "history"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 15.0
+              },
+              "source_id": "ashen_knowledge",
+              "tags": [
+                "knowledge",
+                "divination",
+                "history"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 1
+              },
+              "modifiers": [
+                {
+                  "stat": "KNOWLEDGE",
+                  "value": 15.0
+                }
+              ]
+            }
+          ]
         },
         "ash_veil": {
           "id": "ash_veil",
@@ -1611,18 +2022,6 @@
           "casting_time": "1 action",
           "range": "15m radius",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": -10.0,
-              "stat_affected": "Perception",
-              "status_effect": "",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Reduces visibility and sensory perception in the affected area"
-            }
-          ],
           "level": 2,
           "components": [
             "handful of ashes",
@@ -1633,7 +2032,32 @@
             "control",
             "defense"
           ],
-          "combat_role": "offensive"
+          "combat_role": "offensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "enemy",
+              "magnitude": {
+                "flat": -10.0
+              },
+              "source_id": "ash_veil",
+              "tags": [
+                "concealment",
+                "control",
+                "defense"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "modifiers": [
+                {
+                  "stat": "PERCEPTION",
+                  "value": -10.0
+                }
+              ]
+            }
+          ]
         },
         "ashen_body": {
           "id": "ashen_body",
@@ -1643,28 +2067,6 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "effects": [
-            {
-              "target_type": "caster",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Ashen Form",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Physical body becomes partially incorporeal ash"
-            },
-            {
-              "target_type": "caster",
-              "effect_type": "stat_modification",
-              "value": 10.0,
-              "stat_affected": "Physical Resistance",
-              "status_effect": "",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Significantly reduces damage from physical attacks"
-            }
-          ],
           "level": 4,
           "components": [
             "ritual ashes",
@@ -1676,7 +2078,50 @@
             "defense",
             "movement"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "self",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "ashen_body",
+              "tags": [
+                "transformation",
+                "defense",
+                "movement"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "status": "Ashen Form"
+            },
+            {
+              "type": "buff",
+              "selector": "self",
+              "magnitude": {
+                "flat": 10.0
+              },
+              "source_id": "ashen_body",
+              "tags": [
+                "transformation",
+                "defense",
+                "movement"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "modifiers": [
+                {
+                  "stat": "PHYSICAL_RESISTANCE",
+                  "value": 10.0
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -1801,18 +2246,6 @@
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "healing",
-              "value": 25.0,
-              "stat_affected": "",
-              "status_effect": "",
-              "duration": 0,
-              "dice_notation": "2d8+10",
-              "description": "Immediate healing of physical wounds and injuries"
-            }
-          ],
           "level": 2,
           "components": [
             "touch",
@@ -1824,7 +2257,22 @@
             "restoration",
             "touch"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "heal",
+              "selector": "ally",
+              "magnitude": {
+                "dice": "2d8+10"
+              },
+              "source_id": "healing_touch",
+              "tags": [
+                "healing",
+                "restoration",
+                "touch"
+              ]
+            }
+          ]
         },
         "purify_body": {
           "id": "purify_body",
@@ -1834,28 +2282,6 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Purified",
-              "duration": 0,
-              "dice_notation": "",
-              "description": "Removes disease, poison, and other harmful conditions"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 2.0,
-              "stat_affected": "CON",
-              "status_effect": "",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Temporarily enhances physical resilience"
-            }
-          ],
           "level": 3,
           "components": [
             "touch",
@@ -1868,7 +2294,50 @@
             "restoration",
             "protection"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "purify_body",
+              "tags": [
+                "purification",
+                "restoration",
+                "protection"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 1
+              },
+              "status": "Purified"
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 2.0
+              },
+              "source_id": "purify_body",
+              "tags": [
+                "purification",
+                "restoration",
+                "protection"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "modifiers": [
+                {
+                  "stat": "CON",
+                  "value": 2.0
+                }
+              ]
+            }
+          ]
         },
         "divine_restoration": {
           "id": "divine_restoration",
@@ -1878,28 +2347,6 @@
           "casting_time": "5 minutes",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "healing",
-              "value": 50.0,
-              "stat_affected": "",
-              "status_effect": "",
-              "duration": 0,
-              "dice_notation": "4d10+20",
-              "description": "Comprehensive healing of major wounds and injuries"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 5.0,
-              "stat_affected": "HP Regeneration",
-              "status_effect": "",
-              "duration": 10,
-              "dice_notation": "",
-              "description": "Enhances natural healing for a period of time"
-            }
-          ],
           "level": 4,
           "components": [
             "touch",
@@ -1913,7 +2360,45 @@
             "restoration",
             "regeneration"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "heal",
+              "selector": "ally",
+              "magnitude": {
+                "dice": "4d10+20"
+              },
+              "source_id": "divine_restoration",
+              "tags": [
+                "healing",
+                "restoration",
+                "regeneration"
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 5.0
+              },
+              "source_id": "divine_restoration",
+              "tags": [
+                "healing",
+                "restoration",
+                "regeneration"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 10
+              },
+              "modifiers": [
+                {
+                  "stat": "HP_REGENERATION",
+                  "value": 5.0
+                }
+              ]
+            }
+          ]
         },
         "circle_of_healing": {
           "id": "circle_of_healing",
@@ -1923,28 +2408,6 @@
           "casting_time": "1 minute",
           "range": "10m radius",
           "target": "area",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "healing",
-              "value": 15.0,
-              "stat_affected": "",
-              "status_effect": "",
-              "duration": 0,
-              "dice_notation": "2d6+5",
-              "description": "Immediate healing to all within the circle"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 2.0,
-              "stat_affected": "HP Regeneration",
-              "status_effect": "",
-              "duration": 5,
-              "dice_notation": "",
-              "description": "Enhances natural healing while within the circle"
-            }
-          ],
           "level": 3,
           "components": [
             "ritual circle",
@@ -1956,7 +2419,45 @@
             "area effect",
             "support"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "heal",
+              "selector": "ally",
+              "magnitude": {
+                "dice": "2d6+5"
+              },
+              "source_id": "circle_of_healing",
+              "tags": [
+                "healing",
+                "area effect",
+                "support"
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 2.0
+              },
+              "source_id": "circle_of_healing",
+              "tags": [
+                "healing",
+                "area effect",
+                "support"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 5
+              },
+              "modifiers": [
+                {
+                  "stat": "HP_REGENERATION",
+                  "value": 2.0
+                }
+              ]
+            }
+          ]
         },
         "protective_blessing": {
           "id": "protective_blessing",
@@ -1966,28 +2467,6 @@
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 5.0,
-              "stat_affected": "Defense",
-              "status_effect": "",
-              "duration": 15,
-              "dice_notation": "",
-              "description": "Divine energy creates a protective barrier against harm"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 5.0,
-              "stat_affected": "Magic Resistance",
-              "status_effect": "",
-              "duration": 15,
-              "dice_notation": "",
-              "description": "Enhances resistance to harmful magical effects"
-            }
-          ],
           "level": 3,
           "components": [
             "touch",
@@ -1999,7 +2478,55 @@
             "defensive",
             "blessing"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 5.0
+              },
+              "source_id": "protective_blessing",
+              "tags": [
+                "protection",
+                "defensive",
+                "blessing"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 15
+              },
+              "modifiers": [
+                {
+                  "stat": "DEFENSE",
+                  "value": 5.0
+                }
+              ]
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 5.0
+              },
+              "source_id": "protective_blessing",
+              "tags": [
+                "protection",
+                "defensive",
+                "blessing"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 15
+              },
+              "modifiers": [
+                {
+                  "stat": "MAGIC_RESISTANCE",
+                  "value": 5.0
+                }
+              ]
+            }
+          ]
         },
         "revitalize": {
           "id": "revitalize",
@@ -2009,28 +2536,6 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "effects": [
-            {
-              "target_type": "target",
-              "effect_type": "status_effect",
-              "value": 0.0,
-              "stat_affected": "",
-              "status_effect": "Revitalized",
-              "duration": 60,
-              "dice_notation": "",
-              "description": "Removes exhaustion and fatigue"
-            },
-            {
-              "target_type": "target",
-              "effect_type": "stat_modification",
-              "value": 10.0,
-              "stat_affected": "Stamina",
-              "status_effect": "",
-              "duration": 30,
-              "dice_notation": "",
-              "description": "Enhances physical endurance and energy"
-            }
-          ],
           "level": 2,
           "components": [
             "touch",
@@ -2042,7 +2547,50 @@
             "enhancement",
             "recovery"
           ],
-          "combat_role": "defensive"
+          "combat_role": "defensive",
+          "effect_atoms": [
+            {
+              "type": "status_apply",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 0.0
+              },
+              "source_id": "revitalize",
+              "tags": [
+                "restoration",
+                "enhancement",
+                "recovery"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 60
+              },
+              "status": "Revitalized"
+            },
+            {
+              "type": "buff",
+              "selector": "ally",
+              "magnitude": {
+                "flat": 10.0
+              },
+              "source_id": "revitalize",
+              "tags": [
+                "restoration",
+                "enhancement",
+                "recovery"
+              ],
+              "duration": {
+                "unit": "turns",
+                "value": 30
+              },
+              "modifiers": [
+                {
+                  "stat": "STAMINA",
+                  "value": 10.0
+                }
+              ]
+            }
+          ]
         }
       }
     }

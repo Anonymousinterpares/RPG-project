@@ -16,6 +16,7 @@ from core.utils.logging_config import get_logger
 from core.combat.combat_manager import CombatManager
 from core.combat.combat_entity import CombatEntity, EntityType
 from core.combat.combat_action import CombatAction, ActionType, AttackAction
+from core.combat.enums import CombatStep
 from core.character.npc_system import NPCSystem
 from core.stats.stats_base import StatType, DerivedStatType # Import specific types
 from core.stats.stats_manager import get_stats_manager
