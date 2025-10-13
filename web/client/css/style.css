@@ -387,6 +387,21 @@ body {
     transition: background-color var(--transition-speed);
 }
 
+/* Header music volume popover */
+.volume-popover {
+    position: fixed;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: 8px;
+    z-index: 2000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    min-width: 220px;
+}
+.volume-popover .volume-row { display:flex; align-items:center; gap:10px; }
+.volume-popover input[type="range"] { width: 140px; flex:1; }
+.volume-popover .mute-label { font-size: 0.9rem; user-select:none; white-space:nowrap; cursor:pointer; }
+
 .primary-btn {
     background-color: var(--color-primary);
     color: var(--color-text-light);

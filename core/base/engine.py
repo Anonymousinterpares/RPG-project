@@ -142,24 +142,32 @@ class GameEngine(QObject):
         self._waiting_for_closing_narrative_display: bool = False # New flag for ECFA
         self._post_combat_finalization_in_progress: bool = False  # Prevent duplicate auto-finalization
         
-        # Initialize Music Director and desktop backend (VLC)
+        # Initialize Music Director and backend
         try:
-            from PySide6.QtCore import QSettings
+            import os as _os
             from core.music.director import get_music_director
-            from core.music.backend_vlc import VLCBackend
             self._music_director = get_music_director(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
-            self._music_backend = VLCBackend()
-            self._music_director.set_backend(self._music_backend)
-            # Apply QSettings sound immediately
-            s = QSettings("RPGGame", "Settings")
-            master = int(s.value("sound/master_volume", 100))
-            music  = int(s.value("sound/music_volume", 100))
-            effects= int(s.value("sound/effects_volume", 100))
-            enabled= s.value("sound/enabled", True)
-            muted = not bool(enabled)
-            self._music_director.set_volumes(master, music, effects)
-            self._music_director.set_muted(muted)
-            logger.info(f"Music system initialized (enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
+
+            web_mode = str(_os.environ.get("RPG_WEB_MODE", "0")) == "1"
+            if not web_mode:
+                # Desktop/GUI: use VLC backend
+                from PySide6.QtCore import QSettings
+                from core.music.backend_vlc import VLCBackend
+                self._music_backend = VLCBackend()
+                self._music_director.set_backend(self._music_backend)
+                # Apply QSettings sound immediately
+                s = QSettings("RPGGame", "Settings")
+                master = int(s.value("sound/master_volume", 100))
+                music  = int(s.value("sound/music_volume", 100))
+                effects= int(s.value("sound/effects_volume", 100))
+                enabled= s.value("sound/enabled", True)
+                muted = not bool(enabled)
+                self._music_director.set_volumes(master, music, effects)
+                self._music_director.set_muted(muted)
+                logger.info(f"Music system initialized (desktop backend, enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
+            else:
+                # Web/server mode: no desktop audio backend; state is emitted to clients for WebAudio playback
+                logger.info("Music system initialized in WEB mode (no desktop audio backend)")
         except Exception as e:
             logger.warning(f"Failed to initialize music system: {e}")
 
@@ -334,7 +342,21 @@ class GameEngine(QObject):
             The loaded game state, or None if the load failed.
         """
         # Delegate to the lifecycle module
-        return lifecycle.load_game(self, filename)
+        loaded_state = lifecycle.load_game(self, filename)
+        # Ensure music is active after load (fallback to ambient if no saved mood exists)
+        try:
+            md = getattr(self, 'get_music_director', lambda: None)()
+            if md and loaded_state:
+                # Attempt to read saved mood/intensity if present on state; otherwise fallback
+                mood = getattr(loaded_state, 'music_mood', None)
+                intensity = getattr(loaded_state, 'music_intensity', None)
+                if isinstance(mood, str) and mood:
+                    md.hard_set(mood, intensity=(float(intensity) if isinstance(intensity, (int, float)) else 0.3), reason="load_game")
+                else:
+                    md.hard_set("ambient", intensity=0.3, reason="load_game_fallback")
+        except Exception:
+            pass
+        return loaded_state
 
     
     def save_game(self, filename: Optional[str] = None, 

@@ -16,9 +16,16 @@
                     <img id="title-banner" src="/images/gui/title_banner.png" alt="Title Banner">
                 </div>
                 <div class="music-controls">
-                    <button class="music-btn" title="Play/Pause"><img src="/images/gui/music_play.png" alt="Play"></button>
-                    <button class="music-btn" title="Next"><img src="/images/gui/music_next.png" alt="Next"></button>
-                    <button class="music-btn" title="Volume"><img src="/images/gui/music_volume.png" alt="Volume"></button>
+                    <button id="btn-music-playpause" class="music-btn" title="Play/Pause"><img src="/images/gui/music_play.png" alt="Play"></button>
+                    <button id="btn-music-next" class="music-btn" title="Next"><img src="/images/gui/music_next.png" alt="Next"></button>
+                    <button id="btn-music-volume" class="music-btn" title="Volume"><img src="/images/gui/music_volume.png" alt="Volume"></button>
+                </div>
+                <!-- Header volume popover (browser-only) -->
+                <div id="header-volume-popover" class="volume-popover" style="display:none;">
+                    <div class="volume-row">
+                        <input type="range" id="header-music-volume-slider" min="0" max="100" value="100">
+                        <label class="mute-label"><input type="checkbox" id="header-mute-toggle"> Mute</label>
+                    </div>
                 </div>
             </div>
 

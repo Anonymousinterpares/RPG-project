@@ -25,6 +25,9 @@ project_root = os.path.dirname(web_dir)
 # Insert project root at beginning of path to ensure correct imports
 sys.path.insert(0, project_root)
 
+# Signal web-server context to engine (disable desktop audio backends)
+os.environ.setdefault("RPG_WEB_MODE", "1")
+
 # Print path for debugging
 print(f"Project root: {project_root}")
 print(f"Python path: {sys.path}")
@@ -185,6 +188,17 @@ try:
     logger.info(f"Mounted images directory at: {images_dir}")
 except Exception as e:
     logger.error(f"Error mounting images directory: {e}")
+
+# Mount sound directory for serving music/audio assets used by Web UI
+try:
+    sound_dir = os.path.join(project_root, "sound")
+    if os.path.isdir(sound_dir):
+        app.mount("/sound", StaticFiles(directory=sound_dir), name="sound")
+        logger.info(f"Mounted sound directory at: {sound_dir}")
+    else:
+        logger.warning(f"Sound directory not found at: {sound_dir}")
+except Exception as e:
+    logger.error(f"Error mounting sound directory: {e}")
 
 # Simple OAuth2 password bearer for basic authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -843,8 +857,7 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
             md.add_state_listener(on_music_state)
             music_conn = on_music_state
     except Exception as e:
-        logger.warning(f"Failed to attach music state listener: {e}
-")
+        logger.warning(f"Failed to attach music state listener: {e}")
 
     session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn, "out_conn": out_conn, "music_conn": music_conn}
 
@@ -852,7 +865,7 @@ def _cleanup_session(session_id: str):
     """Clean up a session's resources."""
     try:
         # Cleanup engine listeners
-        _detach_engine_listeners(session_id)
+        _attach_engine_listeners(session_id)
         # Remove from active sessions
         if session_id in active_sessions:
             del active_sessions[session_id]
@@ -1806,6 +1819,24 @@ async def toggle_llm(session_id: str, request: ToggleLLMRequest, engine: GameEng
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error toggling LLM: {str(e)}"
         )
+
+# --- Music control endpoints (server-authoritative actions) ---
+@app.post("/api/music/next/{session_id}")
+async def music_next(session_id: str):
+    try:
+        engine = active_sessions.get(session_id)
+        if not engine:
+            raise HTTPException(status_code=404, detail="Session not found")
+        md = getattr(engine, 'get_music_director', lambda: None)()
+        if not md:
+            raise HTTPException(status_code=500, detail="MusicDirector not available")
+        md.next_track("user_skip_web")
+        return {"status": "success", "message": "Next track requested"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error advancing music track: {e}")
+        raise HTTPException(status_code=500, detail="Failed to advance music track")
 
 # --- Backstory generation endpoints ---
 class BackstoryImproveRequest(BaseModel):

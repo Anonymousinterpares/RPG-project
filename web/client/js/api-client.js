@@ -225,6 +225,24 @@ class ApiClient {
     }
 
     /**
+     * Request next music track for current session
+     */
+    async musicNext() {
+        if (!this.sessionId) {
+            throw new Error('No active game session');
+        }
+        const response = await fetch(this.buildUrl(`music/next/${this.sessionId}`), {
+            method: 'POST',
+            headers: this.getHeaders()
+        });
+        if (!response.ok) {
+            const txt = await response.text();
+            throw new Error(txt || 'Failed to advance music track');
+        }
+        return await response.json();
+    }
+
+    /**
      * Start a new game with extended character creation options
      * 
      * @param {string} playerName - The name of the player character

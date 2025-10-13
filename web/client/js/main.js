@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize UI event listeners
     uiManager.initEventListeners();
     
+    // Wire header music controls
+    initHeaderMusicControls();
+
     // New Game button
     document.getElementById('new-game-btn').addEventListener('click', () => {
         uiManager.openModal('newGame');
@@ -116,6 +119,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Settings button
     document.getElementById('settings-btn').addEventListener('click', async () => {
         uiManager.openModal('settings');
+        // Unlock audio context ONLY if not already created (for user gesture)
+        // Do NOT force-resume if context is suspended intentionally
+        try {
+            if (window.webMusicManager && !window.webMusicManager.ctx) {
+                await window.webMusicManager.enableAudio();
+            }
+        } catch {}
         
         // Load both LLM and Gameplay settings when the modal opens
         try {
@@ -476,8 +486,110 @@ function connectWebSocket(sessionId, options = {}) {
         try { uiManager.appendCombatLogLine(data || {}); } catch (e) { console.warn(e); }
     });
     webSocketClient.on('journal_updated', ()=>{ try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
-    // Connect WebSocket only after setting up all handlers
+// Connect WebSocket only after setting up all handlers
     webSocketClient.connect(id);
+}
+
+// Header music controls: browser-only mute/volume and server-side next
+function initHeaderMusicControls() {
+    const btnPlay = document.getElementById('btn-music-playpause');
+    const btnNext = document.getElementById('btn-music-next');
+    const btnVol  = document.getElementById('btn-music-volume');
+    const pop     = document.getElementById('header-volume-popover');
+    const popSlider = document.getElementById('header-music-volume-slider');
+    const popMute = document.getElementById('header-mute-toggle');
+
+    // Helper: sync popover from Settings sliders
+    const syncFromSettings = () => {
+        const musicSlider = document.getElementById('music-volume-slider');
+        const soundToggle = document.getElementById('sound-enabled-toggle');
+        if (musicSlider) popSlider.value = musicSlider.value || '100';
+        if (soundToggle) popMute.checked = !(soundToggle.checked);
+    };
+    // Helper: apply volumes to WebMusicManager (browser-only)
+    const applyVolumes = () => {
+        try {
+            const masterEl = document.getElementById('master-volume-slider');
+            const effectsEl = document.getElementById('effects-volume-slider');
+            const soundToggle = document.getElementById('sound-enabled-toggle');
+            const master = parseInt(masterEl?.value || '100', 10);
+            const music  = parseInt(popSlider?.value || '100', 10);
+            const effects= parseInt(effectsEl?.value || '100', 10);
+            const muted  = !!(popMute?.checked);
+            if (window.webMusicManager) {
+                window.webMusicManager.setVolumes(master, music, effects, muted);
+                window.webMusicManager.setEnabled(!muted);
+            }
+            // keep Settings controls in sync silently
+            const musicSlider = document.getElementById('music-volume-slider');
+            const soundToggleEl = document.getElementById('sound-enabled-toggle');
+            if (musicSlider) musicSlider.value = String(music);
+            if (soundToggleEl) soundToggleEl.checked = !muted;
+            const musicValue = document.getElementById('music-volume-value');
+            if (musicValue) musicValue.textContent = `${music}%`;
+        } catch (e) { console.warn('Header volume apply failed', e); }
+    };
+
+    // Play/Pause -> toggle global mute in browser
+    if (btnPlay) {
+        btnPlay.addEventListener('click', async () => {
+            try {
+                syncFromSettings();
+                popMute.checked = !popMute.checked;
+                applyVolumes();
+            } catch (e) { console.warn(e); }
+        });
+    }
+
+    // Next -> server endpoint (affects director state for all clients)
+    if (btnNext) {
+        btnNext.addEventListener('click', async () => {
+            try {
+                if (!apiClient.hasActiveSession()) {
+                    uiManager.showNotification('No active session', 'warning');
+                    return;
+                }
+                await apiClient.musicNext();
+            } catch (e) {
+                console.error('Failed to request next track', e);
+                uiManager.showNotification('Failed to skip track', 'error');
+            }
+        });
+    }
+
+    // Volume button -> toggle popover
+    if (btnVol && pop) {
+        const togglePop = () => {
+            if (pop.style.display === 'none' || pop.style.display === '') {
+                syncFromSettings();
+                pop.style.display = 'block';
+                // position near button AFTER making visible so offsetWidth is accurate
+                requestAnimationFrame(() => {
+                    const r = btnVol.getBoundingClientRect();
+                    pop.style.position = 'fixed';
+                    pop.style.top = `${Math.round(r.bottom + 8)}px`;
+                    pop.style.left = `${Math.round(r.right - pop.offsetWidth)}px`;
+                });
+            } else {
+                pop.style.display = 'none';
+            }
+        };
+        btnVol.addEventListener('click', (ev) => { ev.stopPropagation(); togglePop(); });
+        document.addEventListener('click', (ev) => {
+            // Close popover if clicking outside; allow clicks inside popover itself
+            if (!pop.contains(ev.target) && !btnVol.contains(ev.target)) {
+                pop.style.display = 'none';
+            }
+        });
+    }
+
+    // Popover interactions
+    if (popSlider) {
+        popSlider.addEventListener('input', applyVolumes);
+    }
+    if (popMute) {
+        popMute.addEventListener('change', applyVolumes);
+    }
 }
 
 /**

@@ -311,12 +311,42 @@ class UiManager {
             if (slider && valueDisplay) {
                 slider.addEventListener('input', () => {
                     valueDisplay.textContent = `${slider.value}%`;
+                    // Apply live to WebMusicManager
+                    try {
+                        const enabled = this.soundEnabledToggle ? this.soundEnabledToggle.checked : true;
+                        if (window.webMusicManager) {
+                            window.webMusicManager.setVolumes(
+                                parseInt(this.masterVolumeSlider?.value || '100', 10),
+                                parseInt(this.musicVolumeSlider?.value || '100', 10),
+                                parseInt(this.effectsVolumeSlider?.value || '100', 10),
+                                !enabled
+                            );
+                        }
+                    } catch (e) { console.warn('Volume apply failed', e); }
                 });
             }
         };
         bindSlider(this.masterVolumeSlider, this.masterVolumeValue);
         bindSlider(this.musicVolumeSlider, this.musicVolumeValue);
         bindSlider(this.effectsVolumeSlider, this.effectsVolumeValue);
+
+        // Sound enabled toggle -> enable/disable audio context and mute
+        if (this.soundEnabledToggle) {
+            this.soundEnabledToggle.addEventListener('change', async () => {
+                try {
+                    const enabled = this.soundEnabledToggle.checked;
+                    if (window.webMusicManager) {
+                        await window.webMusicManager.setEnabled(enabled);
+                        window.webMusicManager.setVolumes(
+                            parseInt(this.masterVolumeSlider?.value || '100', 10),
+                            parseInt(this.musicVolumeSlider?.value || '100', 10),
+                            parseInt(this.effectsVolumeSlider?.value || '100', 10),
+                            !enabled
+                        );
+                    }
+                } catch (e) { console.warn('Sound toggle failed', e); }
+            });
+        }
 
         // Initialize close buttons on all modals
         document.querySelectorAll('.close-modal, .cancel-btn').forEach(element => {
@@ -3464,6 +3494,20 @@ addMessage(text, type = 'game', gradual = false) {
         const fontSizeSlider = document.getElementById('font-size-slider');
         const llmEnabledToggle = document.getElementById('llm-enabled-toggle');
 
+        // Apply sound changes immediately to WebMusicManager
+        try {
+            const soundEnabled = this.soundEnabledToggle ? this.soundEnabledToggle.checked : true;
+            if (window.webMusicManager) {
+                await window.webMusicManager.setEnabled(soundEnabled);
+                window.webMusicManager.setVolumes(
+                    parseInt(this.masterVolumeSlider?.value || '100', 10),
+                    parseInt(this.musicVolumeSlider?.value || '100', 10),
+                    parseInt(this.effectsVolumeSlider?.value || '100', 10),
+                    !soundEnabled
+                );
+            }
+        } catch (e) { console.warn('Applying sound settings on save failed', e); }
+
         if (themeSelect) {
             this.settings.theme = themeSelect.value;
             localStorage.setItem('rpg_theme', this.settings.theme);
@@ -3568,6 +3612,20 @@ addMessage(text, type = 'game', gradual = false) {
             if (this.autosaveIntervalSelect) this.autosaveIntervalSelect.value = settings.autosave_interval;
             if (this.tutorialEnabledToggle) this.tutorialEnabledToggle.checked = settings.tutorial_enabled;
             
+            // Apply to WebMusicManager immediately (we are in a user gesture from Settings click)
+            // Do NOT call enableAudio here; it was already called once on Settings open (if needed)
+            // Only apply volumes/mute based on loaded settings
+            try {
+                if (window.webMusicManager) {
+                    window.webMusicManager.setVolumes(
+                        settings.master_volume,
+                        settings.music_volume,
+                        settings.effects_volume,
+                        !settings.sound_enabled
+                    );
+                }
+            } catch (e) { console.warn('Applying gameplay sound to WebMusicManager failed', e); }
+
             console.log('Gameplay and sound settings loaded into UI.');
         } catch (error) {
             this.showNotification('Failed to load gameplay settings.', 'error');
