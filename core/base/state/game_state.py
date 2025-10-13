@@ -63,6 +63,10 @@ class GameState:
     # Mode-specific state
     current_combatants: List[str] = field(default_factory=list)  # IDs of entities in combat/social conflict
     current_trade_partner_id: Optional[str] = None             # ID of the NPC being traded with
+
+    # Music (Phase A): persisted mood/intensity
+    music_mood: Optional[str] = None
+    music_intensity: Optional[float] = None
     
     # Cooldowns for mode transitions (target_mode: timestamp_expires)
     mode_transition_cooldowns: Dict[str, float] = field(default_factory=dict)
@@ -187,6 +191,9 @@ class GameState:
             "mode_transition_cooldowns": self.mode_transition_cooldowns,
             "is_transitioning_to_combat": self.is_transitioning_to_combat,
             "combat_narrative_buffer": self.combat_narrative_buffer,
+            # Music state (optional)
+            "music_mood": self.music_mood,
+            "music_intensity": self.music_intensity,
         }
         
         # Include journal if present
@@ -229,6 +236,15 @@ class GameState:
         except KeyError:
             logger.warning(f"Unknown interaction mode '{mode_name}' found in save data. Defaulting to NARRATIVE.")
             game_state.current_mode = InteractionMode.NARRATIVE
+        
+        # Restore music state if present
+        if "music_mood" in data:
+            game_state.music_mood = data.get("music_mood")
+        if "music_intensity" in data:
+            try:
+                game_state.music_intensity = float(data.get("music_intensity")) if data.get("music_intensity") is not None else None
+            except Exception:
+                game_state.music_intensity = None
         
         # Restore journal if present
         if "journal" in data and isinstance(data["journal"], dict):

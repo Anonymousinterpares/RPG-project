@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import random
 import threading
+import time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -37,6 +38,15 @@ class MusicDirector:
         self._current_track: Optional[str] = None  # absolute path (desktop)
         self._rotation: Dict[str, List[str]] = {}
         self._played: Dict[str, set] = {}
+        # Suggestion policy
+        self._suggest_threshold: float = 0.7
+        self._mood_cooldown_s: float = 5.0
+        self._last_mood_change_ts: float = 0.0
+        self._intensity_alpha: float = 0.35  # EMA smoothing
+        self._intensity_ema: float = self._intensity
+        # Lightweight context (Phase A): only major location for now
+        self._context: Dict[str, Optional[str]] = {"location_major": None}
+        self._context_bias_enabled: bool = True
         # Scan once on init
         try:
             self._scan_tracks()
@@ -50,6 +60,13 @@ class MusicDirector:
             # ensure current volumes/mute are applied
             if self._backend:
                 self._backend.set_volumes(self._master, self._music, self._effects, self._muted)
+
+    # --- Phase A: minimal context API ---
+    def set_context(self, location_major: Optional[str] = None) -> None:
+        with self._lock:
+            if location_major:
+                self._context["location_major"] = str(location_major).strip().lower()
+                self._emit_state_locked(reason="context_changed")
 
     def set_volumes(self, master: int, music: int, effects: int) -> None:
         with self._lock:
@@ -76,12 +93,41 @@ class MusicDirector:
             self._apply_locked(track, reason or "hard_set")
 
     def suggest(self, mood: str, intensity: float, source: str, confidence: float, evidence: str = "") -> None:
-        # Milestone 1: accept all suggestions (later: thresholds/hysteresis)
+        """Apply an LLM or system suggestion with policy (threshold/cooldown) and intensity smoothing."""
         with self._lock:
-            self._mood = (mood or self._mood).lower()
-            self._intensity = float(max(0.0, min(1.0, intensity if intensity is not None else self._intensity)))
-            track = self._select_next_track_locked(self._mood)
-            self._apply_locked(track, f"suggest:{source}:{confidence:.2f}")
+            # Validate intensity and update EMA
+            if intensity is not None:
+                try:
+                    val = float(intensity)
+                    self._intensity_ema = self._intensity_alpha * max(0.0, min(1.0, val)) + (1.0 - self._intensity_alpha) * self._intensity_ema
+                    self._intensity = self._intensity_ema
+                except Exception:
+                    pass
+            # Check acceptance policy for mood
+            now = time.time()
+            accepted_reason = None
+            if mood:
+                try:
+                    mood_l = str(mood).lower()
+                except Exception:
+                    mood_l = self._mood
+                # Accept only if confidence and cooldown satisfied
+                if (confidence is None) or (float(confidence) < self._suggest_threshold):
+                    accepted_reason = None
+                else:
+                    if (now - self._last_mood_change_ts) >= self._mood_cooldown_s and mood_l and mood_l != self._mood:
+                        self._mood = mood_l
+                        self._last_mood_change_ts = now
+                        accepted_reason = f"suggest:{source}:{confidence:.2f}"
+            # Choose next track if mood changed or if no current track
+            track = None
+            if accepted_reason is not None or self._current_track is None:
+                track = self._select_next_track_locked(self._mood, force_unplayed=True)
+            # Apply if mood changed; otherwise only emit updated state (intensity smoothing)
+            if track:
+                self._apply_locked(track, accepted_reason or f"suggest:{source}:{confidence:.2f}")
+            else:
+                self._emit_state_locked(reason=accepted_reason or f"intensity_update:{source}")
 
     def next_track(self, reason: str = "user_skip") -> None:
         with self._lock:
@@ -127,7 +173,35 @@ class MusicDirector:
         candidates = unplayed if force_unplayed else pool
         if self._current_track in candidates and len(candidates) > 1:
             candidates = [c for c in candidates if c != self._current_track]
-        choice = random.choice(candidates) if candidates else self._current_track
+        # Lightweight context bias (Phase A): prefer tracks whose filename contains location_major token
+        if self._context_bias_enabled:
+            loc = (self._context.get("location_major") or "").strip().lower()
+            if loc:
+                def _score(path: str) -> float:
+                    # Simple filename heuristic; later: manifest tags
+                    base = os.path.basename(path).lower()
+                    return 2.0 if loc in base else 1.0
+                weights = [_score(p) for p in candidates]
+                try:
+                    total = sum(weights)
+                    if total > 0:
+                        r = random.random() * total
+                        acc = 0.0
+                        for p, w in zip(candidates, weights):
+                            acc += w
+                            if r <= acc:
+                                choice = p
+                                break
+                        else:
+                            choice = random.choice(candidates)
+                    else:
+                        choice = random.choice(candidates)
+                except Exception:
+                    choice = random.choice(candidates)
+            else:
+                choice = random.choice(candidates)
+        else:
+            choice = random.choice(candidates)
         if choice:
             self._played[mood].add(choice)
         return choice

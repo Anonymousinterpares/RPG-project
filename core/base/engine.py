@@ -317,9 +317,16 @@ class GameEngine(QObject):
         if background: # background from params is the origin description
             game_state.player.background = background # Ensure it's set if not already set by StateManager
 
-        # Start initial ambient music (non-blocking)
+        # Start initial ambient music (non-blocking) and set initial context (best-effort)
         try:
             if hasattr(self, '_music_director') and self._music_director:
+                # Infer a coarse location_major from current location string
+                loc_major = self.get_location_major()
+                try:
+                    if loc_major:
+                        self._music_director.set_context(location_major=loc_major)
+                except Exception:
+                    pass
                 self._music_director.hard_set("ambient", intensity=0.3, reason="new_game")
         except Exception:
             pass
@@ -347,6 +354,13 @@ class GameEngine(QObject):
         try:
             md = getattr(self, 'get_music_director', lambda: None)()
             if md and loaded_state:
+                # Set context from current location (best-effort)
+                try:
+                    loc_major = self.get_location_major()
+                    if loc_major:
+                        md.set_context(location_major=loc_major)
+                except Exception:
+                    pass
                 # Attempt to read saved mood/intensity if present on state; otherwise fallback
                 mood = getattr(loaded_state, 'music_mood', None)
                 intensity = getattr(loaded_state, 'music_intensity', None)
@@ -375,6 +389,19 @@ class GameEngine(QObject):
             logger.error("Cannot save: No current game state")
             self._output("system", "Cannot save: No game in progress")
             return None
+
+        # Capture current music state into GameState before saving
+        try:
+            md = getattr(self, 'get_music_director', lambda: None)()
+            st = self._state_manager.current_state
+            if md and st:
+                try:
+                    st.music_mood = getattr(md, '_mood', None)
+                    st.music_intensity = float(getattr(md, '_intensity', 0.3))
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
         # --- Generate Summaries using LLM ---
         background_summary = None
@@ -1159,6 +1186,30 @@ class GameEngine(QObject):
     # --- Music accessors for GUI/Server ---
     def get_music_director(self):
         return getattr(self, '_music_director', None)
+
+    # Phase A: derive a coarse location_major from current state (best-effort)
+    def get_location_major(self) -> Optional[str]:
+        try:
+            st = self._state_manager.current_state
+            loc = (getattr(getattr(st, 'world', None), 'current_location', None) or getattr(getattr(st, 'player', None), 'current_location', None))
+            if not loc:
+                return None
+            s = str(loc).strip().lower()
+            # Heuristic mapping
+            checks = [
+                ("city", "city"), ("camp", "camp"), ("forest", "forest"),
+                ("harbor", "port"), ("harbour", "port"), ("docks", "port"), ("port", "port"),
+                ("seaside", "seaside"), ("coast", "seaside"), ("beach", "seaside"), ("shore", "seaside"),
+                ("desert", "desert"), ("mountain", "mountain"), ("peak", "mountain"), ("ridge", "mountain"),
+                ("swamp", "swamp"), ("marsh", "swamp"), ("castle", "castle"), ("keep", "castle"),
+                ("dungeon", "dungeon"), ("cavern", "dungeon"), ("cave", "dungeon"), ("village", "village"), ("hamlet", "village"),
+            ]
+            for token, tag in checks:
+                if token in s:
+                    return tag
+            return None
+        except Exception:
+            return None
 
 # Convenience function (remains the same)
 def get_game_engine() -> GameEngine:

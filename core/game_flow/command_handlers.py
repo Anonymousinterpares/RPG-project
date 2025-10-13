@@ -216,6 +216,73 @@ def _handle_unequip_command(engine: 'GameEngine', game_state: 'GameState', args:
         else:
             return CommandResult.error(f"Failed to unequip {item_to_unequip.name}.")
 
+def _handle_music_command(engine: 'GameEngine', game_state: 'GameState', args: List[str]) -> CommandResult:
+    """Handle MUSIC control from LLM/user.
+    Payload (JSON preferred): {"action": "set_mood|set_intensity|next|mute|unmute", "mood": str?, "intensity": float?, "confidence": float?}
+    Fallback colon string: action:mood:intensity:confidence
+    """
+    payload = _parse_single_json_arg(args)
+    if not payload:
+        try:
+            arg_str = args[0] if args else ""
+            parts = arg_str.split(":") if arg_str else []
+            payload = {
+                "action": parts[0] if len(parts) > 0 else None,
+                "mood": parts[1] if len(parts) > 1 else None,
+                "intensity": parts[2] if len(parts) > 2 else None,
+                "confidence": parts[3] if len(parts) > 3 else None,
+            }
+        except Exception:
+            payload = {}
+    action = (payload.get("action") or "").strip().lower()
+    if not action:
+        return CommandResult.invalid("MUSIC command requires 'action'.")
+    md = getattr(engine, 'get_music_director', lambda: None)()
+    if not md:
+        return CommandResult.error("MusicDirector not available.")
+    try:
+        if action in ("set_mood", "set-mood", "mood"):
+            mood = payload.get("mood")
+            conf = payload.get("confidence")
+            try:
+                conf_f = float(conf) if conf is not None else 1.0
+            except Exception:
+                conf_f = 1.0
+            intensity = payload.get("intensity")
+            try:
+                inten_f = float(intensity) if intensity is not None else None
+            except Exception:
+                inten_f = None
+            md.suggest(mood or "", inten_f if inten_f is not None else md._intensity, source="llm", confidence=conf_f)  # intensity smoothing will handle None/values
+            return CommandResult.success(f"Music mood suggestion applied: {mood or md._mood}")
+        elif action in ("set_intensity", "intensity"):
+            intensity = payload.get("intensity")
+            try:
+                inten_f = float(intensity)
+            except Exception:
+                return CommandResult.invalid("MUSIC set_intensity requires numeric 'intensity'.")
+            conf = payload.get("confidence")
+            try:
+                conf_f = float(conf) if conf is not None else 1.0
+            except Exception:
+                conf_f = 1.0
+            md.suggest("", inten_f, source="llm", confidence=conf_f)  # mood unchanged; EMA update
+            return CommandResult.success(f"Music intensity updated: {inten_f}")
+        elif action == "next":
+            md.next_track("user_skip_llm")
+            return CommandResult.success("Music advanced to next track.")
+        elif action == "mute":
+            md.set_muted(True)
+            return CommandResult.success("Music muted.")
+        elif action == "unmute":
+            md.set_muted(False)
+            return CommandResult.success("Music unmuted.")
+        else:
+            return CommandResult.invalid(f"Unsupported MUSIC action '{action}'.")
+    except Exception as e:
+        logger.exception("MUSIC command error")
+        return CommandResult.error(f"MUSIC command error: {e}")
+
 # --- Main Direct Command Dispatch ---
 
 MODE_TRANSITION_COMMANDS = {
@@ -236,8 +303,8 @@ LLM_COMMAND_HANDLERS = {
     "QUEST_UPDATE": None,   # placeholders; set below after function defs
     "QUEST_STATUS": None,
     "STATE_CHANGE": None,
+    "MUSIC": _handle_music_command,
 }
-
 def _parse_single_json_arg(args: List[str]) -> dict:
     try:
         import json
