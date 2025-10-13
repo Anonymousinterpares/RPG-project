@@ -1379,7 +1379,13 @@ class CombatManager:
         action_processed_this_step = False # Flag to track if any action path was taken
 
         if not agent_output or "narrative" not in agent_output:
-            err_msg = "[System Error: Failed to interpret action. Please try again, perhaps phrase differently.]"
+            # Provide a more actionable guidance message instead of a generic failure
+            intent_text = (self._current_intent or '').strip()
+            guidance = (
+                "Could not interpret your action. If you're casting a spell, try: 'cast <spell_id> [target]'. "
+                "Tip: In combat, offensive spells can omit the target to auto-pick an enemy (e.g., 'cast prismatic_bolt')."
+            )
+            err_msg = f"[System Error] {guidance}"
             engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=err_msg, target_display=DisplayTarget.COMBAT_LOG))
             self.current_step = CombatStep.AWAITING_PLAYER_INPUT 
         else:

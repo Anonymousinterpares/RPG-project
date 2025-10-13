@@ -295,10 +295,6 @@ def _handle_spell_action(manager: 'CombatManager', action: CombatAction, perform
     if "targets_processed" not in current_result_detail:
         current_result_detail["targets_processed"] = []
 
-    if not action.targets:
-        current_result_detail["message"] = "No target specified for spell."
-        return current_result_detail 
-
     # Try to get spell from catalog and use effects engine if it has effect_atoms
     spell_obj = None
     effect_atoms = []
@@ -311,6 +307,44 @@ def _handle_spell_action(manager: 'CombatManager', action: CombatAction, perform
             effect_atoms = spell_obj.effect_atoms
     except Exception as e:
         logger.debug(f"Could not load spell from catalog for action {action.name}: {e}")
+
+    # If no targets were provided, attempt to auto-resolve based on spell combat_role
+    if (not action.targets) and spell_obj is not None:
+        try:
+            role = getattr(spell_obj, 'combat_role', 'offensive') or 'offensive'
+        except Exception:
+            role = 'offensive'
+        try:
+            from core.combat.combat_entity import EntityType
+            import random
+            if role == 'defensive':
+                action.targets = [performer.id]
+                current_result_detail["target_name"] = performer.combat_name
+            elif role == 'offensive':
+                alive_enemies = [e for e in manager.entities.values() if getattr(e, 'entity_type', None) == EntityType.ENEMY and getattr(e, 'is_active_in_combat', True) and e.is_alive()]
+                if len(alive_enemies) == 1:
+                    action.targets = [alive_enemies[0].id]
+                    current_result_detail["target_name"] = alive_enemies[0].combat_name
+                elif len(alive_enemies) > 1:
+                    picked = random.choice(alive_enemies)
+                    action.targets = [picked.id]
+                    current_result_detail["target_name"] = picked.combat_name
+                else:
+                    # No enemies to target
+                    current_result_detail["message"] = "No valid enemy targets available for offensive spell."
+                    return current_result_detail
+            else:
+                current_result_detail["message"] = "This spell requires a specific target or can only be used out of combat."
+                return current_result_detail
+        except Exception as e_auto:
+            logger.debug(f"Auto-targeting failed for spell {action.name}: {e_auto}")
+            current_result_detail["message"] = "No target specified for spell and auto-targeting failed."
+            return current_result_detail
+
+    # If still missing targets, fail explicitly
+    if not action.targets:
+        current_result_detail["message"] = "No target specified for spell."
+        return current_result_detail
     
     # Use effects engine if we have effect_atoms, otherwise fallback to legacy handling
     if effect_atoms and spell_obj:
