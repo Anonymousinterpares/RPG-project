@@ -599,6 +599,13 @@ def _handle_flee_outcome(game_state: 'GameState', success: bool, outcome_narrati
         game_state.combat_manager = None
         game_state.current_combatants = []
         game_state.set_interaction_mode(InteractionMode.NARRATIVE)
+        # Music: revert to exploration/ambient after leaving combat
+        try:
+            md = getattr(engine, 'get_music_director', lambda: None)()
+            if md:
+                md.hard_set("exploration", intensity=0.5, reason="leave_combat_flee")
+        except Exception:
+            pass
         narrative_result = f"You successfully escape the battle! {outcome_narrative} You find yourself back in the narrative."
         logger.info("Successfully fled combat. Transitioned to NARRATIVE mode.")
     else:
@@ -798,6 +805,14 @@ def _attempt_surrender_transition(engine: 'GameEngine', game_state: 'GameState',
         if game_state.combat_manager: game_state.combat_manager = None # Clear CM if mode changed
         game_state.current_combatants = []
 
+        # Music: revert to exploration/ambient after surrender
+        try:
+            md = getattr(engine, 'get_music_director', lambda: None)()
+            if md:
+                md.hard_set("exploration", intensity=0.4, reason="leave_combat_surrender")
+        except Exception:
+            pass
+
         narrative_result = f"Your surrender is accepted as there are no active opponents. The combat ends ({final_combat_state_name})."
         # engine._output("system", narrative_result) # Orchestrator will handle this via CM queue
         return narrative_result
@@ -884,6 +899,14 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
         # If is_transitioning_to_combat is still true, _update_ui will handle flushing the buffer.
         game_state.set_interaction_mode(InteractionMode.COMBAT) 
         logger.info("Transitioned game_state to COMBAT mode.")
+        
+        # Music: enter combat mood immediately (authoritative hard-set)
+        try:
+            md = getattr(engine, 'get_music_director', lambda: None)()
+            if md:
+                md.hard_set("combat", intensity=0.7, reason="enter_combat")
+        except Exception:
+            pass
         
         # The first call to combat_manager.process_combat_step(engine) is now triggered
         # by MainWindow._update_ui after it processes the mode switch and potentially
