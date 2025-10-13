@@ -441,7 +441,9 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
         
         # After effects are applied, synchronize HP for each affected target and perform defeat checks
         killed_ids: List[str] = []
-        for target_ctx in targets:
+        target_summaries: List[Dict[str, Any]] = []
+        primary_summary: Optional[Dict[str, Any]] = None
+        for idx, target_ctx in enumerate(targets):
             try:
                 old_hp = float(target_hp_before.get(target_ctx.id, 0.0))
                 new_hp = float(target_ctx.stats_manager.get_current_stat_value(DerivedStatType.HEALTH))
@@ -452,6 +454,10 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                 old_hp = float(target_hp_before.get(target_ctx.id, getattr(entity_fallback, 'current_hp', 0.0)))
                 new_hp = float(getattr(entity_fallback, 'current_hp', 0.0))
                 max_hp_val = float(getattr(entity_fallback, 'max_hp', 1.0) or 1.0)
+            
+            # Determine per-target deltas
+            damage_dealt = max(0.0, old_hp - new_hp)
+            defeated_now = new_hp <= 0
             
             # If HP changed, drive UI/model updates
             if abs(new_hp - old_hp) > 1e-6:
@@ -474,8 +480,21 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                 ))
                 queued_events_this_handler = True
             
+            # Summarize this target for narrative fallback and debugging
+            summary_entry = {
+                "target_id": target_ctx.id,
+                "target_name": target_ctx.name,
+                "hp_before": old_hp,
+                "hp_after": new_hp,
+                "damage_done": damage_dealt,
+                "defeated": defeated_now,
+            }
+            target_summaries.append(summary_entry)
+            if idx == 0:
+                primary_summary = summary_entry
+            
             # Defeat check using the post-effect HP value (independent of CombatEntity.is_alive())
-            if new_hp <= 0:
+            if defeated_now:
                 killed_ids.append(target_ctx.id)
                 target_entity = manager.entities.get(target_ctx.id)
                 target_name = getattr(target_entity, 'combat_name', target_ctx.name or 'Target') if target_entity else (target_ctx.name or 'Target')
@@ -491,6 +510,21 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                     metadata={"entity_id": target_ctx.id, "is_active_in_combat": False}
                 ))
                 queued_events_this_handler = True
+        
+        # Populate current_result_detail for narrator fallback consistency
+        try:
+            if primary_summary is not None:
+                current_result_detail["damage"] = int(round(primary_summary.get("damage_done", 0)))
+                current_result_detail["target_hp_before"] = primary_summary.get("hp_before")
+                current_result_detail["target_hp_after"] = primary_summary.get("hp_after")
+                current_result_detail["target_defeated"] = bool(primary_summary.get("defeated", False))
+                # Ensure target_name aligns with the resolved context (if not already set)
+                if not current_result_detail.get("target_name"):
+                    current_result_detail["target_name"] = primary_summary.get("target_name")
+            # Provide a richer list for potential future uses
+            current_result_detail["targets_processed"] = target_summaries
+        except Exception:
+            pass
         
         # Handle combat end conditions based on killed_ids snapshot
         try:
