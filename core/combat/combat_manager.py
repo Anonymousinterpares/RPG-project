@@ -1,8 +1,9 @@
 import random
 import logging
 import uuid
+import copy
 from typing import Dict, List, Tuple, Any, Optional, Set, Union, TYPE_CHECKING
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, QThread, QObject, Signal, Slot
 from core.agents.base_agent import AgentContext
 from core.base.state.state_manager import get_state_manager
 from core.interaction.context_builder import ContextBuilder
@@ -32,6 +33,194 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class _LLMAttemptWorker(QObject):
+    finished = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, engine: 'GameEngine', agent_context: AgentContext):
+        super().__init__()
+        self._engine = engine
+        self._agent_context = agent_context
+
+    @Slot()
+    def run(self):
+        try:
+            narrator_output = self._engine._combat_narrator_agent.process(self._agent_context)
+            narrative = ""
+            if isinstance(narrator_output, dict):
+                narrative = narrator_output.get("narrative", "") or ""
+            self.finished.emit(narrative)
+        except Exception as e:
+            logger.exception(f"Error in LLMAttemptWorker: {e}")
+            self.error.emit(str(e))
+
+
+class _LLMOutcomeWorker(QObject):
+    finished = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, engine: 'GameEngine', action_result: Dict[str, Any], combat_manager: 'CombatManager'):
+        super().__init__()
+        self._engine = engine
+        self._action_result = action_result
+        self._combat_manager = combat_manager
+
+    @Slot()
+    def run(self):
+        try:
+            narrative = self._engine._combat_narrator_agent.narrate_outcome(self._action_result, self._combat_manager) or ""
+            self.finished.emit(narrative)
+        except Exception as e:
+            logger.exception(f"Error in LLMOutcomeWorker: {e}")
+            self.error.emit(str(e))
+
+
+class _LLMResultBridge(QObject):
+    """Runs in the GUI thread; receives worker results and queues display events safely."""
+    def __init__(self, engine: 'GameEngine', combat_manager: 'CombatManager'):
+        super().__init__()
+        self._engine = engine
+        self._cm = combat_manager
+        # Fields configured by callers per-use
+        self._attempt_attacker_id: Optional[str] = None
+        self._attempt_default_text: str = ""
+        self._outcome_is_surprise: bool = False
+        self._outcome_action_result: Dict[str, Any] = {}
+
+    @Slot(str)
+    def handle_attempt_finished(self, narrative: str):
+        try:
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+            from core.combat.enums import CombatStep
+            text = (narrative or self._attempt_default_text or "").strip()
+            if not text:
+                # Extremely defensive fallback
+                text = "A swift surprise attack is launched!"
+            event = DisplayEvent(
+                type=DisplayEventType.NARRATIVE_ATTEMPT,
+                content=text,
+                role="gm",
+                tts_eligible=True,
+                gradual_visual_display=True,
+                target_display=DisplayTarget.COMBAT_LOG,
+                source_step=self._cm.current_step.name if hasattr(self._cm.current_step, 'name') else str(self._cm.current_step)
+            )
+            self._engine._combat_orchestrator.add_event_to_queue(event)
+            # Preserve original ordering: attempt first, then TURN_ORDER_UPDATE setup
+            try:
+                if self._attempt_attacker_id:
+                    self._cm._set_next_actor_step(self._attempt_attacker_id)
+            except Exception:
+                pass
+            self._cm.current_step = CombatStep.PERFORMING_SURPRISE_ATTACK
+        except Exception as e:
+            logger.error(f"Bridge handle_attempt_finished failed: {e}", exc_info=True)
+
+    @Slot(str)
+    def handle_attempt_error(self, _err: str):
+        # Treat error as empty narrative; will use default
+        self.handle_attempt_finished("")
+
+    def _compute_regular_outcome_next_step(self):
+        """Replicates end-of-combat checks from _step_narrating_action_outcome."""
+        from core.combat.enums import CombatStep, CombatState
+        end_player_victory = False
+        end_player_defeat = False
+        try:
+            # Player defeat if player entity is not alive
+            player_id = getattr(self._cm, '_player_entity_id', None)
+            if player_id and player_id in self._cm.entities:
+                player_entity_obj = self._cm.entities.get(player_id)
+                if player_entity_obj and not player_entity_obj.is_alive():
+                    end_player_defeat = True
+            # Victory if no active, alive enemies remain
+            from core.combat.combat_entity import EntityType
+            remaining_enemies = [e for e in self._cm.entities.values() if getattr(e, 'entity_type', None) == EntityType.ENEMY and getattr(e, 'is_active_in_combat', True) and e.is_alive()]
+            if len(remaining_enemies) == 0:
+                end_player_victory = True
+        except Exception:
+            pass
+        if end_player_defeat:
+            self._cm.state = CombatState.PLAYER_DEFEAT
+            self._cm.current_step = CombatStep.ENDING_COMBAT
+        elif end_player_victory:
+            self._cm.state = CombatState.PLAYER_VICTORY
+            self._cm.current_step = CombatStep.ENDING_COMBAT
+        else:
+            self._cm.current_step = CombatStep.APPLYING_STATUS_EFFECTS
+
+    @Slot(str)
+    def handle_outcome_finished(self, narrative: str):
+        try:
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+            from core.combat.combat_action import ActionType
+            # Build narrative with fallback if needed
+            text = (narrative or "").strip()
+            if not text:
+                result = self._outcome_action_result or {}
+                performer_name = result.get("performer_name", "Actor")
+                target_name = result.get("target_name", "Target")
+                action_name_disp = result.get("action_name", "action")
+                damage = result.get("damage", 0)
+                success_flag = result.get("success", False)
+                if self._outcome_is_surprise:
+                    if success_flag:
+                        text = f"The surprise attack by {performer_name} connects against {target_name}, dealing {damage:.0f} damage."
+                        if result.get("target_defeated"):
+                            text += f" {target_name} is defeated!"
+                    else:
+                        text = f"Despite the surprise, {performer_name}'s attack on {target_name} misses!"
+                else:
+                    if success_flag:
+                        if result.get("fled") is True:
+                            text = f"{performer_name} successfully flees the battle!"
+                        elif result.get("action_type") == ActionType.DEFEND:
+                            text = f"{performer_name} braces defensively."
+                        elif damage > 0:
+                            text = f"The {action_name_disp} from {performer_name} strikes {target_name} for {damage:.0f} damage."
+                        else:
+                            text = f"{performer_name}'s {action_name_disp} affects {target_name}, but deals no direct damage."
+                        if result.get("target_defeated"):
+                            text += f" {target_name} is overcome and falls!"
+                    else:
+                        if result.get("fled") is False:
+                            text = f"{performer_name} tries to flee but cannot escape!"
+                        else:
+                            text = f"{performer_name}'s {action_name_disp} against {target_name} fails utterly."
+            event = DisplayEvent(
+                type=DisplayEventType.NARRATIVE_IMPACT,
+                content=text,
+                role="gm",
+                tts_eligible=True,
+                gradual_visual_display=True,
+                target_display=DisplayTarget.COMBAT_LOG,
+                source_step=self._cm.current_step.name if hasattr(self._cm.current_step, 'name') else str(self._cm.current_step)
+            )
+            self._engine._combat_orchestrator.add_event_to_queue(event)
+            # Clear pending data mirrored from original logic
+            try:
+                if getattr(self._cm, '_pending_action', None) and self._outcome_action_result.get("action_id_for_narration"):
+                    if self._cm._pending_action.id == self._outcome_action_result.get("action_id_for_narration"):
+                        self._cm._pending_action = None
+            except Exception:
+                pass
+            # Set next step
+            if self._outcome_is_surprise:
+                from core.combat.enums import CombatStep
+                self._cm.current_step = CombatStep.ENDING_SURPRISE_ROUND
+            else:
+                self._compute_regular_outcome_next_step()
+            # Clear last action result now
+            self._cm._last_action_result_detail = None
+        except Exception as e:
+            logger.error(f"Bridge handle_outcome_finished failed: {e}", exc_info=True)
+
+    @Slot(str)
+    def handle_outcome_error(self, _err: str):
+        # Treat error as empty narrative; will use fallback
+        self.handle_outcome_finished("")
+
+
 class CombatManager:
     def __init__(self):
         """Initialize a new combat manager."""
@@ -57,9 +246,32 @@ class CombatManager:
         self._active_entity_id: Optional[str] = None 
         self._surprise_round_entities: List[str] = [] # Retained for surprise round actor selection
 
+        # Keep references to offloaded LLM worker objects to avoid premature GC (PySide/PyQt requirement)
+        self._llm_threads: List[QThread] = []
+        self._llm_workers: List[QObject] = []
+        self._llm_bridges: List[QObject] = []
+
         # --- ECFA Change: Flag for orchestrator control ---
         self.waiting_for_display_completion: bool = False
         # --- End ECFA Change ---
+
+    def _cleanup_llm_objects(self, thread: QThread, worker: QObject, bridge: QObject) -> None:
+        """Remove references to finished LLM thread/worker/bridge objects."""
+        try:
+            if thread in self._llm_threads:
+                self._llm_threads.remove(thread)
+        except Exception:
+            pass
+        try:
+            if worker in self._llm_workers:
+                self._llm_workers.remove(worker)
+        except Exception:
+            pass
+        try:
+            if bridge in self._llm_bridges:
+                self._llm_bridges.remove(bridge)
+        except Exception:
+            pass
 
     def start_combat(self, player_entity: CombatEntity, enemy_entities: List[CombatEntity]) -> None:
         self.entities = {}
@@ -360,17 +572,37 @@ class CombatManager:
                 world_state=agent_call_context_dict.get('world',{}), player_input=narrator_input_for_surprise,
                 conversation_history=game_state.conversation_history if game_state else [], additional_context=agent_call_context_dict
             )
-            attempt_narrative = f"{attacker.combat_name} launches a swift surprise attack on {target_to_attack.combat_name}!" 
+            attempt_default = f"{attacker.combat_name} launches a swift surprise attack on {target_to_attack.combat_name}!"
+            # Offload attempt narrative LLM call to background worker
+            self.waiting_for_display_completion = True
             try:
-                narrator_output = engine._combat_narrator_agent.process(agent_context_for_narrator)
-                if narrator_output and narrator_output.get("narrative"): attempt_narrative = narrator_output["narrative"]
-            except Exception as e: logger.error(f"Error getting surprise attempt narrative: {e}", exc_info=True)
-            
-            event_attempt_narrative = DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
-            engine._combat_orchestrator.add_event_to_queue(event_attempt_narrative)
-            # This will call _set_next_actor_step which queues the TURN_ORDER_UPDATE for surprise
-            self._set_next_actor_step(attacker.id) # Ensure correct step (PROCESSING_PLAYER_ACTION for surprise)
-            self.current_step = CombatStep.PERFORMING_SURPRISE_ATTACK # Correct target step for surprise action
+                thread = QThread()
+                worker = _LLMAttemptWorker(engine, agent_context_for_narrator)
+                worker.moveToThread(thread)
+                bridge = _LLMResultBridge(engine, self)
+                bridge._attempt_attacker_id = attacker.id
+                bridge._attempt_default_text = attempt_default
+                # Retain references to avoid premature GC
+                self._llm_threads.append(thread)
+                self._llm_workers.append(worker)
+                self._llm_bridges.append(bridge)
+                thread.started.connect(worker.run)
+                worker.finished.connect(bridge.handle_attempt_finished)
+                worker.error.connect(bridge.handle_attempt_error)
+                worker.finished.connect(thread.quit)
+                worker.finished.connect(worker.deleteLater)
+                thread.finished.connect(thread.deleteLater)
+                # Cleanup references when done
+                thread.finished.connect(lambda t=thread, w=worker, b=bridge: self._cleanup_llm_objects(t, w, b))
+                thread.start()
+            except Exception as e:
+                logger.error(f"Failed to start LLM attempt worker: {e}", exc_info=True)
+                # Fallback: queue default attempt and proceed
+                event_attempt_narrative = DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_default, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
+                engine._combat_orchestrator.add_event_to_queue(event_attempt_narrative)
+                self._set_next_actor_step(attacker.id)
+                self.current_step = CombatStep.PERFORMING_SURPRISE_ATTACK
+            return
         else: 
             no_action_narrative = f"{attacker.combat_name} looks for an opening, but the moment for a surprise attack passes."
             event_no_action = DisplayEvent(type=DisplayEventType.NARRATIVE_GENERAL, content=no_action_narrative, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
@@ -448,39 +680,45 @@ class CombatManager:
             return
 
         from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
-        logger.info("Generating narrative for surprise attack outcome.")
-
-        outcome_narrative = None
-        # ... (logic to get outcome_narrative from LLM or placeholder, as before) ...
-        agent_failed = False
+        logger.info("Generating narrative for surprise attack outcome (offloaded).")
+        result_copy = copy.deepcopy(self._last_action_result_detail) if self._last_action_result_detail else {}
+        self.waiting_for_display_completion = True
         try:
-            outcome_narrative = engine._combat_narrator_agent.narrate_outcome(self._last_action_result_detail, self)
-            if not outcome_narrative: agent_failed = True
-        except Exception as e: logger.error(f"Error calling narrate_outcome for surprise: {e}", exc_info=True); agent_failed = True
-        if agent_failed:
-            result = self._last_action_result_detail
+            thread = QThread()
+            worker = _LLMOutcomeWorker(engine, result_copy, self)
+            worker.moveToThread(thread)
+            bridge = _LLMResultBridge(engine, self)
+            bridge._outcome_is_surprise = True
+            bridge._outcome_action_result = result_copy
+            # Retain references
+            self._llm_threads.append(thread)
+            self._llm_workers.append(worker)
+            self._llm_bridges.append(bridge)
+            thread.started.connect(worker.run)
+            worker.finished.connect(bridge.handle_outcome_finished)
+            worker.error.connect(bridge.handle_outcome_error)
+            worker.finished.connect(thread.quit)
+            worker.finished.connect(worker.deleteLater)
+            thread.finished.connect(thread.deleteLater)
+            thread.finished.connect(lambda t=thread, w=worker, b=bridge: self._cleanup_llm_objects(t, w, b))
+            thread.start()
+        except Exception as e:
+            logger.error(f"Failed to start LLM outcome worker: {e}", exc_info=True)
+            # Fallback to immediate placeholder narrative
+            result = result_copy or {}
             performer_name = result.get("performer_name", "Attacker")
             target_name = result.get("target_name", "Target")
             if result.get("success"):
                 damage = result.get("damage", 0)
                 outcome_narrative = f"The surprise attack by {performer_name} connects against {target_name}, dealing {damage:.0f} damage."
                 if result.get("target_defeated"): outcome_narrative += f" {target_name} is defeated!"
-            else: outcome_narrative = f"Despite the surprise, {performer_name}'s attack on {target_name} misses!"
-        # --- End outcome_narrative generation ---
-
-        if outcome_narrative:
-            event_outcome_narrative = DisplayEvent(
-                type=DisplayEventType.NARRATIVE_IMPACT, content=outcome_narrative,
-                role="gm", tts_eligible=True, gradual_visual_display=True,
-                target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name
-            )
+            else:
+                outcome_narrative = f"Despite the surprise, {performer_name}'s attack on {target_name} misses!"
+            event_outcome_narrative = DisplayEvent(type=DisplayEventType.NARRATIVE_IMPACT, content=outcome_narrative, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
             engine._combat_orchestrator.add_event_to_queue(event_outcome_narrative)
-            self.waiting_for_display_completion = True
-        else: # Should not happen if placeholder is good
-            self.waiting_for_display_completion = False
-
-        self._last_action_result_detail = None # Clear after use
-        self.current_step = CombatStep.ENDING_SURPRISE_ROUND # Always go to this step after narration (or lack thereof)
+            self._last_action_result_detail = None
+            self.current_step = CombatStep.ENDING_SURPRISE_ROUND
+        return
 
     def _step_ending_surprise_round(self, engine):
         """Cleans up surprise status, queues message, sets next step to ROLLING_INITIATIVE, then pauses."""
@@ -1073,70 +1311,83 @@ class CombatManager:
 
         from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
         action_name_log = self._last_action_result_detail.get('action_name', 'Unknown Action')
-        logger.info(f"Generating narrative for action outcome: {action_name_log}")
-
-        outcome_narrative = None; agent_failed = False
+        logger.info(f"Generating narrative for action outcome (offloaded): {action_name_log}")
+        result_copy = copy.deepcopy(self._last_action_result_detail) if self._last_action_result_detail else {}
+        self.waiting_for_display_completion = True
         try:
-            outcome_narrative = engine._combat_narrator_agent.narrate_outcome(self._last_action_result_detail, self)
-            if not outcome_narrative: agent_failed = True
-        except Exception as e: logger.error(f"Error calling narrate_outcome: {e}", exc_info=True); agent_failed = True
-
-        if agent_failed: # Fallback narrative
-            result = self._last_action_result_detail
+            thread = QThread()
+            worker = _LLMOutcomeWorker(engine, result_copy, self)
+            worker.moveToThread(thread)
+            bridge = _LLMResultBridge(engine, self)
+            bridge._outcome_is_surprise = False
+            bridge._outcome_action_result = result_copy
+            # Retain references
+            self._llm_threads.append(thread)
+            self._llm_workers.append(worker)
+            self._llm_bridges.append(bridge)
+            thread.started.connect(worker.run)
+            worker.finished.connect(bridge.handle_outcome_finished)
+            worker.error.connect(bridge.handle_outcome_error)
+            worker.finished.connect(thread.quit)
+            worker.finished.connect(worker.deleteLater)
+            thread.finished.connect(thread.deleteLater)
+            thread.finished.connect(lambda t=thread, w=worker, b=bridge: self._cleanup_llm_objects(t, w, b))
+            thread.start()
+        except Exception as e:
+            logger.error(f"Failed to start LLM outcome worker: {e}", exc_info=True)
+            # Fallback: compute placeholder narrative and set next step
+            result = result_copy or {}
             performer_name = result.get("performer_name", "Actor")
             target_name = result.get("target_name", "Target")
             action_name_disp = result.get("action_name", "action")
             damage = result.get("damage", 0)
-            success_flag = result.get("success", False) # This is mechanical success of the action handler
-
-            if success_flag: 
-                if result.get("fled") is True: outcome_narrative = f"{performer_name} successfully flees the battle!"
-                elif result.get("action_type") == ActionType.DEFEND: outcome_narrative = f"{performer_name} braces defensively."
-                elif damage > 0: outcome_narrative = f"The {action_name_disp} from {performer_name} strikes {target_name} for {damage:.0f} damage."
-                else: outcome_narrative = f"{performer_name}'s {action_name_disp} affects {target_name}, but deals no direct damage."
-                if result.get("target_defeated"): outcome_narrative += f" {target_name} is overcome and falls!"
-            else: # Mechanical failure
-                if result.get("fled") is False : outcome_narrative = f"{performer_name} tries to flee but cannot escape!"
-                else: outcome_narrative = f"{performer_name}'s {action_name_disp} against {target_name} fails utterly."
-        
-        if outcome_narrative:
+            success_flag = result.get("success", False)
+            if success_flag:
+                if result.get("fled") is True:
+                    outcome_narrative = f"{performer_name} successfully flees the battle!"
+                elif result.get("action_type") == ActionType.DEFEND:
+                    outcome_narrative = f"{performer_name} braces defensively."
+                elif damage > 0:
+                    outcome_narrative = f"The {action_name_disp} from {performer_name} strikes {target_name} for {damage:.0f} damage."
+                else:
+                    outcome_narrative = f"{performer_name}'s {action_name_disp} affects {target_name}, but deals no direct damage."
+                if result.get("target_defeated"):
+                    outcome_narrative += f" {target_name} is overcome and falls!"
+            else:
+                if result.get("fled") is False:
+                    outcome_narrative = f"{performer_name} tries to flee but cannot escape!"
+                else:
+                    outcome_narrative = f"{performer_name}'s {action_name_disp} against {target_name} fails utterly."
             engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.NARRATIVE_IMPACT, content=outcome_narrative, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name))
-            self.waiting_for_display_completion = True
-        else:
-            self.waiting_for_display_completion = False # No narrative, proceed faster
-
-        # Decide whether combat should end right after outcome narrative
-        end_player_victory = False
-        end_player_defeat = False
-        try:
-            from core.combat.combat_entity import EntityType
-            # Player defeat if player entity is not alive
-            player_id = getattr(self, '_player_entity_id', None)
-            if player_id and player_id in self.entities:
-                player_entity_obj = self.entities.get(player_id)
-                if player_entity_obj and not player_entity_obj.is_alive():
-                    end_player_defeat = True
-            # Victory if no active, alive enemies remain
-            remaining_enemies = [e for e in self.entities.values() if getattr(e, 'entity_type', None) == EntityType.ENEMY and getattr(e, 'is_active_in_combat', True) and e.is_alive()]
-            if len(remaining_enemies) == 0:
-                end_player_victory = True
-        except Exception:
-            pass
-
-        # Clear pending action only AFTER narration is done with its details
-        if self._pending_action and self._pending_action.id == self._last_action_result_detail.get("action_id_for_narration"):
-            self._pending_action = None
-        self._last_action_result_detail = None # Clear after use
-
-        if end_player_defeat:
-            self.state = CombatState.PLAYER_DEFEAT
-            self.current_step = CombatStep.ENDING_COMBAT
-            # keep waiting_for_display_completion as set above when narrative was queued
-        elif end_player_victory:
-            self.state = CombatState.PLAYER_VICTORY
-            self.current_step = CombatStep.ENDING_COMBAT
-        else:
-            self.current_step = CombatStep.APPLYING_STATUS_EFFECTS 
+            # Decide next step
+            # Clear pending action only AFTER narration is prepared
+            if self._pending_action and result.get("action_id_for_narration") and self._pending_action.id == result.get("action_id_for_narration"):
+                self._pending_action = None
+            self._last_action_result_detail = None
+            # Compute end flags
+            end_player_victory = False
+            end_player_defeat = False
+            try:
+                from core.combat.combat_entity import EntityType
+                player_id = getattr(self, '_player_entity_id', None)
+                if player_id and player_id in self.entities:
+                    player_entity_obj = self.entities.get(player_id)
+                    if player_entity_obj and not player_entity_obj.is_alive():
+                        end_player_defeat = True
+                remaining_enemies = [e for e in self.entities.values() if getattr(e, 'entity_type', None) == EntityType.ENEMY and getattr(e, 'is_active_in_combat', True) and e.is_alive()]
+                if len(remaining_enemies) == 0:
+                    end_player_victory = True
+            except Exception:
+                pass
+            if end_player_defeat:
+                self.state = CombatState.PLAYER_DEFEAT
+                self.current_step = CombatStep.ENDING_COMBAT
+            elif end_player_victory:
+                self.state = CombatState.PLAYER_VICTORY
+                self.current_step = CombatStep.ENDING_COMBAT
+            else:
+                self.current_step = CombatStep.APPLYING_STATUS_EFFECTS
+        return
 
     def _step_applying_status_effects(self, engine): # Added engine parameter
         """Applies end-of-turn status effects, regeneration, and updates durations. Queues messages."""
