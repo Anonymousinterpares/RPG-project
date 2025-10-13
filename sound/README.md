@@ -7,7 +7,7 @@ The `sound` directory contains audio assets used in the game.
 The sound files are organized into categories:
 
 - `effects/` - Sound effects for game events and actions
-- `music/` - Background music tracks
+- `music/` - Background music tracks (see `sound/music/README.md` for mood folders and details)
 - `ambient/` - Ambient sound loops
 - `dialogue/` - Voice clips for dialogue (if applicable)
 
