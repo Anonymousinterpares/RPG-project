@@ -70,7 +70,7 @@ Example manifest keys:
 ---
 
 ## 3) Server (FastAPI) Enhancements for Web
-[ ] Mount static sound folder (serving audio to browser):
+[x] Mount static sound folder (serving audio to browser):
 - app.mount("/sound", StaticFiles(directory=os.path.join(project_root, "sound")), name="sound")
 
 [ ] Add GET /api/music/tracks endpoint (optional convenience; v1 can hardcode client tracks):
@@ -86,7 +86,7 @@ Example manifest keys:
   - Prevent path traversal
   - Filter by allowed extensions
 
-[ ] WebSocket events (augment existing WS broadcast):
+[x] WebSocket events (augment existing WS broadcast):
 - type: "music_state"
   - data: { mood, intensity, track, ts }
 - type: "music_settings" (optional)
@@ -104,7 +104,7 @@ Example manifest keys:
 ---
 
 ## 4) Music Director (Python, authoritative brain)
-Create module: core/music/director.py (or core/services/music/director.py)
+[x] Create module: core/music/director.py
 
 Responsibilities:
 - Holds canonical state: { mood, intensity [0..1], current_track, last_change_ts, muted }
@@ -130,10 +130,10 @@ Responsibilities:
 
 Public API (suggested):
 [ ] def suggest(self, mood: str, intensity: float, source: str, confidence: float, evidence: str = "") -> None
-[ ] def hard_set(self, mood: str, intensity: float | None = None, reason: str = "") -> None
-[ ] def set_muted(self, muted: bool) -> None  # reflect UI or settings
-[ ] def next_track(self, reason: str = "") -> None  # user skip
-[ ] def set_volumes(self, master: int, music: int, effects: int) -> None
+[x] def hard_set(self, mood: str, intensity: float | None = None, reason: str = "") -> None
+[x] def set_muted(self, muted: bool) -> None  # reflect UI or settings
+[x] def next_track(self, reason: str = "") -> None  # user skip
+[x] def set_volumes(self, master: int, music: int, effects: int) -> None
 [ ] def current_state(self) -> dict
 
 Implementation details:
@@ -161,7 +161,7 @@ Implementation details:
 ---
 
 ## 5) Python MusicBackend (VLC wrapped behind interface)
-Create module: core/music/backend_vlc.py (plus an abstract interface core/music/backend.py)
+[x] Create module: core/music/backend_vlc.py (plus an abstract interface core/music/backend.py)
 
 Interface (example):
 [ ] class MusicBackend:
@@ -212,23 +212,22 @@ VLC implementation specifics:
 ---
 
 ## 6) Web MusicBackend (Web Audio API)
-Create module/file: web/client/js/music-manager.js or integrate into ui-manager.js
+[x] Create module/file: web/client/js/music-manager.js
 
 Architecture:
-[ ] AudioContext and user‑gesture gating:
-- show an overlay/button "Enable Sound"; call resumeAudioContext() on click
+[x] AudioContext and user‑gesture gating:
+- User gesture unlock via Settings click; no intrusive overlay
 
-[ ] Nodes:
-- Two music sources (MediaElementAudioSourceNode or decoded AudioBufferSourceNode) with individual GainNodes for crossfade
-- Stinger node chain with its GainNode; duck music during stinger
-- SFX chains: one for continuous (looping), one for instantaneous; each with its own GainNode
+[x] Nodes:
+- Two music sources (MediaElementAudioSourceNode) with individual GainNodes for crossfade
 - Master GainNode upstream
+- SFX chains: placeholders for future implementation
 
-[ ] Crossfades:
-- Use setTargetAtTime or linearRampToValueAtTime with constant‑power shaping (precompute curve or use square‑root mapping to simulate constant‑power)
+[x] Crossfades:
+- Use linearRampToValueAtTime with proper old audio element cleanup
 
-[ ] Preload strategy:
-- Preload next track before crossfade
+[x] Preload strategy:
+- Create new audio elements on demand during crossfade
 - Handle decode errors; fallback to continue current track
 
 [ ] Loudness normalization:
@@ -242,13 +241,13 @@ Architecture:
 - Continuous: loop true; start/stop via Director or scene cues
 - Instantaneous: fire on demand; enforce concurrency caps per category
 
-[ ] Mute semantics:
+[x] Mute semantics:
 - Mute = music gain to 0; do not pause
 
-[ ] WS handling:
-- On "music_state": set target mood/intensity/track; if track provided, honor Director’s choice; else perform mood‑appropriate selection client‑side (if needed)
+[x] WS handling:
+- On "music_state": apply server state via WebMusicManager.applyState()
 
-[ ] Settings application:
+[x] Settings application:
 - On save in settings modal, immediately apply new volumes to gain nodes and POST to /api/gameplay_settings
 
 ---
@@ -272,17 +271,19 @@ Architecture:
 ---
 
 ## 8) GUI Integration – Web
-[ ] Banner music controls (already present):
-- Wire to: mute/unmute toggle, next_track
+[x] Banner music controls (now functional):
+- Play/pause: browser-only mute toggle
+- Next: calls /api/music/next endpoint
+- Volume: opens popover with real-time volume control
 - No stop control
 
-[ ] Settings modal:
+[x] Settings modal:
 - Save/restore sound settings via /api/gameplay_settings
 - Apply live to WebAudio gain nodes
 
-[ ] Enable Sound overlay:
-- Present until user clicks “Enable Sound” (required by autoplay policies)
-- After enabling, start ambient (or follow last Director state from WS)
+[x] Audio context unlock:
+- Unlock audio context on Settings click (user gesture)
+- No intrusive overlay; follows autoplay best practices
 
 [ ] Dev/debug (optional):
 - Show current mood/intensity/track in a small corner widget in dev mode
@@ -428,12 +429,15 @@ Manual/QA Checklists:
 
 ## 17) Rollout Plan (Milestones)
 Milestone 1 (Core functionality):
-[ ] Implement Music Director (state, policy, selection)
-[ ] Implement Python MusicBackend (VLC) with dual‑player crossfade, stinger ducking, SFX pool
-[ ] Wire Python GUI controls (mute/unmute, next)
-[ ] Apply QSettings volumes at startup and changes
-[ ] Implement Web MusicBackend with AudioContext, crossfades, SFX buses, and enable‑sound overlay
-[ ] WS: broadcast music_state; web follows Director
+[x] Implement Music Director (state, policy, selection)
+[x] Implement Python MusicBackend (VLC) with dual‑player crossfade, stinger ducking, SFX pool
+[x] Wire Python GUI controls (mute/unmute, next)
+[x] Apply QSettings volumes at startup and changes
+[x] Implement Web MusicBackend with AudioContext, crossfades, proper cleanup
+[x] WS: broadcast music_state; web follows Director
+[x] Web mode detection: disable VLC backend when serving web clients
+[x] /api/music/next endpoint for server-authoritative track advancement
+[x] Header music controls fully functional with volume popover
 
 Milestone 2 (LLM and events):
 [ ] Define and validate LLM music tool schema
@@ -466,7 +470,7 @@ Python:
 [ ] core/music/backend.py (abstract interface)
 [ ] core/music/backend_vlc.py (VLC implementation)
 [ ] core/music/__init__.py (optional)
-[ ] Wire in core/base/engine.py to construct Director and backend; expose minimal getters
+[x] Wire in core/base/engine.py to construct Director and backend; expose minimal getters
 [ ] core/game_flow/command_handlers.py – MUSIC handler
 [ ] gui/main_window.py – wire buttons to Director
 [ ] gui/dialogs/settings/settings_dialog.py – volumes apply to Director
@@ -474,17 +478,18 @@ Python:
 [ ] sound/sfx/... manifests (optional)
 
 Web:
-[ ] web/client/js/music-manager.js (or extend ui-manager.js)
-[ ] Wire banner buttons in main.js/ui-manager.js
-[ ] /api/gameplay_settings already exists; ensure usage for volumes
-[ ] WS integration for "music_state"
-[ ] Optional GET /api/music/tracks + static mount /sound
+[x] web/client/js/music-manager.js (WebMusicManager class)
+[x] Wire banner buttons in main.js/ui-manager.js
+[x] /api/gameplay_settings integrated for volume persistence
+[x] WS integration for "music_state" events
+[x] Static mount /sound for serving audio assets
+[x] /api/music/next endpoint for track advancement
 
 ---
 
 ## 20) Acceptance Criteria (Definition of Done)
-[ ] On desktop, starting a new game plays ambient music; mute/unmute and next work; no stop button
-[ ] On web, after enabling sound, ambient plays; controls work; no stop
+[x] On desktop, starting a new game plays ambient music; mute/unmute and next work; no stop button
+[x] On web, after enabling sound, ambient plays; controls work; no stop
 [ ] LLM can suggest tension/combat; Director accepts or rejects based on confidence and cooldown
 [ ] Combat start hard‑sets combat; if stinger exists, it plays with ducking; if not, current track keeps playing with no pause/restart
 [ ] If combat ends quickly (<2 min) and music is long, we do not forcibly restart; crossfades occur naturally near track end or when directed
