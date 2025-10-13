@@ -46,6 +46,14 @@ Notes:
 ## 2) Track Metadata Manifests (optional but recommended)
 [ ] For each mood, author an optional manifest file sound/music/<mood>/manifest.yaml to normalize loudness, assign weights and tags, define loop points and other hints.
 
+### Tagging guidance (to support context weighting)
+- Recommended tags to include per track: [location_major, venue, weather, time_of_day, mood_flavor]
+  - location_major examples: city, camp, forest, seaside, desert, mountain, swamp, dungeon, castle, village, port, temple, ruins
+  - venue examples: tavern, market, blacksmith, inn, chapel, library, manor, arena, fireplace, bridge, tower, cave, farm
+  - weather examples: clear, overcast, rain, storm, snow, blizzard, fog, windy, sandstorm
+  - time_of_day (optional): dawn, day, dusk, night
+- These tags are used by the Director to bias selection; do not multiply directories unnecessarily.
+
 Example manifest keys:
 - mood: "tension"
 - default_intensity: 0.5
@@ -66,6 +74,25 @@ Example manifest keys:
 - tracks: [ { file, loudness_offset_db } ... ]
 
 [ ] For SFX manifests (optional): sound/sfx/<type>/<category>/manifest.yaml for per‑sound volume offsets or concurrency limits
+
+---
+
+## 2A) Context Model (Location, Venue, Weather, Time of Day)
+[ ] Define canonical enums and synonyms mapping (data-driven) for:
+- location.major (top-level: city, forest, seaside, desert, mountain, dungeon, village, port, temple, ruins, camp, swamp, castle, etc.)
+- location.venue (fine-grained: tavern, market, blacksmith, chapel, library, fireplace, arena, cave, inn, manor, farm, bridge, tower, etc.)
+- weather.type (clear, overcast, rain, storm, snow, blizzard, fog, windy, sandstorm)
+- time_of_day (optional for selection weighting: dawn, day, dusk, night)
+
+[ ] Provide a synonyms map for each domain so LLM/world strings can be canonicalized (e.g., "town" → city, "pub" → tavern)
+[ ] Persist current context in saves: location.major, location.venue, weather.type (and time_of_day if used)
+[ ] Director uses context to bias track selection via manifest tags (no extra folders required)
+[ ] Engine owns context; LLM may propose (optional) but engine canonicalizes and applies policy
+
+Artifacts (proposed):
+- config/audio/context_enums.json (canonical values)
+- config/audio/context_synonyms.json (string → canonical)
+- config/audio/sfx_mapping.json (Phase C; context → SFX tags)
 
 ---
 
@@ -105,6 +132,12 @@ Example manifest keys:
 
 ## 4) Music Director (Python, authoritative brain)
 [x] Create module: core/music/director.py
+
+Context integration (Phase A scope):
+[ ] Accept and store context fields (location.major, location.venue, weather.type, time_of_day?)
+[ ] Expose set_context(...) or accept context via game state updates; canonicalize via synonyms config
+[ ] Weight track selection by matching manifest tags to current context (soft bias, not hard filter)
+[ ] Persist context in saves and restore on load
 
 Responsibilities:
 - Holds canonical state: { mood, intensity [0..1], current_track, last_change_ts, muted }
@@ -214,6 +247,11 @@ VLC implementation specifics:
 ## 6) Web MusicBackend (Web Audio API)
 [x] Create module/file: web/client/js/music-manager.js
 
+Planned SFX scaffolding (Phase C):
+[ ] Continuous SFX bus (looping ambiences) and instant SFX bus (one-shots)
+[ ] Respect context→SFX mapping from config/audio/sfx_mapping.json
+[ ] Concurrency caps per category; per-category gain presets
+
 Architecture:
 [x] AudioContext and user‑gesture gating:
 - User gesture unlock via Settings click; no intrusive overlay
@@ -272,6 +310,9 @@ Architecture:
 
 ## 8) GUI Integration – Web
 [x] Banner music controls (now functional):
+
+Context visibility (dev-only, optional):
+[ ] Small dev widget to display {mood, intensity, track, location.major, venue, weather}
 - Play/pause: browser-only mute toggle
 - Next: calls /api/music/next endpoint
 - Volume: opens popover with real-time volume control
@@ -292,6 +333,11 @@ Architecture:
 
 ## 9) LLM Integration – Structured Suggestions
 [ ] Define function (tool) schema for LLM output (JSON):
+
+Optional context tool (if not driven purely by engine):
+[ ] Define SET_CONTEXT tool: { location_major?, venue?, weather?, time_of_day? }
+- Engine canonicalizes via synonyms, applies policy, and updates Director.
+- Alternatively, allow MUSIC tool to include optional context fields—but SET_CONTEXT keeps concerns cleaner.
 {
   "tool": "music",
   "action": "set_mood",            // set_mood | set_intensity | next | mute | unmute
@@ -332,6 +378,10 @@ Architecture:
 
 ## 11) SFX System
 [ ] Categories and routing:
+
+Planning deliverables (before implementation):
+[ ] Ambient library list defined (continuous + one-shot) with canonical tag names
+[ ] Context→SFX mapping table authored (data-driven)
 - continuous/<tag>: looped ambiences; separate gain bus
 - instant/<category>: one‑shots; concurrency caps; optional per‑category output gain
 
@@ -346,6 +396,7 @@ Architecture:
 
 ## 12) Settings and Persistence
 [ ] QSettings / /api/gameplay_settings already exist; ensure both backends read/apply at startup and on change
+[ ] Persist and restore context fields (location.major, location.venue, weather.type, time_of_day?) alongside mood/intensity
 [ ] Additional toggles (optional):
 - "allow_llm_music_influence": true/false – gates Director.suggest application
 - Per‑category SFX volume (e.g., UI vs combat SFX)
@@ -354,6 +405,9 @@ Architecture:
 
 ## 13) Testing Strategy
 Unit Tests (Python):
+[ ] Context weighting tests:
+- Given context C and manifests with tags, selection probability shifts as expected (bias not hard exclusion)
+- Unknown context values fall back safely (no crash, default weighting)
 [ ] Director decisions:
 - LLM suggestions below threshold rejected
 - Cooldown/hysteresis enforced
@@ -394,6 +448,7 @@ Manual/QA Checklists:
 
 ## 14) Telemetry & Logging
 [ ] Structured logs for Director:
+- context_changed {location_major, venue, weather, time_of_day, source}
 - suggestion_received {source, mood, intensity, confidence}
 - decision {accepted, reason}
 - transition {from, to, fade_ms}
@@ -422,6 +477,7 @@ Manual/QA Checklists:
 
 ## 16) Security Considerations
 [ ] Prevent directory traversal in /api/music/tracks
+[ ] Sanitize and canonicalize context inputs (LLM/user): whitelist enums; map via synonyms; reject unknown if necessary
 [ ] Sanitize mood/tag inputs from LLM; use whitelist
 [ ] Consider max concurrency limits for SFX to avoid resource abuse
 
@@ -429,6 +485,9 @@ Manual/QA Checklists:
 
 ## 17) Rollout Plan (Milestones)
 Milestone 1 (Core functionality):
+- Completed (see above) + Add in-scope context plumbing:
+  [ ] Add Director context fields and weighting by tags (no SFX yet)
+  [ ] Persist/restore context in saves
 [x] Implement Music Director (state, policy, selection)
 [x] Implement Python MusicBackend (VLC) with dual‑player crossfade, stinger ducking, SFX pool
 [x] Wire Python GUI controls (mute/unmute, next)
@@ -440,12 +499,17 @@ Milestone 1 (Core functionality):
 [x] Header music controls fully functional with volume popover
 
 Milestone 2 (LLM and events):
-[ ] Define and validate LLM music tool schema
-[ ] Add MUSIC handler in command_handlers → Director.suggest
+[ ] Define and validate LLM music tool schema (MUSIC) and optional SET_CONTEXT tool
+[ ] Add MUSIC handler in command_handlers → Director.suggest; add context update path if SET_CONTEXT enabled
 [ ] Hard‑set mood from engine events (combat start/end); stinger fallback if missing
-[ ] Optional /api/music/tracks and /sound mount; web fetches track lists dynamically
+[ ] (Optional) /api/music/tracks; web fetches track lists dynamically
 
-Milestone 3 (Polish):
+Milestone 3 (SFX & ambience):
+[ ] Author ambient library list (continuous + one-shot) and context→SFX mapping (data-driven)
+[ ] Implement SFX buses (continuous + instant) and initial triggers (location/weather/UI)
+[ ] Concurrency limits and per-category gains
+
+Milestone 4 (Polish):
 [ ] Loudness normalization via manifest
 [ ] Better crossfade curve tuning and configurable durations
 [ ] Optional layered stems and intensity‑based stem morphing
@@ -456,6 +520,7 @@ Milestone 3 (Polish):
 
 ## 18) Edge Case Handling (Explicit)
 [ ] No tracks for target mood: maintain current track; schedule retry later
+[ ] Unknown/unsupported context: keep last valid context; apply neutral weighting; log once
 [ ] Missing stinger: don’t interrupt; continue current track; just mark transition logically
 [ ] Autoplay blocked (web): show overlay and retry start on click
 [ ] Decode/parse failures: skip offending media; continue gracefully
@@ -466,6 +531,9 @@ Milestone 3 (Polish):
 
 ## 19) Implementation Artifacts (File/Module Checklist)
 Python:
+[ ] config/audio/context_enums.json (canonical enums)
+[ ] config/audio/context_synonyms.json (string → canonical mapping)
+[ ] config/audio/sfx_mapping.json (context → SFX tags; Phase C)
 [ ] core/music/director.py (Director)
 [ ] core/music/backend.py (abstract interface)
 [ ] core/music/backend_vlc.py (VLC implementation)
@@ -490,7 +558,9 @@ Web:
 ## 20) Acceptance Criteria (Definition of Done)
 [x] On desktop, starting a new game plays ambient music; mute/unmute and next work; no stop button
 [x] On web, after enabling sound, ambient plays; controls work; no stop
+[ ] Director uses location/venue/weather to bias selection (Phase A updated)
 [ ] LLM can suggest tension/combat; Director accepts or rejects based on confidence and cooldown
+[ ] Context persisted/restored across saves; unknown context handled gracefully
 [ ] Combat start hard‑sets combat; if stinger exists, it plays with ducking; if not, current track keeps playing with no pause/restart
 [ ] If combat ends quickly (<2 min) and music is long, we do not forcibly restart; crossfades occur naturally near track end or when directed
 [ ] SFX: Continuous ambiences (e.g., market) can loop over music; instantaneous SFX play immediately and do not break music

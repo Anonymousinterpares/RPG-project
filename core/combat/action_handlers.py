@@ -375,6 +375,9 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
     )
     
     targets = []
+    # Track per-target HP before to drive UI updates and defeat checks later
+    target_hp_before: Dict[str, float] = {}
+    target_hp_max: Dict[str, float] = {}
     for target_id in action.targets:
         target_entity = manager.entities.get(target_id)
         if target_entity and target_entity.is_alive():
@@ -385,6 +388,12 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                     name=target_entity.combat_name,
                     stats_manager=target_sm
                 ))
+                try:
+                    hp_before = float(target_sm.get_current_stat_value(DerivedStatType.HEALTH))
+                except Exception:
+                    hp_before = float(getattr(target_entity, 'current_hp', 0))
+                target_hp_before[target_entity.id] = hp_before
+                target_hp_max[target_entity.id] = float(getattr(target_entity, 'max_hp', 1) or 1)
     
     if not targets:
         current_result_detail.update({"success": False, "message": "No valid targets for spell.", "queued_events": queued_events_this_handler})
@@ -430,39 +439,80 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
             except Exception:
                 pass
         
-        # Check for defeated targets (effects engine may have updated HP)
+        # After effects are applied, synchronize HP for each affected target and perform defeat checks
+        killed_ids: List[str] = []
         for target_ctx in targets:
-            target_entity = manager.entities.get(target_ctx.id)
-            if target_entity and not target_entity.is_alive():
-                defeat_msg = f"{target_entity.combat_name} is defeated by {spell_name}!"
+            try:
+                old_hp = float(target_hp_before.get(target_ctx.id, 0.0))
+                new_hp = float(target_ctx.stats_manager.get_current_stat_value(DerivedStatType.HEALTH))
+                max_hp_val = float(target_hp_max.get(target_ctx.id, 1.0) or 1.0)
+            except Exception:
+                # Fallback: read from entity if needed
+                entity_fallback = manager.entities.get(target_ctx.id)
+                old_hp = float(target_hp_before.get(target_ctx.id, getattr(entity_fallback, 'current_hp', 0.0)))
+                new_hp = float(getattr(entity_fallback, 'current_hp', 0.0))
+                max_hp_val = float(getattr(entity_fallback, 'max_hp', 1.0) or 1.0)
+            
+            # If HP changed, drive UI/model updates
+            if abs(new_hp - old_hp) > 1e-6:
+                # Apply model sync first so CombatEntity mirrors StatsManager
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                    type=DisplayEventType.APPLY_ENTITY_RESOURCE_UPDATE,
+                    content={},
+                    metadata={"entity_id": target_ctx.id, "bar_type": "hp", "final_new_value": new_hp, "max_value": max_hp_val}
+                ))
+                # Phase 1 preview and Phase 2 finalize
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                    type=DisplayEventType.UI_BAR_UPDATE_PHASE1,
+                    content={},
+                    metadata={"entity_id": target_ctx.id, "bar_type": "hp", "old_value": old_hp, "new_value_preview": new_hp, "max_value": max_hp_val}
+                ))
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                    type=DisplayEventType.UI_BAR_UPDATE_PHASE2,
+                    content={},
+                    metadata={"entity_id": target_ctx.id, "bar_type": "hp", "final_new_value": new_hp, "max_value": max_hp_val}
+                ))
+                queued_events_this_handler = True
+            
+            # Defeat check using the post-effect HP value (independent of CombatEntity.is_alive())
+            if new_hp <= 0:
+                killed_ids.append(target_ctx.id)
+                target_entity = manager.entities.get(target_ctx.id)
+                target_name = getattr(target_entity, 'combat_name', target_ctx.name or 'Target') if target_entity else (target_ctx.name or 'Target')
+                defeat_msg = f"{target_name} is defeated by {getattr(spell_obj, 'name', action.name)}!"
                 engine._combat_orchestrator.add_event_to_queue(
                     DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)
                 )
                 manager._add_to_log(defeat_msg)
-                queued_events_this_handler = True
-                
-                # Handle combat end conditions
+                # Mark inactive in combat
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
                     type=DisplayEventType.APPLY_ENTITY_STATE_UPDATE,
                     content={},
-                    metadata={"entity_id": target_entity.id, "is_active_in_combat": False}
+                    metadata={"entity_id": target_ctx.id, "is_active_in_combat": False}
                 ))
-                
-                try:
-                    from core.combat.combat_entity import EntityType
-                    if target_entity.entity_type == EntityType.PLAYER:
-                        manager.state = CombatState.PLAYER_DEFEAT
-                        manager.current_step = CombatStep.ENDING_COMBAT
-                        manager.waiting_for_display_completion = True
-                    else:
-                        remaining_enemies = [e for e in manager.entities.values() 
-                                           if e.entity_type == EntityType.ENEMY and e.is_active_in_combat and e.is_alive()]
-                        if len(remaining_enemies) == 0:
-                            manager.state = CombatState.PLAYER_VICTORY
-                            manager.current_step = CombatStep.ENDING_COMBAT
-                            manager.waiting_for_display_completion = True
-                except Exception:
-                    pass
+                queued_events_this_handler = True
+        
+        # Handle combat end conditions based on killed_ids snapshot
+        try:
+            from core.combat.combat_entity import EntityType
+            # If any player got killed -> defeat
+            for kid in killed_ids:
+                ent = manager.entities.get(kid)
+                if ent and ent.entity_type == EntityType.PLAYER:
+                    manager.state = CombatState.PLAYER_DEFEAT
+                    manager.current_step = CombatStep.ENDING_COMBAT
+                    manager.waiting_for_display_completion = True
+                    break
+            else:
+                # Victory if no enemies remain alive after this resolution
+                remaining_enemies = [e for e in manager.entities.values()
+                                     if e.entity_type == EntityType.ENEMY and e.is_active_in_combat and (e.id not in killed_ids and e.is_alive())]
+                if len(remaining_enemies) == 0 and killed_ids:
+                    manager.state = CombatState.PLAYER_VICTORY
+                    manager.current_step = CombatStep.ENDING_COMBAT
+                    manager.waiting_for_display_completion = True
+        except Exception:
+            pass
         
         if effect_result.success:
             current_result_detail.update({

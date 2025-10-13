@@ -1436,7 +1436,7 @@
           "id": "prismatic_bolt",
           "name": "Prismatic Bolt",
           "description": "Creates a beam of concentrated light energy that strikes with geometric precision.",
-          "mana_cost": 15.0,
+          "mana_cost": 1.0,
           "casting_time": "1 action",
           "range": "30m",
           "target": "single",
