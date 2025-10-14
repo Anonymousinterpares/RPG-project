@@ -1944,7 +1944,14 @@ class MagicSystemsEditor(QWidget):
                 item_text = f"{spell.name}"
                 if spell.level > 1:
                     item_text += f" (Level {spell.level})"
-                self.spells_list_display.addItem(item_text)
+                item = QListWidgetItem(item_text)
+                # Store spell id to enable assistant focus/search selection
+                try:
+                    sid = getattr(spell, 'id', None) or spell_id
+                except Exception:
+                    sid = spell_id
+                item.setData(Qt.UserRole, sid)
+                self.spells_list_display.addItem(item)
 
             # Load affinities display
             self.affinities_list_display.clear()
@@ -2100,3 +2107,304 @@ class MagicSystemsEditor(QWidget):
         else:
              logger.error(f"Failed to remove magic system: {magic_system.name} ({system_id})")
              QMessageBox.critical(self, "Error", f"Could not remove magic system '{magic_system.name}'.")
+
+    # ===== Assistant integration (provider methods) =====
+    def get_assistant_context(self):
+        """Provide context for the assistant, mirroring other editors' pattern.
+        - Domain-scoped to magic systems
+        - Selection is the currently selected system
+        - Allowed paths exclude race/class affinities (read-only)
+        """
+        try:
+            from assistant.context import AssistantContext
+        except Exception:
+            # Fallback import path if packaging differs
+            from ..assistant.context import AssistantContext  # type: ignore
+        if not self.current_system:
+            return AssistantContext(
+                domain="magic_systems",
+                selection_id=None,
+                content=None,
+                schema=None,
+                allowed_paths=[
+                    "/name", "/description", "/origin", "/limitations",
+                    "/practitioners", "/cultural_significance",
+                    "/spells",
+                ],
+            )
+        allowed = [
+            "/name", "/description", "/origin", "/limitations",
+            "/practitioners", "/cultural_significance",
+            "/spells",
+        ]
+        return AssistantContext(
+            domain="magic_systems",
+            selection_id=self.current_system.id,
+            content=self.current_system.to_dict(),
+            schema=None,
+            allowed_paths=allowed,
+        )
+
+    def get_reference_catalogs(self) -> Dict[str, Any]:
+        """Provide grounding catalogs to reduce LLM mistakes.
+        Includes canonical damage types, stat ids, and enums used in spells/effect atoms.
+        """
+        refs: Dict[str, Any] = {}
+        try:
+            # Canonical lists (damage types)
+            root = get_project_root()
+            canonical_path = os.path.join(root, 'config', 'gameplay', 'canonical_lists.json')
+            data = load_json(canonical_path) if os.path.exists(canonical_path) else None
+            dmg_types = []
+            if isinstance(data, dict) and isinstance(data.get('damage_types'), list):
+                dmg_types = [str(x).strip() for x in data['damage_types'] if isinstance(x, str)]
+            refs["damage_types"] = dmg_types
+        except Exception:
+            refs["damage_types"] = []
+        try:
+            # Stat registry (supported stat keys)
+            root = get_project_root()
+            stat_path = os.path.join(root, 'config', 'character', 'stat_registry.json')
+            sd = load_json(stat_path) if os.path.exists(stat_path) else None
+            stat_ids: List[str] = []
+            if isinstance(sd, dict) and isinstance(sd.get('stats'), list):
+                for entry in sd['stats']:
+                    if isinstance(entry, dict) and entry.get('supported'):
+                        key = str(entry.get('key', '')).strip()
+                        if key:
+                            stat_ids.append(key.replace(' ', '_').upper())
+            refs["stat_ids"] = sorted(stat_ids)
+        except Exception:
+            refs["stat_ids"] = []
+        # Enumerations for atoms/spells
+        refs["atom_types"] = [
+            "damage", "heal", "resource_change", "buff", "debuff",
+            "status_apply", "status_remove", "cleanse", "shield"
+        ]
+        refs["selectors"] = ["self", "ally", "enemy", "area"]
+        refs["resources"] = ["HEALTH", "MANA", "STAMINA", "RESOLVE"]
+        refs["stacking_rules"] = ["none", "stack", "refresh", "replace"]
+        refs["periodic_tags"] = ["damage_over_time", "healing_over_time", "regeneration"]
+        refs["spell_targets"] = ["single", "area", "self", "multiple", "all_enemies", "all_allies"]
+        refs["combat_roles"] = ["offensive", "defensive", "utility"]
+        # Existing spells in the current system for uniqueness guidance
+        try:
+            if self.current_system and isinstance(self.current_system.spells, dict):
+                refs["existing_spell_ids"] = list(self.current_system.spells.keys())
+                refs["existing_spell_names"] = [s.name for s in self.current_system.spells.values()]
+        except Exception:
+            refs["existing_spell_ids"] = []
+            refs["existing_spell_names"] = []
+        return refs
+
+    def get_domain_examples(self) -> List[Dict[str, Any]]:
+        """Return one example spell from the current system, if any, to steer create mode."""
+        try:
+            if self.current_system and self.current_system.spells:
+                # Take the first spell as an exemplar
+                first_spell = next(iter(self.current_system.spells.values()))
+                return [first_spell.to_dict()]
+        except Exception:
+            pass
+        return []
+
+    def _make_temp_systems_with_update(self, updated_system: MagicalSystem) -> Dict[str, MagicalSystem]:
+        """Helper: create a temp copy of manager systems with one system replaced."""
+        temp: Dict[str, MagicalSystem] = {}
+        try:
+            for sid, sys_obj in (self.magic_system_manager.magic_systems or {}).items():
+                temp[sid] = sys_obj
+            temp[updated_system.id] = updated_system
+        except Exception:
+            # Fall back to only updated system
+            temp = {updated_system.id: updated_system}
+        return temp
+
+    def _validate_effect_atoms_for_systems(self, systems_map: Dict[str, MagicalSystem]) -> List[str]:
+        """Run effect_atoms validation and return a list of human-readable error lines."""
+        try:
+            from world_configurator.utils.data_validator import DataValidator
+        except Exception:
+            from ..utils.data_validator import DataValidator  # type: ignore
+        validator = DataValidator()
+        try:
+            repo_root = get_project_root()
+        except Exception:
+            repo_root = None
+        errs = validator.validate_effect_atoms_magic_systems(systems_map, project_root=repo_root)
+        lines: List[str] = []
+        try:
+            for e in errs or []:
+                # e is ValidationError-like
+                try:
+                    lines.append(str(e))
+                except Exception:
+                    # fallback best effort
+                    lines.append(getattr(e, 'message', repr(e)))
+        except Exception:
+            pass
+        return lines
+
+    def apply_assistant_patch(self, patch_ops):
+        """Apply RFC6902 patch ops to the current magic system.
+        - Enforces allowed paths (via shared patching helper)
+        - Validates effect_atoms pre-apply to surface schema/canonical errors early
+        """
+        try:
+            from assistant.patching import apply_patch_with_validation
+        except Exception:
+            from ..assistant.patching import apply_patch_with_validation  # type: ignore
+        if not self.current_system:
+            return False, "No magic system selected."
+        # Build context and apply patch logically to JSON content first
+        ctx = self.get_assistant_context()
+        if not ctx.content:
+            return False, "No content available for the selected magic system."
+        ok, msg, new_content = apply_patch_with_validation(ctx, ctx.content, patch_ops)
+        if not ok:
+            return False, msg
+        # Map back to model but keep original id
+        try:
+            updated = MagicalSystem.from_dict(new_content)
+            updated.id = self.current_system.id
+        except Exception as e:
+            return False, f"Failed to parse updated content: {e}"
+        # Pre-apply validation for effect_atoms across all systems with this update
+        temp_map = self._make_temp_systems_with_update(updated)
+        val_errors = self._validate_effect_atoms_for_systems(temp_map)
+        if val_errors:
+            # Summarize and do not apply
+            msg = "Validation failed:\n" + "\n".join(val_errors[:20])
+            if len(val_errors) > 20:
+                msg += f"\n(+{len(val_errors)-20} more)"
+            return False, msg
+        # Apply to manager and refresh UI
+        try:
+            self.magic_system_manager.add_magic_system(updated)
+            self._load_system_display(updated)
+            self.magic_system_modified.emit()
+            return True, "OK"
+        except Exception as e:
+            return False, f"Failed to apply: {e}"
+
+    def _ensure_unique_spell_id(self, proposed_id: Optional[str]) -> str:
+        existing = set((self.current_system.spells or {}).keys()) if self.current_system else set()
+        pid = (proposed_id or Spell.generate_id()).strip()
+        if pid and pid not in existing:
+            return pid
+        base = pid or "spell"
+        suffix = 2
+        nid = f"{base}_{suffix}"
+        while nid in existing:
+            suffix += 1
+            nid = f"{base}_{suffix}"
+        return nid
+
+    def _ensure_unique_spell_name(self, proposed_name: Optional[str]) -> str:
+        existing = {s.name for s in (self.current_system.spells or {}).values()} if self.current_system else set()
+        name = (proposed_name or "New Spell").strip()
+        if name and name not in existing:
+            return name
+        base = name or "New Spell"
+        suffix = 2
+        nn = f"{base} ({suffix})"
+        while nn in existing:
+            suffix += 1
+            nn = f"{base} ({suffix})"
+        return nn
+
+    def create_entry_from_llm(self, entry: dict):
+        """Create a new spell in the current magic system from an assistant proposal.
+        Performs uniqueness adjustments and pre-apply validation of effect_atoms.
+        """
+        if not self.current_system:
+            return False, "No magic system selected.", None
+        try:
+            # Propose id/name and ensure uniqueness
+            proposed_id = str(entry.get("id") or "").strip() or None
+            proposed_name = str(entry.get("name") or "").strip() or None
+            new_id = self._ensure_unique_spell_id(proposed_id)
+            new_name = self._ensure_unique_spell_name(proposed_name)
+            # Merge defaults and sanitize via model
+            tmp = dict(entry or {})
+            tmp["id"] = new_id
+            tmp["name"] = new_name
+            # Normalize enums where obvious
+            try:
+                role = str(tmp.get("combat_role", "offensive")).strip().lower()
+                if role not in ("offensive", "defensive", "utility"):
+                    tmp["combat_role"] = "offensive"
+                else:
+                    tmp["combat_role"] = role
+            except Exception:
+                tmp["combat_role"] = "offensive"
+            new_spell = Spell.from_dict(tmp)
+            # Pre-apply validation: simulate adding into system
+            import copy as _copy
+            updated_sys = _copy.deepcopy(self.current_system)
+            updated_sys.spells[new_spell.id] = new_spell
+            temp_map = self._make_temp_systems_with_update(updated_sys)
+            val_errors = self._validate_effect_atoms_for_systems(temp_map)
+            if val_errors:
+                msg = "Validation failed:\n" + "\n".join(val_errors[:20])
+                if len(val_errors) > 20:
+                    msg += f"\n(+{len(val_errors)-20} more)"
+                return False, msg, None
+            # Commit
+            self.current_system.spells[new_spell.id] = new_spell
+            self.magic_system_manager.add_magic_system(self.current_system)
+            # Refresh display list
+            self._load_system_display(self.current_system)
+            # Try to select the new spell in display list (by id data we set earlier)
+            try:
+                for i in range(self.spells_list_display.count()):
+                    it = self.spells_list_display.item(i)
+                    if it and it.data(Qt.UserRole) == new_spell.id:
+                        self.spells_list_display.setCurrentItem(it)
+                        break
+            except Exception:
+                pass
+            self.magic_system_modified.emit()
+            return True, "Created", new_spell.id
+        except Exception as e:
+            return False, f"Failed to create: {e}", None
+
+    # Optional targeted search helpers used by AssistantDock
+    def search_for_entries(self, term: str, limit: int = 10):
+        try:
+            if not self.current_system or not term:
+                return []
+            import difflib, unicodedata
+            def _norm(s: str) -> str:
+                try:
+                    s2 = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode("ascii")
+                except Exception:
+                    s2 = s or ""
+                return s2.lower()
+            q = _norm(term)
+            results = []
+            for sid, sp in (self.current_system.spells or {}).items():
+                nm = getattr(sp, 'name', '')
+                tags = ",".join(getattr(sp, 'tags', []) or [])
+                hay = " | ".join([sid, nm, tags])
+                score = difflib.SequenceMatcher(None, q, _norm(hay)).ratio()
+                if score >= 0.4:
+                    results.append((sid, nm or sid, float(score)))
+            results.sort(key=lambda t: (-t[2], t[1], t[0]))
+            return results[:limit]
+        except Exception:
+            return []
+
+    def focus_entry(self, spell_id: str) -> bool:
+        try:
+            # Ensure current display is on the selected system already
+            if not self.current_system:
+                return False
+            for i in range(self.spells_list_display.count()):
+                it = self.spells_list_display.item(i)
+                if it and it.data(Qt.UserRole) == spell_id:
+                    self.spells_list_display.setCurrentItem(it)
+                    return True
+            return False
+        except Exception:
+            return False

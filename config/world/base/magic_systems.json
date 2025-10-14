@@ -2152,6 +2152,42 @@
             "movement"
           ],
           "combat_role": "defensive"
+        },
+        "ash_dart": {
+          "id": "ash_dart",
+          "name": "Ash Dart",
+          "description": "Hurls a concentrated dart of solidified ash at the target, dealing arcane damage.",
+          "mana_cost": 15.0,
+          "casting_time": "1 action",
+          "range": "20m",
+          "target": "enemy",
+          "effects": [],
+          "effect_atoms": [
+            {
+              "damage_type": "arcane",
+              "magnitude": {
+                "flat": 10.0
+              },
+              "selector": "enemy",
+              "source_id": "ash_dart",
+              "tags": [
+                "offensive",
+                "direct_damage"
+              ],
+              "type": "damage"
+            }
+          ],
+          "level": 1,
+          "components": [
+            "pinch of ash",
+            "verbal incantation"
+          ],
+          "tags": [
+            "offensive",
+            "direct_damage",
+            "arcane"
+          ],
+          "combat_role": "offensive"
         }
       }
     },

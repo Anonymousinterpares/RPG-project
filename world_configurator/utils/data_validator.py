@@ -287,13 +287,46 @@ class DataValidator:
             return errors
 
         try:
-            root = project_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            # world_configurator/utils -> project root is one level up from repo root? Use known structure
-            # Prefer walking up to repo root by finding 'config' directory
-            repo_root = root
-            # Heuristic: if 'config' not directly under root, go one level up
-            if not os.path.exists(os.path.join(repo_root, 'config')):
-                repo_root = os.path.dirname(repo_root)
+            # Resolve repository root robustly so we can find config/gameplay/effect_atoms.schema.json
+            def _has_schema(root_dir: str) -> bool:
+                return os.path.exists(os.path.join(root_dir, 'config', 'gameplay', 'effect_atoms.schema.json'))
+
+            repo_root: Optional[str] = None
+
+            # 1) Use provided project_root if correct
+            if project_root and _has_schema(project_root):
+                repo_root = project_root
+
+            # 2) Try get_project_root() helper
+            if repo_root is None:
+                try:
+                    from utils.file_manager import get_project_root as _gpr  # type: ignore
+                except Exception:
+                    try:
+                        from ..utils.file_manager import get_project_root as _gpr  # type: ignore
+                    except Exception:
+                        _gpr = None
+                if _gpr is not None:
+                    try:
+                        pr = _gpr()
+                        if pr and _has_schema(pr):
+                            repo_root = pr
+                    except Exception:
+                        pass
+
+            # 3) Walk up from this file up to 6 levels as a last resort
+            if repo_root is None:
+                here = os.path.abspath(__file__)
+                cur = os.path.dirname(here)
+                for _ in range(6):
+                    cur = os.path.dirname(cur)
+                    if _has_schema(cur):
+                        repo_root = cur
+                        break
+
+            if not repo_root:
+                raise FileNotFoundError("Could not locate project root containing config/gameplay/effect_atoms.schema.json")
+
             schema_path = os.path.join(repo_root, 'config', 'gameplay', 'effect_atoms.schema.json')
             canonical_path = os.path.join(repo_root, 'config', 'gameplay', 'canonical_lists.json')
             with open(schema_path, 'r', encoding='utf-8') as f:
