@@ -50,6 +50,13 @@ class StatsManager(QObject):
         # Typed resistance contributions by source_id -> {damage_type: percent}
         # Example: {"armor_chest": {"slashing": 10, "fire": 5}}
         self._typed_resist_contrib_by_source: Dict[str, Dict[str, float]] = {}
+
+        # Absorb shields by source_id -> {"remaining": float, "damage_type": Optional[str],
+        #                                 "stacking_rule": str, "duration_unit": Optional[str],
+        #                                 "duration_value": Optional[int]}
+        # - damage_type=None means generic (absorbs any damage)
+        # - stacking_rule: one of {"none","stack","refresh","replace"}
+        self._absorb_shields_by_source: Dict[str, Dict[str, Any]] = {}
         
         # Reference to inventory manager for equipment modifiers
         # This will be set by the state manager or game engine
@@ -590,6 +597,178 @@ class StatsManager(QObject):
                 del self._typed_resist_contrib_by_source[source_id]
         except Exception:
             pass
+
+    # --- Absorb shield management -------------------------------------------------
+    def add_absorb_shield(
+        self,
+        source_id: str,
+        amount: float,
+        damage_type: Optional[str] = None,
+        stacking_rule: str = "none",
+        duration_unit: Optional[str] = None,
+        duration_value: Optional[int] = None,
+    ) -> None:
+        """
+        Add or update an absorb shield pool.
+        - source_id: stable key (e.g., spell id or status id)
+        - amount: points to absorb
+        - damage_type: restrict to specific damage type (lowercase), or None for generic
+        - stacking_rule: one of {'none','stack','refresh','replace'}
+        - duration_unit: 'turns' or 'minutes' (optional)
+        - duration_value: integer value for duration (optional)
+        """
+        try:
+            if not source_id:
+                return
+            sid = str(source_id).strip()
+            amt = max(0.0, float(amount))
+            dt = (str(damage_type).strip().lower() if damage_type else None)
+            rule = (stacking_rule or "none").strip().lower()
+            du = (duration_unit or None)
+            dv = int(duration_value) if (duration_value is not None) else None
+            entry = self._absorb_shields_by_source.get(sid)
+            if entry is None:
+                self._absorb_shields_by_source[sid] = {
+                    "remaining": amt,
+                    "damage_type": dt,
+                    "stacking_rule": rule,
+                    "duration_unit": du,
+                    "duration_value": dv,
+                }
+                return
+            # Update existing according to stacking rule
+            if rule == "stack":
+                entry["remaining"] = max(0.0, float(entry.get("remaining", 0.0)) + amt)
+                # Extend duration to max if provided
+                if dv is not None:
+                    entry["duration_unit"] = du or entry.get("duration_unit")
+                    entry["duration_value"] = max(int(entry.get("duration_value") or 0), dv)
+            elif rule == "refresh":
+                entry["remaining"] = max(float(entry.get("remaining", 0.0)), amt)
+                if dv is not None:
+                    entry["duration_unit"] = du or entry.get("duration_unit")
+                    entry["duration_value"] = dv
+            else:  # replace or none
+                entry.update({
+                    "remaining": amt,
+                    "damage_type": dt,
+                    "stacking_rule": rule,
+                    "duration_unit": du,
+                    "duration_value": dv,
+                })
+        except Exception as e:
+            logger.warning(f"add_absorb_shield failed: {e}")
+
+    def consume_absorb(self, incoming_amount: float, damage_type: Optional[str] = None) -> Tuple[float, float]:
+        """
+        Consume absorb shields against incoming damage. Returns (absorbed_total, leftover).
+        Prioritizes shields matching the damage_type; then generic shields.
+        """
+        try:
+            amt_remaining = max(0.0, float(incoming_amount))
+            absorbed_total = 0.0
+            if amt_remaining <= 0.0 or not self._absorb_shields_by_source:
+                return 0.0, amt_remaining
+            dt = (str(damage_type).strip().lower() if damage_type else None)
+            # Two passes: type-matching first, then generic
+            for pass_kind in ("typed", "generic"):
+                if amt_remaining <= 0:
+                    break
+                # Deterministic order for reproducibility
+                for sid in sorted(list(self._absorb_shields_by_source.keys())):
+                    entry = self._absorb_shields_by_source.get(sid)
+                    if not entry:
+                        continue
+                    etype = entry.get("damage_type")
+                    if pass_kind == "typed" and etype and dt and etype == dt:
+                        rem = float(entry.get("remaining", 0.0))
+                        if rem <= 0:
+                            continue
+                        use = min(rem, amt_remaining)
+                        entry["remaining"] = rem - use
+                        absorbed_total += use
+                        amt_remaining -= use
+                        if entry["remaining"] <= 0:
+                            # Remove empty pool
+                            try:
+                                del self._absorb_shields_by_source[sid]
+                            except Exception:
+                                pass
+                        if amt_remaining <= 0:
+                            break
+                    elif pass_kind == "generic" and (etype is None):
+                        rem = float(entry.get("remaining", 0.0))
+                        if rem <= 0:
+                            continue
+                        use = min(rem, amt_remaining)
+                        entry["remaining"] = rem - use
+                        absorbed_total += use
+                        amt_remaining -= use
+                        if entry["remaining"] <= 0:
+                            try:
+                                del self._absorb_shields_by_source[sid]
+                            except Exception:
+                                pass
+                        if amt_remaining <= 0:
+                            break
+            return absorbed_total, max(0.0, amt_remaining)
+        except Exception as e:
+            logger.warning(f"consume_absorb failed: {e}")
+            return 0.0, max(0.0, float(incoming_amount))
+
+    def tick_shields_turn(self) -> int:
+        """Decrement 'turns' shields by 1 and remove expired. Returns count removed."""
+        removed = 0
+        try:
+            to_delete = []
+            for sid, entry in list(self._absorb_shields_by_source.items()):
+                if entry.get("duration_unit") == "turns":
+                    dv = entry.get("duration_value")
+                    if dv is None:
+                        continue
+                    dv = int(dv) - 1
+                    if dv <= 0:
+                        to_delete.append(sid)
+                    else:
+                        entry["duration_value"] = dv
+            for sid in to_delete:
+                try:
+                    del self._absorb_shields_by_source[sid]
+                    removed += 1
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"tick_shields_turn failed: {e}")
+        return removed
+
+    def advance_shields_minutes(self, minutes: float) -> int:
+        """Advance minute-based shields; remove expired. Returns count removed."""
+        removed = 0
+        try:
+            mins = max(0.0, float(minutes))
+            if mins <= 0:
+                return 0
+            to_delete = []
+            for sid, entry in list(self._absorb_shields_by_source.items()):
+                if entry.get("duration_unit") == "minutes":
+                    dv = entry.get("duration_value")
+                    if dv is None:
+                        continue
+                    # Subtract whole minutes only
+                    dv = int(max(0, dv - int(mins)))
+                    if dv <= 0:
+                        to_delete.append(sid)
+                    else:
+                        entry["duration_value"] = dv
+            for sid in to_delete:
+                try:
+                    del self._absorb_shields_by_source[sid]
+                    removed += 1
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"advance_shields_minutes failed: {e}")
+        return removed
 
     def get_current_stat_value(self, stat_type: Union[DerivedStatType, str]) -> float:
         """

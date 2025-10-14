@@ -130,12 +130,34 @@ class StatusEffectManager:
         if effect.duration <= 0:
             return
         
+        # Stacking semantics
+        stacking_rule = None
+        try:
+            stacking_rule = (effect.custom_data or {}).get("stacking_rule")
+            if isinstance(stacking_rule, str):
+                stacking_rule = stacking_rule.strip().lower()
+        except Exception:
+            stacking_rule = None
+        
         # Check for an existing effect with the same name
-        for existing_id, existing_effect in self.active_effects.items():
-            if existing_effect.name == effect.name:
-                # Replace the existing effect
-                self.remove_effect(existing_id)
-                break
+        same_name_ids = [eid for eid, ex in self.active_effects.items() if ex.name == effect.name]
+        if same_name_ids:
+            if stacking_rule == "stack":
+                # Allow multiple with same name; do not remove existing
+                pass
+            elif stacking_rule == "refresh":
+                # Refresh duration of existing effects (use max between existing and new)
+                for eid in same_name_ids:
+                    ex = self.active_effects.get(eid)
+                    if not ex:
+                        continue
+                    ex.duration = max(int(ex.duration), int(effect.duration))
+                # Do not add a new instance for refresh semantics
+                return
+            else:
+                # Replace existing: remove all same-name instances, then add new one
+                for eid in same_name_ids:
+                    self.remove_effect(eid)
         
         # Add the effect
         self.active_effects[effect.id] = effect

@@ -1421,27 +1421,86 @@ class CombatManager:
             self.waiting_for_display_completion = False
             return
 
-        # --- DOT/HOT processing ---
-        if entity.has_status_effect("Poisoned"): 
-            poison_damage = 3.0 
-            hp_before_poison = stats_manager_for_actor.get_current_stat_value(DerivedStatType.HEALTH)
-            hp_after_poison_preview = hp_before_poison - poison_damage
-            
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE1, content={}, metadata={"entity_id": entity.id, "bar_type": "hp", "old_value": hp_before_poison, "new_value_preview": hp_after_poison_preview, "max_value": entity.max_hp})); queued_any_effect_event = True
-            
-            stats_manager_for_actor.set_current_stat(DerivedStatType.HEALTH, hp_after_poison_preview)
-            entity.set_current_hp(hp_after_poison_preview) 
-
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={}, metadata={"entity_id": entity.id, "bar_type": "hp", "final_new_value": hp_after_poison_preview, "max_value": entity.max_hp})); queued_any_effect_event = True
-            
-            poison_msg = f"{entity.combat_name} takes {poison_damage:.0f} damage from Poison. (HP: {int(hp_after_poison_preview)}/{int(entity.max_hp)})"
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=poison_msg, target_display=DisplayTarget.COMBAT_LOG)); self._add_to_log(poison_msg)
-            queued_any_effect_event = True
-            if hp_after_poison_preview <=0 and entity.is_alive(): 
-                entity.is_active_in_combat = False 
-                defeat_msg = f"{entity.combat_name} succumbs to poison!"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)); self._add_to_log(defeat_msg)
-                queued_any_effect_event = True
+        # --- DOT/HOT processing (generic, engine-backed) ---
+        try:
+            # Iterate status effects managed by StatsManager for periodic ticks
+            active_effects = list(stats_manager_for_actor.status_effect_manager.active_effects.values())
+            for seff in active_effects:
+                cd = getattr(seff, 'custom_data', {}) or {}
+                tick_dmg = float(cd.get('damage_per_turn', 0) or 0)
+                tick_heal = float(cd.get('heal_per_turn', 0) or 0)
+                if tick_dmg > 0 or tick_heal > 0:
+                    # Capture HP before
+                    hp_before = stats_manager_for_actor.get_current_stat_value(DerivedStatType.HEALTH)
+                    max_hp = entity.max_hp
+                    if tick_heal > 0:
+                        # Healing does not use shields or resistances
+                        new_hp = min(max_hp, hp_before + tick_heal)
+                        actual = new_hp - hp_before
+                        if actual > 0:
+                            # Phase1
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE1, content={}, metadata={"entity_id": entity.id, "bar_type": "hp", "old_value": hp_before, "new_value_preview": new_hp, "max_value": max_hp})); queued_any_effect_event = True
+                            # Apply
+                            stats_manager_for_actor.set_current_stat(DerivedStatType.HEALTH, new_hp)
+                            entity.set_current_hp(new_hp)
+                            # Phase2
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={}, metadata={"entity_id": entity.id, "bar_type": "hp", "final_new_value": new_hp, "max_value": max_hp})); queued_any_effect_event = True
+                            # Message
+                            heal_msg = f"{entity.combat_name} regenerates {actual:.0f} HP from {seff.name}. (HP: {int(new_hp)}/{int(max_hp)})"
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=heal_msg, target_display=DisplayTarget.COMBAT_LOG)); self._add_to_log(heal_msg)
+                            queued_any_effect_event = True
+                    if tick_dmg > 0:
+                        # Apply shields, DR/Magic Defense, and typed resistance
+                        dmg_type = str(cd.get('damage_type') or 'poison').strip().lower()
+                        # Shields
+                        try:
+                            absorbed, rem = stats_manager_for_actor.consume_absorb(tick_dmg, dmg_type)
+                        except Exception:
+                            absorbed, rem = 0.0, tick_dmg
+                        # Flat reduction
+                        try:
+                            flat_dr = stats_manager_for_actor.get_stat_value(DerivedStatType.DAMAGE_REDUCTION) if dmg_type in ("slashing","piercing","bludgeoning") else stats_manager_for_actor.get_stat_value(DerivedStatType.MAGIC_DEFENSE)
+                        except Exception:
+                            flat_dr = 0.0
+                        after_flat = max(0.0, rem - max(0.0, float(flat_dr)))
+                        # Typed resistance
+                        try:
+                            typed_pct = float(stats_manager_for_actor.get_resistance_percent(dmg_type))
+                        except Exception:
+                            typed_pct = 0.0
+                        resisted_amt = max(0.0, after_flat * max(-100.0, min(100.0, typed_pct)) / 100.0)
+                        final = max(0.0, after_flat - resisted_amt)
+                        if final > 0:
+                            hp_after = max(0, hp_before - final)
+                            # Phase1
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE1, content={}, metadata={"entity_id": entity.id, "bar_type": "hp", "old_value": hp_before, "new_value_preview": hp_after, "max_value": max_hp})); queued_any_effect_event = True
+                            # Apply
+                            stats_manager_for_actor.set_current_stat(DerivedStatType.HEALTH, hp_after)
+                            entity.set_current_hp(hp_after)
+                            # Phase2
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={}, metadata={"entity_id": entity.id, "bar_type": "hp", "final_new_value": hp_after, "max_value": max_hp})); queued_any_effect_event = True
+                            # Message with brief breakdown
+                            parts = []
+                            if absorbed > 0: parts.append(f"{absorbed:.0f} absorbed")
+                            if flat_dr > 0: parts.append(f"{flat_dr:.0f} DR")
+                            if abs(typed_pct) > 0.001: parts.append(f"{typed_pct:.0f}% resist")
+                            br = ("; "+", ".join(parts)) if parts else ""
+                            dmg_msg = f"{entity.combat_name} takes {final:.0f} {dmg_type} damage from {seff.name}{br}. (HP: {int(hp_after)}/{int(max_hp)})"
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=dmg_msg, target_display=DisplayTarget.COMBAT_LOG)); self._add_to_log(dmg_msg)
+                            queued_any_effect_event = True
+                            if hp_after <= 0 and entity.is_alive():
+                                entity.is_active_in_combat = False
+                                defeat_msg = f"{entity.combat_name} is overcome by {seff.name}!"
+                                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)); self._add_to_log(defeat_msg)
+                                queued_any_effect_event = True
+        except Exception as dot_err:
+            logger.debug(f"Generic periodic DOT/HOT processing skipped or failed: {dot_err}")
+        
+        # Tick shield durations (turn-based)
+        try:
+            stats_manager_for_actor.tick_shields_turn()
+        except Exception:
+            pass
         
         # --- Stamina Regeneration ---
         if entity.is_alive() and hasattr(stats_manager_for_actor, 'regenerate_combat_stamina'):
@@ -1461,7 +1520,22 @@ class CombatManager:
                 queued_any_effect_event = True
 
 
-        # --- Decrement durations ---
+        # --- Decrement durations (StatsManager-managed effects) ---
+        try:
+            prev = {eid: eff.name for eid, eff in stats_manager_for_actor.status_effect_manager.active_effects.items()}
+            expired_ids = stats_manager_for_actor.status_effect_manager.update_durations()
+            if expired_ids:
+                for eid in expired_ids:
+                    name = prev.get(eid, "A status effect")
+                    expired_msg_content = f"Status effect '{name}' has worn off {entity.combat_name}."
+                    engine._combat_orchestrator.add_event_to_queue(
+                        DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=expired_msg_content, target_display=DisplayTarget.COMBAT_LOG)
+                    ); self._add_to_log(expired_msg_content)
+                    queued_any_effect_event = True
+        except Exception as eff_dur_err:
+            logger.debug(f"StatsManager status duration update skipped or failed: {eff_dur_err}")
+
+        # --- Decrement durations (legacy CombatEntity list) ---
         expired_effect_names_this_turn = entity.decrement_status_effect_durations() 
         
         if expired_effect_names_this_turn:

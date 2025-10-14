@@ -377,7 +377,6 @@ class CombatOutputOrchestrator(QObject):
     @Slot()
     def _on_inter_step_delay_timeout(self):
         logger.debug("Inter-step delay timeout.")
-        resumed_cm_and_cm_is_not_waiting = self._signal_combat_manager_resume() 
         
         # If we were in dev manual step mode and waiting, clear waiting state upon timeout
         if getattr(self, 'dev_manual_step_mode', False) and getattr(self, 'dev_waiting_for_next_click', False):
@@ -393,12 +392,14 @@ class CombatOutputOrchestrator(QObject):
             if main_window and hasattr(main_window, '_update_ui'):
                  logger.debug("Orchestrator delay timeout: Triggering MainWindow._update_ui()")
                  QTimer.singleShot(0, main_window._update_ui) # Schedule UI update
-
+        
+        # Root-cause fix: only resume CombatManager when queue is empty; otherwise continue processing next event.
         if not self.is_processing_event and self.event_queue:
             logger.debug("Processing next event from queue after delay.")
             self._process_next_event_from_queue()
         elif not self.is_processing_event and not self.event_queue:
-            logger.debug("Queue empty after delay and CM resume signal. Orchestrator idle.")
+            logger.debug("Queue empty after delay. Resuming CombatManager for next step.")
+            self._signal_combat_manager_resume()
             # If combat just ended successfully, trigger engine's auto-finalization to switch to narrative mode.
             try:
                 engine = self.engine_ref() if self.engine_ref else None
@@ -413,11 +414,6 @@ class CombatOutputOrchestrator(QObject):
                             QTimer.singleShot(0, engine._finalize_combat_transition_if_needed)
             except Exception as e:
                 logger.error(f"Error scheduling automatic post-combat finalization: {e}", exc_info=True)
-            # Always notify engine that orchestrator is idle so it can clear any waiting flags
-            try:
-                self.resume_combat_manager.emit()
-            except Exception:
-                pass
 
 
     def _signal_combat_manager_resume(self) -> bool:
