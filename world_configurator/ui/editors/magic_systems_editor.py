@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
     QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox,
     QTabWidget, QGridLayout, QCheckBox, QInputDialog, QTableWidget,
-    QTableWidgetItem, QHeaderView
+    QTableWidgetItem, QHeaderView, QDoubleSpinBox
 )
 
 # Assuming these models are correctly defined in base_models
@@ -295,15 +295,27 @@ class AtomDialog(QDialog):
         self.mod_table = QTableWidget(0, 3)
         self.mod_table.setHorizontalHeaderLabels(["Stat", "Value", "%?"])
         self.mod_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        for m in (self.atom.get("modifiers") or []):
-            if isinstance(m, dict):
-                row = self.mod_table.rowCount(); self.mod_table.insertRow(row)
-                self.mod_table.setItem(row, 0, QTableWidgetItem(str(m.get("stat", ""))))
-                self.mod_table.setItem(row, 1, QTableWidgetItem(str(m.get("value", 0))))
-                self.mod_table.setItem(row, 2, QTableWidgetItem("yes" if m.get("is_percentage", False) else ""))
+        # Defer population until stat registry is loaded so we can use pickers
+        self._initial_modifiers = []
+        try:
+            if isinstance(self.atom.get("modifiers"), list):
+                self._initial_modifiers = [m for m in self.atom.get("modifiers") if isinstance(m, dict)]
+        except Exception:
+            self._initial_modifiers = []
         # Add/remove buttons kept simple via context menu not implemented; instruct to double-click cells to edit
         self.mod_table.setToolTip("Add rows for stat modifiers (stat id, value, %?). Double-click cells to edit. 'yes' in %? column means percentage.")
         form.addRow("Modifiers:", self.mod_table)
+        # Buttons for modifiers
+        mod_btns = QHBoxLayout()
+        self.mod_add_btn = QPushButton("Add Modifier")
+        self.mod_remove_btn = QPushButton("Remove Selected")
+        self.mod_add_btn.setToolTip("Add a new modifier row.")
+        self.mod_remove_btn.setToolTip("Remove the selected modifier row.")
+        self.mod_add_btn.clicked.connect(lambda: self._add_modifier_row())
+        self.mod_remove_btn.clicked.connect(self._remove_selected_modifier_row)
+        mod_btns.addWidget(self.mod_add_btn)
+        mod_btns.addWidget(self.mod_remove_btn)
+        form.addRow("", mod_btns)
 
         # Status fields
         self.status_edit = QLineEdit(str(self.atom.get("status", "")))
@@ -360,8 +372,18 @@ class AtomDialog(QDialog):
             pass
         try:
             self._init_stat_list(preselect=str(mag_stat.get("stat", "")))
+            # After stat options are loaded, populate modifiers rows with stat pickers
+            self._populate_modifiers_rows(self._initial_modifiers)
         except Exception:
-            pass
+            # Fallback: populate modifiers without pickers
+            try:
+                for m in (self._initial_modifiers or []):
+                    row = self.mod_table.rowCount(); self.mod_table.insertRow(row)
+                    self.mod_table.setItem(row, 0, QTableWidgetItem(str(m.get("stat", ""))))
+                    self.mod_table.setItem(row, 1, QTableWidgetItem(str(m.get("value", 0))))
+                    self.mod_table.setItem(row, 2, QTableWidgetItem("yes" if m.get("is_percentage", False) else ""))
+            except Exception:
+                pass
 
         layout.addLayout(form)
         btns = QHBoxLayout()
@@ -393,6 +415,11 @@ class AtomDialog(QDialog):
         # modifiers for buff/debuff only
         show_mods = typ in ("buff", "debuff")
         self.mod_table.setEnabled(show_mods); self.mod_table.setVisible(show_mods)
+        try:
+            self.mod_add_btn.setVisible(show_mods)
+            self.mod_remove_btn.setVisible(show_mods)
+        except Exception:
+            pass
         # status fields for status_apply/remove/cleanse
         show_status = typ in ("status_apply", "status_remove", "cleanse")
         self.status_edit.setEnabled(typ == "status_apply")
@@ -469,14 +496,30 @@ class AtomDialog(QDialog):
         if atom["type"] in ("buff", "debuff"):
             mods = []
             for r in range(self.mod_table.rowCount()):
-                stat = self.mod_table.item(r,0).text() if self.mod_table.item(r,0) else ""
-                val = self.mod_table.item(r,1).text() if self.mod_table.item(r,1) else "0"
-                pct = self.mod_table.item(r,2).text() if self.mod_table.item(r,2) else ""
-                try:
-                    v = float(val)
-                except Exception:
-                    v = 0.0
-                mods.append({"stat": stat.strip().upper(), "value": v, "is_percentage": (pct.strip().lower() in ("y","yes","true","1"))})
+                # Stat from combo if present
+                stat_combo = self.mod_table.cellWidget(r, 0)
+                if isinstance(stat_combo, QComboBox):
+                    stat_val = stat_combo.currentData() or stat_combo.currentText()
+                else:
+                    stat_val = self.mod_table.item(r,0).text() if self.mod_table.item(r,0) else ""
+                # Value from spinbox if present
+                val_widget = self.mod_table.cellWidget(r, 1)
+                if isinstance(val_widget, QDoubleSpinBox):
+                    v = float(val_widget.value())
+                else:
+                    val = self.mod_table.item(r,1).text() if self.mod_table.item(r,1) else "0"
+                    try:
+                        v = float(val)
+                    except Exception:
+                        v = 0.0
+                # Percentage from checkbox if present
+                pct_widget = self.mod_table.cellWidget(r, 2)
+                if isinstance(pct_widget, QCheckBox):
+                    is_pct = bool(pct_widget.isChecked())
+                else:
+                    pct = self.mod_table.item(r,2).text() if self.mod_table.item(r,2) else ""
+                    is_pct = (pct.strip().lower() in ("y","yes","true","1"))
+                mods.append({"stat": str(stat_val).strip().upper(), "value": v, "is_percentage": is_pct})
             if mods:
                 atom["modifiers"] = mods
         if atom["type"] == "status_apply":
@@ -568,21 +611,77 @@ class AtomDialog(QDialog):
                     canon = key.replace(' ', '_').upper()
                     options.append((label, canon))
             if options:
-                current = self.mag_stat_name_combo.currentData()
-                self.mag_stat_name_combo.clear()
-                for label, canon in options:
-                    self.mag_stat_name_combo.addItem(label, userData=canon)
-                pre = (preselect or '').strip()
-                if pre:
-                    idx = -1
-                    for i in range(self.mag_stat_name_combo.count()):
-                        if str(self.mag_stat_name_combo.itemData(i)).upper() == pre.upper():
-                            idx = i; break
-                    if idx >= 0:
-                        self.mag_stat_name_combo.setCurrentIndex(idx)
+                # cache for modifiers stat pickers
+                self._stat_options = options
+                current = self.mag_stat_name_combo.currentData() if hasattr(self, 'mag_stat_name_combo') else None
+                if hasattr(self, 'mag_stat_name_combo'):
+                    self.mag_stat_name_combo.clear()
+                    for label, canon in options:
+                        self.mag_stat_name_combo.addItem(label, userData=canon)
+                    pre = (preselect or '').strip()
+                    if pre:
+                        idx = -1
+                        for i in range(self.mag_stat_name_combo.count()):
+                            if str(self.mag_stat_name_combo.itemData(i)).upper() == pre.upper():
+                                idx = i; break
+                        if idx >= 0:
+                            self.mag_stat_name_combo.setCurrentIndex(idx)
         except Exception as e:
             logger = logging.getLogger("world_configurator.ui.magic_systems_editor")
             logger.warning(f"Failed to load stat registry: {e}")
+
+    def _make_stat_combo(self, preselect: str = "") -> QComboBox:
+        combo = QComboBox()
+        try:
+            for label, canon in (getattr(self, '_stat_options', []) or []):
+                combo.addItem(label, userData=canon)
+            if preselect:
+                for i in range(combo.count()):
+                    if str(combo.itemData(i)).upper() == preselect.upper():
+                        combo.setCurrentIndex(i)
+                        break
+        except Exception:
+            pass
+        return combo
+
+    def _add_modifier_row(self, initial: dict | None = None) -> None:
+        try:
+            row = self.mod_table.rowCount()
+            self.mod_table.insertRow(row)
+            # Stat combo
+            pre = str((initial or {}).get('stat', '')).strip().upper()
+            combo = self._make_stat_combo(preselect=pre)
+            self.mod_table.setCellWidget(row, 0, combo)
+            # Value spin
+            val_spin = QDoubleSpinBox(); val_spin.setRange(-100000.0, 100000.0); val_spin.setDecimals(2); val_spin.setSingleStep(0.5)
+            try:
+                val_spin.setValue(float((initial or {}).get('value', 0)))
+            except Exception:
+                pass
+            self.mod_table.setCellWidget(row, 1, val_spin)
+            # Percent checkbox
+            chk = QCheckBox()
+            chk.setChecked(bool((initial or {}).get('is_percentage', False)))
+            chk.setToolTip("Treat value as a percentage change")
+            self.mod_table.setCellWidget(row, 2, chk)
+        except Exception:
+            pass
+
+    def _remove_selected_modifier_row(self) -> None:
+        try:
+            r = self.mod_table.currentRow()
+            if r >= 0:
+                self.mod_table.removeRow(r)
+        except Exception:
+            pass
+
+    def _populate_modifiers_rows(self, modifiers: list) -> None:
+        try:
+            self.mod_table.setRowCount(0)
+            for m in modifiers or []:
+                self._add_modifier_row(m)
+        except Exception:
+            pass
 
 class SpellDialog(QDialog):
     """Dialog for editing a spell."""
