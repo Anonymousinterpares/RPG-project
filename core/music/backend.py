@@ -28,6 +28,10 @@ class MusicBackend(Protocol):
         """Set master/music/effects volume levels (0-100) and mute flag."""
         ...
 
+    def set_intensity(self, intensity: float, ramp_ms: int = 250) -> None:
+        """Set perceived intensity (0..1) and optionally ramp gain to the new target over ramp_ms."""
+        ...
+
     def next_track(self) -> None:
         """Request the backend to proceed to the next track within the current mood/playlist."""
         ...

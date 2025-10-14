@@ -116,9 +116,11 @@ Field hints:
 
 ## Testing tips
 - New game starts in ambient.
+- Intensity controls perceived loudness within the ceiling set by sliders (master/music). A perceptual curve (gamma≈1.8) is used so low intensities are gently audible, and 1.0 is full presence.
 - Use MUSIC commands (via LLM or command path) to test:
   - {"action":"set_mood","mood":"tension","confidence":0.9}
   - {"action":"set_intensity","intensity":0.6}
+  - {"action":"jumpscare","peak":1.0,"attack_ms":60,"hold_ms":150,"release_ms":800}
   - {"action":"next"}
   - {"action":"mute"} / {"action":"unmute"}
 - Web path for a track: /sound/music/<mood>/<filename>

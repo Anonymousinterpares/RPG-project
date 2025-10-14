@@ -14,9 +14,10 @@ from concurrent.futures import ThreadPoolExecutor
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QStackedWidget, QDialog, QLabel, QPushButton, 
-    QTextEdit, QScrollArea, QGraphicsOpacityEffect, QMessageBox, QSizePolicy
+    QTextEdit, QScrollArea, QGraphicsOpacityEffect, QMessageBox, QSizePolicy,
+    QMenu, QSlider, QWidgetAction
 )
-from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, Signal, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, Signal, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
 from PySide6.QtGui import QIcon, QPixmap, QPalette, QBrush, QColor, QMovie, QTextCursor # Added QTextCursor
 from core.inventory import get_inventory_manager
 from core.inventory.item import Item
@@ -345,46 +346,42 @@ class MainWindow(QMainWindow):
         # Add music controls to the top-right corner
         self.main_layout.insertWidget(0, music_widget, 0, Qt.AlignRight)
         
-        # Wire button actions to MusicDirector: play/pause acts as mute toggle; next triggers next track;
+        # Wire button actions to MusicDirector: play/pause acts as mute toggle; next triggers next track; volume opens quick slider
         try:
             self._btn_music_play_pause = play_pause_button
             self._btn_music_next = next_button
             self._btn_music_volume = volume_button
-            # Toggle mute
+
+            # Toggle mute based on the CURRENT director state (not just QSettings)
             def _on_play_pause():
                 try:
-                    from PySide6.QtCore import QSettings
                     s = QSettings("RPGGame", "Settings")
-                    current_enabled = bool(s.value("sound/enabled", True))
                     director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                     if director:
-                        # Toggle: if currently enabled -> mute; if disabled -> unmute
-                        director.set_muted(True if current_enabled else False)
-                        s.setValue("sound/enabled", not current_enabled)
+                        currently_muted = bool(getattr(director, '_muted', False))
+                        director.set_muted(not currently_muted)
+                        s.setValue("sound/enabled", not (not currently_muted))  # enabled = not muted
+                        s.sync()
                         # Dev logging
-                        dev_enabled = bool(s.value("dev/enabled", False, type=bool))
-                        if dev_enabled:
-                            logger.info(f"[DEV][MUSIC] GUI toggle: sound enabled(before)={current_enabled} -> enabled(after)={not current_enabled}")
+                        if bool(s.value("dev/enabled", False, type=bool)):
+                            logger.info(f"[DEV][MUSIC] GUI toggle: muted(before)={currently_muted} -> muted(after)={not currently_muted}")
                 except Exception as e:
-                    # Dev logging of failure if enabled
                     try:
-                        from PySide6.QtCore import QSettings
                         if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
                             logger.warning(f"[DEV][MUSIC] GUI toggle failed: {e}")
                     except Exception:
                         pass
             play_pause_button.clicked.connect(_on_play_pause)
+
             # Next track
             def _on_next():
                 try:
-                    from PySide6.QtCore import QSettings
                     director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                     if director:
                         director.next_track("user_skip_gui")
                         # Dev logging
                         s = QSettings("RPGGame", "Settings")
                         if bool(s.value("dev/enabled", False, type=bool)):
-                            # Try to include the basename of the current track if available
                             try:
                                 cur = getattr(director, '_current_track', None)
                                 logger.info(f"[DEV][MUSIC] GUI next-track requested. New candidate track (last known): {os.path.basename(cur) if cur else 'Unknown'}")
@@ -392,27 +389,81 @@ class MainWindow(QMainWindow):
                                 logger.info("[DEV][MUSIC] GUI next-track requested.")
                 except Exception as e:
                     try:
-                        from PySide6.QtCore import QSettings
                         if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
                             logger.warning(f"[DEV][MUSIC] GUI next-track failed: {e}")
                     except Exception:
                         pass
             next_button.clicked.connect(_on_next)
-            # Volume button -> open Settings dialog focused on Sound tab
-            def _on_open_settings():
+
+            # Build a small volume slider popover (QMenu with QWidgetAction)
+            self._music_volume_menu = QMenu(self)
+            vol_container = QWidget(self._music_volume_menu)
+            vol_layout = QHBoxLayout(vol_container)
+            vol_layout.setContentsMargins(10, 8, 10, 8)
+            vol_layout.setSpacing(8)
+            vol_label = QLabel("Music")
+            self._music_slider = QSlider(Qt.Horizontal, vol_container)
+            self._music_slider.setRange(0, 100)
+            self._music_slider.setFixedWidth(150)
+            self._music_slider.setSingleStep(2)
+            self._music_slider.setPageStep(10)
+            self._music_slider.setToolTip("Music volume")
+            self._music_slider_value_label = QLabel("100%")
+            vol_layout.addWidget(vol_label)
+            vol_layout.addWidget(self._music_slider)
+            vol_layout.addWidget(self._music_slider_value_label)
+            vol_action = QWidgetAction(self._music_volume_menu)
+            vol_action.setDefaultWidget(vol_container)
+            self._music_volume_menu.addAction(vol_action)
+
+            # Add a separator and an action to open full Sound settings
+            self._music_volume_menu.addSeparator()
+            open_settings_action = self._music_volume_menu.addAction("Open Sound Settings…")
+            open_settings_action.triggered.connect(self._show_settings_dialog)
+
+            # Connect slider changes to MusicDirector and persist to QSettings
+            def _apply_music_volume(value: int):
                 try:
-                    self._show_settings_dialog()
+                    self._music_slider_value_label.setText(f"{int(value)}%")
+                    s = QSettings("RPGGame", "Settings")
+                    master = int(s.value("sound/master_volume", 100))
+                    effects = int(s.value("sound/effects_volume", 100))
+                    music = int(value)
+                    director = getattr(self.game_engine, 'get_music_director', lambda: None)()
+                    if director:
+                        director.set_volumes(master, music, effects)
+                    s.setValue("sound/music_volume", music)
+                    s.sync()
                 except Exception as e:
                     try:
-                        from PySide6.QtCore import QSettings
                         if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                            logger.warning(f"[DEV][MUSIC] Open settings (sound) failed: {e}")
+                            logger.warning(f"[DEV][MUSIC] Applying music volume failed: {e}")
                     except Exception:
                         pass
-            volume_button.clicked.connect(_on_open_settings)
+            self._music_slider.valueChanged.connect(_apply_music_volume)
+
+            # Volume button -> show the quick slider menu near the button
+            def _on_open_volume_menu():
+                s = QSettings("RPGGame", "Settings")
+                try:
+                    current_music = int(s.value("sound/music_volume", 100))
+                except Exception:
+                    current_music = 100
+                # Initialize slider position without emitting change
+                self._music_slider.blockSignals(True)
+                self._music_slider.setValue(current_music)
+                self._music_slider_value_label.setText(f"{current_music}%")
+                self._music_slider.blockSignals(False)
+                # Position the menu just below the button
+                pos = volume_button.mapToGlobal(QPoint(0, volume_button.height()))
+                # Prefer a blocking exec to ensure visibility; fallback to popup
+                try:
+                    self._music_volume_menu.exec(pos)
+                except Exception:
+                    self._music_volume_menu.popup(pos)
+            volume_button.clicked.connect(_on_open_volume_menu)
         except Exception as e:
             try:
-                from PySide6.QtCore import QSettings
                 if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
                     logger.warning(f"[DEV][MUSIC] Wiring music control buttons failed: {e}")
             except Exception:

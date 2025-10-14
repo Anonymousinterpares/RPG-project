@@ -10,4 +10,5 @@ sound/
 │   ├── ambient/        # General background, nature
 │   ├── celebration/    # Victories, achievements
 │   ├── horror/         # Scary situations
+│   ├── tavern/         # music inside a tavern or inn
 │   └── town/           # Civilization areas

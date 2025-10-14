@@ -20,6 +20,7 @@ class WebMusicManager {
     this.master = 1.0; // 0..1
     this.music = 1.0;
     this.effects = 1.0;
+    this.intensity = 0.3; // 0..1
     this.currentUrl = null;
     this.pendingState = null;
   }
@@ -58,16 +59,42 @@ class WebMusicManager {
       try { if (this.ctx && this.ctx.state === 'running') await this.ctx.suspend(); } catch {}
     }
   }
+  _intensityGain(i, gamma = 1.8, floor = 0.0) {
+    i = Math.max(0, Math.min(1, i || 0));
+    if (i === 0) return 0;
+    let g = Math.pow(i, gamma);
+    if (floor > 0) g = floor + (1 - floor) * g;
+    return Math.max(0, Math.min(1, g));
+  }
+  _targetMusicGain() {
+    if (!this.ctx) return 0;
+    if (this.muted) return 0;
+    return this.master * this.music * this._intensityGain(this.intensity);
+  }
+  _rampGain(node, target, seconds) {
+    if (!node || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    try {
+      node.gain.cancelScheduledValues(now);
+      node.gain.setValueAtTime(node.gain.value, now);
+      node.gain.linearRampToValueAtTime(target, now + Math.max(0.01, seconds||0));
+    } catch {}
+  }
   setVolumes(masterPct, musicPct, effectsPct, muted) {
     this.master = Math.max(0, Math.min(1, (masterPct||0)/100));
     this.music = Math.max(0, Math.min(1, (musicPct||0)/100));
     this.effects = Math.max(0, Math.min(1, (effectsPct||0)/100));
     this.muted = !!muted;
     if (this.masterGain) this.masterGain.gain.value = this.muted ? 0 : this.master;
-    // Also update the currently active music gain node to apply music volume change immediately
+    // Also update the currently active music gain node to apply music volume/intensity change immediately
     const activeGain = this.useA ? this.musicGainA : this.musicGainB;
     if (activeGain) {
-      activeGain.gain.value = this.muted ? 0 : (this.master * this.music);
+      const tgt = this._targetMusicGain();
+      if (this.ctx) {
+        this._rampGain(activeGain, tgt, 0.25);
+      } else {
+        activeGain.gain.value = tgt;
+      }
     }
   }
   async _createMediaElement(url) {
@@ -80,20 +107,36 @@ class WebMusicManager {
     return audio;
   }
   async applyState(state) {
-    // state: { mood, intensity, url, muted, master, music, effects }
+    // state: { mood, intensity, url, muted, master, music, effects, reason }
     if (!this.ctx) {
       this.pendingState = state;
       return;
     }
-    // Update volumes
+    // Update volumes first
     this.setVolumes(state.master||100, state.music||100, state.effects||100, !!state.muted);
+    // Update intensity from state if provided
+    if (typeof state.intensity === 'number') {
+      this.intensity = Math.max(0, Math.min(1, state.intensity));
+    }
 
     const url = state.url || null;
+    // If URL unchanged, apply intensity-only update with short ramp
     if (!url || url === this.currentUrl) {
-      // nothing to do besides volume/mute
+      const activeGain = this.useA ? this.musicGainA : this.musicGainB;
+      if (activeGain) {
+        const reason = String(state.reason || '').toLowerCase();
+        const isAttack = reason.includes('jumpscare_attack');
+        const isRelease = reason.includes('jumpscare_release');
+        const ramp = isAttack ? 0.08 : (isRelease ? 0.8 : 0.25);
+        this._rampGain(activeGain, this._targetMusicGain(), ramp);
+      }
       return;
     }
-    const fadeMs = 1500;
+    // Crossfade to new track
+    const reason = String(state.reason || '').toLowerCase();
+    const intensityNow = this._intensityGain(this.intensity);
+    // Optionally vary fade length with intensity (faster at high intensity)
+    const fadeMs = Math.max(400, Math.min(4000, Math.round(3000 - 2200 * intensityNow)));
     try {
       const newEl = await this._createMediaElement(url);
       const newSrc = this.ctx.createMediaElementSource(newEl);
@@ -107,7 +150,7 @@ class WebMusicManager {
       tgtGain.gain.cancelScheduledValues(now);
       curGain.gain.cancelScheduledValues(now);
       tgtGain.gain.setValueAtTime(0, now);
-      tgtGain.gain.linearRampToValueAtTime(this.muted ? 0 : (this.master*this.music), now + fadeMs/1000);
+      tgtGain.gain.linearRampToValueAtTime(this._targetMusicGain(), now + fadeMs/1000);
       curGain.gain.setValueAtTime(curGain.gain.value, now);
       curGain.gain.linearRampToValueAtTime(0, now + fadeMs/1000);
 

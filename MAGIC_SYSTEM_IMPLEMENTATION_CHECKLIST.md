@@ -109,6 +109,30 @@ Phase 3 — Engine Integration of Spells
 - [ ] Ensure LLM time_passage is excluded during combat (already the case); keep advancing time only outside combat
 
 
+Recent Changes (engine/combat integration)
+- [x] Effect‑atoms spells synchronize target HP via APPLY_ENTITY_RESOURCE_UPDATE and UI_BAR_UPDATE_PHASE1/2; defeat checks are triggered
+- [x] Effect‑atoms path populates current_result_detail (damage, target_hp_before/after, target_defeated) for accurate fallback narrative
+- [x] Combat text path auto‑targets offensive spells when target is omitted (random alive enemy if multiple)
+- [x] Interpret‑failure message replaced with actionable guidance (cast <spell_id> [target], auto‑pick note)
+
+Planned Next
+- Deterministic cast parsing (on hold)
+  - [ ] Strict grammar: "cast <spell_id_or_name> [target]" before any LLM
+  - [ ] Catalog‑backed fuzzy normalization with disambiguation
+  - [ ] Minimal low‑temp LLM normalizer as last‑mile typo fixer; output strictly validated
+- Effect‑atoms mechanical & feedback parity
+  - [ ] Apply flat DR/magic defense and typed resistance for damage atoms (mechanical parity)
+  - [ ] Emit raw/mitigation/resistance/final lines plus HP preview (log parity)
+  - [ ] Shields/absorbs semantics (temp HP/absorb pools + logs)
+  - [ ] DoT/HoT native periodic handling; stacking/refresh/replace rules
+  - [ ] Turn/minute bridging and purge on time advance
+- AoE & chain mechanics
+  - [ ] Area selector semantics (area_kind: all_enemies | all_allies | cone | radius)
+  - [ ] Per‑target resolution; orchestrator order and non‑stalling UI updates
+  - [ ] Chain reaction (e.g., chain lightning) with diminishing caps per hop and no immediate re‑hit
+  - [ ] Sample spells to be added AFTER effect‑atoms parity is implemented to avoid rework
+
+
 Phase 4 — World Configurator Validation & Data Entry (no runtime behavior change)
 - [x] Update models and editor for spell.combat_role
   - [x] world_configurator/models/base_models.py: add Spell.combat_role: Literal['offensive','defensive','utility'] with default 'offensive'; update from_dict/to_dict
@@ -215,9 +239,11 @@ Open Questions
 - Exact formulas for stat_based magnitudes per school (e.g., coeffs per INT/WIS for spell power)?
 - Should class/race affinities modify magnitude or cost or both?
 
-2) Area targeting semantics
-- For selector = area, do we target all enemies, all allies, or do we need a sub-field (e.g., area_kind: "all_enemies" | "all_allies")?
+2) Area / AoE and Chain semantics
+- For selector = area, do we target all enemies, all allies, or require a sub-field (e.g., area_kind: "all_enemies" | "all_allies" | "cone" | "radius")?
 - Should friendly fire be allowed/toggleable per spell?
+- Chain logic: diminishing cap per hop (e.g., 100% → 70% → 50%); avoid immediately re‑hitting already hit entities unless explicitly allowed
+- Resolution model: per‑target roll/magnitude + DR + typed resistance, with readable grouped logs
 
 3) Status inventory
 - Canonical set of status conditions to support initially (beyond the current list)?

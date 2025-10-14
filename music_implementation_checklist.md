@@ -149,6 +149,7 @@ Responsibilities:
   - Confidence threshold for LLM suggestions (e.g., 0.7)
   - Hysteresis to avoid oscillation (mood cooldown window, e.g., 4–6 seconds)
   - Intensity smoothing (e.g., EMA) allows frequent small adjustments without jarring track changes
+  - Jumpscare helper: attack/hold/release spike to peak intensity with explicit WS reason so clients ramp appropriately
 - Owns selection logic:
   - Track rotation per mood with fairness: no repeats until all have played (unless <2 tracks)
   - Weighting by manifest and tags (optional)
@@ -186,6 +187,16 @@ Implementation details:
 
 [ ] Silence windows:
 - Represent as either mood="silence" or intensity=0.0; backend applies music gain to zero while keeping clock running
+
+---
+
+Intensity policy (Milestone 1):
+- Map intensity 0..1 to music gain using a perceptual gamma curve (~1.8). 0 → silence (music continues), 1.0 → full presence within user slider ceiling.
+- Intensity-only updates should not force track changes; they ramp the active gain quickly (~250 ms).
+- Crossfade durations can vary by intensity (faster at high intensity).
+- Jumpscare API: spike to peak rapidly, hold briefly, release to previous intensity.
+  Example command for LLM:
+  {"action":"jumpscare","peak":1.0,"attack_ms":60,"hold_ms":150,"release_ms":800}
 
 [ ] Telemetry hooks:
 - Log every suggestion and decision with reasons

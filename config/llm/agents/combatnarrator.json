@@ -1,6 +1,6 @@
 {
-    "provider_type": "GOOGLE",
-    "model": "gemini-2.5-flash",
+    "provider_type": "OPENROUTER",
+    "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
     "temperature": 0.6,
     "max_tokens": 1000,
     "timeout_seconds": 30,

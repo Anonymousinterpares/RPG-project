@@ -277,6 +277,27 @@ def _handle_music_command(engine: 'GameEngine', game_state: 'GameState', args: L
         elif action == "unmute":
             md.set_muted(False)
             return CommandResult.success("Music unmuted.")
+        elif action in ("jumpscare", "spike"):
+            peak = payload.get("peak")
+            attack_ms = payload.get("attack_ms")
+            hold_ms = payload.get("hold_ms")
+            release_ms = payload.get("release_ms")
+            try:
+                p = float(peak) if peak is not None else 1.0
+            except Exception:
+                p = 1.0
+            def _to_int(val, default):
+                try:
+                    return int(val)
+                except Exception:
+                    return default
+            md.jumpscare(
+                peak=p,
+                attack_ms=_to_int(attack_ms, 60),
+                hold_ms=_to_int(hold_ms, 150),
+                release_ms=_to_int(release_ms, 800),
+            )
+            return CommandResult.success("Jumpscare triggered.")
         else:
             return CommandResult.invalid(f"Unsupported MUSIC action '{action}'.")
     except Exception as e:
@@ -293,6 +314,8 @@ MODE_TRANSITION_COMMANDS = {
     "end_social": handle_end_social,
     "equip": _handle_equip_command,
     "unequip": _handle_unequip_command,
+    # Music control (direct command): forwards to the same handler used by LLM MUSIC
+    "music": _handle_music_command,
     # Add other mode transition commands here
 }
 

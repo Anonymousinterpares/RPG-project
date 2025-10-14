@@ -44,6 +44,8 @@ class MusicDirector:
         self._last_mood_change_ts: float = 0.0
         self._intensity_alpha: float = 0.35  # EMA smoothing
         self._intensity_ema: float = self._intensity
+        self._jumpscare_thread: Optional[threading.Thread] = None
+        self._jumpscare_active: bool = False
         # Lightweight context (Phase A): only major location for now
         self._context: Dict[str, Optional[str]] = {"location_major": None}
         self._context_bias_enabled: bool = True
@@ -95,6 +97,7 @@ class MusicDirector:
     def suggest(self, mood: str, intensity: float, source: str, confidence: float, evidence: str = "") -> None:
         """Apply an LLM or system suggestion with policy (threshold/cooldown) and intensity smoothing."""
         with self._lock:
+            prev_i = self._intensity
             # Validate intensity and update EMA
             if intensity is not None:
                 try:
@@ -127,6 +130,12 @@ class MusicDirector:
             if track:
                 self._apply_locked(track, accepted_reason or f"suggest:{source}:{confidence:.2f}")
             else:
+                # If only intensity changed, reflect it in backend immediately with a short ramp
+                if self._backend and abs(self._intensity - prev_i) > 1e-3:
+                    try:
+                        self._backend.set_intensity(self._intensity, ramp_ms=250)
+                    except Exception:
+                        pass
                 self._emit_state_locked(reason=accepted_reason or f"intensity_update:{source}")
 
     def next_track(self, reason: str = "user_skip") -> None:
@@ -208,7 +217,15 @@ class MusicDirector:
 
     def _apply_locked(self, track: Optional[str], reason: str) -> None:
         # Apply to backend (desktop)
-        transition = {"crossfade_ms": 3000}
+        # Crossfade duration may vary slightly by intensity (higher intensity → faster)
+        try:
+            # Map intensity 0..1 to fade 3000..800 ms
+            i = max(0.0, min(1.0, float(self._intensity)))
+            cf_ms = int(3000 - (2200 * i))
+            cf_ms = max(400, min(4000, cf_ms))
+        except Exception:
+            cf_ms = 3000
+        transition = {"crossfade_ms": cf_ms}
         if self._backend:
             try:
                 self._backend.apply_state(self._mood, self._intensity, track, transition)
@@ -238,6 +255,49 @@ class MusicDirector:
             except Exception as e:
                 logger.debug(f"MusicDirector listener error: {e}")
 
+    # --- Public UX helpers ---
+    def jumpscare(self, peak: float = 1.0, attack_ms: int = 60, hold_ms: int = 150, release_ms: int = 800) -> None:
+        """Trigger a quick intensity spike (attack/hold/release). Emits state with reasons so web can ramp appropriately.
+        Non-blocking: runs release in a small thread. Backend ramps are handled via set_intensity.
+        """
+        def _worker(prev_i: float, p: float, a_ms: int, h_ms: int, r_ms: int):
+            try:
+                with self._lock:
+                    # Attack: set to peak quickly
+                    self._intensity = max(0.0, min(1.0, float(p)))
+                    self._intensity_ema = self._intensity
+                    if self._backend:
+                        try:
+                            self._backend.set_intensity(self._intensity, ramp_ms=max(0, int(a_ms)))
+                        except Exception:
+                            pass
+                    self._emit_state_locked(reason="jumpscare_attack")
+                # Hold
+                time.sleep(max(0, int(h_ms)) / 1000.0)
+                # Release: back to previous intensity with release ramp
+                with self._lock:
+                    self._intensity = max(0.0, min(1.0, float(prev_i)))
+                    self._intensity_ema = self._intensity
+                    if self._backend:
+                        try:
+                            self._backend.set_intensity(self._intensity, ramp_ms=max(0, int(r_ms)))
+                        except Exception:
+                            pass
+                    self._emit_state_locked(reason="jumpscare_release")
+            finally:
+                with self._lock:
+                    self._jumpscare_active = False
+
+        with self._lock:
+            if self._jumpscare_active:
+                # Ignore if a jumpscare is currently active to avoid stacking
+                return
+            self._jumpscare_active = True
+            prev = self._intensity
+            t = threading.Thread(target=_worker, args=(prev, peak, attack_ms, hold_ms, release_ms), daemon=True)
+            self._jumpscare_thread = t
+            t.start()
+
     def _to_web_url(self, path: Optional[str]) -> Optional[str]:
         if not path:
             return None
@@ -260,3 +320,7 @@ def get_music_director(project_root: Optional[str] = None) -> MusicDirector:
     if _director_singleton is None:
         _director_singleton = MusicDirector(project_root=project_root)
     return _director_singleton
+
+    # --- Reactive Helpers ---
+
+    
