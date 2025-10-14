@@ -2321,7 +2321,13 @@
       "quest_item",
       "ghost_market",
       "ethereal"
-    ]
+    ],
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": false,
+    "durability": 0,
+    "stats": [],
+    "dice_roll_effects": []
   },
   {
     "id": "sturdy_work_clothes",
@@ -2571,6 +2577,36 @@
       "protection",
       "weather"
     ]
+  },
+  {
+    "description": "A simple shield made of wood, providing basic protection.",
+    "dice_roll_effects": [],
+    "durability": 40,
+    "equip_slots": [
+      "off_hand"
+    ],
+    "is_consumable": false,
+    "is_equippable": true,
+    "is_quest_item": false,
+    "is_stackable": false,
+    "item_type": "shield",
+    "name": "Wooden Shield",
+    "rarity": "common",
+    "stats": [
+      {
+        "name": "defense",
+        "value": 2,
+        "display_name": "Armor"
+      }
+    ],
+    "tags": [
+      "shield",
+      "wood",
+      "defense"
+    ],
+    "value": 10,
+    "weight": 3.0,
+    "id": "wooden_shield"
   },
   {
     "id": "worn_disguise",

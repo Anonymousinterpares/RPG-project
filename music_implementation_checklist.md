@@ -503,6 +503,9 @@ Milestone 1 (Core functionality):
 [x] Implement Python MusicBackend (VLC) with dual‑player crossfade, stinger ducking, SFX pool
 [x] Wire Python GUI controls (mute/unmute, next)
 [x] Apply QSettings volumes at startup and changes
+[x] Add direct '/music' command support for testing LLM music commands from player input
+[x] Fix play/pause button mute toggle to read live MusicDirector state
+[x] Implement volume slider popover with live adjustment and persistence
 [x] Implement Web MusicBackend with AudioContext, crossfades, proper cleanup
 [x] WS: broadcast music_state; web follows Director
 [x] Web mode detection: disable VLC backend when serving web clients
