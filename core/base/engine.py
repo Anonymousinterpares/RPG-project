@@ -327,7 +327,26 @@ class GameEngine(QObject):
                         self._music_director.set_context(location_major=loc_major)
                 except Exception:
                     pass
-                self._music_director.hard_set("ambient", intensity=0.3, reason="new_game")
+                # Determine initial autoplay intensity (ensure audible floor)
+                try:
+                    from PySide6.QtCore import QSettings
+                    s = QSettings("RPGGame", "Settings")
+                    min_i = s.value("sound/autoplay_min_intensity", 0.6)
+                    try:
+                        min_i = float(min_i)
+                    except Exception:
+                        min_i = 0.6
+                    autoplay_i = max(0.0, min(1.0, float(min_i)))
+                except Exception:
+                    autoplay_i = 0.6
+                self._music_director.hard_set("ambient", intensity=autoplay_i, reason="new_game")
+                # Dev logging for autoplay
+                try:
+                    from PySide6.QtCore import QSettings
+                    if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
+                        logger.info(f"[DEV][MUSIC] Autoplay requested on new game: mood=ambient, intensity={autoplay_i}")
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -364,10 +383,41 @@ class GameEngine(QObject):
                 # Attempt to read saved mood/intensity if present on state; otherwise fallback
                 mood = getattr(loaded_state, 'music_mood', None)
                 intensity = getattr(loaded_state, 'music_intensity', None)
+                # Read a minimum audible floor for autoplay
+                try:
+                    from PySide6.QtCore import QSettings
+                    s = QSettings("RPGGame", "Settings")
+                    min_i = s.value("sound/autoplay_min_intensity", 0.6)
+                    try:
+                        min_i = float(min_i)
+                    except Exception:
+                        min_i = 0.6
+                    min_i = max(0.0, min(1.0, float(min_i)))
+                except Exception:
+                    min_i = 0.6
                 if isinstance(mood, str) and mood:
-                    md.hard_set(mood, intensity=(float(intensity) if isinstance(intensity, (int, float)) else 0.3), reason="load_game")
+                    try:
+                        if isinstance(intensity, (int, float)):
+                            final_i = max(float(intensity), min_i)
+                        else:
+                            final_i = min_i
+                    except Exception:
+                        final_i = min_i
+                    md.hard_set(mood, intensity=final_i, reason="load_game")
+                    try:
+                        from PySide6.QtCore import QSettings
+                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
+                            logger.info(f"[DEV][MUSIC] Autoplay on load: mood={mood}, intensity={final_i}")
+                    except Exception:
+                        pass
                 else:
-                    md.hard_set("ambient", intensity=0.3, reason="load_game_fallback")
+                    md.hard_set("ambient", intensity=min_i, reason="load_game_fallback")
+                    try:
+                        from PySide6.QtCore import QSettings
+                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
+                            logger.info(f"[DEV][MUSIC] Autoplay on load (fallback): mood=ambient, intensity={min_i}")
+                    except Exception:
+                        pass
         except Exception:
             pass
         return loaded_state

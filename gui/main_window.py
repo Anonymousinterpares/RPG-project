@@ -353,40 +353,70 @@ class MainWindow(QMainWindow):
             # Toggle mute
             def _on_play_pause():
                 try:
+                    from PySide6.QtCore import QSettings
+                    s = QSettings("RPGGame", "Settings")
+                    current_enabled = bool(s.value("sound/enabled", True))
                     director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                     if director:
-                        # Read current muted state heuristically: assume toggling
-                        # We don't have a direct getter; use a hidden closure capturing state via QSettings
+                        # Toggle: if currently enabled -> mute; if disabled -> unmute
+                        director.set_muted(True if current_enabled else False)
+                        s.setValue("sound/enabled", not current_enabled)
+                        # Dev logging
+                        dev_enabled = bool(s.value("dev/enabled", False, type=bool))
+                        if dev_enabled:
+                            logger.info(f"[DEV][MUSIC] GUI toggle: sound enabled(before)={current_enabled} -> enabled(after)={not current_enabled}")
+                except Exception as e:
+                    # Dev logging of failure if enabled
+                    try:
                         from PySide6.QtCore import QSettings
-                        s = QSettings("RPGGame", "Settings")
-                        enabled = s.value("sound/enabled", True)
-                        new_muted = bool(not enabled) is False  # invert
-                        # Better approach: toggle by reading a remembered flag
-                        # We'll simply call set_muted(not current)
-                        director.set_muted(True) if enabled else director.set_muted(False)
-                        # Update QSettings enabled accordingly
-                        s.setValue("sound/enabled", not enabled)
-                except Exception:
-                    pass
+                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
+                            logger.warning(f"[DEV][MUSIC] GUI toggle failed: {e}")
+                    except Exception:
+                        pass
             play_pause_button.clicked.connect(_on_play_pause)
             # Next track
             def _on_next():
                 try:
+                    from PySide6.QtCore import QSettings
                     director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                     if director:
-                        director.next_track("user_skip")
-                except Exception:
-                    pass
+                        director.next_track("user_skip_gui")
+                        # Dev logging
+                        s = QSettings("RPGGame", "Settings")
+                        if bool(s.value("dev/enabled", False, type=bool)):
+                            # Try to include the basename of the current track if available
+                            try:
+                                cur = getattr(director, '_current_track', None)
+                                logger.info(f"[DEV][MUSIC] GUI next-track requested. New candidate track (last known): {os.path.basename(cur) if cur else 'Unknown'}")
+                            except Exception:
+                                logger.info("[DEV][MUSIC] GUI next-track requested.")
+                except Exception as e:
+                    try:
+                        from PySide6.QtCore import QSettings
+                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
+                            logger.warning(f"[DEV][MUSIC] GUI next-track failed: {e}")
+                    except Exception:
+                        pass
             next_button.clicked.connect(_on_next)
             # Volume button -> open Settings dialog focused on Sound tab
             def _on_open_settings():
                 try:
                     self._show_settings_dialog()
-                except Exception:
-                    pass
+                except Exception as e:
+                    try:
+                        from PySide6.QtCore import QSettings
+                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
+                            logger.warning(f"[DEV][MUSIC] Open settings (sound) failed: {e}")
+                    except Exception:
+                        pass
             volume_button.clicked.connect(_on_open_settings)
-        except Exception:
-            pass
+        except Exception as e:
+            try:
+                from PySide6.QtCore import QSettings
+                if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
+                    logger.warning(f"[DEV][MUSIC] Wiring music control buttons failed: {e}")
+            except Exception:
+                pass
 
         # Return the widget for reference
         return music_widget

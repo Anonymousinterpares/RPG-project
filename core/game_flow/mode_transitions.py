@@ -591,7 +591,7 @@ def _perform_flee_check(engine: 'GameEngine', player_entity: CombatEntity, flee_
         logger.error(f"Error performing flee check for actor {player_entity.id}: {e}", exc_info=True)
         raise e # Re-raise the exception to be caught by the caller
 
-def _handle_flee_outcome(game_state: 'GameState', success: bool, outcome_narrative: str) -> str:
+def _handle_flee_outcome(engine: 'GameEngine', game_state: 'GameState', success: bool, outcome_narrative: str) -> str:
     """Handles the outcome of the flee check, updating game state and returning narrative."""
     if success:
         if game_state.combat_manager and hasattr(game_state.combat_manager, 'end_combat'):

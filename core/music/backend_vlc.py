@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 import time
 from typing import Optional, Dict
+import os
 
 try:
     import vlc  # type: ignore
@@ -17,6 +18,15 @@ except Exception:  # pragma: no cover - environment may lack VLC
 
 from core.utils.logging_config import get_logger
 logger = get_logger("MUSIC_VLC")
+
+def _dev_music_verbose() -> bool:
+    try:
+        # Prefer QSettings if available (GUI)
+        from PySide6.QtCore import QSettings  # type: ignore
+        s = QSettings("RPGGame", "Settings")
+        return bool(s.value("dev/enabled", False, type=bool))
+    except Exception:
+        return False
 
 class VLCBackend:
     def __init__(self):
@@ -31,6 +41,9 @@ class VLCBackend:
         self._current_path: Optional[str] = None
         self._next_path: Optional[str] = None
         self._vol_loudness_db: float = 0.0
+        # Intensity state (0..1) for perceptual gain mapping
+        self._intensity: float = 0.3
+        self._intensity_gamma: float = 1.8  # perceptual curve; tweakable
 
         if self._enabled:
             try:
@@ -53,6 +66,25 @@ class VLCBackend:
             self._effects = max(0, min(100, int(effects)))
             self._muted = bool(muted)
             self._apply_current_volume_locked()
+
+    def set_intensity(self, intensity: float, ramp_ms: int = 250) -> None:
+        """Update perceived intensity (0..1) and ramp volume to new target.
+        This modulates music gain beneath the master/music sliders using a perceptual curve.
+        """
+        if not self._enabled:
+            return
+        with self._lock:
+            try:
+                new_i = max(0.0, min(1.0, float(intensity)))
+            except Exception:
+                return
+            # If no change, nothing to do
+            if abs(new_i - self._intensity) < 1e-6:
+                return
+            old_target = self._current_target_volume_locked()
+            self._intensity = new_i
+            new_target = self._current_target_volume_locked()
+            self._ramp_current_volume_locked(old_target, new_target, max(0, int(ramp_ms)))
 
     def next_track(self) -> None:
         # The director will set apply_state with a new track_path; backend doesn't pick tracks alone.
@@ -114,8 +146,20 @@ class VLCBackend:
         if not self._enabled:
             return
         with self._lock:
-            # If no track provided, do nothing; director may be testing mood only
+            # Dev logging entry
+            if _dev_music_verbose():
+                try:
+                    logger.info(f"[DEV][MUSIC][VLC] apply_state: mood={mood}, intensity={intensity}, track={os.path.basename(track_path) if track_path else None}")
+                except Exception:
+                    pass
+            # Update intensity immediately so crossfade targets include it
+            try:
+                self._intensity = max(0.0, min(1.0, float(intensity)))
+            except Exception:
+                pass
+            # If no track provided, just apply current volume for intensity change
             if not track_path:
+                self._apply_current_volume_locked()
                 return
             # If same track and we're already playing, keep going (no forced restart)
             if self._current_path == track_path and self._is_current_playing_locked():
@@ -128,7 +172,12 @@ class VLCBackend:
                 player_next.set_media(media)
                 # Start silent
                 player_next.audio_set_volume(0)
-                player_next.play()
+                res = player_next.play()
+                if _dev_music_verbose():
+                    try:
+                        logger.info(f"[DEV][MUSIC][VLC] play() returned {res} for {os.path.basename(track_path)}")
+                    except Exception:
+                        pass
             except Exception as e:
                 logger.warning(f"Failed to prepare next media '{track_path}': {e}")
                 return
@@ -138,8 +187,28 @@ class VLCBackend:
             # Swap players/state
             self._use_a = not self._use_a
             self._current_path = track_path
-            # Apply target volume after crossfade
+            # Apply target volume after crossfade (ensures final gain respects intensity)
             self._apply_current_volume_locked()
+            if _dev_music_verbose():
+                try:
+                    tgt = self._current_target_volume_locked()
+                    which = 'A' if self._use_a else 'B'
+                    # Gather both players' states for diagnostics
+                    try:
+                        a_state = self._player_a.get_state()
+                        a_vol = self._player_a.audio_get_volume()
+                        a_mute = self._player_a.audio_get_mute() if hasattr(self._player_a, 'audio_get_mute') else None
+                    except Exception:
+                        a_state = None; a_vol = None; a_mute = None
+                    try:
+                        b_state = self._player_b.get_state()
+                        b_vol = self._player_b.audio_get_volume()
+                        b_mute = self._player_b.audio_get_mute() if hasattr(self._player_b, 'audio_get_mute') else None
+                    except Exception:
+                        b_state = None; b_vol = None; b_mute = None
+                    logger.info(f"[DEV][MUSIC][VLC] Now active player {which}, target volume={tgt} | A: state={a_state}, vol={a_vol}, mute={a_mute} | B: state={b_state}, vol={b_vol}, mute={b_mute}")
+                except Exception:
+                    pass
 
     # --- Internals ---
     def _is_current_playing_locked(self) -> bool:
@@ -158,8 +227,48 @@ class VLCBackend:
 
     def _apply_current_volume_locked(self) -> None:
         try:
-            target = 0 if self._muted else int(self._master * self._music / 100)
+            target = self._current_target_volume_locked()
             self._current_player_locked().audio_set_volume(target)
+        except Exception:
+            pass
+
+    def _current_target_volume_locked(self) -> int:
+        try:
+            base = 0 if self._muted else int(self._master * self._music / 100)
+            gain = self._intensity_gain(self._intensity)
+            return int(base * gain)
+        except Exception:
+            return 0
+
+    def _intensity_gain(self, i: float, floor: float = 0.0) -> float:
+        """Map 0..1 intensity to 0..1 perceptual gain with gamma curve and optional floor."""
+        try:
+            i = max(0.0, min(1.0, float(i)))
+            if i <= 0.0:
+                return 0.0
+            g = i ** float(self._intensity_gamma)
+            if floor > 0.0:
+                g = floor + (1.0 - floor) * g
+            return max(0.0, min(1.0, g))
+        except Exception:
+            return 0.0
+
+    def _ramp_current_volume_locked(self, start: int, end: int, duration_ms: int) -> None:
+        """Ramp the current player's volume from start to end over duration_ms (best-effort)."""
+        try:
+            cur = self._current_player_locked()
+            if duration_ms <= 0:
+                cur.audio_set_volume(end)
+                return
+            steps = max(5, int(duration_ms / 50))
+            sleep_s = duration_ms / steps / 1000.0
+            for i in range(steps + 1):
+                try:
+                    vol = int(start + (end - start) * (i/steps))
+                    cur.audio_set_volume(vol)
+                except Exception:
+                    pass
+                time.sleep(sleep_s)
         except Exception:
             pass
 
@@ -172,19 +281,18 @@ class VLCBackend:
                 return
             except Exception:
                 return
-        # Constant-power-ish fade: approximate with 20 steps
+        # Constant-power-ish fade: approximate with small steps
         steps = max(10, int(duration_ms / 50))
         sleep_s = duration_ms / steps / 1000.0
         self._in_fade = True
         try:
             cur = self._current_player_locked()
             nxt = self._other_player_locked()
-            tgt = 0 if self._muted else int(self._master * self._music / 100)
+            tgt = self._current_target_volume_locked()
             for i in range(steps + 1):
                 try:
-                    # theta 0..pi/2
-                    theta = (i / steps) * 1.57079632679
-                    vol_out = int(tgt * (1.0 - ( (i/steps) )))  # linear fallback
+                    # linear ramp (fallback); constant-power would be sqrt-based
+                    vol_out = int(tgt * (1.0 - (i/steps)))
                     vol_in  = int(tgt * (i/steps))
                     cur.audio_set_volume(vol_out)
                     nxt.audio_set_volume(vol_in)
