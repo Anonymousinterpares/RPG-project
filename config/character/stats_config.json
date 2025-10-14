@@ -95,7 +95,7 @@
     "mage": {
       "primary_stats": ["intelligence", "wisdom"],
       "mp_bonus": 3,
-      "magic_attack_bonus": 1
+      "magic_attak": 1
     },
     "rogue": {
       "primary_stats": ["dexterity", "charisma"],

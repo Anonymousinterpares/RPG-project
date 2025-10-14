@@ -14,6 +14,7 @@ from models.location_defaults_manager import LocationDefaultsManager
 from models.variants_manager import VariantsManager
 from models.origin_data import OriginManager, QuestManager
 from utils.file_manager import get_config_dir, get_project_root, get_world_config_dir, load_json, save_json
+from utils.data_validator import DataValidator, ValidationError
 
 logger = logging.getLogger("world_configurator.models.world_config")
 
@@ -237,6 +238,28 @@ class WorldConfigManager:
             # As a safety, re-load item files from disk just before export below.
         except Exception:
             pass
+
+        # PRE-VALIDATION: effect_atoms schema validation (blocks export on errors)
+        try:
+            if export_options.get("magic_systems", False):
+                dv = DataValidator()
+                validation_errors = dv.validate_effect_atoms_magic_systems(self.magic_system_manager.magic_systems, project_root=get_project_root())
+                if validation_errors:
+                    all_success = False
+                    # Format clear errors with suggestions when present
+                    formatted = []
+                    for ve in validation_errors:
+                        # ve is our ValidationError; include message directly
+                        formatted.append(str(ve))
+                    errors.extend(formatted)
+                    logger.error("Blocking export due to effect_atoms validation errors (%d).", len(formatted))
+                    return all_success, errors
+        except Exception as e:
+            # Treat validator failure as a blocking error to be safe
+            all_success = False
+            errors.append(f"Validator error (effect_atoms): {e}")
+            logger.error("Validator error (effect_atoms): %s", e)
+            return all_success, errors
 
         # Standard components
         for component_key, should_export in export_options.items():

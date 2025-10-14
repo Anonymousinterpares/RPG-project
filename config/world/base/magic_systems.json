@@ -121,17 +121,7 @@
           "casting_time": "10 seconds",
           "range": "5m",
           "target": "single",
-          "level": 2,
-          "components": [
-            "voice",
-            "focus"
-          ],
-          "tags": [
-            "healing",
-            "regeneration",
-            "restoration"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "heal",
@@ -169,7 +159,18 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "voice",
+            "focus"
+          ],
+          "tags": [
+            "healing",
+            "regeneration",
+            "restoration"
+          ],
+          "combat_role": "defensive"
         },
         "resonant_shield": {
           "id": "resonant_shield",
@@ -179,17 +180,7 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "level": 2,
-          "components": [
-            "voice",
-            "gesture"
-          ],
-          "tags": [
-            "protection",
-            "defense",
-            "sound"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -214,7 +205,18 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "voice",
+            "gesture"
+          ],
+          "tags": [
+            "protection",
+            "defense",
+            "sound"
+          ],
+          "combat_role": "defensive"
         },
         "chorus_of_clarity": {
           "id": "chorus_of_clarity",
@@ -224,17 +226,7 @@
           "casting_time": "5 seconds",
           "range": "10m",
           "target": "multiple",
-          "level": 1,
-          "components": [
-            "voice",
-            "concentration"
-          ],
-          "tags": [
-            "enhancement",
-            "mind",
-            "perception"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -282,7 +274,18 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 1,
+          "components": [
+            "voice",
+            "concentration"
+          ],
+          "tags": [
+            "enhancement",
+            "mind",
+            "perception"
+          ],
+          "combat_role": "defensive"
         },
         "dirge_of_despair": {
           "id": "dirge_of_despair",
@@ -292,18 +295,7 @@
           "casting_time": "1 action",
           "range": "15m",
           "target": "area",
-          "level": 3,
-          "components": [
-            "voice",
-            "gesture",
-            "concentration"
-          ],
-          "tags": [
-            "debuff",
-            "fear",
-            "control"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -346,7 +338,19 @@
               },
               "status": "Frightened"
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "voice",
+            "gesture",
+            "concentration"
+          ],
+          "tags": [
+            "debuff",
+            "fear",
+            "control"
+          ],
+          "combat_role": "offensive"
         },
         "planar_harmonization": {
           "id": "planar_harmonization",
@@ -356,19 +360,7 @@
           "casting_time": "1 minute",
           "range": "30m",
           "target": "area",
-          "level": 5,
-          "components": [
-            "voice",
-            "instrument",
-            "focus",
-            "concentration"
-          ],
-          "tags": [
-            "planar",
-            "utility",
-            "ritual"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -393,7 +385,20 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 5,
+          "components": [
+            "voice",
+            "instrument",
+            "focus",
+            "concentration"
+          ],
+          "tags": [
+            "planar",
+            "utility",
+            "ritual"
+          ],
+          "combat_role": "defensive"
         },
         "song_of_mending": {
           "id": "song_of_mending",
@@ -403,17 +408,7 @@
           "casting_time": "30 seconds",
           "range": "5m",
           "target": "single",
-          "level": 2,
-          "components": [
-            "voice",
-            "focus"
-          ],
-          "tags": [
-            "utility",
-            "restoration",
-            "crafting"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "heal",
@@ -428,7 +423,18 @@
                 "crafting"
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "voice",
+            "focus"
+          ],
+          "tags": [
+            "utility",
+            "restoration",
+            "crafting"
+          ],
+          "combat_role": "defensive"
         }
       }
     },
@@ -556,18 +562,7 @@
           "casting_time": "30 seconds",
           "range": "20m radius",
           "target": "area",
-          "level": 3,
-          "components": [
-            "gesture",
-            "focus",
-            "planar components"
-          ],
-          "tags": [
-            "protection",
-            "planar",
-            "area effect"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -615,7 +610,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "gesture",
+            "focus",
+            "planar components"
+          ],
+          "tags": [
+            "protection",
+            "planar",
+            "area effect"
+          ],
+          "combat_role": "defensive"
         },
         "reality_tether": {
           "id": "reality_tether",
@@ -625,18 +632,7 @@
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
-          "level": 2,
-          "components": [
-            "touch",
-            "focus",
-            "crystalline dust"
-          ],
-          "tags": [
-            "protection",
-            "planar",
-            "anchoring"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -661,7 +657,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "touch",
+            "focus",
+            "crystalline dust"
+          ],
+          "tags": [
+            "protection",
+            "planar",
+            "anchoring"
+          ],
+          "combat_role": "offensive"
         },
         "planar_sight": {
           "id": "planar_sight",
@@ -671,17 +679,7 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "level": 2,
-          "components": [
-            "gesture",
-            "prismatic lens"
-          ],
-          "tags": [
-            "divination",
-            "planar",
-            "perception"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -706,7 +704,18 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "gesture",
+            "prismatic lens"
+          ],
+          "tags": [
+            "divination",
+            "planar",
+            "perception"
+          ],
+          "combat_role": "defensive"
         },
         "boundary_distortion": {
           "id": "boundary_distortion",
@@ -716,19 +725,7 @@
           "casting_time": "1 minute",
           "range": "10m radius",
           "target": "area",
-          "level": 4,
-          "components": [
-            "gesture",
-            "focus",
-            "components from target plane",
-            "ritual circle"
-          ],
-          "tags": [
-            "planar",
-            "manipulation",
-            "advanced"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -753,7 +750,20 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 4,
+          "components": [
+            "gesture",
+            "focus",
+            "components from target plane",
+            "ritual circle"
+          ],
+          "tags": [
+            "planar",
+            "manipulation",
+            "advanced"
+          ],
+          "combat_role": "offensive"
         },
         "resonance_shield": {
           "id": "resonance_shield",
@@ -763,18 +773,7 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "level": 3,
-          "components": [
-            "gesture",
-            "focus",
-            "resonant crystal"
-          ],
-          "tags": [
-            "protection",
-            "planar",
-            "defensive"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -822,7 +821,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "gesture",
+            "focus",
+            "resonant crystal"
+          ],
+          "tags": [
+            "protection",
+            "planar",
+            "defensive"
+          ],
+          "combat_role": "defensive"
         },
         "planar_transit": {
           "id": "planar_transit",
@@ -832,21 +843,7 @@
           "casting_time": "5 minutes",
           "range": "5m radius",
           "target": "area",
-          "level": 5,
-          "components": [
-            "gesture",
-            "focus",
-            "planar essence",
-            "ritual circle",
-            "resonance map"
-          ],
-          "tags": [
-            "planar",
-            "travel",
-            "advanced",
-            "ritual"
-          ],
-          "combat_role": "utility",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -867,7 +864,22 @@
               },
               "status": "Planar Transit"
             }
-          ]
+          ],
+          "level": 5,
+          "components": [
+            "gesture",
+            "focus",
+            "planar essence",
+            "ritual circle",
+            "resonance map"
+          ],
+          "tags": [
+            "planar",
+            "travel",
+            "advanced",
+            "ritual"
+          ],
+          "combat_role": "utility"
         }
       }
     },
@@ -994,18 +1006,7 @@
           "casting_time": "30 seconds",
           "range": "5m",
           "target": "area",
-          "level": 1,
-          "components": [
-            "gesture",
-            "echo vessel",
-            "focusing crystal"
-          ],
-          "tags": [
-            "utility",
-            "planar",
-            "gathering"
-          ],
-          "combat_role": "utility",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -1025,7 +1026,19 @@
               },
               "status": "Echo Contained"
             }
-          ]
+          ],
+          "level": 1,
+          "components": [
+            "gesture",
+            "echo vessel",
+            "focusing crystal"
+          ],
+          "tags": [
+            "utility",
+            "planar",
+            "gathering"
+          ],
+          "combat_role": "utility"
         },
         "bind_echo": {
           "id": "bind_echo",
@@ -1035,18 +1048,7 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "level": 2,
-          "components": [
-            "gesture",
-            "captured echo",
-            "binding agent"
-          ],
-          "tags": [
-            "enchantment",
-            "planar",
-            "binding"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1071,7 +1073,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "gesture",
+            "captured echo",
+            "binding agent"
+          ],
+          "tags": [
+            "enchantment",
+            "planar",
+            "binding"
+          ],
+          "combat_role": "defensive"
         },
         "echo_sight": {
           "id": "echo_sight",
@@ -1081,17 +1095,7 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "level": 1,
-          "components": [
-            "gesture",
-            "residue sample"
-          ],
-          "tags": [
-            "divination",
-            "planar",
-            "perception"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1116,7 +1120,18 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 1,
+          "components": [
+            "gesture",
+            "residue sample"
+          ],
+          "tags": [
+            "divination",
+            "planar",
+            "perception"
+          ],
+          "combat_role": "defensive"
         },
         "weapon_echo": {
           "id": "weapon_echo",
@@ -1126,19 +1141,7 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "level": 3,
-          "components": [
-            "gesture",
-            "combat echo",
-            "binding agent",
-            "weapon"
-          ],
-          "tags": [
-            "combat",
-            "enhancement",
-            "planar"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1181,7 +1184,20 @@
               },
               "status": "Planar Disruption"
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "gesture",
+            "combat echo",
+            "binding agent",
+            "weapon"
+          ],
+          "tags": [
+            "combat",
+            "enhancement",
+            "planar"
+          ],
+          "combat_role": "offensive"
         },
         "echo_ward": {
           "id": "echo_ward",
@@ -1191,18 +1207,7 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "level": 3,
-          "components": [
-            "gesture",
-            "protective echo",
-            "binding circle"
-          ],
-          "tags": [
-            "protection",
-            "defensive",
-            "planar"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1250,7 +1255,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "gesture",
+            "protective echo",
+            "binding circle"
+          ],
+          "tags": [
+            "protection",
+            "defensive",
+            "planar"
+          ],
+          "combat_role": "defensive"
         },
         "echo_mimicry": {
           "id": "echo_mimicry",
@@ -1260,19 +1277,7 @@
           "casting_time": "2 minutes",
           "range": "self",
           "target": "self",
-          "level": 4,
-          "components": [
-            "gesture",
-            "entity echo",
-            "binding agent",
-            "personal focus"
-          ],
-          "tags": [
-            "transformation",
-            "planar",
-            "mimicry"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1315,7 +1320,20 @@
               },
               "status": "Echo Transformation"
             }
-          ]
+          ],
+          "level": 4,
+          "components": [
+            "gesture",
+            "entity echo",
+            "binding agent",
+            "personal focus"
+          ],
+          "tags": [
+            "transformation",
+            "planar",
+            "mimicry"
+          ],
+          "combat_role": "defensive"
         }
       }
     },
@@ -1440,18 +1458,7 @@
           "casting_time": "1 action",
           "range": "30m",
           "target": "single",
-          "level": 2,
-          "components": [
-            "octahedral crystal",
-            "gesture",
-            "calculation"
-          ],
-          "tags": [
-            "attack",
-            "precision",
-            "light"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "damage",
@@ -1467,7 +1474,19 @@
               ],
               "damage_type": "arcane"
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "octahedral crystal",
+            "gesture",
+            "calculation"
+          ],
+          "tags": [
+            "attack",
+            "precision",
+            "light"
+          ],
+          "combat_role": "offensive"
         },
         "crystalline_shield": {
           "id": "crystalline_shield",
@@ -1477,17 +1496,7 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "level": 2,
-          "components": [
-            "cubic crystal",
-            "gesture"
-          ],
-          "tags": [
-            "protection",
-            "defensive",
-            "barrier"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1512,7 +1521,18 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "cubic crystal",
+            "gesture"
+          ],
+          "tags": [
+            "protection",
+            "defensive",
+            "barrier"
+          ],
+          "combat_role": "defensive"
         },
         "computational_enhancement": {
           "id": "computational_enhancement",
@@ -1522,18 +1542,7 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "level": 3,
-          "components": [
-            "dodecahedral crystal",
-            "mental calculation",
-            "touch"
-          ],
-          "tags": [
-            "enhancement",
-            "mental",
-            "intellect"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1558,7 +1567,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "dodecahedral crystal",
+            "mental calculation",
+            "touch"
+          ],
+          "tags": [
+            "enhancement",
+            "mental",
+            "intellect"
+          ],
+          "combat_role": "defensive"
         },
         "perfect_analysis": {
           "id": "perfect_analysis",
@@ -1568,18 +1589,7 @@
           "casting_time": "1 minute",
           "range": "5m",
           "target": "single",
-          "level": 2,
-          "components": [
-            "tetrahedral crystal",
-            "concentration",
-            "calculation"
-          ],
-          "tags": [
-            "divination",
-            "knowledge",
-            "analysis"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -1604,7 +1614,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "tetrahedral crystal",
+            "concentration",
+            "calculation"
+          ],
+          "tags": [
+            "divination",
+            "knowledge",
+            "analysis"
+          ],
+          "combat_role": "defensive"
         },
         "geometric_restructuring": {
           "id": "geometric_restructuring",
@@ -1614,19 +1636,7 @@
           "casting_time": "5 minutes",
           "range": "touch",
           "target": "single",
-          "level": 3,
-          "components": [
-            "icosahedral crystal",
-            "geometric diagram",
-            "touch",
-            "calculation"
-          ],
-          "tags": [
-            "transmutation",
-            "repair",
-            "crafting"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "heal",
@@ -1641,7 +1651,20 @@
                 "crafting"
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "icosahedral crystal",
+            "geometric diagram",
+            "touch",
+            "calculation"
+          ],
+          "tags": [
+            "transmutation",
+            "repair",
+            "crafting"
+          ],
+          "combat_role": "defensive"
         },
         "crystal_prison": {
           "id": "crystal_prison",
@@ -1651,18 +1674,7 @@
           "casting_time": "1 action",
           "range": "15m",
           "target": "single",
-          "level": 4,
-          "components": [
-            "cubic crystal",
-            "gesture",
-            "calculation"
-          ],
-          "tags": [
-            "control",
-            "restraint",
-            "crystal"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -1705,7 +1717,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 4,
+          "components": [
+            "cubic crystal",
+            "gesture",
+            "calculation"
+          ],
+          "tags": [
+            "control",
+            "restraint",
+            "crystal"
+          ],
+          "combat_role": "offensive"
         }
       }
     },
@@ -1831,17 +1855,7 @@
           "casting_time": "30 seconds",
           "range": "50m",
           "target": "self",
-          "level": 1,
-          "components": [
-            "pinch of ash",
-            "concentration"
-          ],
-          "tags": [
-            "perception",
-            "divination",
-            "espionage"
-          ],
-          "combat_role": "utility",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -1861,7 +1875,18 @@
               },
               "status": "Ash Perception"
             }
-          ]
+          ],
+          "level": 1,
+          "components": [
+            "pinch of ash",
+            "concentration"
+          ],
+          "tags": [
+            "perception",
+            "divination",
+            "espionage"
+          ],
+          "combat_role": "utility"
         },
         "ashen_transit": {
           "id": "ashen_transit",
@@ -1871,18 +1896,7 @@
           "casting_time": "1 minute",
           "range": "self",
           "target": "self",
-          "level": 3,
-          "components": [
-            "handful of ashes",
-            "ritual circle",
-            "concentration"
-          ],
-          "tags": [
-            "transportation",
-            "planar",
-            "espionage"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -1925,7 +1939,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "handful of ashes",
+            "ritual circle",
+            "concentration"
+          ],
+          "tags": [
+            "transportation",
+            "planar",
+            "espionage"
+          ],
+          "combat_role": "offensive"
         },
         "whispers_of_ash": {
           "id": "whispers_of_ash",
@@ -1935,17 +1961,7 @@
           "casting_time": "1 minute",
           "range": "unlimited",
           "target": "single",
-          "level": 2,
-          "components": [
-            "shared ash source",
-            "concentration"
-          ],
-          "tags": [
-            "communication",
-            "utility",
-            "social"
-          ],
-          "combat_role": "utility",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -1965,7 +1981,18 @@
               },
               "status": "Ash Communication"
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "shared ash source",
+            "concentration"
+          ],
+          "tags": [
+            "communication",
+            "utility",
+            "social"
+          ],
+          "combat_role": "utility"
         },
         "ashen_knowledge": {
           "id": "ashen_knowledge",
@@ -1975,19 +2002,7 @@
           "casting_time": "10 minutes",
           "range": "self",
           "target": "self",
-          "level": 4,
-          "components": [
-            "ash from location or subject",
-            "ritual circle",
-            "concentration",
-            "meditation"
-          ],
-          "tags": [
-            "knowledge",
-            "divination",
-            "history"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -2012,7 +2027,20 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 4,
+          "components": [
+            "ash from location or subject",
+            "ritual circle",
+            "concentration",
+            "meditation"
+          ],
+          "tags": [
+            "knowledge",
+            "divination",
+            "history"
+          ],
+          "combat_role": "defensive"
         },
         "ash_veil": {
           "id": "ash_veil",
@@ -2022,17 +2050,7 @@
           "casting_time": "1 action",
           "range": "15m radius",
           "target": "area",
-          "level": 2,
-          "components": [
-            "handful of ashes",
-            "gesture"
-          ],
-          "tags": [
-            "concealment",
-            "control",
-            "defense"
-          ],
-          "combat_role": "offensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -2057,7 +2075,18 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "handful of ashes",
+            "gesture"
+          ],
+          "tags": [
+            "concealment",
+            "control",
+            "defense"
+          ],
+          "combat_role": "offensive"
         },
         "ashen_body": {
           "id": "ashen_body",
@@ -2067,18 +2096,7 @@
           "casting_time": "1 action",
           "range": "self",
           "target": "self",
-          "level": 4,
-          "components": [
-            "ritual ashes",
-            "gesture",
-            "concentration"
-          ],
-          "tags": [
-            "transformation",
-            "defense",
-            "movement"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -2121,7 +2139,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 4,
+          "components": [
+            "ritual ashes",
+            "gesture",
+            "concentration"
+          ],
+          "tags": [
+            "transformation",
+            "defense",
+            "movement"
+          ],
+          "combat_role": "defensive"
         }
       }
     },
@@ -2246,18 +2276,7 @@
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
-          "level": 2,
-          "components": [
-            "touch",
-            "prayer",
-            "focus"
-          ],
-          "tags": [
-            "healing",
-            "restoration",
-            "touch"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "heal",
@@ -2272,7 +2291,19 @@
                 "touch"
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "touch",
+            "prayer",
+            "focus"
+          ],
+          "tags": [
+            "healing",
+            "restoration",
+            "touch"
+          ],
+          "combat_role": "defensive"
         },
         "purify_body": {
           "id": "purify_body",
@@ -2282,19 +2313,7 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "level": 3,
-          "components": [
-            "touch",
-            "prayer",
-            "holy water",
-            "focus"
-          ],
-          "tags": [
-            "purification",
-            "restoration",
-            "protection"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -2337,7 +2356,20 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "touch",
+            "prayer",
+            "holy water",
+            "focus"
+          ],
+          "tags": [
+            "purification",
+            "restoration",
+            "protection"
+          ],
+          "combat_role": "defensive"
         },
         "divine_restoration": {
           "id": "divine_restoration",
@@ -2347,20 +2379,7 @@
           "casting_time": "5 minutes",
           "range": "touch",
           "target": "single",
-          "level": 4,
-          "components": [
-            "touch",
-            "ritual prayer",
-            "holy symbol",
-            "focus",
-            "sacred herbs"
-          ],
-          "tags": [
-            "healing",
-            "restoration",
-            "regeneration"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "heal",
@@ -2398,7 +2417,21 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 4,
+          "components": [
+            "touch",
+            "ritual prayer",
+            "holy symbol",
+            "focus",
+            "sacred herbs"
+          ],
+          "tags": [
+            "healing",
+            "restoration",
+            "regeneration"
+          ],
+          "combat_role": "defensive"
         },
         "circle_of_healing": {
           "id": "circle_of_healing",
@@ -2408,18 +2441,7 @@
           "casting_time": "1 minute",
           "range": "10m radius",
           "target": "area",
-          "level": 3,
-          "components": [
-            "ritual circle",
-            "group prayer",
-            "holy symbol"
-          ],
-          "tags": [
-            "healing",
-            "area effect",
-            "support"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "heal",
@@ -2457,7 +2479,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "ritual circle",
+            "group prayer",
+            "holy symbol"
+          ],
+          "tags": [
+            "healing",
+            "area effect",
+            "support"
+          ],
+          "combat_role": "defensive"
         },
         "protective_blessing": {
           "id": "protective_blessing",
@@ -2467,18 +2501,7 @@
           "casting_time": "1 action",
           "range": "touch",
           "target": "single",
-          "level": 3,
-          "components": [
-            "touch",
-            "prayer",
-            "holy symbol"
-          ],
-          "tags": [
-            "protection",
-            "defensive",
-            "blessing"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "buff",
@@ -2526,7 +2549,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 3,
+          "components": [
+            "touch",
+            "prayer",
+            "holy symbol"
+          ],
+          "tags": [
+            "protection",
+            "defensive",
+            "blessing"
+          ],
+          "combat_role": "defensive"
         },
         "revitalize": {
           "id": "revitalize",
@@ -2536,18 +2571,7 @@
           "casting_time": "1 minute",
           "range": "touch",
           "target": "single",
-          "level": 2,
-          "components": [
-            "touch",
-            "prayer",
-            "holy water"
-          ],
-          "tags": [
-            "restoration",
-            "enhancement",
-            "recovery"
-          ],
-          "combat_role": "defensive",
+          "effects": [],
           "effect_atoms": [
             {
               "type": "status_apply",
@@ -2590,7 +2614,19 @@
                 }
               ]
             }
-          ]
+          ],
+          "level": 2,
+          "components": [
+            "touch",
+            "prayer",
+            "holy water"
+          ],
+          "tags": [
+            "restoration",
+            "enhancement",
+            "recovery"
+          ],
+          "combat_role": "defensive"
         }
       }
     }

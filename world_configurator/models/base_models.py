@@ -419,6 +419,8 @@ class Spell(BaseModel):
     range: str = "10m"
     target: str = "single"
     effects: List[SpellEffect] = field(default_factory=list)
+    # New: effect_atoms for modern engine path (JSON schema: config/gameplay/effect_atoms.schema.json)
+    effect_atoms: List[Dict[str, Any]] = field(default_factory=list)
     level: int = 1
     components: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
@@ -447,6 +449,16 @@ class Spell(BaseModel):
                 elif isinstance(effect_data, SpellEffect):
                     effects.append(effect_data)
             data_copy['effects'] = effects
+        # Effect atoms: accept pass-through list of dicts
+        if 'effect_atoms' in data_copy and isinstance(data_copy['effect_atoms'], list):
+            try:
+                atoms = []
+                for a in data_copy['effect_atoms']:
+                    if isinstance(a, dict):
+                        atoms.append(a)
+                data_copy['effect_atoms'] = atoms
+            except Exception:
+                data_copy['effect_atoms'] = []
         # Normalize combat_role if present; default to 'offensive'
         if 'combat_role' in data_copy:
             try:

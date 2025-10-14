@@ -3,6 +3,8 @@ Magic Systems editor component for the World Configurator Tool.
 """
 
 import logging
+import os
+import re
 from typing import Dict, List, Optional, Callable, Any
 
 from PySide6.QtCore import Qt, Signal, Slot
@@ -10,13 +12,15 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
     QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox,
-    QTabWidget, QGridLayout, QCheckBox, QInputDialog  # Added QInputDialog
+    QTabWidget, QGridLayout, QCheckBox, QInputDialog, QTableWidget,
+    QTableWidgetItem, QHeaderView
 )
 
 # Assuming these models are correctly defined in base_models
 from ui.dialogs.base_dialog import BaseDialog
 from models.base_models import MagicalSystem, Spell, SpellEffect, RacialAffinity, ClassAffinity
 from models.world_data import MagicSystemManager
+from utils.file_manager import load_json, get_project_root
 
 logger = logging.getLogger("world_configurator.ui.magic_systems_editor")
 
@@ -163,6 +167,423 @@ class SpellEffectDialog(BaseDialog):
         self.effect.description = self.desc_edit.toPlainText()
         return self.effect
 
+class AtomDialog(QDialog):
+    """Dialog for editing an effect atom (schema-aligned)."""
+
+    def __init__(self, parent=None, atom: Optional[Dict[str, Any]] = None):
+        super().__init__(parent)
+        self.setWindowTitle("Effect Atom")
+        self.setMinimumWidth(520)
+        self.atom = atom or {}
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        # Type
+        self.type_combo = QComboBox(); self.type_combo.addItems([
+            "damage", "heal", "resource_change", "buff", "debuff",
+            "status_apply", "status_remove", "cleanse", "shield"
+        ])
+        self.type_combo.setToolTip("What the atom does (damage, heal, apply status, shield, etc.)")
+        if isinstance(self.atom.get("type"), str):
+            self.type_combo.setCurrentText(self.atom["type"])
+        self.type_combo.currentTextChanged.connect(self._on_type_changed)
+        form.addRow("Type:", self.type_combo)
+
+        # Selector
+        self.selector_combo = QComboBox(); self.selector_combo.addItems(["self", "ally", "enemy", "area"])
+        self.selector_combo.setToolTip("Who this atom targets: yourself, an ally, an enemy, or an area.")
+        if isinstance(self.atom.get("selector"), str):
+            self.selector_combo.setCurrentText(self.atom["selector"])
+        form.addRow("Selector:", self.selector_combo)
+
+        # Magnitude group (flat/dice/stat)
+        self.mag_mode_combo = QComboBox(); self.mag_mode_combo.addItems(["flat", "dice", "stat"])
+        self.mag_mode_combo.setToolTip("How the amount is determined: Flat value, Dice roll (NdS±M), or based on a stat.")
+        mag = self.atom.get("magnitude") or {}
+        if isinstance(mag, dict):
+            if "dice" in mag: self.mag_mode_combo.setCurrentText("dice")
+            elif "stat" in mag: self.mag_mode_combo.setCurrentText("stat")
+            else: self.mag_mode_combo.setCurrentText("flat")
+        form.addRow("Magnitude Mode:", self.mag_mode_combo)
+
+        self.mag_flat_spin = QSpinBox(); self.mag_flat_spin.setRange(-100000, 100000)
+        self.mag_flat_spin.setToolTip("Flat amount to apply (can be negative).")
+        if isinstance(mag, dict) and "flat" in mag:
+            try: self.mag_flat_spin.setValue(int(float(mag.get("flat", 0))))
+            except Exception: pass
+        form.addRow("Flat:", self.mag_flat_spin)
+
+        # Dice magnitude controls (similar to Items editor)
+        self.dice_base_combo = QComboBox()
+        base_notations: List[str] = []
+        for n in (1, 2, 3, 4):
+            for s in (4, 6, 8, 10, 12, 20):
+                base_notations.append(f"{n}d{s}")
+        for bn in base_notations:
+            self.dice_base_combo.addItem(bn)
+        self.dice_base_combo.setToolTip("Choose NdS base (e.g., 2d6).")
+        form.addRow("Dice Base (NdS):", self.dice_base_combo)
+
+        self.dice_mod_sign = QComboBox(); self.dice_mod_sign.addItems(["+", "-"])
+        self.dice_mod_sign.setToolTip("Sign for the dice modifier.")
+        form.addRow("Modifier Sign:", self.dice_mod_sign)
+
+        self.dice_mod_value = QSpinBox(); self.dice_mod_value.setRange(0, 100)
+        self.dice_mod_value.setSpecialValueText("0")
+        self.dice_mod_value.setToolTip("Modifier value to add/subtract after the roll.")
+        form.addRow("Modifier Value:", self.dice_mod_value)
+
+        # Preselect from magnitude.dice if present
+        try:
+            existing_dn = str(mag.get("dice", "")) if isinstance(mag, dict) else ""
+            m = re.match(r"(\d+d\d+)([+\-])(\d+)$", existing_dn)
+            if m:
+                base, sign, mv = m.group(1), m.group(2), int(m.group(3))
+                idx = self.dice_base_combo.findText(base)
+                if idx >= 0:
+                    self.dice_base_combo.setCurrentIndex(idx)
+                self.dice_mod_sign.setCurrentText(sign)
+                self.dice_mod_value.setValue(mv)
+            elif existing_dn:
+                idx = self.dice_base_combo.findText(existing_dn)
+                if idx >= 0:
+                    self.dice_base_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
+
+        mag_stat = mag if isinstance(mag, dict) else {}
+        # Stat-based magnitude controls
+        self.mag_stat_name_combo = QComboBox()
+        self.mag_stat_name_combo.setEditable(False)
+        self.mag_stat_name_combo.setToolTip("Which stat to base the amount on. Uses canonical IDs from stat registry.")
+        form.addRow("Stat:", self.mag_stat_name_combo)
+
+        self.mag_stat_coeff = QLineEdit(str(mag_stat.get("coeff", "")))
+        self.mag_stat_coeff.setToolTip("Coefficient multiplied by the stat value.")
+        form.addRow("Stat Coeff:", self.mag_stat_coeff)
+
+        self.mag_stat_base = QLineEdit(str(mag_stat.get("base", "")))
+        self.mag_stat_base.setToolTip("Base amount added after stat*coeff.")
+        form.addRow("Stat Base:", self.mag_stat_base)
+
+        # Duration
+        dur = self.atom.get("duration") or {}
+        self.duration_spin = QSpinBox(); self.duration_spin.setRange(0, 999)
+        if isinstance(dur, dict):
+            try: self.duration_spin.setValue(int(dur.get("value", 0)))
+            except Exception: pass
+        self.duration_spin.setToolTip("How long it lasts. 0 = instant (no duration). In combat: turns; outside: minutes. Stored as unified duration and translated by engine.")
+        form.addRow("Duration:", self.duration_spin)
+
+        # Type-specific fields
+        self.damage_type_combo = QComboBox(); self.damage_type_combo.setEditable(True)
+        # Populate with canonical list (fallback to built-ins if load fails)
+        self.damage_type_combo.addItems(["", "slashing", "piercing", "bludgeoning", "fire", "cold", "lightning", "poison", "acid", "arcane"])
+        if isinstance(self.atom.get("damage_type"), str): self.damage_type_combo.setCurrentText(self.atom["damage_type"])
+        self.damage_type_combo.setToolTip("Typed damage used for mitigation and typed shields (optional for DoT; required for direct damage).")
+        form.addRow("Damage type:", self.damage_type_combo)
+
+        self.resource_combo = QComboBox(); self.resource_combo.addItems(["", "HEALTH", "MANA", "STAMINA", "RESOLVE"])
+        self.resource_combo.setToolTip("Which resource changes (for resource change atoms).")
+        if isinstance(self.atom.get("resource"), str): self.resource_combo.setCurrentText(self.atom["resource"])
+        form.addRow("Resource:", self.resource_combo)
+
+        # Modifiers table (for buff/debuff)
+        self.mod_table = QTableWidget(0, 3)
+        self.mod_table.setHorizontalHeaderLabels(["Stat", "Value", "%?"])
+        self.mod_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        for m in (self.atom.get("modifiers") or []):
+            if isinstance(m, dict):
+                row = self.mod_table.rowCount(); self.mod_table.insertRow(row)
+                self.mod_table.setItem(row, 0, QTableWidgetItem(str(m.get("stat", ""))))
+                self.mod_table.setItem(row, 1, QTableWidgetItem(str(m.get("value", 0))))
+                self.mod_table.setItem(row, 2, QTableWidgetItem("yes" if m.get("is_percentage", False) else ""))
+        # Add/remove buttons kept simple via context menu not implemented; instruct to double-click cells to edit
+        self.mod_table.setToolTip("Add rows for stat modifiers (stat id, value, %?). Double-click cells to edit. 'yes' in %? column means percentage.")
+        form.addRow("Modifiers:", self.mod_table)
+
+        # Status fields
+        self.status_edit = QLineEdit(str(self.atom.get("status", "")))
+        self.status_types_edit = QLineEdit(", ".join(self.atom.get("status_types", [])) if isinstance(self.atom.get("status_types"), list) else "")
+        self.status_edit.setToolTip("Named status to apply (e.g., Burning).")
+        self.status_types_edit.setToolTip("For remove/cleanse: which status families to target.")
+        form.addRow("Status name:", self.status_edit)
+        form.addRow("Status types (for removal/cleanse):", self.status_types_edit)
+
+        # Periodic effect for status_apply (human labels)
+        self.periodic_combo = QComboBox(); self.periodic_combo.addItems(["None", "Damage over time", "Healing over time", "Regeneration"])
+        self.periodic_combo.setToolTip("Optional periodic behavior for status: DoT/HoT/Regeneration.")
+        # infer from tags
+        tags_in = set(self.atom.get("tags", []) or [])
+        if "damage_over_time" in tags_in:
+            self.periodic_combo.setCurrentText("Damage over time")
+        elif "healing_over_time" in tags_in:
+            self.periodic_combo.setCurrentText("Healing over time")
+        elif "regeneration" in tags_in:
+            self.periodic_combo.setCurrentText("Regeneration")
+        form.addRow("Periodic effect:", self.periodic_combo)
+
+        self.periodic_amount_spin = QSpinBox(); self.periodic_amount_spin.setRange(-100000, 100000)
+        self.periodic_amount_spin.setToolTip("Amount applied each turn while the status lasts (negative allowed).")
+        # default 0, but if magnitude.flat present and type=status_apply, seed it
+        try:
+            if (self.atom.get("type") == "status_apply") and isinstance(self.atom.get("magnitude"), dict) and "flat" in self.atom.get("magnitude"):
+                self.periodic_amount_spin.setValue(int(float(self.atom["magnitude"]["flat"])))
+        except Exception:
+            pass
+        form.addRow("Amount per turn:", self.periodic_amount_spin)
+
+        # Shield stacking rule
+        self.stacking_combo = QComboBox(); self.stacking_combo.addItems(["none", "stack", "refresh", "replace"])
+        self.stacking_combo.setToolTip("How repeated applications behave: none (ignore), stack (additive), refresh (reset timer), replace (overwrite).")
+        if isinstance(self.atom.get("stacking_rule"), str): self.stacking_combo.setCurrentText(self.atom["stacking_rule"])
+        form.addRow("Stacking Rule:", self.stacking_combo)
+
+        # Tags, source_id, notes
+        self.tags_edit = QLineEdit(", ".join(self.atom.get("tags", [])) if isinstance(self.atom.get("tags"), list) else "")
+        self.tags_edit.setToolTip("Optional comma-separated tags (e.g., damage_over_time). The UI will add required tags for periodic effects.")
+        self.source_id_edit = QLineEdit(str(self.atom.get("source_id", "")))
+        self.source_id_edit.setToolTip("Stable identifier used for grouping or removing related effects.")
+        self.notes_edit = QLineEdit(str(self.atom.get("notes", "")))
+        self.notes_edit.setToolTip("Optional notes for authors; ignored by the engine.")
+        form.addRow("Tags:", self.tags_edit)
+        form.addRow("Source ID:", self.source_id_edit)
+        form.addRow("Notes:", self.notes_edit)
+
+        # Initialize canonical damage types list after widgets are created
+        try:
+            self._init_damage_type_list()
+        except Exception:
+            pass
+        try:
+            self._init_stat_list(preselect=str(mag_stat.get("stat", "")))
+        except Exception:
+            pass
+
+        layout.addLayout(form)
+        btns = QHBoxLayout()
+        cancel = QPushButton("Cancel"); cancel.clicked.connect(self.reject)
+        save = QPushButton("Save"); save.clicked.connect(self.accept); save.setDefault(True)
+        btns.addWidget(cancel); btns.addWidget(save)
+        layout.addLayout(btns)
+
+        self.periodic_combo.currentTextChanged.connect(lambda _t: self._on_type_changed(self.type_combo.currentText()))
+        self._on_type_changed(self.type_combo.currentText())
+
+    def _on_type_changed(self, t: str):
+        # Toggle relevant widgets
+        typ = (t or "").lower()
+        # magnitude always visible; resource only for resource_change
+        self.resource_combo.setEnabled(typ == "resource_change")
+        # damage_type for damage or shield (filter) and for DoT periodic
+        enable_damage_type = typ in ("damage", "shield")
+
+        # Show/hide magnitude widgets per mode
+        mode = self.mag_mode_combo.currentText().lower()
+        self.mag_flat_spin.setVisible(mode == "flat")
+        self.dice_base_combo.setVisible(mode == "dice")
+        self.dice_mod_sign.setVisible(mode == "dice")
+        self.dice_mod_value.setVisible(mode == "dice")
+        self.mag_stat_name_combo.setVisible(mode == "stat")
+        self.mag_stat_coeff.setVisible(mode == "stat")
+        self.mag_stat_base.setVisible(mode == "stat")
+        # modifiers for buff/debuff only
+        show_mods = typ in ("buff", "debuff")
+        self.mod_table.setEnabled(show_mods); self.mod_table.setVisible(show_mods)
+        # status fields for status_apply/remove/cleanse
+        show_status = typ in ("status_apply", "status_remove", "cleanse")
+        self.status_edit.setEnabled(typ == "status_apply")
+        self.status_types_edit.setEnabled(typ in ("status_remove", "cleanse"))
+        # stacking applicable to shield and statuses
+        self.stacking_combo.setEnabled(typ in ("shield", "status_apply", "buff", "debuff"))
+
+        # Periodic controls only meaningful for status_apply
+        is_status_apply = (typ == "status_apply")
+        self.periodic_combo.setEnabled(is_status_apply)
+        self.periodic_amount_spin.setEnabled(is_status_apply)
+
+        # If status/shield and no duration set, default to 1 (unified units)
+        try:
+            if typ in ("shield", "status_apply") and (self.duration_spin.value() <= 0):
+                self.duration_spin.setValue(1)
+        except Exception:
+            pass
+
+        # magnitude mode toggling (disabled if periodic is active on status_apply)
+        periodic_mode = self.periodic_combo.currentText().lower() if hasattr(self, 'periodic_combo') else "none"
+        disable_mag_controls = is_status_apply and periodic_mode in ("damage over time", "healing over time", "regeneration")
+        mode = self.mag_mode_combo.currentText().lower()
+        self.mag_flat_spin.setEnabled((mode == "flat") and not disable_mag_controls)
+        self.dice_base_combo.setEnabled((mode == "dice") and not disable_mag_controls)
+        self.dice_mod_sign.setEnabled((mode == "dice") and not disable_mag_controls)
+        self.dice_mod_value.setEnabled((mode == "dice") and not disable_mag_controls)
+        self.mag_stat_name_combo.setEnabled((mode == "stat") and not disable_mag_controls)
+        self.mag_stat_coeff.setEnabled((mode == "stat") and not disable_mag_controls)
+        self.mag_stat_base.setEnabled((mode == "stat") and not disable_mag_controls)
+
+        # Enable damage type if appropriate
+        if is_status_apply and periodic_mode == "damage over time":
+            enable_damage_type = True
+        self.damage_type_combo.setEnabled(enable_damage_type)
+
+    def get_atom(self) -> Dict[str, Any]:
+        atom: Dict[str, Any] = {}
+        atom["type"] = self.type_combo.currentText()
+        atom["selector"] = self.selector_combo.currentText()
+        # magnitude (may be overridden by periodic status)
+        mode = self.mag_mode_combo.currentText().lower()
+        if mode == "flat":
+            atom["magnitude"] = {"flat": float(self.mag_flat_spin.value())}
+        elif mode == "dice":
+            base = self.dice_base_combo.currentText().strip()
+            sign = self.dice_mod_sign.currentText().strip()
+            mv = int(self.dice_mod_value.value())
+            dice_str = base if mv == 0 else f"{base}{sign}{mv}"
+            atom["magnitude"] = {"dice": dice_str}
+        else:
+            # stat-based
+            try:
+                coeff = float(self.mag_stat_coeff.text().strip() or 0)
+            except Exception:
+                coeff = 0.0
+            base = float(self.mag_stat_base.text().strip() or 0)
+            stat_id = self.mag_stat_name_combo.currentData() or self.mag_stat_name_combo.currentText()
+            atom["magnitude"] = {"stat": str(stat_id).strip().upper(), "coeff": coeff, "base": base}
+        # duration: unified units (engine translates: turns in combat, minutes outside)
+        val = int(self.duration_spin.value())
+        # Enforce minimum 1 for status_apply and shield to satisfy schema and gameplay semantics
+        if atom["type"] in ("status_apply", "shield") and val <= 0:
+            val = 1
+        if val > 0:
+            atom["duration"] = {"unit": "turns", "value": val}
+        # type-specific
+        if atom["type"] == "damage":
+            dt = self.damage_type_combo.currentText().strip()
+            if dt: atom["damage_type"] = dt
+        if atom["type"] == "resource_change":
+            rc = self.resource_combo.currentText().strip() or "HEALTH"
+            atom["resource"] = rc
+        if atom["type"] in ("buff", "debuff"):
+            mods = []
+            for r in range(self.mod_table.rowCount()):
+                stat = self.mod_table.item(r,0).text() if self.mod_table.item(r,0) else ""
+                val = self.mod_table.item(r,1).text() if self.mod_table.item(r,1) else "0"
+                pct = self.mod_table.item(r,2).text() if self.mod_table.item(r,2) else ""
+                try:
+                    v = float(val)
+                except Exception:
+                    v = 0.0
+                mods.append({"stat": stat.strip().upper(), "value": v, "is_percentage": (pct.strip().lower() in ("y","yes","true","1"))})
+            if mods:
+                atom["modifiers"] = mods
+        if atom["type"] == "status_apply":
+            s = self.status_edit.text().strip()
+            if s: atom["status"] = s
+            # Periodic behavior mapping into tags + magnitude
+            periodic = (self.periodic_combo.currentText() or "None").lower()
+            tags_set = set([t.strip() for t in self.tags_edit.text().split(',') if t.strip()])
+            if periodic == "damage over time":
+                tags_set.add("damage_over_time")
+                atom["magnitude"] = {"flat": float(self.periodic_amount_spin.value())}
+                dt = self.damage_type_combo.currentText().strip()
+                if dt: atom["damage_type"] = dt
+            elif periodic == "healing over time":
+                tags_set.add("healing_over_time")
+                atom["magnitude"] = {"flat": float(self.periodic_amount_spin.value())}
+            elif periodic == "regeneration":
+                tags_set.add("regeneration")
+                atom["magnitude"] = {"flat": float(self.periodic_amount_spin.value())}
+            # write back tags if any
+            if tags_set:
+                atom["tags"] = sorted(tags_set)
+        if atom["type"] in ("status_remove", "cleanse"):
+            sts = [t.strip() for t in self.status_types_edit.text().split(',') if t.strip()]
+            if sts:
+                atom["status_types"] = sts
+        if atom["type"] == "shield":
+            # use damage_type as filter if provided
+            dt = self.damage_type_combo.currentText().strip()
+            if dt: atom["damage_type"] = dt
+        # meta
+        sr = self.stacking_combo.currentText().strip()
+        if sr and sr != "none": atom["stacking_rule"] = sr
+        # if tags already set by periodic, merge with free-form tags
+        if "tags" not in atom:
+            tags = [t.strip() for t in self.tags_edit.text().split(',') if t.strip()]
+            if tags: atom["tags"] = tags
+        else:
+            extra_tags = [t.strip() for t in self.tags_edit.text().split(',') if t.strip()]
+            if extra_tags:
+                merged = sorted(set(atom["tags"]) | set(extra_tags))
+                atom["tags"] = merged
+        sid = self.source_id_edit.text().strip()
+        if sid: atom["source_id"] = sid
+        notes = self.notes_edit.text().strip()
+        if notes: atom["notes"] = notes
+        return atom
+
+
+    def _init_damage_type_list(self) -> None:
+        """Load canonical damage types from config and populate combos. Warn if missing/discrepant."""
+        try:
+            root = get_project_root()
+            path = os.path.join(root, 'config', 'gameplay', 'canonical_lists.json')
+            data = load_json(path) if os.path.exists(path) else None
+            types = []
+            if isinstance(data, dict) and isinstance(data.get('damage_types'), list):
+                types = [str(x).strip() for x in data['damage_types'] if isinstance(x, str)]
+            if types:
+                # Reset with canonical
+                current_dt = self.damage_type_combo.currentText().strip()
+                self.damage_type_combo.clear()
+                self.damage_type_combo.addItem("")
+                self.damage_type_combo.addItems(types)
+                if current_dt:
+                    self.damage_type_combo.setCurrentText(current_dt)
+        except Exception as e:
+            # Non-fatal; keep defaults
+            logger = logging.getLogger("world_configurator.ui.magic_systems_editor")
+            logger.warning(f"Failed to load canonical damage types: {e}")
+
+    def _init_stat_list(self, preselect: str = "") -> None:
+        """Load canonical stat ids from config/character/stat_registry.json and populate the stat combo."""
+        try:
+            root = get_project_root()
+            path = os.path.join(root, 'config', 'character', 'stat_registry.json')
+            data = load_json(path) if os.path.exists(path) else None
+            options = []  # (label, canonical_upper)
+            if isinstance(data, dict) and isinstance(data.get('stats'), list):
+                for entry in data['stats']:
+                    if not isinstance(entry, dict):
+                        continue
+                    if not bool(entry.get('supported', False)):
+                        continue
+                    key = str(entry.get('key', '')).strip()
+                    label = str(entry.get('label', key.title())).strip()
+                    if not key:
+                        continue
+                    canon = key.replace(' ', '_').upper()
+                    options.append((label, canon))
+            if options:
+                current = self.mag_stat_name_combo.currentData()
+                self.mag_stat_name_combo.clear()
+                for label, canon in options:
+                    self.mag_stat_name_combo.addItem(label, userData=canon)
+                pre = (preselect or '').strip()
+                if pre:
+                    idx = -1
+                    for i in range(self.mag_stat_name_combo.count()):
+                        if str(self.mag_stat_name_combo.itemData(i)).upper() == pre.upper():
+                            idx = i; break
+                    if idx >= 0:
+                        self.mag_stat_name_combo.setCurrentIndex(idx)
+        except Exception as e:
+            logger = logging.getLogger("world_configurator.ui.magic_systems_editor")
+            logger.warning(f"Failed to load stat registry: {e}")
+
 class SpellDialog(QDialog):
     """Dialog for editing a spell."""
 
@@ -259,9 +680,9 @@ class SpellDialog(QDialog):
         self.tags_edit.setPlaceholderText("tag1, tag2, ...")
         basic_layout.addRow("Tags:", self.tags_edit)
 
-        # Effects tab
+        # Effects tab (legacy effects; kept for backward compatibility)
         effects_tab = QWidget()
-        self.tabs.addTab(effects_tab, "Effects")
+        self.tabs.addTab(effects_tab, "Effects (legacy)")
 
         effects_layout = QVBoxLayout(effects_tab)
 
@@ -310,6 +731,69 @@ class SpellDialog(QDialog):
         btn_layout.addWidget(self.save_btn)
 
         layout.addLayout(btn_layout)
+
+        # --- Effect Atoms Tab (NEW) ---
+        atoms_tab = QWidget()
+        self.tabs.addTab(atoms_tab, "Effect Atoms")
+        atoms_layout = QVBoxLayout(atoms_tab)
+
+        atoms_label = QLabel("Effect Atoms:")
+        atoms_label.setStyleSheet("font-weight: bold;")
+        atoms_layout.addWidget(atoms_label)
+
+        self.atoms_list = QListWidget(); self.atoms_list.setMinimumHeight(200)
+        self.atoms_list.itemDoubleClicked.connect(self._edit_atom)
+        atoms_layout.addWidget(self.atoms_list)
+
+        # load existing atoms if present
+        try:
+            for a in getattr(self.spell, 'effect_atoms', []) or []:
+                self._add_atom_to_list(a)
+        except Exception:
+            pass
+
+        atom_btns = QHBoxLayout()
+        self.add_atom_btn = QPushButton("Add Atom"); self.add_atom_btn.clicked.connect(self._add_atom)
+        self.edit_atom_btn = QPushButton("Edit Atom"); self.edit_atom_btn.clicked.connect(lambda: self._edit_atom(self.atoms_list.currentItem()))
+        self.remove_atom_btn = QPushButton("Remove Atom"); self.remove_atom_btn.clicked.connect(self._remove_atom)
+        atom_btns.addWidget(self.add_atom_btn); atom_btns.addWidget(self.edit_atom_btn); atom_btns.addWidget(self.remove_atom_btn)
+        atoms_layout.addLayout(atom_btns)
+
+    def _add_atom_to_list(self, atom: Dict[str, Any]):
+        text = f"{atom.get('type','?')} -> {atom.get('selector','?')}"
+        # Append key details
+        if atom.get('type') == 'damage':
+            text += f" [{atom.get('damage_type','')}]"
+        if atom.get('type') == 'resource_change':
+            text += f" [{atom.get('resource','')}]"
+        item = QListWidgetItem(text)
+        item.setData(Qt.UserRole, atom)
+        self.atoms_list.addItem(item)
+
+    def _add_atom(self):
+        dlg = AtomDialog(self)
+        if dlg.exec() == QDialog.Accepted:
+            atom = dlg.get_atom()
+            self._add_atom_to_list(atom)
+
+    def _edit_atom(self, item: Optional[QListWidgetItem]):
+        if not item:
+            return
+        atom = item.data(Qt.UserRole)
+        dlg = AtomDialog(self, atom)
+        if dlg.exec() == QDialog.Accepted:
+            updated = dlg.get_atom()
+            row = self.atoms_list.row(item)
+            self.atoms_list.takeItem(row)
+            self._add_atom_to_list(updated)
+
+    def _remove_atom(self):
+        item = self.atoms_list.currentItem()
+        if not item:
+            return
+        res = QMessageBox.question(self, "Confirm Deletion", "Delete selected effect atom?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if res == QMessageBox.Yes:
+            self.atoms_list.takeItem(self.atoms_list.row(item))
 
     def _add_effect_to_list(self, effect: SpellEffect):
         """
@@ -420,6 +904,16 @@ class SpellDialog(QDialog):
         for i in range(self.effects_list.count()):
             effect = self.effects_list.item(i).data(Qt.UserRole)
             self.spell.effects.append(effect)
+
+        # Update effect atoms
+        try:
+            self.spell.effect_atoms = []
+            for i in range(self.atoms_list.count()):
+                atom = self.atoms_list.item(i).data(Qt.UserRole)
+                if isinstance(atom, dict):
+                    self.spell.effect_atoms.append(atom)
+        except Exception:
+            pass
 
         return self.spell
 
@@ -791,6 +1285,42 @@ class MagicSystemDialog(QDialog):
         layout.addLayout(btn_layout)
 
     # --- Spell Methods (NEW) ---
+
+    def _add_atom_to_list(self, atom: Dict[str, Any]):
+        text = f"{atom.get('type','?')} -> {atom.get('selector','?')}"
+        # Append key details
+        if atom.get('type') == 'damage':
+            text += f" [{atom.get('damage_type','')}]"
+        if atom.get('type') == 'resource_change':
+            text += f" [{atom.get('resource','')}]"
+        item = QListWidgetItem(text)
+        item.setData(Qt.UserRole, atom)
+        self.atoms_list.addItem(item)
+
+    def _add_atom(self):
+        dlg = AtomDialog(self)
+        if dlg.exec() == QDialog.Accepted:
+            atom = dlg.get_atom()
+            self._add_atom_to_list(atom)
+
+    def _edit_atom(self, item: Optional[QListWidgetItem]):
+        if not item:
+            return
+        atom = item.data(Qt.UserRole)
+        dlg = AtomDialog(self, atom)
+        if dlg.exec() == QDialog.Accepted:
+            updated = dlg.get_atom()
+            row = self.atoms_list.row(item)
+            self.atoms_list.takeItem(row)
+            self._add_atom_to_list(updated)
+
+    def _remove_atom(self):
+        item = self.atoms_list.currentItem()
+        if not item:
+            return
+        res = QMessageBox.question(self, "Confirm Deletion", "Delete selected effect atom?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if res == QMessageBox.Yes:
+            self.atoms_list.takeItem(self.atoms_list.row(item))
 
     def _add_spell_to_list(self, spell: Spell):
         """Add a spell to the spells list widget."""
