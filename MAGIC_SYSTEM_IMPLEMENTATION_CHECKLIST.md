@@ -140,9 +140,15 @@ Phase 4 — World Configurator Validation & Data Entry (no runtime behavior chan
   - [x] Export/import: ensure magic_systems.json round-trips combat_role
   - [ ] Validation: highlight spells with missing/unknown combat_role; offer quick-fix default
 - [ ] Hook stat_registry + canonical_lists into world_configurator validators
-- [ ] Hook stat_registry + canonical_lists into world_configurator validators
   - [ ] SpecificItemEditor: validate stats against registry; highlight unsupported; tooltips from registry labels
-  - [ ] magic_systems_editor.py: validate spells’ effect atoms (types, damage/status, durations)
+  - [x] MagicSystemsEditor: pre-validate effect_atoms (JSON Schema + canonical damage types) on assistant Modify/Create; block invalid patches
+- [x] Effect Atoms UI improvements in MagicSystemsEditor
+  - [x] Dice presets dropdown with sign/modifier; duration unified (0 = instant); tooltips for all fields
+  - [x] Stat picker from stat_registry for magnitude/stat mode and buff/debuff modifiers; add/remove rows with proper widgets
+- [x] Assistant integration for Magic Systems tab
+  - [x] Implement provider methods (context, patch, create, references, examples); headless edits (no modal)
+  - [x] Read-only guard: race/class affinities excluded from allowed_paths
+  - [x] Search/focus helpers for spells in assistant (search_for_entries, focus_entry)
 - [ ] Add gentle, non-blocking UI warnings with actionable messages
 - [ ] Add “Validate All” command to produce a multi-file summary (no automatic writes)
 - [ ] Origin editor: Starting spells configuration

@@ -33,9 +33,10 @@ This phase updates the editing tools to use and enforce the new data contracts c
 *   **Checkpoint 2.1: Integrate Stat Registry into Editors.**
     *   **File:** `world_configurator/ui/editors/SpecificItemEditor.py` (for items) and `world_configurator/ui/editors/magic_systems_editor.py` (for spells).
     *   **Action:**
-        *   Modify the `ItemStatDialog` and `SpellEffectDialog` respectively.
+        *   Modify the `ItemStatDialog` and Spell editing UI.
         *   Replace the free-text input for stat names (`stat_affected`, `stats.name`) with a `QComboBox`.
         *   This `QComboBox` should be populated from the `stat_registry.json` file, showing the user-friendly `label` but storing the canonical `key`.
+    *   **Status:** DONE — Items editor uses a stat picker; Magic Systems Effect Atom dialog uses a stat picker for magnitude/stat mode and buff/debuff modifiers.
 
 *   **Checkpoint 2.2: Update Item Editor for Type-Specific Schemas.**
     *   **File:** `world_configurator/ui/editors/SpecificItemEditor.py`.
@@ -46,9 +47,10 @@ This phase updates the editing tools to use and enforce the new data contracts c
 *   **Checkpoint 2.3: Overhaul Magic Systems Editor.**
     *   **File:** `world_configurator/ui/editors/magic_systems_editor.py`.
     *   **Action:**
-        *   In `MagicSystemDialog`, add new tabs or sections for "Casting Model," "Creativity Policy," and "Chaos/Backlash."
-        *   In `SpellEffectDialog`, update the `effect_type` dropdown to use the canonical lists for `damage_type` and `status_effect` from `canonical_lists.json`.
-        *   Implement validation that warns the user if a `stat_modification` effect uses a stat not in the registry.
+        *   Effect Atom dialog enhancements: dice presets dropdown (NdS ± modifier), unified duration spin (0 = instant), comprehensive tooltips, stacking rules, periodic tags.
+        *   Use canonical damage types from `canonical_lists.json` and stat IDs from `stat_registry.json` where applicable.
+        *   Assistant integration: headless Modify/Create with pre-apply schema validation; race/class affinities read-only.
+    *   **Status:** PARTIAL — UI/assistant improvements complete; Casting Model/Creativity/Backlash sections are pending.
 
 ---
 
