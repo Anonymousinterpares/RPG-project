@@ -1,26 +1,224 @@
 {
   "by_id": {
-    "ashen_camp": { "major": "camp", "venue": null, "biome": "forest", "region": "Ashen Fields" },
-    "harmonia": { "major": "city", "venue": null, "biome": null, "region": "Central Nexus" },
-    "verdant_embassy": { "major": "camp", "venue": null, "biome": null, "region": "Western Nexus" },
-    "crystalline_enclave": { "major": "camp", "venue": null, "biome": null, "region": "Eastern Nexus" },
-    "echo_woods": { "major": "forest", "venue": null, "biome": "forest", "region": "Northwestern Nexus" },
-    "tempest_harbor": { "major": "port", "venue": null, "biome": "seaside", "region": "Southern Nexus" },
-    "shifting_library": { "major": null, "venue": "library", "biome": null, "region": "Planar Overlap" },
-    "planar_bleed_zone": { "major": "ruins", "venue": null, "biome": null, "region": "Planar Border" },
-    "ghost_market": { "major": null, "venue": "market", "biome": null, "region": "Variable" },
-    "test_hub": { "major": "camp", "venue": null, "biome": null, "region": "Dev" }
+"ashen_camp": {
+      "major": "camp",
+      "venue": "fireplace",
+      "biome": "forest",
+      "region": "Ashen Fields",
+      "weather": { "type": "clear" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "tense"
+    },
+    "harmonia": {
+      "major": "city",
+      "venue": null,
+      "biome": null,
+      "region": "Central Nexus",
+      "weather": { "type": "clear" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "busy",
+      "danger_level": "calm"
+    },
+"verdant_embassy": {
+      "major": "camp",
+      "venue": "camp",
+      "biome": null,
+      "region": "Western Nexus",
+      "weather": { "type": "clear" },
+      "interior": true,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "calm"
+    },"crystalline_enclave": {
+      "major": "camp",
+      "venue": "camp",
+      "biome": null,
+      "region": "Eastern Nexus",
+      "weather": { "type": "clear" },
+      "interior": true,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "calm"
+    },
+    "echo_woods": {
+      "major": "forest",
+      "venue": null,
+      "biome": "forest",
+      "region": "Northwestern Nexus",
+      "weather": { "type": "fog" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "empty",
+      "danger_level": "tense"
+    },
+    "tempest_harbor": {
+      "major": "port",
+      "venue": null,
+      "biome": "seaside",
+      "region": "Southern Nexus",
+      "weather": { "type": "windy" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "busy",
+      "danger_level": "tense"
+    },
+    "shifting_library": {
+      "major": null,
+      "venue": "library",
+      "biome": null,
+      "region": "Planar Overlap",
+      "weather": { "type": "overcast" },
+      "interior": true,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "calm"
+    },
+    "planar_bleed_zone": {
+      "major": "ruins",
+      "venue": null,
+      "biome": null,
+      "region": "Planar Border",
+      "weather": { "type": "storm" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "deadly"
+    },
+    "ghost_market": {
+      "major": null,
+      "venue": "market",
+      "biome": null,
+      "region": "Variable",
+      "weather": { "type": "fog" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "busy",
+      "danger_level": "tense"
+    },
+"test_hub": {
+      "major": "camp",
+      "venue": "camp",
+      "biome": null,
+      "region": "Dev",
+      "weather": { "type": "clear" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "empty",
+      "danger_level": "calm"
+    }
   },
   "by_name": {
-    "Ashen Camp": { "major": "camp", "venue": null, "biome": "forest", "region": "Ashen Fields" },
-    "Harmonia": { "major": "city", "venue": null, "biome": null, "region": "Central Nexus" },
-    "Verdant Embassy": { "major": "camp", "venue": null, "biome": null, "region": "Western Nexus" },
-    "Crystalline Enclave": { "major": "camp", "venue": null, "biome": null, "region": "Eastern Nexus" },
-    "Echo Woods": { "major": "forest", "venue": null, "biome": "forest", "region": "Northwestern Nexus" },
-    "Tempest Harbor": { "major": "port", "venue": null, "biome": "seaside", "region": "Southern Nexus" },
-    "The Shifting Library": { "major": null, "venue": "library", "biome": null, "region": "Planar Overlap" },
-    "The Convergence": { "major": "ruins", "venue": null, "biome": null, "region": "Planar Border" },
-    "The Ghost Market": { "major": null, "venue": "market", "biome": null, "region": "Variable" },
-    "Quest Test Hub": { "major": "camp", "venue": null, "biome": null, "region": "Dev" }
+"Ashen Camp": {
+      "major": "camp",
+      "venue": "camp",
+      "biome": "forest",
+      "region": "Ashen Fields",
+      "weather": { "type": "clear" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "tense"
+    },
+    "Harmonia": {
+      "major": "city",
+      "venue": null,
+      "biome": null,
+      "region": "Central Nexus",
+      "weather": { "type": "clear" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "busy",
+      "danger_level": "calm"
+    },
+"Verdant Embassy": {
+      "major": "camp",
+      "venue": "camp",
+      "biome": null,
+      "region": "Western Nexus",
+      "weather": { "type": "clear" },
+      "interior": true,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "calm"
+    },"Crystalline Enclave": {
+      "major": "camp",
+      "venue": "camp",
+      "biome": null,
+      "region": "Eastern Nexus",
+      "weather": { "type": "clear" },
+      "interior": true,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "calm"
+    },
+    "Echo Woods": {
+      "major": "forest",
+      "venue": null,
+      "biome": "forest",
+      "region": "Northwestern Nexus",
+      "weather": { "type": "fog" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "empty",
+      "danger_level": "tense"
+    },
+    "Tempest Harbor": {
+      "major": "port",
+      "venue": null,
+      "biome": "seaside",
+      "region": "Southern Nexus",
+      "weather": { "type": "windy" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "busy",
+      "danger_level": "tense"
+    },
+    "The Shifting Library": {
+      "major": null,
+      "venue": "library",
+      "biome": null,
+      "region": "Planar Overlap",
+      "weather": { "type": "overcast" },
+      "interior": true,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "calm"
+    },
+    "The Convergence": {
+      "major": "ruins",
+      "venue": null,
+      "biome": null,
+      "region": "Planar Border",
+      "weather": { "type": "storm" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "sparse",
+      "danger_level": "deadly"
+    },
+    "The Ghost Market": {
+      "major": null,
+      "venue": "market",
+      "biome": null,
+      "region": "Variable",
+      "weather": { "type": "fog" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "busy",
+      "danger_level": "tense"
+    },
+"Quest Test Hub": {
+      "major": "camp",
+      "venue": "camp",
+      "biome": null,
+      "region": "Dev",
+      "weather": { "type": "clear" },
+      "interior": false,
+      "underground": false,
+      "crowd_level": "empty",
+      "danger_level": "calm"
+    }
   }
 }

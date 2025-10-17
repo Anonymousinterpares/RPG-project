@@ -298,7 +298,7 @@ Milestone A (Core context plumbing):
 [x] Web & Python dev displays (read‑only or dev panels)
 
 Milestone B (Extended fields & polish):
-[ ] Add biome, booleans, crowd_level, danger_level usage
+[x] Add biome, booleans, crowd_level, danger_level usage (engine enrichment + mapping; non-overwriting; UI shows values; API/WS emit)
 [ ] Dev tools to simulate context changes
 [ ] Tune bias weights; add caps and logs
 

@@ -16,7 +16,7 @@ from core.base.config import get_config
 _DEFAULT_ENUMS: Dict[str, Any] = {
     "location": {
         "major": ["city", "forest", "camp", "village", "castle", "dungeon", "seaside", "desert", "mountain", "swamp", "ruins", "port", "temple"],
-        "venue": ["tavern", "market", "blacksmith", "inn", "chapel", "library", "manor", "arena", "fireplace", "bridge", "tower", "cave", "farm"],
+        "venue": ["tavern", "market", "blacksmith", "inn", "chapel", "library", "manor", "arena", "camp", "fireplace", "bridge", "tower", "cave", "farm"],
     },
     "weather": {"type": ["clear", "overcast", "rain", "storm", "snow", "blizzard", "fog", "windy", "sandstorm"]},
     "time_of_day": ["deep_night", "pre_dawn", "dawn", "morning", "noon", "afternoon", "evening", "sunset", "night"],
@@ -110,7 +110,12 @@ def _derive_biome_from_type(typ: Optional[str]) -> Optional[str]:
 
 
 def _build_automap_from_locations() -> Dict[str, Any]:
-    """Build a mapping from the locations catalog, used to auto-augment context mapping at runtime."""
+    """Build a mapping from the locations catalog, used to auto-augment context mapping at runtime.
+    Non-overwriting fields supported (if present in catalog):
+    - major, venue, biome, region
+    - weather.type, interior, underground, crowd_level, danger_level
+    Note: time_of_day intentionally NOT provided by automap; it's sourced from origins/GameContext.
+    """
     automap = { 'by_id': {}, 'by_name': {} }
     cat = _load_locations_catalog() or {}
     locs = (cat.get('locations') or {}) if isinstance(cat, dict) else {}
@@ -125,7 +130,42 @@ def _build_automap_from_locations() -> Dict[str, Any]:
             if (typ or '').strip().lower() in ('library','market'):
                 venue = (typ or '').strip().lower()
             biome = _derive_biome_from_type(typ)
-            payload = { 'major': major, 'venue': venue, 'biome': biome, 'region': region }
+
+            # Optional extended fields (pass-through if present in catalog)
+            interior = entry.get('interior') if isinstance(entry, dict) else None
+            underground = entry.get('underground') if isinstance(entry, dict) else None
+            crowd_level = entry.get('crowd_level') if isinstance(entry, dict) else None
+            danger_level = entry.get('danger_level') if isinstance(entry, dict) else None
+            # Weather may be nested or flat in future catalogs
+            weather_type = None
+            try:
+                if isinstance(entry.get('weather'), dict):
+                    weather_type = entry.get('weather', {}).get('type')
+                if weather_type is None and entry.get('weather_type') is not None:
+                    weather_type = entry.get('weather_type')
+            except Exception:
+                weather_type = None
+
+            payload = {
+                'major': major,
+                'venue': venue,
+                'biome': biome,
+                'region': region,
+            }
+            # Only include extended keys if present (non-None)
+            if weather_type is not None:
+                payload['weather'] = { 'type': str(weather_type).strip().lower() } if str(weather_type).strip() else None
+            if interior is not None:
+                payload['interior'] = bool(interior)
+            if underground is not None:
+                payload['underground'] = bool(underground)
+            if crowd_level is not None:
+                s = str(crowd_level).strip().lower()
+                payload['crowd_level'] = s if s else None
+            if danger_level is not None:
+                s = str(danger_level).strip().lower()
+                payload['danger_level'] = s if s else None
+
             # Drop keys with None to keep output compact
             payload = {k:v for k,v in payload.items() if v is not None}
             if not payload:
@@ -303,8 +343,9 @@ def canonicalize_context(input_data: Dict[str, Any]) -> Tuple[GameContext, Dict[
 
 
 def enrich_context_from_location(ctx: GameContext, location_name: Optional[str] = None, location_id: Optional[str] = None) -> GameContext:
-    """Enrich GameContext with mapping-derived fields (major/venue/biome/region) if available.
-    Does not overwrite already present values.
+    """Enrich GameContext with mapping-derived fields if available.
+    Non-overwriting fill for: major, venue, biome, region, weather.type, interior, underground, crowd_level, danger_level.
+    Note: time_of_day remains sourced from origins/GameContext, not the map.
     """
     logger = get_logger("GAME")
     try:
@@ -326,8 +367,42 @@ def enrich_context_from_location(ctx: GameContext, location_name: Optional[str] 
             ctx.biome = str(entry['biome']).strip().lower()
         if entry.get('region') and not ctx.region:
             ctx.region = str(entry['region']).strip()
-        logger.info("LOCATION_MGMT: enriched from mapping for id=%s name=%s => major=%s venue=%s biome=%s region=%s",
-                    location_id, location_name, ctx.location_major, ctx.location_venue, ctx.biome, ctx.region)
+        # Extended fields
+        try:
+            # weather.type (support nested or flat key)
+            weather_obj = entry.get('weather') if isinstance(entry, dict) else None
+            weather_type = None
+            if isinstance(weather_obj, dict):
+                weather_type = weather_obj.get('type')
+            if weather_type is None:
+                weather_type = entry.get('weather_type') if isinstance(entry, dict) else None
+            if weather_type and not ctx.weather_type:
+                ctx.weather_type = str(weather_type).strip().lower()
+            # interior / underground
+            if (entry.get('interior') is not None) and (ctx.interior is None):
+                try:
+                    ctx.interior = bool(entry.get('interior'))
+                except Exception:
+                    pass
+            if (entry.get('underground') is not None) and (ctx.underground is None):
+                try:
+                    ctx.underground = bool(entry.get('underground'))
+                except Exception:
+                    pass
+            # crowd_level / danger_level
+            cl = entry.get('crowd_level') if isinstance(entry, dict) else None
+            if cl and not ctx.crowd_level:
+                ctx.crowd_level = str(cl).strip().lower()
+            dl = entry.get('danger_level') if isinstance(entry, dict) else None
+            if dl and not ctx.danger_level:
+                ctx.danger_level = str(dl).strip().lower()
+        except Exception:
+            pass
+        logger.info(
+            "LOCATION_MGMT: enriched mapping id=%s name=%s => major=%s venue=%s biome=%s region=%s weather=%s interior=%s underground=%s crowd=%s danger=%s",
+            location_id, location_name, ctx.location_major, ctx.location_venue, ctx.biome, ctx.region,
+            ctx.weather_type, ctx.interior, ctx.underground, ctx.crowd_level, ctx.danger_level
+        )
     except Exception as e:
         logger.warning("LOCATION_MGMT: enrich_context_from_location failed: %s", e)
     return ctx

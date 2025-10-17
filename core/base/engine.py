@@ -1260,6 +1260,7 @@ class GameEngine(QObject):
         """Set or update the engine's GameContext with canonicalization and notify listeners.
         Accepts a nested dict (ctx) and/or keyword fields; merges and canonicalizes.
         Also forwards location_major (and other hints) to MusicDirector for selection bias.
+        Missing fields in the incoming payload DO NOT overwrite previous values (unchanged fallback).
         """
         try:
             incoming: Dict[str, Any] = {}
@@ -1269,25 +1270,64 @@ class GameEngine(QObject):
                 incoming.update(kwargs)
             logger = get_logger("GAME")
             logger.info("LOCATION_MGMT: set_game_context incoming=%s", str(incoming))
-            gc, _warn = canonicalize_context(incoming)
-            # Enrich from mapping by location name/id if available
+
+            # Canonicalize only the provided fields
+            new_gc, _warn = canonicalize_context(incoming)
+
+            # Start from previous context and only update fields that were explicitly provided
+            prev_gc: GameContext = getattr(self, '_game_context', None) or GameContext()
+            merged_gc: GameContext = GameContext(
+                location_name=prev_gc.location_name,
+                location_major=prev_gc.location_major,
+                location_venue=prev_gc.location_venue,
+                weather_type=prev_gc.weather_type,
+                time_of_day=prev_gc.time_of_day,
+                biome=prev_gc.biome,
+                region=prev_gc.region,
+                interior=prev_gc.interior,
+                underground=prev_gc.underground,
+                crowd_level=prev_gc.crowd_level,
+                danger_level=prev_gc.danger_level,
+            )
+
+            loc_in = (incoming.get('location') or {}) if isinstance(incoming.get('location'), dict) else {}
+            # Location name/major/venue
+            if ('location_name' in incoming) or ('name' in loc_in):
+                merged_gc.location_name = new_gc.location_name
+            if ('location_major' in incoming) or ('major' in loc_in):
+                merged_gc.location_major = new_gc.location_major
+            if ('location_venue' in incoming) or ('venue' in loc_in):
+                merged_gc.location_venue = new_gc.location_venue
+
+            # Weather.type
+            weather_in = incoming.get('weather') if isinstance(incoming.get('weather'), dict) else None
+            if ('weather_type' in incoming) or (isinstance(weather_in, dict) and ('type' in weather_in)):
+                merged_gc.weather_type = new_gc.weather_type
+
+            # Simple top-level fields: apply only if explicitly present
+            for key in ('time_of_day','biome','region','interior','underground','crowd_level','danger_level'):
+                if key in incoming:
+                    setattr(merged_gc, key if key not in ('time_of_day',) else 'time_of_day', getattr(new_gc, key))
+
+            # Enrich from mapping by location name/id if available (non-overwriting)
             try:
                 # Extract optional location id from incoming
                 loc_id = None
                 try:
-                    loc_id = incoming.get('location_id') or (incoming.get('location', {}) or {}).get('id')
+                    loc_id = incoming.get('location_id') or (loc_in or {}).get('id')
                 except Exception:
                     loc_id = None
-                loc_name = gc.to_dict().get('location', {}).get('name')
-                gc = enrich_context_from_location(gc, location_name=loc_name, location_id=loc_id)
+                loc_name = merged_gc.to_dict().get('location', {}).get('name')
+                merged_gc = enrich_context_from_location(merged_gc, location_name=loc_name, location_id=loc_id)
             except Exception:
                 pass
-            self._game_context = gc
-            logger.info("LOCATION_MGMT: canonicalized=%s", str(gc.to_dict()))
+
+            self._game_context = merged_gc
+            logger.info("LOCATION_MGMT: canonicalized=%s", str(merged_gc.to_dict()))
             # Sync world current_location with location.name for consistency
             try:
                 if self._state_manager and self._state_manager.current_state:
-                    name = gc.to_dict().get("location", {}).get("name") or ""
+                    name = merged_gc.to_dict().get("location", {}).get("name") or ""
                     self._state_manager.current_state.world.current_location = name
                     self._state_manager.current_state.player.current_location = name
             except Exception:
@@ -1296,14 +1336,14 @@ class GameEngine(QObject):
             try:
                 md = getattr(self, 'get_music_director', lambda: None)()
                 if md and hasattr(md, 'set_context'):
-                    d = gc.to_dict()
+                    d = merged_gc.to_dict()
                     loc = d.get("location", {}) or {}
                     md.set_context(location_major=loc.get("major"), location_venue=loc.get("venue"), weather_type=d.get("weather", {}).get("type"), time_of_day=d.get("time_of_day"), biome=d.get("biome"))
             except Exception:
                 pass
             # Emit signal for web/server or GUI dev panels
             try:
-                payload = gc.to_dict()
+                payload = merged_gc.to_dict()
                 # include a timestamp for clients that want ordering
                 import time as _t
                 payload["ts"] = int(_t.time())

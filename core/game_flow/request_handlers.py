@@ -156,6 +156,42 @@ def _process_state_change_request(engine: 'GameEngine', game_state: 'GameState',
     value = request.get("value")
     duration_str = request.get("duration")
 
+    # --- GameContext-direct attributes (apply immediately in any mode) ---
+    try:
+        attr_key = (str(attribute or "").strip().lower())
+        if attr_key in ("weather","time_of_day","biome","region","interior","underground","crowd_level","danger_level","venue","location_venue","major","location_major"):
+            payload: Dict[str, Any] = {}
+            if attr_key == "weather":
+                payload = { 'weather': { 'type': (str(value).strip().lower() if value is not None else None) } }
+            elif attr_key == "time_of_day":
+                payload = { 'time_of_day': (str(value).strip().lower() if value is not None else None) }
+            elif attr_key == "biome":
+                payload = { 'biome': (str(value).strip().lower() if value is not None else None) }
+            elif attr_key == "region":
+                payload = { 'region': (str(value).strip() if value is not None else None) }
+            elif attr_key in ("interior","underground"):
+                def _to_bool(v: Any) -> bool:
+                    if isinstance(v, bool): return v
+                    s = str(v).strip().lower()
+                    return s in ("1","true","yes","y","on")
+                payload = { attr_key: _to_bool(value) }
+            elif attr_key in ("crowd_level","danger_level"):
+                payload = { attr_key: (str(value).strip().lower() if value is not None else None) }
+            elif attr_key in ("venue","location_venue"):
+                payload = { 'location': { 'venue': (str(value).strip().lower() if value is not None else None) } }
+            elif attr_key in ("major","location_major"):
+                payload = { 'location': { 'major': (str(value).strip().lower() if value is not None else None) } }
+            if payload:
+                try:
+                    engine.set_game_context(payload)
+                except Exception:
+                    pass
+                # Silent success for state change path
+                return ""
+    except Exception:
+        # Fall through to other handlers if anything goes wrong
+        pass
+
     # Narrative-mode support: if no CombatManager, apply basic state changes to the player via StatsManager
     if not getattr(game_state, 'combat_manager', None):
         try:
