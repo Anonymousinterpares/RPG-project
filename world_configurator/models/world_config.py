@@ -12,6 +12,7 @@ from models.names_manager import NamesManager
 from models.location_data import LocationManager
 from models.location_defaults_manager import LocationDefaultsManager
 from models.variants_manager import VariantsManager
+from models.context_location_map import ContextLocationMapManager
 from models.origin_data import OriginManager, QuestManager
 from utils.file_manager import get_config_dir, get_project_root, get_world_config_dir, load_json, save_json
 from utils.data_validator import DataValidator, ValidationError
@@ -57,6 +58,9 @@ class WorldConfigManager:
         
         # Location defaults (world/locations/defaults.json)
         self.location_defaults_manager = LocationDefaultsManager()
+        
+        # Context Location Map (audio/context_location_map.json)
+        self.context_map_manager = ContextLocationMapManager()
         
         # NPC Variants manager (npc/variants.json)
         self.variants_manager = VariantsManager()
@@ -167,7 +171,7 @@ class WorldConfigManager:
         os.makedirs(target_dir, exist_ok=True)
         all_saved = True
 
-        # Define expected filenames for each component relative to the target_dir
+        # Define expected filenames for each component relative to the project_dir
         project_component_files = {
             "cultures": "cultures.json",
             "races": "races.json",
@@ -266,6 +270,23 @@ class WorldConfigManager:
             if not should_export:
                 continue
 
+            if component_key == "context_map":
+                # Before save, rebuild by_name using current locations
+                try:
+                    id_to_name = {lid: loc.name for lid, loc in self.location_manager.locations.items()}
+                    self.context_map_manager.rebuild_by_name(id_to_name)
+                except Exception:
+                    pass
+                # Save to game's config dir
+                target_ok = self.context_map_manager.save_to_file(os.path.join(get_config_dir(), "audio", "context_location_map.json"))
+                if target_ok:
+                    logger.info("Successfully exported context_location_map.json")
+                    exported_count += 1
+                else:
+                    all_success = False
+                    errors.append("Failed to export context_map.")
+                continue
+
             # Handle item categories separately
             if component_key.startswith("items_"):
                 item_file_key_to_export = component_key # e.g., "items_origin"
@@ -344,7 +365,8 @@ class WorldConfigManager:
             "magic_systems": ("world/base", "magic_systems.json"),
             "names": ("npc", "names.json"),
             "location_defaults": ("world/locations", "defaults.json"),
-            "variants": ("npc", "variants.json")
+            "variants": ("npc", "variants.json"),
+            "context_map": ("audio", "context_location_map.json")
             # Item files are handled by ItemDataManager below
         }
 
@@ -352,6 +374,19 @@ class WorldConfigManager:
             # Construct full path: game_config_dir / subdir / filename
             file_path = os.path.join(game_config_dir, subdir, filename) if subdir else os.path.join(game_config_dir, filename)
             
+            if component == "context_map":
+                # Load context_location_map.json via its dedicated manager
+                if os.path.exists(file_path):
+                    if self.context_map_manager.load_from_file(file_path):
+                        loaded_components.append(component)
+                    else:
+                        logger.warning(f"Failed to sync component '{component}' from {file_path}")
+                        all_loaded = False
+                else:
+                    logger.warning(f"Game config file not found for component '{component}', resetting: {file_path}")
+                    self.context_map_manager.__init__()
+                continue
+
             manager = self.managers.get(component)
             if manager:
                 if os.path.exists(file_path):

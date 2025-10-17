@@ -4,19 +4,20 @@ Location editor component for the World Configurator Tool.
 
 import logging
 import os
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Any
 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
-    QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox, QDoubleSpinBox
+    QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox, QDoubleSpinBox, QCheckBox
 )
 
 from models.base_models import Location, LocationConnection, LocationFeature
 from models.location_data import LocationManager
 from models.world_data import CultureManager
 from models.location_defaults_manager import LocationDefaultsManager
+from models.context_location_map import ContextLocationMapManager
 
 logger = logging.getLogger("world_configurator.ui.location_editor")
 
@@ -246,7 +247,11 @@ class LocationEditor(QWidget):
         self.location_manager = LocationManager()
         self.culture_manager = CultureManager()
         self.location_defaults_manager: Optional[LocationDefaultsManager] = None
+        self.context_map_manager: Optional[ContextLocationMapManager] = None
         self.current_location: Optional[Location] = None
+        
+        # Cached enums for context mapping
+        self._context_enums: Dict[str, Any] = self._load_context_enums()
         
         # Setup UI
         self._setup_ui()
@@ -315,11 +320,17 @@ class LocationEditor(QWidget):
         self.desc_edit.setMinimumHeight(100)
         self.form_layout.addRow("Description:", self.desc_edit)
         
-        # Location type
+        # Location type (legacy)
         self.type_combo = QComboBox()
         self.type_combo.addItems(["village", "city", "dungeon", "forest", "mountain", "cave", "ruins", "castle", "other"])
         self.type_combo.currentTextChanged.connect(self._on_field_changed)
-        self.form_layout.addRow("Type:", self.type_combo)
+        _type_row = QHBoxLayout()
+        _type_row.addWidget(self.type_combo)
+        _lbl_legacy = QLabel("Not used by engine (use Context Type below)")
+        _lbl_legacy.setStyleSheet("color:#D66; font-style: italic; margin-left:8px;")
+        _type_row.addWidget(_lbl_legacy)
+        _type_row.addStretch()
+        self.form_layout.addRow("Type:", _type_row)
         
         # Region
         self.region_edit = QLineEdit()
@@ -330,14 +341,78 @@ class LocationEditor(QWidget):
         # Culture
         self.culture_combo = QComboBox()
         self.culture_combo.currentIndexChanged.connect(self._on_field_changed)
-        self.form_layout.addRow("Culture:", self.culture_combo)
+        _culture_row = QHBoxLayout()
+        _culture_row.addWidget(self.culture_combo)
+        _lbl_culture = QLabel("Not used by engine")
+        _lbl_culture.setStyleSheet("color:#D66; font-style: italic; margin-left:8px;")
+        _culture_row.addWidget(_lbl_culture)
+        _culture_row.addStretch()
+        self.form_layout.addRow("Culture:", _culture_row)
         
         # Population
         self.population_spin = QSpinBox()
         self.population_spin.setRange(0, 1000000)
         self.population_spin.setSingleStep(10)
         self.population_spin.valueChanged.connect(self._on_field_changed)
-        self.form_layout.addRow("Population:", self.population_spin)
+        _pop_row = QHBoxLayout()
+        _pop_row.addWidget(self.population_spin)
+        _lbl_pop = QLabel("Not used by engine")
+        _lbl_pop.setStyleSheet("color:#D66; font-style: italic; margin-left:8px;")
+        _pop_row.addWidget(_lbl_pop)
+        _pop_row.addStretch()
+        self.form_layout.addRow("Population:", _pop_row)
+        
+        # Context Mapping (Engine)
+        ctx_title = QLabel("Context Mapping (Engine)")
+        ctx_title.setStyleSheet("font-weight:bold; margin-top:10px;")
+        self.details_layout.addWidget(ctx_title)
+        self.ctx_form = QFormLayout()
+        # Context Type (major)
+        self.ctx_major_combo = QComboBox()
+        for v in (self._context_enums.get('location',{}).get('major') or []):
+            self.ctx_major_combo.addItem(str(v))
+        self.ctx_form.addRow("Context Type (major):", self.ctx_major_combo)
+        # Venue
+        self.ctx_venue_combo = QComboBox()
+        for v in (self._context_enums.get('location',{}).get('venue') or []):
+            self.ctx_venue_combo.addItem(str(v))
+        self.ctx_form.addRow("Venue:", self.ctx_venue_combo)
+        # Weather
+        self.ctx_weather_combo = QComboBox()
+        for v in (self._context_enums.get('weather',{}).get('type') or []):
+            self.ctx_weather_combo.addItem(str(v))
+        self.ctx_form.addRow("Weather:", self.ctx_weather_combo)
+        # Biome
+        self.ctx_biome_combo = QComboBox()
+        for v in (self._context_enums.get('biome') or []):
+            self.ctx_biome_combo.addItem(str(v))
+        self.ctx_form.addRow("Biome:", self.ctx_biome_combo)
+        # Flags
+        self.ctx_interior_chk = QCheckBox("Interior")
+        self.ctx_interior_chk.setTristate(True)
+        self.ctx_underground_chk = QCheckBox("Underground")
+        self.ctx_underground_chk.setTristate(True)
+        _flags = QHBoxLayout()
+        _flags.addWidget(self.ctx_interior_chk)
+        _flags.addWidget(self.ctx_underground_chk)
+        _flags.addStretch()
+        self.ctx_form.addRow("Flags:", _flags)
+        # Levels
+        self.ctx_crowd_combo = QComboBox()
+        for v in (self._context_enums.get('crowd_level') or []):
+            self.ctx_crowd_combo.addItem(str(v))
+        self.ctx_danger_combo = QComboBox()
+        for v in (self._context_enums.get('danger_level') or []):
+            self.ctx_danger_combo.addItem(str(v))
+        _levels = QHBoxLayout()
+        _levels.addWidget(QLabel("Crowd:"))
+        _levels.addWidget(self.ctx_crowd_combo)
+        _levels.addSpacing(10)
+        _levels.addWidget(QLabel("Danger:"))
+        _levels.addWidget(self.ctx_danger_combo)
+        _levels.addStretch()
+        self.ctx_form.addRow("Levels:", _levels)
+        self.details_layout.addLayout(self.ctx_form)
         
         self.details_layout.addLayout(self.form_layout)
         
@@ -479,7 +554,7 @@ class LocationEditor(QWidget):
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
     
-    def set_managers(self, location_manager: LocationManager, culture_manager: CultureManager, defaults_manager: Optional[LocationDefaultsManager] = None) -> None:
+    def set_managers(self, location_manager: LocationManager, culture_manager: CultureManager, defaults_manager: Optional[LocationDefaultsManager] = None, context_map_manager: Optional[ContextLocationMapManager] = None) -> None:
         """
         Set the managers to use.
         
@@ -491,6 +566,7 @@ class LocationEditor(QWidget):
         self.location_manager = location_manager
         self.culture_manager = culture_manager
         self.location_defaults_manager = defaults_manager
+        self.context_map_manager = context_map_manager
         self._refresh_location_list()
         self._populate_culture_combo()
         # Populate culture combo for culture mix editor
@@ -634,6 +710,8 @@ class LocationEditor(QWidget):
                 item.setData(Qt.UserRole, connection)
                 self.connections_list.addItem(item)
             
+            # Load context mapping
+            self._load_context_mapping_fields(location)
             # Load culture mix override
             self._cm_refresh_list()
             # Enable controls
@@ -650,7 +728,72 @@ class LocationEditor(QWidget):
             # Still enable the editor to allow fixing the issue
             self._enable_details()
             self.save_btn.setEnabled(True)  # Enable saving to fix issues
-    
+            
+    def _load_context_mapping_fields(self, location: Location) -> None:
+        """Prefill context mapping fields from manager for selected location."""
+        try:
+            if not self.context_map_manager:
+                # Clear selections
+                for cb in (self.ctx_major_combo, self.ctx_venue_combo, self.ctx_weather_combo, self.ctx_biome_combo, self.ctx_crowd_combo, self.ctx_danger_combo):
+                    cb.setCurrentIndex(-1)
+                self.ctx_interior_chk.setCheckState(Qt.PartiallyChecked)
+                self.ctx_underground_chk.setCheckState(Qt.PartiallyChecked)
+                return
+            entry = self.context_map_manager.get_entry(location_id=location.id, name=location.name) or {}
+            def _set_combo(cb: QComboBox, val: Optional[str]):
+                try:
+                    if val:
+                        i = cb.findText(str(val))
+                        cb.setCurrentIndex(i if i >= 0 else -1)
+                    else:
+                        cb.setCurrentIndex(-1)
+                except Exception:
+                    cb.setCurrentIndex(-1)
+            _set_combo(self.ctx_major_combo, entry.get('major'))
+            _set_combo(self.ctx_venue_combo, entry.get('venue'))
+            # Weather
+            w = entry.get('weather') or {}
+            _set_combo(self.ctx_weather_combo, (w.get('type') if isinstance(w, dict) else None))
+            _set_combo(self.ctx_biome_combo, entry.get('biome'))
+            # Tri-state booleans
+            def _set_tri(chk: QCheckBox, val: Optional[bool]):
+                if val is None:
+                    chk.setCheckState(Qt.PartiallyChecked)
+                else:
+                    chk.setCheckState(Qt.Checked if bool(val) else Qt.Unchecked)
+            _set_tri(self.ctx_interior_chk, entry.get('interior'))
+            _set_tri(self.ctx_underground_chk, entry.get('underground'))
+            _set_combo(self.ctx_crowd_combo, entry.get('crowd_level'))
+            _set_combo(self.ctx_danger_combo, entry.get('danger_level'))
+        except Exception as e:
+            logger.debug(f"Failed to load context mapping fields: {e}")
+            for cb in (self.ctx_major_combo, self.ctx_venue_combo, self.ctx_weather_combo, self.ctx_biome_combo, self.ctx_crowd_combo, self.ctx_danger_combo):
+                cb.setCurrentIndex(-1)
+            self.ctx_interior_chk.setCheckState(Qt.PartiallyChecked)
+            self.ctx_underground_chk.setCheckState(Qt.PartiallyChecked)
+
+    def _load_context_enums(self) -> Dict[str, Any]:
+        from utils.file_manager import get_config_dir, load_json
+        try:
+            p = os.path.join(get_config_dir(), 'audio', 'context_enums.json')
+            data = load_json(p) or {}
+        except Exception:
+            data = {}
+        # Fallback defaults (sync with engine)
+        if not isinstance(data, dict) or not data:
+            data = {
+                'location': {
+                    'major': ["city","forest","camp","village","castle","dungeon","seaside","desert","mountain","swamp","ruins","port","temple"],
+                    'venue': ["tavern","market","blacksmith","inn","chapel","library","manor","arena","camp","fireplace","bridge","tower","cave","farm"],
+                },
+                'weather': {'type': ["clear","overcast","rain","storm","snow","blizzard","fog","windy","sandstorm"]},
+                'time_of_day': ["deep_night","pre_dawn","dawn","morning","noon","afternoon","evening","sunset","night"],
+                'biome': ["forest","desert","swamp","mountain","seaside","plains","ruins"],
+                'crowd_level': ["empty","sparse","busy"],
+                'danger_level': ["calm","tense","deadly"]
+            }
+        return data
+
     def _disable_details(self) -> None:
         """Disable all detail controls."""
         self.current_location = None
@@ -739,6 +882,40 @@ class LocationEditor(QWidget):
         self._cm_save_from_list()
         # Update location in manager
         self.location_manager.add_location(self.current_location)
+        
+        # Save/update context mapping
+        try:
+            if self.context_map_manager and self.current_location:
+                payload = {}
+                def _text(cb: QComboBox):
+                    t = cb.currentText().strip()
+                    return t if t else None
+                major = _text(self.ctx_major_combo)
+                venue = _text(self.ctx_venue_combo)
+                biome = _text(self.ctx_biome_combo)
+                weather = _text(self.ctx_weather_combo)
+                crowd = _text(self.ctx_crowd_combo)
+                danger = _text(self.ctx_danger_combo)
+                if major: payload['major'] = major
+                if venue: payload['venue'] = venue
+                if biome: payload['biome'] = biome
+                if self.region_edit.text().strip(): payload['region'] = self.region_edit.text().strip()
+                if weather: payload['weather'] = {'type': weather}
+                # Tri-state to optional bool
+                def _bool_from_tri(chk: QCheckBox):
+                    st = chk.checkState()
+                    if st == Qt.PartiallyChecked:
+                        return None
+                    return bool(st == Qt.Checked)
+                vi = _bool_from_tri(self.ctx_interior_chk)
+                vu = _bool_from_tri(self.ctx_underground_chk)
+                if vi is not None: payload['interior'] = vi
+                if vu is not None: payload['underground'] = vu
+                if crowd: payload['crowd_level'] = crowd
+                if danger: payload['danger_level'] = danger
+                self.context_map_manager.set_entry(self.current_location.id, self.current_location.name, payload)
+        except Exception as e:
+            logger.warning(f"Failed to save context map entry: {e}")
         
         # Mark as saved
         self.save_btn.setEnabled(False)

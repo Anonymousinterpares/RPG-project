@@ -1,43 +1,52 @@
 {
   "by_id": {
-"ashen_camp": {
+    "ashen_camp": {
       "major": "camp",
       "venue": "fireplace",
       "biome": "forest",
-      "region": "Ashen Fields",
-      "weather": { "type": "clear" },
+      "region": "Northern Nexus",
+      "weather": {
+        "type": "clear"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "sparse",
-      "danger_level": "tense"
+      "danger_level": "calm"
     },
     "harmonia": {
       "major": "city",
       "venue": null,
       "biome": null,
       "region": "Central Nexus",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "busy",
       "danger_level": "calm"
     },
-"verdant_embassy": {
+    "verdant_embassy": {
       "major": "camp",
       "venue": "camp",
       "biome": null,
       "region": "Western Nexus",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": true,
       "underground": false,
       "crowd_level": "sparse",
       "danger_level": "calm"
-    },"crystalline_enclave": {
+    },
+    "crystalline_enclave": {
       "major": "camp",
       "venue": "camp",
       "biome": null,
       "region": "Eastern Nexus",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": true,
       "underground": false,
       "crowd_level": "sparse",
@@ -48,7 +57,9 @@
       "venue": null,
       "biome": "forest",
       "region": "Northwestern Nexus",
-      "weather": { "type": "fog" },
+      "weather": {
+        "type": "fog"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "empty",
@@ -59,7 +70,9 @@
       "venue": null,
       "biome": "seaside",
       "region": "Southern Nexus",
-      "weather": { "type": "windy" },
+      "weather": {
+        "type": "windy"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "busy",
@@ -70,7 +83,9 @@
       "venue": "library",
       "biome": null,
       "region": "Planar Overlap",
-      "weather": { "type": "overcast" },
+      "weather": {
+        "type": "overcast"
+      },
       "interior": true,
       "underground": false,
       "crowd_level": "sparse",
@@ -81,7 +96,9 @@
       "venue": null,
       "biome": null,
       "region": "Planar Border",
-      "weather": { "type": "storm" },
+      "weather": {
+        "type": "storm"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "sparse",
@@ -92,18 +109,22 @@
       "venue": "market",
       "biome": null,
       "region": "Variable",
-      "weather": { "type": "fog" },
+      "weather": {
+        "type": "fog"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "busy",
       "danger_level": "tense"
     },
-"test_hub": {
+    "test_hub": {
       "major": "camp",
       "venue": "camp",
       "biome": null,
       "region": "Dev",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "empty",
@@ -111,44 +132,53 @@
     }
   },
   "by_name": {
-"Ashen Camp": {
+    "Ashen Camp": {
       "major": "camp",
-      "venue": "camp",
+      "venue": "fireplace",
       "biome": "forest",
-      "region": "Ashen Fields",
-      "weather": { "type": "clear" },
+      "region": "Northern Nexus",
+      "weather": {
+        "type": "clear"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "sparse",
-      "danger_level": "tense"
+      "danger_level": "calm"
     },
     "Harmonia": {
       "major": "city",
       "venue": null,
       "biome": null,
       "region": "Central Nexus",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "busy",
       "danger_level": "calm"
     },
-"Verdant Embassy": {
+    "Verdant Embassy": {
       "major": "camp",
       "venue": "camp",
       "biome": null,
       "region": "Western Nexus",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": true,
       "underground": false,
       "crowd_level": "sparse",
       "danger_level": "calm"
-    },"Crystalline Enclave": {
+    },
+    "Crystalline Enclave": {
       "major": "camp",
       "venue": "camp",
       "biome": null,
       "region": "Eastern Nexus",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": true,
       "underground": false,
       "crowd_level": "sparse",
@@ -159,7 +189,9 @@
       "venue": null,
       "biome": "forest",
       "region": "Northwestern Nexus",
-      "weather": { "type": "fog" },
+      "weather": {
+        "type": "fog"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "empty",
@@ -170,7 +202,9 @@
       "venue": null,
       "biome": "seaside",
       "region": "Southern Nexus",
-      "weather": { "type": "windy" },
+      "weather": {
+        "type": "windy"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "busy",
@@ -181,7 +215,9 @@
       "venue": "library",
       "biome": null,
       "region": "Planar Overlap",
-      "weather": { "type": "overcast" },
+      "weather": {
+        "type": "overcast"
+      },
       "interior": true,
       "underground": false,
       "crowd_level": "sparse",
@@ -192,7 +228,9 @@
       "venue": null,
       "biome": null,
       "region": "Planar Border",
-      "weather": { "type": "storm" },
+      "weather": {
+        "type": "storm"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "sparse",
@@ -203,18 +241,22 @@
       "venue": "market",
       "biome": null,
       "region": "Variable",
-      "weather": { "type": "fog" },
+      "weather": {
+        "type": "fog"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "busy",
       "danger_level": "tense"
     },
-"Quest Test Hub": {
+    "Quest Test Hub": {
       "major": "camp",
       "venue": "camp",
       "biome": null,
       "region": "Dev",
-      "weather": { "type": "clear" },
+      "weather": {
+        "type": "clear"
+      },
       "interior": false,
       "underground": false,
       "crowd_level": "empty",

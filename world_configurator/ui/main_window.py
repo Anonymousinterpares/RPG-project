@@ -165,7 +165,8 @@ class MainWindow(QMainWindow):
         self.location_editor.set_managers(
             self.world_config.location_manager,
             self.world_config.culture_manager,
-            self.world_config.location_defaults_manager
+            self.world_config.location_defaults_manager,
+            self.world_config.context_map_manager
         )
         self.tab_widget.addTab(self.location_editor, "Locations")
 

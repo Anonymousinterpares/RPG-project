@@ -223,7 +223,7 @@
       "id": "ashen_camp",
       "name": "Ashen Camp",
       "description": "A temporary settlement of the Ashen Covenant, comprised of easily dismantled structures and tents made from ash-treated hides. The camp is relocated monthly according to Covenant traditions. At its center burns an eternal flame where ancestral ashes are kept and used in rituals.",
-      "type": "settlement",
+      "type": "village",
       "region": "Northern Nexus",
       "culture_id": "ashen",
       "population": 120,

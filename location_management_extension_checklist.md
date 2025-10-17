@@ -268,6 +268,10 @@ Manual/QA:
 
 ## 14) Implementation Artifacts (Files/Modules)
 Python:
+- world_configurator/models/context_location_map.py (manager for config/audio/context_location_map.json)
+- world_configurator/ui/editors/location_editor.py (Context Mapping section UI + enums)
+- world_configurator/ui/dialogs/export_dialog.py (context_map export option)
+- world_configurator/models/world_config.py (integrates context map manager; sync/export)
 [ ] config/audio/context_enums.json
 [ ] config/audio/context_synonyms.json
 [ ] core/context/game_context.py (GameContext dataclass, canonicalization helpers)
@@ -299,6 +303,7 @@ Milestone A (Core context plumbing):
 
 Milestone B (Extended fields & polish):
 [x] Add biome, booleans, crowd_level, danger_level usage (engine enrichment + mapping; non-overwriting; UI shows values; API/WS emit)
+[x] World Configurator: editable Context Location Map (by_id/by_name), enums-backed dropdowns for major/venue/weather/biome/crowd/danger + tri‑state interior/underground; import from game and export to game
 [ ] Dev tools to simulate context changes
 [ ] Tune bias weights; add caps and logs
 
