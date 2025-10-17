@@ -56,17 +56,29 @@ class NarratorAgent(BaseAgent):
         """
         Generate the system prompt for the narrator agent.
         """
-        # --- Context Extraction (same as before) ---
+        # --- Context Extraction (GameContext-aware) ---
         player_name = context.player_state.get("name", "Unknown")
         player_race = context.player_state.get("race", "Human")
         player_path = context.player_state.get("path", "Wanderer")
         player_background = context.player_state.get("background", "Commoner")
-        player_location = context.player_state.get("current_location", "Unknown")
-        player_district = context.player_state.get("current_district", "Unknown")
         player_id = context.player_state.get("id", "player")
 
+        # Prefer GameContext location fields when present
+        gc_loc = {}
+        try:
+            gc_loc = (context.additional_context.get('location') or {}) if isinstance(context.additional_context, dict) else {}
+        except Exception:
+            gc_loc = {}
+        player_location = gc_loc.get("name") or context.player_state.get("current_location", "Unknown")
+        # Use venue or region as a secondary descriptor
+        player_district = gc_loc.get("venue") or context.additional_context.get("region") if isinstance(context.additional_context, dict) else None
+        if not player_district:
+            player_district = context.player_state.get("current_district", "Unknown")
+
         world_time = context.world_state.get("time_of_day", "Unknown")
-        world_weather = context.world_state.get("weather", "Clear")
+        # Weather may be str or dict type in world_state; normalize to string
+        _w = context.world_state.get("weather", None)
+        world_weather = _w.get('type') if isinstance(_w, dict) else (_w or "Clear")
         is_day = context.world_state.get("is_day", True)
         day_night = "day" if is_day else "night"
         # Internal exact time (do not reveal to player)
@@ -458,7 +470,21 @@ class NarratorAgent(BaseAgent):
         Returns:
             Formatted location information string.
         """
+        # Prefer a compact view assembled from GameContext/ContextBuilder fields
+        # Accept either 'location_info' blob or fallback to additional_context/world_state
         location_info = context.additional_context.get("location_info", {}) if context.additional_context else {}
+        if not location_info and isinstance(context.additional_context, dict):
+            try:
+                loc = context.additional_context.get('location') or {}
+                location_info = {
+                    'current_location': loc.get('name'),
+                    'current_district': loc.get('venue') or context.additional_context.get('region'),
+                    'time_of_day': context.additional_context.get('time_of_day') or context.world_state.get('time_of_day'),
+                    'weather': (context.additional_context.get('weather', {}) or {}).get('type') if isinstance(context.additional_context.get('weather'), dict) else context.world_state.get('weather'),
+                    'is_day': context.world_state.get('is_day', True),
+                }
+            except Exception:
+                location_info = {}
         if not location_info:
             return ""
 

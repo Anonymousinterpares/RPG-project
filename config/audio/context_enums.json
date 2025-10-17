@@ -1,0 +1,12 @@
+{
+  "location": {
+    "major": ["city","forest","camp","village","castle","dungeon","seaside","desert","mountain","swamp","ruins","port","temple"],
+    "venue": ["tavern","market","blacksmith","inn","chapel","library","manor","arena","fireplace","bridge","tower","cave","farm"]
+  },
+  "weather": { "type": ["clear","overcast","rain","storm","snow","blizzard","fog","windy","sandstorm"] },
+  "time_of_day": ["deep_night","pre_dawn","dawn","morning","noon","afternoon","evening","sunset","night"],
+  "biome": ["forest","desert","swamp","mountain","seaside","plains","ruins"],
+  "crowd_level": ["empty","sparse","busy"],
+  "danger_level": ["calm","tense","deadly"],
+  "booleans": ["interior","underground"]
+}

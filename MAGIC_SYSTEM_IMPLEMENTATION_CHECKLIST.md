@@ -157,6 +157,33 @@ Phase 4 — World Configurator Validation & Data Entry (no runtime behavior chan
   - [ ] Validation: warn on unknown spell IDs or systems
   - [ ] Persist to config/world/scenarios/origins.json
 
+- [ ] Magic Systems: Casting Model & Policy (editor, read-only to assistant)
+  - [ ] Add a "Casting Model" tab in MagicSystemDialog
+  - [ ] Fields (per-school defaults):
+    - [ ] allowed_damage_types (multi-select)
+    - [ ] allowed_selectors/targets (self/ally/enemy/area; for area allow only all_enemies/all_allies)
+    - [ ] default_target_by_role mapping { offensive: enemy, defensive: self_or_ally, utility: disabled_in_combat }
+    - [ ] allow_chain_magic (bool) and chain_decay (e.g., 0.7 -> next hops receive 70%)
+    - [ ] cost_multiplier, cast_time_multiplier (floats)
+    - [ ] creativity_policy (short advisory string shown to LLM; assistant uses for guidance only)
+  - [ ] Persist under each system (e.g., magic_systems[].casting_model)
+  - [ ] Expose to assistant in references; exclude from allowed_paths (no assistant edits)
+
+- [ ] Components & Casting Time (data, UI, and semantics)
+  - [ ] Replace free-form casting_time string with a unified integer spinbox in editor
+    - [ ] Units: turns in combat, minutes outside combat; 0 = instant
+    - [ ] Migrate existing string values to integers (normalizer; warn when ambiguous)
+  - [ ] Engine semantics:
+    - [ ] If cast_time > 0 in combat, casting spans multiple turns; taking damage interrupts (cast fails)
+    - [ ] Out of combat, delay by cast_time minutes
+  - [ ] Components: treat as required inventory items; on cast attempt, verify presence and consume on success; failure blocks cast with clear message
+
+- [ ] Engine parity: resistances, shields/DoT, AoE, chain
+  - [ ] Damage atoms: apply typed resistance by damage_type after DR/magic defense; log raw→mitigated→final
+  - [ ] Shields/DoT/HoT: adopt refresh-on-reapply by default (no additive stacking); honor stacking_rule if present
+  - [ ] AoE resolution (no shapes): implement all_enemies/all_allies selection deterministically with per-target logs
+  - [ ] Chain magic: implement diminishing factor per hop; avoid re-hitting the same entity in a chain
+
 
 Phase 5 — GUI (PySide6) Magic UI per MAGIC_SYSTEM_UI_design_doc.md
 - [ ] Add Grimoire tab to right panel (accordion by Magic System)

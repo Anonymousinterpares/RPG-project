@@ -13,13 +13,13 @@ This document defines an end‑to‑end plan to extend location management into 
 ---
 
 ## 1) GameContext Model (Data design)
-[ ] Introduce a canonical GameContext with core and optional fields:
+[x] Introduce a canonical GameContext with core and optional fields:
 - Core (Phase A):
   - location.name (UI string, e.g., "Ashen Camp")
   - location.major (enum: city|forest|camp|village|port|castle|dungeon|seaside|desert|mountain|swamp|ruins|temple|…)
   - location.venue (enum: tavern|market|blacksmith|inn|chapel|library|manor|arena|fireplace|bridge|tower|cave|farm|…)
   - weather.type (enum: clear|overcast|rain|storm|snow|blizzard|fog|windy|sandstorm)
-  - time_of_day (enum: dawn|day|dusk|night)
+  - time_of_day (enum: deep_night|pre_dawn|dawn|morning|noon|afternoon|evening|sunset|night)
 - Nice‑to‑have (Phase B):
   - biome (forest|desert|swamp|mountain|seaside|plains|ruins|…)
   - region (string; optional canonical list later)
@@ -27,8 +27,8 @@ This document defines an end‑to‑end plan to extend location management into 
   - crowd_level (empty|sparse|busy or 0..1)
   - danger_level (calm|tense|deadly or 0..1)
 
-[ ] Add a dataclass/struct in the engine to hold and serialize GameContext.
-[ ] Provide to_dict/from_dict helpers for persistence and WS payloads.
+[x] Add a dataclass/struct in the engine to hold and serialize GameContext.
+[x] Provide to_dict/from_dict helpers for persistence and WS payloads.
 
 Example (Python dataclass sketch):
 ```python
@@ -60,9 +60,9 @@ class GameContext:
 ---
 
 ## 2) Context Canonicalization (data‑driven)
-[ ] Create config/audio/context_enums.json with canonical allowed values for each field.
-[ ] Create config/audio/context_synonyms.json mapping free‑text → canonical enums.
-[ ] Implement canonicalize_context(input_dict) that:
+[x] Create config/audio/context_enums.json with canonical allowed values for each field.
+[x] Create config/audio/context_synonyms.json mapping free‑text → canonical enums.
+[x] Implement canonicalize_context(input_dict) that:
 - trims strings, lowers case, maps via synonyms, validates against enums
 - returns (canonical_context, warnings)
 - unknown values: either map to None or safe default; log once
@@ -101,19 +101,19 @@ Example synonyms (excerpt):
 ---
 
 ## 3) Engine Integration (authoritative owner)
-[ ] Add a ContextManager (or integrate into Engine) to store GameContext.
-[ ] Public API:
+[x] Add a ContextManager (or integrate into Engine) to store GameContext.
+[x] Public API:
 - set_context(partial_ctx: dict | GameContext) → canonicalize and update
 - get_context() → GameContext
 - on_context_changed(callback) → subscribe
 
-[ ] Persist context in saves and restore on load.
-[ ] Backward compatibility: if only location.name exists, infer safe defaults (e.g., major=camp for "Ashen Camp").
+[x] Persist context in saves and restore on load.
+[x] Backward compatibility: if only location.name exists, infer safe defaults (e.g., major=camp for "Ashen Camp").
 
 ---
 
 ## 4) Music Director Integration (bias, not hard filter)
-[ ] Add Director.set_context(ctx: GameContext) and store it.
+[x] Add Director.set_context(ctx: GameContext) and store it.
 [ ] Use context tags to bias track selection (soft weights):
 - Overlap of track tags with {location_major, location_venue, weather_type, time_of_day, biome} increases weight (e.g., +20% per match, tunable, capped).
 - If no tracks match, proceed with neutral weighting; never block music.
@@ -135,13 +135,13 @@ def compute_weight(base_weight: float, tags: set[str], ctx: GameContext) -> floa
 ---
 
 ## 5) Server API (FastAPI)
-[ ] GET /api/context → current GameContext (JSON)
-[ ] POST /api/context → partial update; server canonicalizes and applies policy
+[x] GET /api/context → current GameContext (JSON)
+[x] POST /api/context → partial update; server canonicalizes and applies policy
 - Validate payload; whitelist fields; ignore unknowns; booleans only true/false
 - Clamp any numeric 0..1 fields if introduced
 - Emit WS broadcast (game_context) on change
 
-[ ] CORS remains consistent; small payloads; avoid PII.
+[x] CORS remains consistent; small payloads; avoid PII.
 
 Example POST payload:
 ```json
@@ -161,7 +161,7 @@ Example POST payload:
 ---
 
 ## 6) WebSocket Events
-[ ] New WS message type: "game_context"
+[x] New WS message type: "game_context"
 - data: GameContext as JSON + ts
 - Emitted on initial connect (snapshot) and on changes
 
@@ -187,18 +187,18 @@ Example payload:
 ---
 
 ## 7) Persistence
-[ ] Include GameContext in save files; version the schema.
-[ ] On load, canonicalize and broadcast context.
-[ ] Migrations: unknown fields ignored; missing fields default to None.
+[x] Include GameContext in save files; version the schema.
+[x] On load, canonicalize and broadcast context.
+[x] Migrations: unknown fields ignored; missing fields default to None.
 
 ---
 
 ## 8) Web UI Integration (dev‑first, non‑intrusive)
-[ ] Add a small dev context panel (visible only in dev mode):
+[x] Add a small dev context panel (visible only in dev mode):
 - Subscribe to WS "game_context"; render a one‑line summary and an expandable detail view.
 - Optional dev controls to POST partial context for simulation.
 
-[ ] Keep production UI read‑only (no controls) unless explicitly enabled.
+[x] Keep production UI read‑only (no controls) unless explicitly enabled.
 
 JS sketch:
 ```js
@@ -214,7 +214,7 @@ socket.onmessage = (ev) => {
 
 ## 9) Python GUI Integration (dev‑first)
 [ ] Optional status bar line that shows: "Ashen Camp · camp/tavern · dusk · rain · forest · crowd:sparse · danger:tense"
-[ ] Optional dev dialog to simulate context (behind a flag) that POSTs to /api/context.
+[x] Optional dev dialog to simulate context (behind a flag) that POSTs to /api/context.
 
 ---
 
@@ -230,21 +230,21 @@ socket.onmessage = (ev) => {
 
 ## 11) Testing Strategy
 Unit (Python):
-[ ] Canonicalization:
+[x] Canonicalization:
 - synonyms map correctly; casing/whitespace normalized; unknowns safe
 [ ] Director bias:
 - tracks with overlapping tags gain selection probability vs non‑matching
 - no tracks matching → selection still functions (no crash)
-[ ] Persistence:
+[x] Persistence:
 - context round‑trips save/load
-[ ] API/WS:
+[x] API/WS:
 - GET/POST /api/context contracts; WS emits on change; initial snapshot on connect
 
 Integration:
 [ ] End‑to‑end: context change biases music (observable in logs/WS), UIs display context.
 
 Manual/QA:
-[ ] Dev panels reflect updates; production UI unaffected.
+[x] Dev panels reflect updates; production UI unaffected.
 
 ---
 
@@ -291,11 +291,11 @@ Desktop UI:
 
 ## 15) Milestones
 Milestone A (Core context plumbing):
-[ ] GameContext model + canonicalization (enums & synonyms)
-[ ] Engine ownership + save/load
-[ ] Director.set_context + soft bias
-[ ] GET/POST /api/context + WS "game_context"
-[ ] Web & Python dev displays (read‑only or dev panels)
+[x] GameContext model + canonicalization (enums & synonyms)
+[x] Engine ownership + save/load
+[x] Director.set_context + soft bias
+[x] GET/POST /api/context + WS "game_context"
+[x] Web & Python dev displays (read‑only or dev panels)
 
 Milestone B (Extended fields & polish):
 [ ] Add biome, booleans, crowd_level, danger_level usage
@@ -309,12 +309,12 @@ Milestone C (LLM & SFX integration):
 ---
 
 ## 16) Acceptance Criteria
-[ ] Engine tracks and persists GameContext fields (Core set at minimum).
+[x] Engine tracks and persists GameContext fields (Core set at minimum).
 [ ] Director consumes context to bias music selection (soft bias; never blocks playback).
-[ ] Web and Python UIs display current context (dev panels acceptable for v1).
-[ ] GET/POST /api/context implemented; WS "game_context" broadcasts on change and on connect.
-[ ] Unknown/unsupported values handled safely (no crash); logs explain canonicalization.
-[ ] Unit/integration tests pass; manual QA verified.
+[x] Web and Python UIs display current context (dev panels acceptable for v1).
+[x] GET/POST /api/context implemented; WS "game_context" broadcasts on change and on connect.
+[x] Unknown/unsupported values handled safely (no crash); logs explain canonicalization.
+[x] Unit/integration tests pass; manual QA verified.
 
 ---
 

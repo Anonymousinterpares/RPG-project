@@ -1197,6 +1197,8 @@ class MainWindow(QMainWindow):
                 dev_enabled = q_settings.value("dev/enabled", False, type=bool)
                 if hasattr(self, 'combat_display') and hasattr(self.combat_display, 'dev_controls_container'):
                     self.combat_display.dev_controls_container.setVisible(bool(dev_enabled))
+                if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'set_dev_context_tab_enabled'):
+                    self.right_panel.set_dev_context_tab_enabled(bool(dev_enabled))
                 # Also toggle orchestrator step mode to match dev setting default (off until user toggles)
                 if hasattr(self.game_engine, '_combat_orchestrator') and hasattr(self.game_engine._combat_orchestrator, 'toggle_dev_step_mode'):
                     self.game_engine._combat_orchestrator.toggle_dev_step_mode(False)

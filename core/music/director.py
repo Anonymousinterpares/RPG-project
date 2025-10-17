@@ -63,11 +63,35 @@ class MusicDirector:
             if self._backend:
                 self._backend.set_volumes(self._master, self._music, self._effects, self._muted)
 
-    # --- Phase A: minimal context API ---
-    def set_context(self, location_major: Optional[str] = None) -> None:
+    # --- Phase A/B: context API (accepts multiple fields) ---
+    def set_context(self, location_major: Optional[str] = None, **kwargs) -> None:
+        """Update lightweight context used for selection bias.
+        Accepts: location_major, location_venue, weather_type, time_of_day, biome, region, interior, underground, crowd_level, danger_level.
+        """
         with self._lock:
-            if location_major:
-                self._context["location_major"] = str(location_major).strip().lower()
+            updated = False
+            if location_major is not None:
+                val = str(location_major).strip().lower() or None
+                if self._context.get("location_major") != val:
+                    self._context["location_major"] = val
+                    updated = True
+            # Merge any other provided keys as-is (lowercased for strings)
+            for k, v in (kwargs or {}).items():
+                key = str(k)
+                new_val = v
+                try:
+                    if isinstance(v, str):
+                        new_val = v.strip().lower() or None
+                except Exception:
+                    pass
+                if self._context.get(key) != new_val:
+                    self._context[key] = new_val
+                    updated = True
+            if updated:
+                try:
+                    get_logger("GAME").info("LOCATION_MGMT: director.set_context updated keys=%s", list({k for k in (['location_major'] if location_major is not None else [])} | set(kwargs.keys())))
+                except Exception:
+                    pass
                 self._emit_state_locked(reason="context_changed")
 
     def set_volumes(self, master: int, music: int, effects: int) -> None:
@@ -147,6 +171,21 @@ class MusicDirector:
         with self._lock:
             if callback not in self._listeners:
                 self._listeners.append(callback)
+
+    def current_state(self) -> Dict:
+        """Return a snapshot of current music state (for debug/API)."""
+        with self._lock:
+            return {
+                "mood": self._mood,
+                "intensity": self._intensity,
+                "track": os.path.basename(self._current_track) if self._current_track else None,
+                "url": self._to_web_url(self._current_track),
+                "muted": self._muted,
+                "master": self._master,
+                "music": self._music,
+                "effects": self._effects,
+                "context": dict(self._context),
+            }
 
     # --- Internals ---
     def _scan_tracks(self) -> None:

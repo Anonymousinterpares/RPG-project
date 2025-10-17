@@ -16,6 +16,7 @@ from core.interaction.enums import InteractionMode
 from core.orchestration.events import DisplayEventType
 from core.utils.logging_config import get_logger
 from core.base.state import StateManager, GameState
+from core.context.game_context import GameContext, canonicalize_context, enrich_context_from_location
 from core.base.commands import CommandProcessor, CommandResult
 from core.base.game_loop import GameLoop, GameSpeed
 from core.base.config import get_config
@@ -45,6 +46,8 @@ class GameEngine(QObject):
     
     _instance = None
     orchestrated_event_to_ui = Signal(object)
+    # Emitted when GameContext changes (payload is dict)
+    context_updated = Signal(object)
 
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern."""
@@ -141,6 +144,9 @@ class GameEngine(QObject):
         self._use_llm = True  
         self._waiting_for_closing_narrative_display: bool = False # New flag for ECFA
         self._post_combat_finalization_in_progress: bool = False  # Prevent duplicate auto-finalization
+
+        # Initialize extended GameContext (engine-authoritative)
+        self._game_context: GameContext = GameContext()
         
         # Initialize Music Director and backend
         try:
@@ -317,16 +323,9 @@ class GameEngine(QObject):
         if background: # background from params is the origin description
             game_state.player.background = background # Ensure it's set if not already set by StateManager
 
-        # Start initial ambient music (non-blocking) and set initial context (best-effort)
+        # Start initial ambient music (non-blocking). Context will be initialized after lifecycle sets origin/time.
         try:
             if hasattr(self, '_music_director') and self._music_director:
-                # Infer a coarse location_major from current location string
-                loc_major = self.get_location_major()
-                try:
-                    if loc_major:
-                        self._music_director.set_context(location_major=loc_major)
-                except Exception:
-                    pass
                 # Determine initial autoplay intensity (ensure audible floor)
                 try:
                     from PySide6.QtCore import QSettings
@@ -350,9 +349,11 @@ class GameEngine(QObject):
         except Exception:
             pass
 
-        return lifecycle.start_new_game_with_state(
+        gs = lifecycle.start_new_game_with_state(
             self, game_state
         )
+        # GameContext is initialized inside lifecycle; return state
+        return gs
     
     def load_game(self, filename: str) -> Optional[GameState]:
         """
@@ -369,17 +370,23 @@ class GameEngine(QObject):
         """
         # Delegate to the lifecycle module
         loaded_state = lifecycle.load_game(self, filename)
-        # Ensure music is active after load (fallback to ambient if no saved mood exists)
+        # Ensure music/context are active after load (fallbacks if absent)
         try:
             md = getattr(self, 'get_music_director', lambda: None)()
-            if md and loaded_state:
-                # Set context from current location (best-effort)
+            if loaded_state:
+                # Restore context from saved state if available; else infer best-effort
                 try:
-                    loc_major = self.get_location_major()
-                    if loc_major:
-                        md.set_context(location_major=loc_major)
+                    saved_ctx = getattr(loaded_state, 'game_context', None)
+                    if isinstance(saved_ctx, dict) and saved_ctx:
+                        self.set_game_context(saved_ctx)
+                    else:
+                        loc_name = getattr(getattr(loaded_state, 'world', None), 'current_location', None) or getattr(getattr(loaded_state, 'player', None), 'current_location', '')
+                        loc_major = self.get_location_major()
+                        tod = getattr(getattr(loaded_state, 'world', None), 'time_of_day', None)
+                        self.set_game_context({"location": {"name": str(loc_name or ""), "major": loc_major}, "time_of_day": tod})
                 except Exception:
                     pass
+            if md and loaded_state:
                 # Attempt to read saved mood/intensity if present on state; otherwise fallback
                 mood = getattr(loaded_state, 'music_mood', None)
                 intensity = getattr(loaded_state, 'music_intensity', None)
@@ -440,14 +447,19 @@ class GameEngine(QObject):
             self._output("system", "Cannot save: No game in progress")
             return None
 
-        # Capture current music state into GameState before saving
+        # Capture current music and context state into GameState before saving
         try:
             md = getattr(self, 'get_music_director', lambda: None)()
             st = self._state_manager.current_state
-            if md and st:
+            if st:
                 try:
-                    st.music_mood = getattr(md, '_mood', None)
-                    st.music_intensity = float(getattr(md, '_intensity', 0.3))
+                    if md:
+                        st.music_mood = getattr(md, '_mood', None)
+                        st.music_intensity = float(getattr(md, '_intensity', 0.3))
+                except Exception:
+                    pass
+                try:
+                    st.game_context = self.get_game_context()
                 except Exception:
                     pass
         except Exception:
@@ -1236,6 +1248,70 @@ class GameEngine(QObject):
     # --- Music accessors for GUI/Server ---
     def get_music_director(self):
         return getattr(self, '_music_director', None)
+
+    # --- GameContext accessors ---
+    def get_game_context(self) -> Dict[str, Any]:
+        try:
+            return self._game_context.to_dict()
+        except Exception:
+            return {}
+
+    def set_game_context(self, ctx: Optional[Dict[str, Any]] = None, **kwargs) -> None:
+        """Set or update the engine's GameContext with canonicalization and notify listeners.
+        Accepts a nested dict (ctx) and/or keyword fields; merges and canonicalizes.
+        Also forwards location_major (and other hints) to MusicDirector for selection bias.
+        """
+        try:
+            incoming: Dict[str, Any] = {}
+            if isinstance(ctx, dict):
+                incoming.update(ctx)
+            if kwargs:
+                incoming.update(kwargs)
+            logger = get_logger("GAME")
+            logger.info("LOCATION_MGMT: set_game_context incoming=%s", str(incoming))
+            gc, _warn = canonicalize_context(incoming)
+            # Enrich from mapping by location name/id if available
+            try:
+                # Extract optional location id from incoming
+                loc_id = None
+                try:
+                    loc_id = incoming.get('location_id') or (incoming.get('location', {}) or {}).get('id')
+                except Exception:
+                    loc_id = None
+                loc_name = gc.to_dict().get('location', {}).get('name')
+                gc = enrich_context_from_location(gc, location_name=loc_name, location_id=loc_id)
+            except Exception:
+                pass
+            self._game_context = gc
+            logger.info("LOCATION_MGMT: canonicalized=%s", str(gc.to_dict()))
+            # Sync world current_location with location.name for consistency
+            try:
+                if self._state_manager and self._state_manager.current_state:
+                    name = gc.to_dict().get("location", {}).get("name") or ""
+                    self._state_manager.current_state.world.current_location = name
+                    self._state_manager.current_state.player.current_location = name
+            except Exception:
+                pass
+            # Forward to MusicDirector (best-effort)
+            try:
+                md = getattr(self, 'get_music_director', lambda: None)()
+                if md and hasattr(md, 'set_context'):
+                    d = gc.to_dict()
+                    loc = d.get("location", {}) or {}
+                    md.set_context(location_major=loc.get("major"), location_venue=loc.get("venue"), weather_type=d.get("weather", {}).get("type"), time_of_day=d.get("time_of_day"), biome=d.get("biome"))
+            except Exception:
+                pass
+            # Emit signal for web/server or GUI dev panels
+            try:
+                payload = gc.to_dict()
+                # include a timestamp for clients that want ordering
+                import time as _t
+                payload["ts"] = int(_t.time())
+                self.context_updated.emit(payload)
+            except Exception:
+                pass
+        except Exception as e:
+            logger.warning(f"set_game_context failed: {e}")
 
     # Phase A: derive a coarse location_major from current state (best-effort)
     def get_location_major(self) -> Optional[str]:

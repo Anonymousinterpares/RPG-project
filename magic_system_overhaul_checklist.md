@@ -28,6 +28,20 @@ This phase focuses on creating the foundational data files that will define the 
 
 ### **Phase 2: Enhance `world_configurator` to Enforce Schemas**
 
+- Casting Model (per-school defaults; read-only to assistant)
+  - Add a new Casting Model tab in MagicSystemDialog capturing:
+    - allowed_damage_types (multi-select)
+    - allowed_selectors/targets (self/ally/enemy/area with area_kind limited to all_enemies/all_allies)
+    - default_target_by_role mapping
+    - allow_chain_magic (bool) and chain_decay (float)
+    - cost_multiplier and cast_time_multiplier
+    - creativity_policy (short text surfaced to LLM as advisory)
+  - Persist under magic_systems[].casting_model; include in assistant references; exclude from allowed_paths
+
+- Components & Casting Time (editor + normalization)
+  - Replace free-form casting_time string with integer spinbox (0 = instant). Label clarifies: turns in combat, minutes outside combat.
+  - Add a normalizer/migration pass to convert legacy strings to integers; warn when ambiguous.
+
 This phase updates the editing tools to use and enforce the new data contracts created in Phase 1.
 
 *   **Checkpoint 2.1: Integrate Stat Registry into Editors.**
@@ -77,6 +91,20 @@ This phase involves cleaning up all existing `.json` files to conform to the new
 ---
 
 ### **Phase 4: Implement Runtime Integration in Core Engine**
+
+- Casting Time semantics
+  - If cast_time > 0 in combat: casting spans cast_time turns and is interrupted on damage; outside combat: delays by cast_time minutes.
+
+- Components consumption
+  - On cast, verify required components in inventory; consume them on successful cast; fail with clear message if missing.
+
+- Typed resistances and shields/DoT behavior
+  - Apply typed resistance by damage_type after DR/magic defense with clear logs.
+  - Re-applying shields/DoT/HoT refreshes duration by default (no additive stacking unless stacking_rule overrides).
+
+- AoE and Chain
+  - AoE: support only all_enemies/all_allies (no shapes); resolve deterministically with per-target logs.
+  - Chain magic: diminishing effectiveness per hop; avoid hitting the same entity twice in one chain.
 
 This phase connects the newly structured data to the game's mechanics, making the magic system functional.
 

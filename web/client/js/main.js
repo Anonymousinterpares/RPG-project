@@ -458,6 +458,10 @@ function connectWebSocket(sessionId, options = {}) {
     webSocketClient.on('music_state', (data) => {
         try { if (window.webMusicManager) window.webMusicManager.applyState(data||{}); } catch (e) { console.warn(e); }
     });
+    // Game context updates -> Dev Context Panel
+    webSocketClient.on('game_context', (data) => {
+        try { if (window.ContextPanel && typeof window.ContextPanel.onContextUpdate === 'function') window.ContextPanel.onContextUpdate(data||{}); } catch (e) { console.warn(e); }
+    });
     webSocketClient.on('ui_bar_update_phase1', (data) => { try { uiManager.updateResourceBarPhase1(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
     webSocketClient.on('ui_bar_update_phase2', (data) => { try { uiManager.updateResourceBarPhase2(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
     // Combat log HTML updates

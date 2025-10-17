@@ -11,13 +11,14 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTabWidget, QFrame, 
     QHBoxLayout, QPushButton, QStackedWidget, QToolButton, QTabBar, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QSize, QEasingCurve, Property
+from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QSize, QEasingCurve, Property, QSettings
 from PySide6.QtGui import QIcon, QPixmap, QCursor
 
 from gui.utils.resource_manager import get_resource_manager
 from gui.components.character_sheet import CharacterSheetWidget
 from gui.components.inventory_panel import InventoryPanelWidget
 from gui.components.journal_panel import JournalPanelWidget
+from gui.components.context_panel import ContextPanelWidget
 
 class CustomTabBar(QTabBar):
     """Custom tab bar that emits a signal when the selected tab is clicked again."""
@@ -141,6 +142,13 @@ class CollapsibleRightPanel(QFrame):
             CharacterSheetWidget, InventoryPanelWidget, JournalPanelWidget {
                  background-color: transparent;
             }
+            /* Inputs across right panel */
+            QTabWidget QLineEdit, QTabWidget QComboBox {
+                background-color: #2E2E2E;
+                color: #E0E0E0;
+                border: 1px solid #555555;
+                padding: 4px;
+            }
         """)
         
         # Create tabs
@@ -152,6 +160,15 @@ class CollapsibleRightPanel(QFrame):
         self.tab_widget.addTab(self.character_sheet, "Character")
         self.tab_widget.addTab(self.inventory_panel, "Inventory")
         self.tab_widget.addTab(self.journal_panel, "Journal")
+
+        # Dev-only: Context tab
+        try:
+            dev_enabled = QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)
+            if bool(dev_enabled):
+                self.context_panel = ContextPanelWidget()
+                self.tab_widget.addTab(self.context_panel, "Context")
+        except Exception:
+            pass
         
         # Create toggle button (only visible when collapsed)
         self.toggle_button = QToolButton()
@@ -250,6 +267,29 @@ class CollapsibleRightPanel(QFrame):
             self.toggle_button.setIcon(self.resource_manager.get_icon("toggle_button_left"))
             self.toggle_button.setToolTip("Expand Panel")
     
+    def set_dev_context_tab_enabled(self, enabled: bool):
+        """Add or remove the Context tab based on 'enabled'."""
+        try:
+            from PySide6.QtWidgets import QWidget
+            # Check if already present
+            idx = -1
+            for i in range(self.tab_widget.count()):
+                if self.tab_widget.tabText(i) == "Context":
+                    idx = i
+                    break
+            if enabled and idx == -1:
+                self.context_panel = ContextPanelWidget()
+                self.tab_widget.addTab(self.context_panel, "Context")
+            elif (not enabled) and idx >= 0:
+                w = self.tab_widget.widget(idx)
+                self.tab_widget.removeTab(idx)
+                try:
+                    w.deleteLater()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def isExpanded(self) -> bool:
         """Get the expanded/collapsed state of the panel.
         

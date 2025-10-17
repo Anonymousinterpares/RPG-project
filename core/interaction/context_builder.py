@@ -143,13 +143,20 @@ class ContextBuilder:
 
         # World/Environment Info
         if world_state:
-            location = getattr(world_state, 'current_location', None) # Placeholder
+            location = getattr(world_state, 'current_location', None) # May be a string or an object
             if location:
-                context['location'] = {
-                    'name': getattr(location, 'name', 'Unknown Area'), # Placeholder
-                    'description': getattr(location, 'description', ''), # Placeholder
-                    'tags': getattr(location, 'tags', []), # Placeholder (e.g., ['forest', 'dark', 'ruins'])
-                }
+                if isinstance(location, str):
+                    context['location'] = {
+                        'name': location,
+                        'description': '',
+                        'tags': []
+                    }
+                else:
+                    context['location'] = {
+                        'name': getattr(location, 'name', 'Unknown Area'),
+                        'description': getattr(location, 'description', ''),
+                        'tags': getattr(location, 'tags', []),
+                    }
             # Use enhanced time description instead of clock time
             context['time_of_day'] = world_state.time_of_day if hasattr(world_state, 'time_of_day') else 'Unknown'
 

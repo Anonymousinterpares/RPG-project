@@ -92,29 +92,50 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
                 game_state.player.current_location = resolved_location
                 game_state.world.current_location = resolved_location
                 logger.info(f"Set starting location to '{resolved_location}' (id='{starting_location_id}') for origin '{origin_id}'")
+                try:
+                    from core.utils.logging_config import get_logger as _gl
+                    _gl('GAME').info("LOCATION_MGMT: origin starting_location applied id=%s name=%s", starting_location_id, resolved_location)
+                except Exception:
+                    pass
             else:
                 logger.warning(f"Origin '{origin_id}' has no starting_location_id. Leaving current_location unchanged.")
             
-            # Set up world time based on origin settings
+            # Set up world time/season and authoritative GameContext based on origin (or defaults)
             starting_time_period = origin_data.get('starting_time_period')
             starting_season = origin_data.get('starting_season')
-            
-            if starting_time_period:
-                # Convert time period to actual game time
-                from core.utils.enhanced_time_manager import get_enhanced_time_manager, TimePeriod
+
+            # Decide effective starting period: origin wins; else config default
+            from core.base.config import get_config as _get_cfg
+            cfg = _get_cfg()
+            effective_period = (starting_time_period or (cfg.get("calendar.initial_time_of_day") or "morning")).strip().lower()
+
+            # Initialize Engine GameContext BEFORE first LLM prompt (authoritative for Calendar)
+            try:
+                engine.set_game_context({
+                    'location': { 'name': resolved_location },
+                    'time_of_day': effective_period
+                }, location_id=starting_location_id)
+                try:
+                    from core.utils.logging_config import get_logger as _gl
+                    _gl('GAME').info("LOCATION_MGMT: initialized GameContext before welcome prompt id=%s name=%s tod=%s", starting_location_id, resolved_location, effective_period)
+                except Exception:
+                    pass
+            except Exception as _e_gc_init:
+                logger.warning(f"Failed to initialize GameContext before welcome prompt: {_e_gc_init}")
+
+            # Convert time period to world.game_time so Calendar tracks GameContext
+            try:
                 from core.utils.time_utils import HOUR
-                
-                # Map time periods to approximate hours
                 time_period_hours = {
                     'deep_night': 2, 'pre_dawn': 4.5, 'dawn': 6, 'morning': 9,
                     'noon': 12, 'afternoon': 15, 'evening': 18, 'sunset': 20.5, 'night': 22
                 }
-                
-                if starting_time_period in time_period_hours:
-                    target_hour = time_period_hours[starting_time_period]
-                    game_state.world.game_time = target_hour * HOUR
-                    logger.info(f"Set starting time to {starting_time_period} ({target_hour}:00) for origin '{origin_id}'")
-                
+                target_hour = time_period_hours.get(effective_period, 9)
+                game_state.world.game_time = float(target_hour) * HOUR
+                logger.info(f"Set starting time (from GameContext) to {effective_period} ({target_hour}:00) for origin '{origin_id}'")
+            except Exception as _e_time_map:
+                logger.warning(f"Failed to set world.game_time from GameContext period: {_e_time_map}")
+
             if starting_season:
                 # Set the season in world global variables
                 game_state.world.set_global_var('current_season', starting_season)
@@ -143,28 +164,8 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
     else:
         logger.warning("No origin_id found on game_state.player. Cannot add starting items.")
 
-    # If starting time wasn't set by origin, use calendar initial_time_of_day from config
-    try:
-        if getattr(game_state.world, 'game_time', 0.0) in (0, 0.0):
-            from core.base.config import get_config
-            from core.utils.time_utils import HOUR
-            cfg = get_config()
-            init_period = (cfg.get("calendar.initial_time_of_day") or "morning").lower()
-            time_period_hours = {
-                'deep_night': 2, 'pre_dawn': 4.5, 'dawn': 6, 'morning': 9,
-                'noon': 12, 'afternoon': 15, 'evening': 18, 'sunset': 20.5, 'night': 22
-            }
-            target_hour = time_period_hours.get(init_period, 9)
-            game_state.world.game_time = float(target_hour) * HOUR
-            # Recalc calendar now that game_time is set
-            try:
-                from core.base.state.calendar_state import CalendarState
-                game_state.world.calendar.recalc_from_game_time(game_state.world.game_time)
-            except Exception:
-                pass
-            logger.info(f"Initialized starting time from calendar setting: {init_period} ({target_hour}:00)")
-    except Exception as _e_init_time:
-        logger.warning(f"Failed to apply calendar initial_time_of_day: {_e_init_time}")
+    # world.game_time is now set from GameContext period; no separate calendar time override needed.
+    pass
 
     # --- Activate initial quests from origin ---
     try:

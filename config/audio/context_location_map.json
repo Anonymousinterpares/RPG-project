@@ -1,0 +1,26 @@
+{
+  "by_id": {
+    "ashen_camp": { "major": "camp", "venue": null, "biome": "forest", "region": "Ashen Fields" },
+    "harmonia": { "major": "city", "venue": null, "biome": null, "region": "Central Nexus" },
+    "verdant_embassy": { "major": "camp", "venue": null, "biome": null, "region": "Western Nexus" },
+    "crystalline_enclave": { "major": "camp", "venue": null, "biome": null, "region": "Eastern Nexus" },
+    "echo_woods": { "major": "forest", "venue": null, "biome": "forest", "region": "Northwestern Nexus" },
+    "tempest_harbor": { "major": "port", "venue": null, "biome": "seaside", "region": "Southern Nexus" },
+    "shifting_library": { "major": null, "venue": "library", "biome": null, "region": "Planar Overlap" },
+    "planar_bleed_zone": { "major": "ruins", "venue": null, "biome": null, "region": "Planar Border" },
+    "ghost_market": { "major": null, "venue": "market", "biome": null, "region": "Variable" },
+    "test_hub": { "major": "camp", "venue": null, "biome": null, "region": "Dev" }
+  },
+  "by_name": {
+    "Ashen Camp": { "major": "camp", "venue": null, "biome": "forest", "region": "Ashen Fields" },
+    "Harmonia": { "major": "city", "venue": null, "biome": null, "region": "Central Nexus" },
+    "Verdant Embassy": { "major": "camp", "venue": null, "biome": null, "region": "Western Nexus" },
+    "Crystalline Enclave": { "major": "camp", "venue": null, "biome": null, "region": "Eastern Nexus" },
+    "Echo Woods": { "major": "forest", "venue": null, "biome": "forest", "region": "Northwestern Nexus" },
+    "Tempest Harbor": { "major": "port", "venue": null, "biome": "seaside", "region": "Southern Nexus" },
+    "The Shifting Library": { "major": null, "venue": "library", "biome": null, "region": "Planar Overlap" },
+    "The Convergence": { "major": "ruins", "venue": null, "biome": null, "region": "Planar Border" },
+    "The Ghost Market": { "major": null, "venue": "market", "biome": null, "region": "Variable" },
+    "Quest Test Hub": { "major": "camp", "venue": null, "biome": null, "region": "Dev" }
+  }
+}

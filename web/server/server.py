@@ -482,6 +482,13 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     "game_running": engine.game_loop.is_running,
                 }
             })
+            # Also send initial game_context snapshot if available
+            try:
+                ctx = engine.get_game_context() if hasattr(engine, 'get_game_context') else {}
+                if isinstance(ctx, dict) and ctx:
+                    await websocket.send_json({"type": "game_context", "data": ctx})
+            except Exception:
+                pass
         
         # Flush any pending payloads that were buffered before the first WS client connected
         try:
@@ -859,7 +866,21 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
     except Exception as e:
         logger.warning(f"Failed to attach music state listener: {e}")
 
-    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn, "out_conn": out_conn, "music_conn": music_conn}
+    # GameContext listener (engine signal)
+    ctx_conn = None
+    try:
+        if hasattr(engine, 'context_updated'):
+            def on_context_updated(ctx_payload: dict):
+                try:
+                    _emit_ws({"type": "game_context", "data": ctx_payload})
+                except Exception:
+                    pass
+            engine.context_updated.connect(on_context_updated)
+            ctx_conn = on_context_updated
+    except Exception as e:
+        logger.warning(f"Failed to attach context_updated listener: {e}")
+
+    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn, "out_conn": out_conn, "music_conn": music_conn, "ctx_conn": ctx_conn}
 
 def _cleanup_session(session_id: str):
     """Clean up a session's resources."""
@@ -1820,6 +1841,46 @@ async def toggle_llm(session_id: str, request: ToggleLLMRequest, engine: GameEng
             detail=f"Error toggling LLM: {str(e)}"
         )
 
+# --- Context endpoints ---
+from fastapi import Body
+
+@app.get("/api/context/{session_id}")
+async def get_context(session_id: str):
+    try:
+        engine = active_sessions.get(session_id)
+        try:
+            logger.info(f"LOCATION_MGMT: GET /api/context/{session_id}")
+        except Exception:
+            pass
+        if not engine:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {"status": "success", "context": engine.get_game_context() if hasattr(engine, 'get_game_context') else {}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting context: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get context")
+
+@app.post("/api/context/{session_id}")
+async def post_context(session_id: str, payload: dict = Body(default={})):
+    try:
+        engine = active_sessions.get(session_id)
+        try:
+            logger.info(f"LOCATION_MGMT: POST /api/context/{session_id} payload={payload}")
+        except Exception:
+            pass
+        if not engine:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=400, detail="Payload must be a JSON object")
+        engine.set_game_context(payload)
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting context: {e}")
+        raise HTTPException(status_code=500, detail="Failed to set context")
+
 # --- Music control endpoints (server-authoritative actions) ---
 @app.post("/api/music/next/{session_id}")
 async def music_next(session_id: str):
@@ -1837,6 +1898,24 @@ async def music_next(session_id: str):
     except Exception as e:
         logger.error(f"Error advancing music track: {e}")
         raise HTTPException(status_code=500, detail="Failed to advance music track")
+
+@app.get("/api/config/dev")
+async def get_dev_flag():
+    try:
+        from core.base.config import get_config as _gc
+        cfg = _gc()
+        dev_mode = bool(cfg.get('system.debug_mode', False))
+        try:
+            # QSettings override (useful on desktop runs)
+            val = QSettings("RPGGame", "Settings").value("dev/enabled", None)
+            if val is not None:
+                dev_mode = bool(val)
+        except Exception:
+            pass
+        return {"dev_mode": dev_mode}
+    except Exception as e:
+        logger.error(f"Error returning dev flag: {e}")
+        return {"dev_mode": False}
 
 # --- Backstory generation endpoints ---
 class BackstoryImproveRequest(BaseModel):

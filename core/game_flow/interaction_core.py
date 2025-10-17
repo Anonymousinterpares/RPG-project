@@ -146,11 +146,50 @@ def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: 
     """Calls the appropriate LLM agent based on the mode and returns the structured output."""
     logger.debug(f"Getting agent response for Mode: {current_mode.name}, Intent: '{intent}'")
 
-    # Compute internal exact calendar string for prompt (do not show to user)
+    # Compute internal exact calendar string for prompt (do not show to player)
     try:
         exact_time_str = getattr(getattr(game_state, 'world', None), 'game_date', '') or ''
     except Exception:
         exact_time_str = ''
+
+    # Merge Engine GameContext into interaction context to avoid 'Unknown, Unknown'
+    try:
+        from core.base.engine import get_game_engine as _gge
+        eng = _gge()
+        gc = eng.get_game_context() if hasattr(eng, 'get_game_context') else {}
+        if isinstance(gc, dict) and gc:
+            loc_gc = (gc.get('location') or {}) if isinstance(gc.get('location'), dict) else {}
+            # Ensure context has a location dict
+            context.setdefault('location', {})
+            # Prefer non-empty GameContext values
+            if loc_gc.get('name'):
+                context['location']['name'] = loc_gc.get('name')
+            if loc_gc.get('major'):
+                context['location']['major'] = loc_gc.get('major')
+            if loc_gc.get('venue'):
+                context['location']['venue'] = loc_gc.get('venue')
+            # Top-level enrichments
+            for k in ('time_of_day','biome','region','interior','underground','crowd_level','danger_level'):
+                v = gc.get(k)
+                if v is not None:
+                    context[k] = v
+            # Weather flattening for world_state convenience
+            if isinstance(gc.get('weather'), dict) and gc['weather'].get('type'):
+                context['weather'] = gc['weather']
+            # Log what will be used by the narrator
+            try:
+                _glog = __import__('core.utils.logging_config', fromlist=['get_logger']).get_logger('GAME')
+                _glog.info(
+                    "LOCATION_MGMT: narrator_context fields name=%s major=%s venue=%s region=%s biome=%s time_of_day=%s",
+                    context.get('location', {}).get('name'),
+                    context.get('location', {}).get('major'),
+                    context.get('location', {}).get('venue'),
+                    context.get('region'), context.get('biome'), context.get('time_of_day')
+                )
+            except Exception:
+                pass
+    except Exception as _e_gc:
+        logger.debug(f"Skipping GameContext merge for narrator: {_e_gc}")
 
     # Provide richer world_state to the agent
     # Selectively include player's known spells to help the LLM when magic is intended (Narrative mode too)
@@ -201,17 +240,26 @@ def _get_agent_response(engine: 'GameEngine', game_state: 'GameState', context: 
     except Exception as e_hint:
         logger.debug(f"Narrative spells hint skipped: {e_hint}")
 
+    # Build world_state for agent prompt with GameContext-aware fields
+    world_state_payload = {
+        'location': context.get('location'),
+        'time_of_day': context.get('time_of_day'),
+        'is_day': getattr(getattr(game_state, 'world', None), 'is_day', True),
+        'environment': context.get('environment'),
+        'exact_game_time': exact_time_str,
+        'calendar': exact_time_str,
+    }
+    if 'weather' in context:
+        world_state_payload['weather'] = (context.get('weather') or {}).get('type') if isinstance(context.get('weather'), dict) else context.get('weather')
+    if 'region' in context:
+        world_state_payload['region'] = context.get('region')
+    if 'biome' in context:
+        world_state_payload['biome'] = context.get('biome')
+
     agent_context = AgentContext(
-        game_state=context, # Pass context dict as game_state for agent
+        game_state=context, # Pass merged context dict as game_state for agent
         player_state=context.get('player', {}),
-        world_state={
-            'location': context.get('location'),
-            'time_of_day': context.get('time_of_day'),
-            'is_day': getattr(getattr(game_state, 'world', None), 'is_day', True),
-            'environment': context.get('environment'),
-            'exact_game_time': exact_time_str,
-            'calendar': exact_time_str
-        },
+        world_state=world_state_payload,
         player_input=intent, # Use the intent as the input
         conversation_history=game_state.conversation_history,
         relevant_memories=[], # Placeholder

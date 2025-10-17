@@ -1,0 +1,11 @@
+{
+  "location": {
+    "major": { "town":"city", "hamlet":"village", "port town":"port", "camp":"camp" },
+    "venue": { "pub":"tavern", "smith":"blacksmith", "church":"chapel", "marketplace":"market" }
+  },
+  "weather": { "type": { "rainy":"rain", "snowing":"snow", "clear skies":"clear" } },
+  "time_of_day": { "deep night":"deep_night", "the hours before dawn":"pre_dawn", "pre dawn":"pre_dawn", "predawn":"pre_dawn", "dawn":"dawn", "sunrise":"dawn", "morning":"morning", "midday":"noon", "noon":"noon", "afternoon":"afternoon", "evening":"evening", "sunset":"sunset", "dusk":"sunset", "twilight":"sunset", "gloaming":"sunset", "nighttime":"night", "midnight":"night", "nightfall":"night", "night":"night" },
+  "biome": { "shore":"seaside", "coast":"seaside", "woods":"forest", "jungle":"forest" },
+  "crowd_level": { "crowded":"busy", "packed":"busy", "empty streets":"empty" },
+  "danger_level": { "safe":"calm", "high":"deadly", "dangerous":"tense" }
+}

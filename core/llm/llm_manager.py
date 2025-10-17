@@ -212,6 +212,11 @@ class LLMManager:
         # Set parameters
         temperature = temperature if temperature is not None else self._llm_settings.get("default_temperature", 0.7)
         max_tokens = max_tokens if max_tokens is not None else self._llm_settings.get("max_tokens", 1000)
+
+        # For OpenAI and OpenRouter 'gpt5' and 'gpt-5' models, override temperature to 1.0 (as other values are unsupported)
+        if (provider_type == ProviderType.OPENAI or provider_type == ProviderType.OPENROUTER) and model and (model.startswith("gpt5") or model.startswith("gpt-5")):
+            logger.debug(f"LLM Parameter: Overriding temperature for '{model}' to 1.0 (previously {temperature}) in get_completion.")
+            temperature = 1.0
         timeout = timeout if timeout is not None else self._llm_settings.get("timeout_seconds", 30)
         retry_attempts = retry_attempts if retry_attempts is not None else self._llm_settings.get("retry_attempts", 3)
         
@@ -293,12 +298,22 @@ class LLMManager:
         Returns:
             An LLMResponse object, or None if the request failed.
         """
+        # Determine the correct token parameter name
+        token_param_name = "max_tokens"
+        if provider_type == ProviderType.OPENAI or provider_type == ProviderType.OPENROUTER:
+            # Based on user feedback: gpt-4o (not gpt-4o-mini) and potentially gpt-5/gpt5 models require 'max_completion_tokens'
+            if (model.startswith("gpt-4o") and not model.startswith("gpt-4o-mini")) or model.startswith("gpt-5") or model.startswith("gpt5"):
+                token_param_name = "max_completion_tokens"
+        
+        logger.debug(f"LLM Parameter: Using '{token_param_name}' for model '{model}' with value {max_tokens}")
+
+        # Create the request parameters
         # Create the request parameters
         request_params = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            "temperature": temperature, # Ensure temperature is always passed here
+            token_param_name: max_tokens,
             "timeout": timeout
         }
         

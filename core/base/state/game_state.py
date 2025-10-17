@@ -67,6 +67,9 @@ class GameState:
     # Music (Phase A): persisted mood/intensity
     music_mood: Optional[str] = None
     music_intensity: Optional[float] = None
+
+    # Extended context (GameContext stored as nested dict for saves/UI)
+    game_context: Dict[str, Any] = field(default_factory=dict)
     
     # Cooldowns for mode transitions (target_mode: timestamp_expires)
     mode_transition_cooldowns: Dict[str, float] = field(default_factory=dict)
@@ -194,6 +197,7 @@ class GameState:
             # Music state (optional)
             "music_mood": self.music_mood,
             "music_intensity": self.music_intensity,
+            "game_context": self.game_context,
         }
         
         # Include journal if present
@@ -245,6 +249,10 @@ class GameState:
                 game_state.music_intensity = float(data.get("music_intensity")) if data.get("music_intensity") is not None else None
             except Exception:
                 game_state.music_intensity = None
+
+        # Restore extended context if present
+        if isinstance(data.get("game_context"), dict):
+            game_state.game_context = data.get("game_context") or {}
         
         # Restore journal if present
         if "journal" in data and isinstance(data["journal"], dict):
