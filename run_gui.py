@@ -32,6 +32,21 @@ def run_gui():
         # Initialize default settings
         init_default_settings()
         
+        # Apply stats_manager logging visibility based on settings
+        try:
+            from PySide6.QtCore import QSettings
+            s = QSettings("RPGGame", "Settings")
+            dev_enabled = bool(s.value("dev/enabled", False, type=bool))
+            show_stats_logs = bool(s.value("dev/show_stats_manager_logs", False, type=bool))
+            stats_logger = logging.getLogger("core.stats.stats_manager")
+            if dev_enabled and show_stats_logs:
+                stats_logger.setLevel(logging.DEBUG)
+            else:
+                stats_logger.setLevel(logging.WARNING)
+        except Exception:
+            # Never fail GUI startup due to settings/logging application
+            pass
+        
         # Initialize game engine
         engine = get_game_engine()
         

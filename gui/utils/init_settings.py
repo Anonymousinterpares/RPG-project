@@ -75,6 +75,12 @@ def init_default_settings():
     if not settings.contains("gameplay/tutorial_enabled"):
         settings.setValue("gameplay/tutorial_enabled", True)
 
+    # Initialize developer settings if they don't exist
+    if not settings.contains("dev/enabled"):
+        settings.setValue("dev/enabled", False)
+    if not settings.contains("dev/show_stats_manager_logs"):
+        settings.setValue("dev/show_stats_manager_logs", False)
+
     # Sync settings to disk
     settings.sync()
 

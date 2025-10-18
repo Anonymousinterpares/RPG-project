@@ -1260,6 +1260,19 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Failed to apply sound settings to MusicDirector: {e}")
 
+            # Apply stats_manager logging visibility immediately without restart
+            try:
+                q_settings = QSettings("RPGGame", "Settings")
+                dev_enabled = bool(q_settings.value("dev/enabled", False, type=bool))
+                show_stats_logs = bool(q_settings.value("dev/show_stats_manager_logs", False, type=bool))
+                stats_logger = logging.getLogger("core.stats.stats_manager")
+                if dev_enabled and show_stats_logs:
+                    stats_logger.setLevel(logging.DEBUG)
+                else:
+                    stats_logger.setLevel(logging.WARNING)
+            except Exception as e:
+                logger.warning(f"Failed to apply stats_manager logging setting: {e}")
+
             # Show confirmation
             self.game_output.append_system_message("Settings saved successfully.")
             logger.info("Settings applied successfully.")

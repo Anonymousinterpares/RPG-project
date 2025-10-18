@@ -261,6 +261,13 @@ class SettingsDialog(BaseDialog):
         dev_layout = QVBoxLayout(dev_group)
         self.dev_mode_checkbox = QCheckBox("Enable Developer Mode (show debug UI and controls)")
         dev_layout.addWidget(self.dev_mode_checkbox)
+        
+        # Stats Manager logs visibility (shown only when Dev Mode is enabled)
+        self.stats_logs_checkbox = QCheckBox("Show stats_manager logs")
+        dev_layout.addWidget(self.stats_logs_checkbox)
+        
+        # Enable/disable stats logs checkbox based on developer mode
+        self.dev_mode_checkbox.toggled.connect(self.stats_logs_checkbox.setEnabled)
         gameplay_layout.addWidget(dev_group)
 
         # Create form layout for settings
@@ -420,6 +427,14 @@ class SettingsDialog(BaseDialog):
         if isinstance(dev_enabled, str):
             dev_enabled = dev_enabled.lower() == "true"
         self.dev_mode_checkbox.setChecked(bool(dev_enabled))
+        
+        # Load stats_manager logs visibility (default to False)
+        show_stats_logs = self.settings.value("dev/show_stats_manager_logs", False)
+        if isinstance(show_stats_logs, str):
+            show_stats_logs = show_stats_logs.lower() == "true"
+        self.stats_logs_checkbox.setChecked(bool(show_stats_logs))
+        # Enable only when dev mode is enabled
+        self.stats_logs_checkbox.setEnabled(bool(dev_enabled))
 
         # Load style settings
         if hasattr(self, 'style_tab'):
@@ -506,6 +521,8 @@ class SettingsDialog(BaseDialog):
 
         # Save dev mode
         self.settings.setValue("dev/enabled", self.dev_mode_checkbox.isChecked())
+        # Save stats_manager logs visibility
+        self.settings.setValue("dev/show_stats_manager_logs", self.stats_logs_checkbox.isChecked())
 
         # Save style settings (unchanged)
         if hasattr(self, 'style_tab'):
