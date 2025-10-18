@@ -214,6 +214,13 @@ class GameConfig:
                 "debug": {
                     "time_audit_log_enabled": True
                 },
+                "features": {
+                    "set_context_api_enabled": True,
+                    "music_bias_enabled": True,
+                    "context_telemetry_enabled": True,
+                    "sfx_enabled": True,
+                    "gui_sim_controls_enabled": True
+                },
                 "time": {
                     "tick_enabled": False,
                     "post_combat_increment_seconds": 300

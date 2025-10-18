@@ -46,9 +46,23 @@ class MusicDirector:
         self._intensity_ema: float = self._intensity
         self._jumpscare_thread: Optional[threading.Thread] = None
         self._jumpscare_active: bool = False
-        # Lightweight context (Phase A): only major location for now
-        self._context: Dict[str, Optional[str]] = {"location_major": None}
+        # Lightweight context (Phase B): accept multiple tags for selection bias
+        self._context: Dict[str, Optional[str]] = {
+            "location_major": None,
+            "location_venue": None,
+            "weather_type": None,
+            "time_of_day": None,
+            "biome": None,
+            "region": None,
+            "interior": None,       # bool → represented as 'interior' token if True
+            "underground": None,    # bool → represented as 'underground' token if True
+            "crowd_level": None,
+            "danger_level": None,
+        }
         self._context_bias_enabled: bool = True
+        # Debounce very rapid context changes to avoid jitter (ms window)
+        self._last_context_change_ts: float = 0.0
+        self._min_context_change_interval_s: float = 0.2
         # Scan once on init
         try:
             self._scan_tracks()
@@ -87,7 +101,12 @@ class MusicDirector:
                 if self._context.get(key) != new_val:
                     self._context[key] = new_val
                     updated = True
+            # Debounce jitter
+            now = time.time()
+            if updated and (now - self._last_context_change_ts) < self._min_context_change_interval_s:
+                return
             if updated:
+                self._last_context_change_ts = now
                 try:
                     get_logger("GAME").info("LOCATION_MGMT: director.set_context updated keys=%s", list({k for k in (['location_major'] if location_major is not None else [])} | set(kwargs.keys())))
                 except Exception:
@@ -221,32 +240,39 @@ class MusicDirector:
         candidates = unplayed if force_unplayed else pool
         if self._current_track in candidates and len(candidates) > 1:
             candidates = [c for c in candidates if c != self._current_track]
-        # Lightweight context bias (Phase A): prefer tracks whose filename contains location_major token
+        # Context bias: prefer tracks whose filename contains any active context tokens
         if self._context_bias_enabled:
-            loc = (self._context.get("location_major") or "").strip().lower()
-            if loc:
-                def _score(path: str) -> float:
-                    # Simple filename heuristic; later: manifest tags
-                    base = os.path.basename(path).lower()
-                    return 2.0 if loc in base else 1.0
-                weights = [_score(p) for p in candidates]
-                try:
-                    total = sum(weights)
-                    if total > 0:
-                        r = random.random() * total
-                        acc = 0.0
-                        for p, w in zip(candidates, weights):
-                            acc += w
-                            if r <= acc:
-                                choice = p
-                                break
-                        else:
-                            choice = random.choice(candidates)
+            ctx = {k: v for k, v in self._context.items() if v}
+            def _score(path: str) -> float:
+                base = os.path.basename(path).lower()
+                score = 1.0
+                # string tags
+                for key in ("location_major","location_venue","weather_type","time_of_day","biome","crowd_level","danger_level","region"):
+                    val = ctx.get(key)
+                    if isinstance(val, str) and val and val in base:
+                        score += 1.0
+                # boolean tags
+                if ctx.get("interior") is True and "interior" in base:
+                    score += 0.5
+                if ctx.get("underground") is True and "underground" in base:
+                    score += 0.5
+                return score
+            weights = [_score(p) for p in candidates]
+            try:
+                total = sum(weights)
+                if total > 0:
+                    r = random.random() * total
+                    acc = 0.0
+                    for p, w in zip(candidates, weights):
+                        acc += w
+                        if r <= acc:
+                            choice = p
+                            break
                     else:
                         choice = random.choice(candidates)
-                except Exception:
+                else:
                     choice = random.choice(candidates)
-            else:
+            except Exception:
                 choice = random.choice(candidates)
         else:
             choice = random.choice(candidates)

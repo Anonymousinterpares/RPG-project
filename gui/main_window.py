@@ -977,6 +977,11 @@ class MainWindow(QMainWindow):
                 calendar=getattr(state.world, 'calendar_string', ''),
                 mode=current_mode_name 
             )
+            try:
+                ctx_payload = self.game_engine.get_game_context() if hasattr(self.game_engine, 'get_game_context') else {}
+                self.status_bar.update_context(ctx_payload)
+            except Exception:
+                pass
 
     def _show_game_panels_for_loaded_game(self):
         """Make game panels visible and enabled when loading a saved game."""

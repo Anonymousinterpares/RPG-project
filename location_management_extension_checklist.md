@@ -253,6 +253,7 @@ Manual/QA:
 - context_changed {fields_changed, source, canonicalized, warnings}
 - suggestion_received (if LLM path used)
 - decision {accepted, reason}
+- context_mismatch {narrative_snippet, extracted_intent, current_ctx, proposed_ctx, confidence, applied}
 
 [ ] Optional counters: context_change_count by source (engine/LLM/UI).
 
@@ -306,9 +307,11 @@ Milestone B (Extended fields & polish):
 [x] World Configurator: editable Context Location Map (by_id/by_name), enums-backed dropdowns for major/venue/weather/biome/crowd/danger + tri‑state interior/underground; import from game and export to game
 [ ] Dev tools to simulate context changes
 [ ] Tune bias weights; add caps and logs
+[ ] Context mismatch fallback: rule-based detectors for weather/time/venue/crowd cues; generate inferred SET_CONTEXT with confidence; dev banner for 1‑click apply; log context_mismatch events
 
 Milestone C (LLM & SFX integration):
 [ ] SET_CONTEXT tool integration & policy
+[ ] Optional LLM disambiguator for ambiguous mismatches (compact prompt; strict schema; low‑token)
 [ ] SFX context mapping consumption (continuous ambience, instant SFX presets)
 
 ---

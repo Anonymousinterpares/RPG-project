@@ -152,7 +152,9 @@ class GameEngine(QObject):
         try:
             import os as _os
             from core.music.director import get_music_director
+            from core.audio.sfx_manager import SFXManager
             self._music_director = get_music_director(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
+            self._sfx_manager = SFXManager(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
 
             web_mode = str(_os.environ.get("RPG_WEB_MODE", "0")) == "1"
             if not web_mode:
@@ -161,6 +163,11 @@ class GameEngine(QObject):
                 from core.music.backend_vlc import VLCBackend
                 self._music_backend = VLCBackend()
                 self._music_director.set_backend(self._music_backend)
+                # Reuse same backend for SFX
+                try:
+                    self._sfx_manager.set_backend(self._music_backend)
+                except Exception:
+                    pass
                 # Apply QSettings sound immediately
                 s = QSettings("RPGGame", "Settings")
                 master = int(s.value("sound/master_volume", 100))
@@ -170,12 +177,12 @@ class GameEngine(QObject):
                 muted = not bool(enabled)
                 self._music_director.set_volumes(master, music, effects)
                 self._music_director.set_muted(muted)
-                logger.info(f"Music system initialized (desktop backend, enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
+                logger.info(f"Music/SFX system initialized (desktop backend, enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
             else:
                 # Web/server mode: no desktop audio backend; state is emitted to clients for WebAudio playback
-                logger.info("Music system initialized in WEB mode (no desktop audio backend)")
+                logger.info("Music/SFX system initialized in WEB mode (no desktop audio backend)")
         except Exception as e:
-            logger.warning(f"Failed to initialize music system: {e}")
+            logger.warning(f"Failed to initialize music/SFX system: {e}")
 
         self._initialized = True
         logger.info("GameEngine initialized")
@@ -1256,7 +1263,7 @@ class GameEngine(QObject):
         except Exception:
             return {}
 
-    def set_game_context(self, ctx: Optional[Dict[str, Any]] = None, **kwargs) -> None:
+    def set_game_context(self, ctx: Optional[Dict[str, Any]] = None, source: Optional[str] = None, **kwargs) -> None:
         """Set or update the engine's GameContext with canonicalization and notify listeners.
         Accepts a nested dict (ctx) and/or keyword fields; merges and canonicalizes.
         Also forwards location_major (and other hints) to MusicDirector for selection bias.
@@ -1272,7 +1279,7 @@ class GameEngine(QObject):
             logger.info("LOCATION_MGMT: set_game_context incoming=%s", str(incoming))
 
             # Canonicalize only the provided fields
-            new_gc, _warn = canonicalize_context(incoming)
+            new_gc, warn = canonicalize_context(incoming)
 
             # Start from previous context and only update fields that were explicitly provided
             prev_gc: GameContext = getattr(self, '_game_context', None) or GameContext()
@@ -1324,6 +1331,44 @@ class GameEngine(QObject):
 
             self._game_context = merged_gc
             logger.info("LOCATION_MGMT: canonicalized=%s", str(merged_gc.to_dict()))
+            # Structured telemetry: JSON line with diffs
+            try:
+                from core.utils.logging_config import get_logger as _gl
+                prev_d = prev_gc.to_dict()
+                new_d = merged_gc.to_dict()
+                changed_keys = []
+                # compare flattened keys of interest
+                def _get(d, path_list):
+                    cur = d
+                    for p in path_list:
+                        cur = cur.get(p, None) if isinstance(cur, dict) else None
+                    return cur
+                candidates = [
+                    ("location.name", ["location","name"]),
+                    ("location.major", ["location","major"]),
+                    ("location.venue", ["location","venue"]),
+                    ("weather.type", ["weather","type"]),
+                    ("time_of_day", ["time_of_day"]),
+                    ("biome", ["biome"]),
+                    ("region", ["region"]),
+                    ("interior", ["interior"]),
+                    ("underground", ["underground"]),
+                    ("crowd_level", ["crowd_level"]),
+                    ("danger_level", ["danger_level"]),
+                ]
+                for k, path in candidates:
+                    if _get(prev_d, path) != _get(new_d, path):
+                        changed_keys.append(k)
+                _gl("CONTEXT").info(json.dumps({
+                    "event": "ContextUpdate",
+                    "source": source or "unknown",
+                    "changed_keys": changed_keys,
+                    "warnings": warn,
+                    "prev": prev_d,
+                    "new": new_d,
+                }, ensure_ascii=False))
+            except Exception:
+                pass
             # Sync world current_location with location.name for consistency
             try:
                 if self._state_manager and self._state_manager.current_state:
@@ -1338,7 +1383,13 @@ class GameEngine(QObject):
                 if md and hasattr(md, 'set_context'):
                     d = merged_gc.to_dict()
                     loc = d.get("location", {}) or {}
-                    md.set_context(location_major=loc.get("major"), location_venue=loc.get("venue"), weather_type=d.get("weather", {}).get("type"), time_of_day=d.get("time_of_day"), biome=d.get("biome"))
+                    md.set_context(location_major=loc.get("major"), location_venue=loc.get("venue"), weather_type=d.get("weather", {}).get("type"), time_of_day=d.get("time_of_day"), biome=d.get("biome"), region=d.get("region"), interior=d.get("interior"), underground=d.get("underground"), crowd_level=d.get("crowd_level"), danger_level=d.get("danger_level"))
+            except Exception:
+                pass
+            # Trigger SFX based on changed categories
+            try:
+                if hasattr(self, '_sfx_manager') and self._sfx_manager:
+                    self._sfx_manager.apply_context(merged_gc.to_dict(), changed_keys)
             except Exception:
                 pass
             # Emit signal for web/server or GUI dev panels

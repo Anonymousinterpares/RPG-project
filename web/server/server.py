@@ -10,6 +10,7 @@ import json
 import uuid
 import logging
 import asyncio
+import time
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -1844,6 +1845,44 @@ async def toggle_llm(session_id: str, request: ToggleLLMRequest, engine: GameEng
 # --- Context endpoints ---
 from fastapi import Body
 
+# Simple token-bucket rate limiter per session for context updates
+_RATE_LIMIT: Dict[str, Dict[str, Any]] = {}
+_RATE_LIMIT_BURST = 10
+_RATE_LIMIT_PER_SEC = 5.0
+
+def _allow_context_request(session_id: str) -> bool:
+    now = time.time()
+    bucket = _RATE_LIMIT.get(session_id)
+    if not bucket:
+        _RATE_LIMIT[session_id] = {"tokens": _RATE_LIMIT_BURST, "last": now}
+        return True
+    tokens = bucket.get("tokens", _RATE_LIMIT_BURST)
+    last = bucket.get("last", now)
+    # Refill
+    tokens = min(_RATE_LIMIT_BURST, tokens + (now - last) * _RATE_LIMIT_PER_SEC)
+    if tokens < 1.0:
+        bucket["tokens"] = tokens
+        bucket["last"] = now
+        return False
+    bucket["tokens"] = tokens - 1.0
+    bucket["last"] = now
+    return True
+
+_ALLOWED_CTX_KEYS = {"location","weather","time_of_day","biome","region","interior","underground","crowd_level","danger_level","location_id"}
+
+def _validate_context_payload(payload: dict) -> Dict[str, Any]:
+    # Keep only allowed top-level keys
+    clean = {k: v for k, v in (payload or {}).items() if k in _ALLOWED_CTX_KEYS}
+    # Ensure types for booleans
+    for b in ("interior","underground"):
+        if b in clean:
+            try:
+                clean[b] = bool(clean[b]) if clean[b] is not None else None
+            except Exception:
+                clean[b] = None
+    # Pass through; canonicalization will normalize enums
+    return clean
+
 @app.get("/api/context/{session_id}")
 async def get_context(session_id: str):
     try:
@@ -1873,7 +1912,22 @@ async def post_context(session_id: str, payload: dict = Body(default={})):
             raise HTTPException(status_code=404, detail="Session not found")
         if not isinstance(payload, dict):
             raise HTTPException(status_code=400, detail="Payload must be a JSON object")
-        engine.set_game_context(payload)
+        # Feature flag (default enabled)
+        try:
+            from core.base.config import get_config as _gc
+            cfg = _gc()
+            if cfg and (cfg.get('game.features.set_context_api_enabled', True) is False):
+                raise HTTPException(status_code=403, detail="SET_CONTEXT API disabled")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+        # Rate-limit
+        import time as _time
+        if not _allow_context_request(session_id):
+            raise HTTPException(status_code=429, detail="Too many context updates; slow down")
+        clean = _validate_context_payload(payload)
+        engine.set_game_context(clean, source="server_api")
         return {"status": "success"}
     except HTTPException:
         raise

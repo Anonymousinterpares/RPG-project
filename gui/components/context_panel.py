@@ -160,7 +160,7 @@ class ContextPanelWidget(QWidget):
         }
         try:
             if hasattr(self._engine, 'set_game_context'):
-                self._engine.set_game_context(payload)
+                self._engine.set_game_context(payload, source="gui_dev_panel")
                 self._status.setText("Applied context to engine.")
         except Exception as e:
             self._status.setText(f"Failed to apply: {e}")

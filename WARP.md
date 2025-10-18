@@ -98,3 +98,4 @@ dir with GUI files: gui
 dir  with web_configurator tool: \world_configurator
 saves: \saves
 logs: \logs
+tests designed for LLM in headless mode in CLI -> \tools\headless_cli
