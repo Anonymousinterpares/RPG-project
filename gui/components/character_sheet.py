@@ -358,8 +358,13 @@ class CharacterSheetWidget(QScrollArea):
             }
         """)
         primary_stats_layout = QGridLayout(primary_stats_group)
-        primary_stats_layout.setColumnStretch(0, 1)
-        primary_stats_layout.setColumnStretch(1, 1)
+        primary_stats_layout.setColumnStretch(0, 1)  # First column stat names
+        primary_stats_layout.setColumnStretch(1, 0)  # First column values (no stretch)
+        primary_stats_layout.setColumnStretch(2, 1)  # Second column stat names
+        primary_stats_layout.setColumnStretch(3, 0)  # Second column values (no stretch)
+        primary_stats_layout.setColumnMinimumWidth(1, 50)  # Minimum width for value columns
+        primary_stats_layout.setColumnMinimumWidth(3, 50)
+        primary_stats_layout.setHorizontalSpacing(10)  # Add some spacing between columns
 
         # Add primary stats - Using Enum Name as stat_id
         self._add_stat(primary_stats_layout, 0, 0, StatType.STRENGTH.name, "Strength", "")
@@ -485,8 +490,13 @@ class CharacterSheetWidget(QScrollArea):
             }
         """)
         derived_stats_layout = QGridLayout(derived_stats_group)
-        derived_stats_layout.setColumnStretch(0, 1)
-        derived_stats_layout.setColumnStretch(1, 1)
+        derived_stats_layout.setColumnStretch(0, 1)  # First column stat names
+        derived_stats_layout.setColumnStretch(1, 0)  # First column values (no stretch)
+        derived_stats_layout.setColumnStretch(2, 1)  # Second column stat names
+        derived_stats_layout.setColumnStretch(3, 0)  # Second column values (no stretch)
+        derived_stats_layout.setColumnMinimumWidth(1, 50)  # Minimum width for value columns
+        derived_stats_layout.setColumnMinimumWidth(3, 50)
+        derived_stats_layout.setHorizontalSpacing(10)  # Add some spacing between columns
 
         # Add derived stats - Using Enum Name as stat_id
         self._add_stat(derived_stats_layout, 0, 0, DerivedStatType.MELEE_ATTACK.name, "Melee Attack", "")
@@ -510,7 +520,8 @@ class CharacterSheetWidget(QScrollArea):
             """Add a stat to the stats layout."""
             # Create label
             label = QLabel(f"{stat_name}:") # Use descriptive name for the row label
-            label.setStyleSheet("color: #BBBBBB; font-weight: bold;")
+            label.setStyleSheet("color: #BBBBBB; font-weight: bold; padding-right: 5px;")
+            label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)  # Right align for closer spacing to values
 
             # Create value label - use the Enum Name (stat_id) as the key
             value_label = StatLabel(value, stat_id) # Pass Enum Name ("STR", "MELEE_ATTACK")
@@ -520,8 +531,8 @@ class CharacterSheetWidget(QScrollArea):
             except Exception:
                 pass
             # Set minimum width and restore original color
-            value_label.setStyleSheet("color: #E0E0E0; min-width: 30px;")
-            value_label.setAlignment(Qt.AlignRight)
+            value_label.setStyleSheet("color: #E0E0E0; min-width: 50px; padding-left: 5px;")
+            value_label.setAlignment(Qt.AlignLeft)  # Changed to left align for closer spacing
 
             # Store the value label using the Enum Name as the key
             if stat_id in [s.name for s in StatType]:
