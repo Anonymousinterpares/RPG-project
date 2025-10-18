@@ -324,6 +324,8 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction(self.action_open)
         self.toolbar.addAction(self.action_save)
         self.toolbar.addSeparator()
+        # Add 'Load from Game' button left of 'Export to Game'
+        self.toolbar.addAction(self.action_load_from_game)
         self.toolbar.addAction(self.action_export)
 
         logger.debug("Toolbar set up")

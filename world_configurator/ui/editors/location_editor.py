@@ -936,6 +936,189 @@ class LocationEditor(QWidget):
         # Log
         logger.info(f"Saved location: {self.current_location.name} ({self.current_location.id})")
     
+    # ===== Assistant integration =====
+    def get_assistant_context(self):
+        from assistant.context import AssistantContext
+        allowed = [
+            "/name", "/description", "/type", "/region", "/culture_id", "/population",
+            "/features", "/connections", "/npcs", "/culture_mix",
+            "/context_map"
+        ]
+        content = None
+        if self.current_location:
+            content = self.current_location.to_dict()
+            # Attach current context mapping entry under a synthetic key so LLM can propose edits
+            try:
+                entry = self.context_map_manager.get_entry(location_id=self.current_location.id, name=self.current_location.name) if self.context_map_manager else None
+            except Exception:
+                entry = None
+            if isinstance(content, dict):
+                content = dict(content)
+                content["context_map"] = entry or {}
+        return AssistantContext(
+            domain="locations",
+            selection_id=self.current_location.id if self.current_location else None,
+            content=content,
+            schema=None,
+            allowed_paths=allowed,
+        )
+
+    def get_domain_examples(self):
+        # Provide a single example (first location) to guide create mode
+        try:
+            if self.location_manager and self.location_manager.locations:
+                first = next(iter(self.location_manager.locations.values()))
+                ex = first.to_dict()
+                # Also show an example of context_map structure
+                ex["context_map"] = {"major": "camp", "venue": "tavern", "weather": {"type": "clear"}, "biome": "forest", "region": first.region}
+                return [ex]
+        except Exception:
+            pass
+        return []
+
+    def get_reference_catalogs(self):
+        # Provide enums, known culture IDs, fundamental rules excerpt, and existing names for grounding
+        refs = {}
+        try:
+            refs["context_enums"] = self._context_enums
+        except Exception:
+            refs["context_enums"] = {}
+        try:
+            cultures = []
+            if self.culture_manager and getattr(self.culture_manager, 'cultures', None):
+                cultures = list(self.culture_manager.cultures.keys())
+            refs["culture_ids"] = cultures
+        except Exception:
+            refs["culture_ids"] = []
+        # Fundamental rules (best-effort)
+        try:
+            from utils.file_manager import get_config_dir, load_json
+            import os as _os
+            p = _os.path.join(get_config_dir(), "world", "base", "fundamental_rules.json")
+            rules = load_json(p) or {}
+            refs["fundamental_rules"] = rules
+        except Exception:
+            refs["fundamental_rules"] = {}
+        # Existing names to reduce duplicates
+        try:
+            refs["existing_names"] = sorted({loc.name for loc in self.location_manager.locations.values()})
+        except Exception:
+            refs["existing_names"] = []
+        # Constraints: which keys go to context_map
+        refs["constraints"] = {
+            "context_map_keys": ["major","venue","weather","biome","region","interior","underground","crowd_level","danger_level"]
+        }
+        return refs
+
+    def apply_assistant_patch(self, patch_ops):
+        from assistant.patching import apply_patch_with_validation
+        ctx = self.get_assistant_context()
+        if not ctx.content:
+            return False, "No location selected."
+        ok, msg, new_content = apply_patch_with_validation(ctx, ctx.content, patch_ops)
+        if not ok:
+            return False, msg
+        try:
+            # Update Location
+            from models.base_models import Location
+            loc_dict = dict(new_content)
+            # Remove synthetic context_map before instantiating Location
+            loc_dict.pop("context_map", None)
+            updated = Location.from_dict(loc_dict)
+            updated.id = self.current_location.id
+            self.location_manager.add_location(updated)
+            # Apply context_map if provided
+            cm = new_content.get("context_map") if isinstance(new_content, dict) else None
+            if isinstance(cm, dict) and self.context_map_manager:
+                self.context_map_manager.set_entry(updated.id, updated.name, cm)
+            self._load_location(updated)
+            self.location_modified.emit()
+            return True, "OK"
+        except Exception as e:
+            return False, f"Failed to apply: {e}"
+
+    def create_entry_from_llm(self, entry: dict):
+        try:
+            from models.base_models import Location, LocationFeature, LocationConnection
+            name = (entry.get("name") or "New Location").strip()
+            desc = entry.get("description", "")
+            loc_type = entry.get("type", "other")
+            new_loc = Location.create_new(name, desc, loc_type)
+            # Optional fields
+            new_loc.region = str(entry.get("region", ""))
+            new_loc.culture_id = str(entry.get("culture_id", ""))
+            try:
+                pop = int(entry.get("population", 0))
+            except Exception:
+                pop = 0
+            new_loc.population = max(0, pop)
+            # Features
+            feats = []
+            for f in entry.get("features", []) or []:
+                if isinstance(f, dict):
+                    feats.append(LocationFeature(name=f.get("name",""), description=f.get("description",""), interaction_type=f.get("interaction_type","none")))
+            new_loc.features = feats
+            # Connections
+            conns = []
+            for c in entry.get("connections", []) or []:
+                if isinstance(c, dict):
+                    try:
+                        tt = int(c.get("travel_time", 0))
+                    except Exception:
+                        tt = 0
+                    conns.append(LocationConnection(target=str(c.get("target","")), description=str(c.get("description","")), travel_time=tt, requirements=c.get("requirements", []) or []))
+            new_loc.connections = conns
+            # Culture mix (optional)
+            cmix = entry.get("culture_mix")
+            if isinstance(cmix, dict):
+                new_loc.culture_mix = {str(k): float(v) for k, v in cmix.items() if isinstance(v, (int, float))}
+            # Add to manager
+            self.location_manager.add_location(new_loc)
+            self._refresh_location_list()
+            # Select newly created location
+            for i in range(self.location_list.count()):
+                it = self.location_list.item(i)
+                if it.data(Qt.UserRole) == new_loc.id:
+                    self.location_list.setCurrentItem(it)
+                    break
+            # Optionally set context mapping
+            cm = entry.get("context_map") or {}
+            if isinstance(cm, dict) and self.context_map_manager:
+                self.context_map_manager.set_entry(new_loc.id, new_loc.name, cm)
+            self.location_modified.emit()
+            return True, "Created", new_loc.id
+        except Exception as e:
+            return False, f"Failed to create: {e}", None
+
+    # Optional helpers for search/focus used by AssistantDock
+    def search_for_entries(self, term: str):
+        try:
+            low = (term or '').strip().lower()
+            results = []
+            for lid, loc in self.location_manager.locations.items():
+                score = 0
+                nm = (loc.name or '').lower()
+                if low in nm:
+                    score = max(score, 1 + len(low)/max(1,len(nm)))
+                if low and low == lid.lower():
+                    score = max(score, 2)
+                if score > 0:
+                    results.append((lid, loc.name, score))
+            results.sort(key=lambda x: -x[2])
+            return results
+        except Exception:
+            return []
+
+    def focus_entry(self, location_id: str):
+        try:
+            for i in range(self.location_list.count()):
+                it = self.location_list.item(i)
+                if it.data(Qt.UserRole) == location_id:
+                    self.location_list.setCurrentItem(it)
+                    break
+        except Exception:
+            pass
+    
     def _add_location(self) -> None:
         """Add a new location."""
         # Create new location

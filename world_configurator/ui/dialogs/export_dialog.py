@@ -77,14 +77,9 @@ class ExportDialog(BaseDialog):
             self.item_checkboxes[cat_name] = chk
 
 
-        self.chk_locations = QCheckBox("Locations (locations.json)")
+        self.chk_locations = QCheckBox("Locations (locations.json + audio/context_location_map.json)")
         self.chk_locations.setChecked(True)
         self.components_layout.addWidget(self.chk_locations)
-
-        # Context map (audio/context_location_map.json)
-        self.chk_context_map = QCheckBox("Context Location Map (audio/context_location_map.json)")
-        self.chk_context_map.setChecked(True)
-        self.components_layout.addWidget(self.chk_context_map)
 
         # Location defaults (culture mix)
         self.chk_location_defaults = QCheckBox("Culture Mix Defaults (Locations)")
@@ -159,7 +154,6 @@ class ExportDialog(BaseDialog):
         for chk_item_cat in self.item_checkboxes.values(): # NEW
             chk_item_cat.setChecked(True)
         self.chk_locations.setChecked(True)
-        self.chk_context_map.setChecked(True)
         self.chk_location_defaults.setChecked(True)
         self.chk_history.setChecked(True)
         self.chk_rules.setChecked(True)
@@ -178,7 +172,6 @@ class ExportDialog(BaseDialog):
         for chk_item_cat in self.item_checkboxes.values(): # NEW
             chk_item_cat.setChecked(False)
         self.chk_locations.setChecked(False)
-        self.chk_context_map.setChecked(False)
         self.chk_location_defaults.setChecked(False)
         self.chk_history.setChecked(False)
         self.chk_rules.setChecked(False)
@@ -201,7 +194,6 @@ class ExportDialog(BaseDialog):
             "classes": self.chk_classes.isChecked(),
             "skills": self.chk_skills.isChecked(), # NEW
             "locations": self.chk_locations.isChecked(),
-            "context_map": self.chk_context_map.isChecked(),
             "location_defaults": self.chk_location_defaults.isChecked(),
             "history": self.chk_history.isChecked(),
             "rules": self.chk_rules.isChecked(),
@@ -227,4 +219,6 @@ class ExportDialog(BaseDialog):
                 options["items_misc"] = self.item_checkboxes[cat_key_export].isChecked()
             # Add more mappings if there are other item categories
 
+        # Ensure context_map exports together with locations (single combined component)
+        options["context_map"] = options.get("locations", False)
         return options
