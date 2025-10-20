@@ -26,7 +26,7 @@ Use this document to drive work across multiple sessions without relying on pers
 ---
 
 ## 1) Directory Structure and Assets
-[ ] Create or validate base directories under project root:
+[x] Create or validate base directories under project root:
 - sound/music/<mood>/
 - sound/music/<mood>/manifest.yaml (optional but recommended for weights/metadata)
 - Optional stingers per mood:
@@ -35,10 +35,15 @@ Use this document to drive work across multiple sessions without relying on pers
   - sound/music/<mood>/layers/<stem_name>/ (e.g., layers/pad, layers/drums)
 - SFX directories:
   - sound/sfx/continuous/<tag>/  (e.g., crowd, rain, wind)
-  - sound/sfx/instant/<category>/  (e.g., ui, door, sword, bow, magic, monster)
+- sound/sfx/instant/<category>/  (e.g., ui, door, sword, bow, magic, monster)
+
+Note (Phase A practical):
+- Filenames can include tokens used for bias: location_major, location_venue, weather_type, time_of_day, biome, region, crowd_level, danger_level; booleans interior/underground add 0.5 weight when true.
+- Web UI Context tab fields are input-only and do not auto-fill; the top JSON shows current state. Python GUI auto-fills and shows a "Ctx:" summary.
+- SFX playback uses config/audio/sfx_mappings.json to pick exact files (e.g., venue.tavern → sfx/venue/tavern_bell.mp3).
 
 Notes:
-- Accepted audio formats: .mp3, .ogg, .wav
+- Accepted audio formats: .mp3, .ogg, .wav, .flac
 - No separate directories for intensity. Intensity is a scalar (0.0–1.0) used for weighting/selection, not path segregation.
 
 ---
@@ -86,7 +91,7 @@ Example manifest keys:
 
 [ ] Provide a synonyms map for each domain so LLM/world strings can be canonicalized (e.g., "town" → city, "pub" → tavern)
 [ ] Persist current context in saves: location.major, location.venue, weather.type (and time_of_day if used)
-[ ] Director uses context to bias track selection via manifest tags (no extra folders required)
+[x] Director biases selection using filename tokens (substring match); manifest tags optional. Fields used: location_major, location_venue, weather_type, time_of_day, biome, region, crowd_level, danger_level; booleans interior/underground add 0.5 when true.
 [ ] Engine owns context; LLM may propose (optional) but engine canonicalizes and applies policy
 
 Artifacts (proposed):
@@ -260,7 +265,7 @@ VLC implementation specifics:
 
 Planned SFX scaffolding (Phase C):
 [ ] Continuous SFX bus (looping ambiences) and instant SFX bus (one-shots)
-[ ] Respect context→SFX mapping from config/audio/sfx_mapping.json
+[ ] Respect context→SFX mapping from config/audio/sfx_mappings.json
 [ ] Concurrency caps per category; per-category gain presets
 
 Architecture:
@@ -320,6 +325,7 @@ Architecture:
 ---
 
 ## 8) GUI Integration – Web
+Note: In the Web UI, Context tab fields are input-only and do not auto-populate; the JSON panel shows the current context. The Python GUI auto-fills and shows a condensed "Ctx:" in the status bar.
 [x] Banner music controls (now functional):
 
 Context visibility (dev-only, optional):
@@ -547,7 +553,7 @@ Milestone 4 (Polish):
 Python:
 [ ] config/audio/context_enums.json (canonical enums)
 [ ] config/audio/context_synonyms.json (string → canonical mapping)
-[ ] config/audio/sfx_mapping.json (context → SFX tags; Phase C)
+[x] config/audio/sfx_mappings.json (maps context values to exact SFX files; implemented)
 [ ] core/music/director.py (Director)
 [ ] core/music/backend.py (abstract interface)
 [ ] core/music/backend_vlc.py (VLC implementation)
