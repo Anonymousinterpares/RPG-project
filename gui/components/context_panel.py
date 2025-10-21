@@ -22,7 +22,10 @@ class ContextPanelWidget(QWidget):
         self._engine = get_game_engine()
         self._enums: Dict[str, Any] = load_context_enums()
         self._build_ui()
-        # Auto-refresh when engine context updates
+        # Dirty-state to avoid overwriting user edits; cleared on Apply/Refresh
+        self._dirty: bool = False
+        self._pending_engine_ctx: Optional[dict] = None
+        # Refresh when engine pushes updates
         try:
             if hasattr(self._engine, 'context_updated'):
                 self._engine.context_updated.connect(self._on_engine_context_updated)
@@ -99,12 +102,30 @@ class ContextPanelWidget(QWidget):
         self._refresh_btn.clicked.connect(self.refresh_from_engine)
         self._apply_btn.clicked.connect(self.apply_to_engine)
 
+        # Mark form dirty on any change
+        try:
+            self._loc_name.textEdited.connect(self._mark_dirty)
+            for cb in (self._loc_major, self._loc_venue, self._weather, self._tod, self._biome, self._crowd, self._danger):
+                cb.currentIndexChanged.connect(self._mark_dirty)
+            self._interior.stateChanged.connect(self._mark_dirty)
+            self._underground.stateChanged.connect(self._mark_dirty)
+        except Exception:
+            pass
+
         # Initial load
         self.refresh_from_engine()
 
     def _on_engine_context_updated(self, payload: dict) -> None:
-        # Lightweight debounce could be added if needed
+        # If the user is editing, do not clobber inputs; stash for later
+        if self._dirty:
+            self._pending_engine_ctx = payload
+            try:
+                self._status.setText("Engine updated context. Finish editing then Refresh/Apply.")
+            except Exception:
+                pass
+            return
         self.refresh_from_engine()
+
 
     def refresh_from_engine(self) -> None:
         try:
@@ -143,6 +164,9 @@ class ContextPanelWidget(QWidget):
         except Exception:
             pass
 
+    def _mark_dirty(self, *args, **kwargs) -> None:
+        self._dirty = True
+
     def apply_to_engine(self) -> None:
         payload = {
             'location': {
@@ -162,6 +186,9 @@ class ContextPanelWidget(QWidget):
             if hasattr(self._engine, 'set_game_context'):
                 self._engine.set_game_context(payload, source="gui_dev_panel")
                 self._status.setText("Applied context to engine.")
+                # Clear dirty state and pending engine push
+                self._dirty = False
+                self._pending_engine_ctx = None
         except Exception as e:
             self._status.setText(f"Failed to apply: {e}")
 

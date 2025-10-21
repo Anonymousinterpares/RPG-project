@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import json
 import time
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional, List, Tuple
 
@@ -72,6 +73,17 @@ class SFXManager:
         self._loop_last_change_ts: Dict[str, float] = {"environment": 0.0, "weather": 0.0}
         self._loop_min_interval_s: float = 1.0
         self._load_mappings()
+        # Rotation management for looped channels
+        self._loop_pool: Dict[str, List[str]] = {"environment": [], "weather": []}
+        self._loop_next_swap_ts: Dict[str, float] = {"environment": 0.0, "weather": 0.0}
+        self._loop_rotation_period_s: float = 120.0  # default rotation cadence for ambience
+        # Background rotator
+        try:
+            t = threading.Thread(target=self._rotator_worker, daemon=True)
+            t.start()
+            self._rotator_thread = t  # keep ref
+        except Exception:
+            self._rotator_thread = None
 
     def set_backend(self, backend) -> None:
         self._backend = backend
@@ -176,11 +188,14 @@ class SFXManager:
         now = time.time()
         if (now - self._loop_last_change_ts.get(ch, 0.0)) < self._loop_min_interval_s:
             return
-        target = self._pick_env_loop(major, tod)
+        target, pool = self._pick_env_loop(major, tod, return_pool=True)
         cur = self._loop_active.get(ch)
+        # record pool for rotation
+        self._loop_pool[ch] = pool or []
         if target != cur:
             self._loop_last_change_ts[ch] = now
             self._loop_active[ch] = target
+            self._loop_next_swap_ts[ch] = now + self._loop_rotation_period_s
             try:
                 if target and hasattr(self._backend, "play_sfx_loop"):
                     self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
@@ -194,11 +209,13 @@ class SFXManager:
         now = time.time()
         if (now - self._loop_last_change_ts.get(ch, 0.0)) < self._loop_min_interval_s:
             return
-        target = self._pick_weather_loop(wtype)
+        target, pool = self._pick_weather_loop(wtype, return_pool=True)
         cur = self._loop_active.get(ch)
+        self._loop_pool[ch] = pool or []
         if target != cur:
             self._loop_last_change_ts[ch] = now
             self._loop_active[ch] = target
+            self._loop_next_swap_ts[ch] = now + self._loop_rotation_period_s
             try:
                 if target and hasattr(self._backend, "play_sfx_loop"):
                     self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
@@ -207,19 +224,20 @@ class SFXManager:
             except Exception:
                 pass
 
-    def _pick_env_loop(self, major: Optional[str], tod: Optional[str]) -> Optional[str]:
-        """Select best environment loop file based on major and time-of-day with fallback.
-        Search sound/sfx/loop/<domain> for files like domain_*_loop_XX.mp3.
-        Fallback order: major+tod → major → None.
+    def _pick_env_loop(self, major: Optional[str], tod: Optional[str], return_pool: bool = False) -> Tuple[Optional[str], List[str]]:
+        """Select best environment loop and pool for rotation.
+        Returns (best_path, pool_paths). Pool is all files in domain; best favors tokens.
         """
         try:
             root = (self._project_root / "sound" / "sfx" / "loop")
             if not major:
-                return None
+                return (None, [])
             dom = root / major
             if not dom.exists():
-                return None
+                return (None, [])
             files: List[Path] = [p for p in dom.iterdir() if p.is_file() and p.suffix.lower() in {".mp3",".ogg",".wav",".flac"}]
+            if not files:
+                return (None, [])
             def score(p: Path) -> int:
                 name = p.stem.lower()
                 s = 0
@@ -227,21 +245,51 @@ class SFXManager:
                 if "loop" in name: s += 1
                 if tod and tod in name: s += 2
                 return s
-            if not files:
-                return None
             files.sort(key=score, reverse=True)
-            return str(files[0].resolve())
+            best = str(files[0].resolve())
+            pool = [str(p.resolve()) for p in files]
+            return (best, pool)
         except Exception:
-            return None
+            return (None, [])
 
-    def _pick_weather_loop(self, wtype: Optional[str]) -> Optional[str]:
+    def _rotator_worker(self) -> None:
+        # Background rotation of looped channels
+        while True:
+            try:
+                if not self._enabled or not self._backend:
+                    time.sleep(1.0)
+                    continue
+                now = time.time()
+                for ch in ("environment", "weather"):
+                    target = self._loop_active.get(ch)
+                    pool = self._loop_pool.get(ch) or []
+                    if not target or not pool:
+                        continue
+                    if now >= self._loop_next_swap_ts.get(ch, 0.0) and hasattr(self._backend, "play_sfx_loop"):
+                        # choose a new file different from current
+                        candidates = [p for p in pool if p != target] or pool
+                        import random as _rnd
+                        new_path = _rnd.choice(candidates)
+                        try:
+                            self._backend.play_sfx_loop(new_path, channel=ch)  # type: ignore[attr-defined]
+                            self._loop_active[ch] = new_path
+                        except Exception:
+                            pass
+                        self._loop_next_swap_ts[ch] = now + self._loop_rotation_period_s
+                time.sleep(1.0)
+            except Exception:
+                time.sleep(1.0)
+
+    def _pick_weather_loop(self, wtype: Optional[str], return_pool: bool = False) -> Tuple[Optional[str], List[str]]:
         try:
             if not wtype:
-                return None
+                return (None, [])
             dom = (self._project_root / "sound" / "sfx" / "loop" / "weather")
             if not dom.exists():
-                return None
+                return (None, [])
             files: List[Path] = [p for p in dom.iterdir() if p.is_file() and p.suffix.lower() in {".mp3",".ogg",".wav",".flac"}]
+            if not files:
+                return (None, [])
             def score(p: Path) -> int:
                 name = p.stem.lower()
                 s = 0
@@ -250,10 +298,10 @@ class SFXManager:
                 if "thunder" in name and wtype in ("storm","thunder"): s += 1
                 if "loop" in name: s += 1
                 return s
-            if not files:
-                return None
             files.sort(key=score, reverse=True)
             best = files[0]
-            return str(best.resolve()) if score(best) > 0 else None
+            best_path = str(best.resolve()) if score(best) > 0 else None
+            pool = [str(p.resolve()) for p in files]
+            return (best_path, pool)
         except Exception:
-            return None
+            return (None, [])
