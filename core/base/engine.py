@@ -178,6 +178,8 @@ class GameEngine(QObject):
                 self._music_director.set_volumes(master, music, effects)
                 self._music_director.set_muted(muted)
                 logger.info(f"Music/SFX system initialized (desktop backend, enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
+                # Expose quick SFX helpers for UI/logic
+                self.sfx_play = getattr(self._sfx_manager, 'play_one_shot', None)
             else:
                 # Web/server mode: no desktop audio backend; state is emitted to clients for WebAudio playback
                 logger.info("Music/SFX system initialized in WEB mode (no desktop audio backend)")
@@ -359,6 +361,12 @@ class GameEngine(QObject):
         gs = lifecycle.start_new_game_with_state(
             self, game_state
         )
+        # Fire a game_start event SFX (best-effort)
+        try:
+            if hasattr(self, '_sfx_manager') and self._sfx_manager:
+                self._sfx_manager.play_one_shot('event','game_start')
+        except Exception:
+            pass
         # GameContext is initialized inside lifecycle; return state
         return gs
     
@@ -921,6 +929,15 @@ class GameEngine(QObject):
             except Exception:
                 pass
             final_combat_outcome = combat_manager.state.name if getattr(combat_manager, 'state', None) else "Unknown"
+            # Victory/defeat SFX (best-effort)
+            try:
+                if hasattr(self, '_sfx_manager') and self._sfx_manager:
+                    if getattr(combat_manager, 'state', None) == CombatState.PLAYER_DEFEAT:
+                        self._sfx_manager.play_one_shot('event','defeat')
+                    else:
+                        self._sfx_manager.play_one_shot('event','victory')
+            except Exception:
+                pass
             game_state.combat_manager = None
 
             # Reset orchestrator for post-combat messages

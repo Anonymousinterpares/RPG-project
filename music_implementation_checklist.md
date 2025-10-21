@@ -394,6 +394,37 @@ Optional context tool (if not driven purely by engine):
 ---
 
 ## 11) SFX System
+
+MANDATORY additions (Phase A/B)
+- Taxonomy and semantics:
+  1) one_shot.programmed – triggered by explicit code (UI clicks, loot pickup, magic cast, weapon draw, etc.). Independent of music mood.
+  2) one_shot.context – triggered on context or state changes (combat_start, victory, defeat, door_open, level_up, venue/weather/crowd). Independent of music mood.
+  3) looped.ambient – long/looping environmental beds (forest_night, city_day, rain, wind). Runs in parallel to music; start/stop on context.
+- Naming conventions:
+  - One-shots (programmed): <group>_<name>_<variant>.mp3
+    • ui_click_01.mp3, ui_back_01.mp3, loot_pickup_01.mp3
+    • magic_flames_cast_short_01.mp3, magic_lightning_cast_short_01.mp3, magic_heal_cast_short_01.mp3
+  - One-shots (context): event_<name>_<variant>.mp3
+    • event_combat_start_short_01.mp3, event_victory_fanfare_01.mp3, event_defeat_01.mp3, event_door_open_01.mp3
+  - Loops (ambient): <major>_<venue?>_<weather?>_<time?>_loop_NN.mp3 (tokens optional; order flexible)
+    • forest_night_loop_01.mp3, city_day_loop_01.mp3, tavern_loop_02.mp3, rain_loop_01.mp3
+- Placement (recommended; mapping can point anywhere under sound/):
+  - sound/sfx/ui/ … one_shot.programmed (clicks, loot)
+  - sound/sfx/magic/ … one_shot.programmed (magic_*_cast_*.mp3)
+  - sound/sfx/event/ … one_shot.context (combat_start, victory, defeat, door_open, level_up)
+  - sound/sfx/loop/<domain>/ … looped.ambient (forest, city, tavern, rain, wind, storm, river, seaside, dungeon, ruins, desert, swamp, plains, mountain, port, temple, inn, castle, blacksmith, market, fireplace, etc.)
+- Loop fallback policy (must implement): when desired <major>/<time>/<weather> is unavailable, choose the best available candidate in this order:
+  1) <major>_<weather>_<time>_loop
+  2) <major>_<time>_loop
+  3) <major>_<weather>_loop
+  4) <major>_loop
+  5) <biome or region>_*_loop (if major absent but biome/region set)
+  6) generic weather/time loop (e.g., rain_loop, wind_loop) if applicable
+  7) no loop SFX (fail-safe)
+- Engine wiring (must implement):
+  - Extend SFXManager to support categories: ui, event, magic, loop (in addition to venue/weather/crowd)
+  - Add start/stop management for looped categories with per-category debounce and concurrency caps
+  - Keep SFX independent of music mood; both can play simultaneously
 [ ] Categories and routing:
 
 Planning deliverables (before implementation):
@@ -565,6 +596,20 @@ Python:
 [ ] sound/music/<mood>/manifest.yaml (optional)
 [ ] sound/sfx/... manifests (optional)
 
+Python (new/updated for SFX):
+- [ ] Extend core/audio/sfx_manager.py to:
+  • recognize categories: ui, event, magic, loop, venue, weather, crowd
+  • play_one_shot(category, name) API for programmed triggers
+  • start_loop(name, tokens) / stop_loop(name) with fallback policy
+  • debounce per category and concurrency caps
+- [ ] Extend core/base/engine.py to wire:
+  • UI hooks (menu click, loot) → sfx_manager.play_one_shot('ui','click'|'loot')
+  • Combat/state events (combat_start, victory, defeat) → sfx_manager.play_one_shot('event', ...)
+  • Context updates → sfx_manager.apply_context(...) to manage loops (forest_night, rain)
+- [ ] Update config/audio/sfx_mappings.json with sections: ui, event, magic, venue, weather, crowd
+- [ ] Add config/audio/sfx_loops.json (optional) for explicit loop overrides
+- [ ] Tests: tests/test_sfx_events.py, tests/test_sfx_loops_fallback.py
+
 Web:
 [x] web/client/js/music-manager.js (WebMusicManager class)
 [x] Wire banner buttons in main.js/ui-manager.js
@@ -576,6 +621,10 @@ Web:
 ---
 
 ## 20) Acceptance Criteria (Definition of Done)
+- SFX/Music parallelism: music mood continues while SFX (one-shot or loop) plays; no interference.
+- One-shot programmed SFX: UI click, loot pickup, magic casts, weapon draw trigger correct mapped files; debounced; not tied to mood.
+- One-shot context SFX: combat_start/victory/defeat/door_open fire exactly once on state change; venue/weather/crowd changes play mapped one-shots.
+- Looped ambience SFX: forest/city/port/etc. loops start/stop with context; fallback policy selects best available variant (e.g., forest_night → forest_day → forest → rain_loop); only one loop per domain plays concurrently.
 [x] On desktop, starting a new game plays ambient music; mute/unmute and next work; no stop button
 [x] On web, after enabling sound, ambient plays; controls work; no stop
 [ ] Director uses location/venue/weather to bias selection (Phase A updated)

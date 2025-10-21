@@ -43,3 +43,10 @@ class MusicBackend(Protocol):
     def play_sfx(self, file_path: str, category: str) -> None:
         """Play a one-shot SFX. Category may inform routing/volume caps."""
         ...
+
+    # Optional looped SFX API (used when available)
+    def play_sfx_loop(self, file_path: str, channel: str) -> None:  # pragma: no cover - optional
+        ...
+
+    def stop_sfx_loop(self, channel: str) -> None:  # pragma: no cover - optional
+        ...

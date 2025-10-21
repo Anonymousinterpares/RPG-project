@@ -10,7 +10,7 @@ import os
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple
 
 from core.utils.logging_config import get_logger
 
@@ -18,21 +18,44 @@ logger = get_logger("SFX")
 
 DEFAULT_MAPPING: Dict[str, Dict[str, str]] = {
     # category -> value -> relative file under sound/sfx
+    # Context one-shots (existing)
     "venue": {
-        "tavern": "sfx/tavern_clink.wav",
-        "market": "sfx/market_chatter.wav",
-        "library": "sfx/library_pageflip.wav",
-        "fireplace": "sfx/campfire_crackle.wav",
+        "tavern": "sfx/venue/tavern_bell.mp3",
+        "market": "sfx/venue/market_chatter_1.mp3",
+        "library": "sfx/venue/library_pageflip.mp3",
+        "fireplace": "sfx/venue/fireplace_crackle.mp3",
     },
     "weather": {
-        "storm": "sfx/thunder_rumble.wav",
-        "rain": "sfx/rain_patters.wav",
-        "windy": "sfx/wind_gust.wav",
+        "storm": "sfx/loop/weather/storm_loop_01.mp3",
+        "rain": "sfx/loop/weather/rain_loop_01.mp3",
+        "windy": "sfx/loop/weather/wind_loop_01.mp3",
     },
     "crowd": {
-        "busy": "sfx/crowd_murmur.wav",
-        "sparse": "sfx/few_steps.wav",
-        "empty": "sfx/silence_tail.wav",
+        "busy": "sfx/crowd/chatter_busy_1.mp3",
+        "sparse": "sfx/crowd/footsteps_sparse_1.mp3",
+        "empty": "sfx/crowd/empty_room_tail.mp3",
+    },
+    # Programmed one-shots
+    "ui": {
+        "click": "sfx/ui/ui_click_01.mp3",
+        "loot_pickup": "sfx/ui/loot_pickup_01.mp3"
+    },
+    "event": {
+        "combat_start": "sfx/event/event_combat_start_01.mp3",
+        "combat_start_short": "sfx/event/event_combat_start_short_01.mp3",
+        "victory": "sfx/event/event_victory_fanfare_01.mp3",
+        "defeat": "sfx/event/event_defeat_01.mp3",
+        "weapon_draw": "sfx/event/event_weapon_draw_01.mp3",
+        "game_start": "sfx/event/event_game_start_01.mp3",
+        "alert_short": "sfx/event/event_alert_short_01.mp3"
+    },
+    "magic": {
+        "generic_short": "sfx/magic/magic_generic_cast_short_01.mp3",
+        "flames": "sfx/magic/magic_flames_cast_short_01.mp3",
+        "lightning": "sfx/magic/magic_lightning_cast_short_01.mp3",
+        "heal": "sfx/magic/magic_heal_cast_short_01.mp3",
+        "defense": "sfx/magic/magic_defense_cast_short_02.mp3",
+        "ashen": "sfx/magic/magic_ashen_cast_short_01.mp3"
     },
 }
 
@@ -42,8 +65,12 @@ class SFXManager:
         self._project_root = Path(project_root or os.getcwd())
         self._map: Dict[str, Dict[str, str]] = {}
         self._last_play_ts: Dict[str, float] = {}
-        self._min_interval_s: float = 3.0  # avoid spam on rapid toggles per category
+        self._min_interval_s: float = 0.5  # allow faster UI/magic, still debounce
         self._enabled: bool = True
+        # Looped SFX management (channels: environment, weather)
+        self._loop_active: Dict[str, Optional[str]] = {"environment": None, "weather": None}
+        self._loop_last_change_ts: Dict[str, float] = {"environment": 0.0, "weather": 0.0}
+        self._loop_min_interval_s: float = 1.0
         self._load_mappings()
 
     def set_backend(self, backend) -> None:
@@ -95,22 +122,138 @@ class SFXManager:
             logger.debug(f"SFX play skipped ({category}={value}): {e}")
 
     def apply_context(self, ctx: Dict[str, Any], changed_keys: Optional[list] = None) -> None:
-        """React to context update. Only fire SFX for changed categories."""
+        """React to context update. One-shots for venue/weather/crowd; manage looped ambience.
+        Looped channels: 'environment' (major/venue/biome/region + time_of_day) and 'weather' (weather.type).
+        """
         if not self._enabled:
             return
         try:
             loc = (ctx.get("location") or {}) if isinstance(ctx.get("location"), dict) else {}
             weather = (ctx.get("weather") or {}) if isinstance(ctx.get("weather"), dict) else {}
-            # Determine categories to consider (only changed to reduce spam)
+            tod = str(ctx.get("time_of_day") or "").strip().lower() or None
+            major = str(loc.get("major") or "").strip().lower() or None
+            venue = str(loc.get("venue") or "").strip().lower() or None
+            biome = str(ctx.get("biome") or "").strip().lower() or None
+            region = str(ctx.get("region") or "").strip().lower() or None
+            wtype = str(weather.get("type") or "").strip().lower() or None
+
+            # One-shots (debounced)
             changed = set(changed_keys or [])
-            # Venue
             if not changed or any(k in changed for k in ("location.location_venue","location_venue","location.venue")):
-                self._maybe_play("venue", loc.get("venue"))
-            # Weather
+                self._maybe_play("venue", venue)
             if not changed or any(k in changed for k in ("weather.type","weather_type")):
-                self._maybe_play("weather", weather.get("type"))
-            # Crowd level
+                self._maybe_play("weather", wtype)
             if not changed or ("crowd_level" in changed):
                 self._maybe_play("crowd", ctx.get("crowd_level"))
+
+            # Looped ambience management
+            self._update_environment_loop(major=major or biome or region or venue, tod=tod)
+            self._update_weather_loop(wtype)
         except Exception:
             pass
+
+    # --- Programmed one-shots API ---
+    def play_one_shot(self, category: str, name: str) -> None:
+        if not self._enabled or not self._backend:
+            return
+        try:
+            cat = str(category).strip().lower()
+            nm = str(name).strip().lower()
+            mapping = self._map.get(cat, {})
+            file_rel = mapping.get(nm)
+            if not file_rel:
+                return
+            full = self._abs_path(file_rel)
+            if not full:
+                return
+            self._backend.play_sfx(full, category=cat)
+        except Exception:
+            pass
+
+    # --- Loops helpers ---
+    def _update_environment_loop(self, major: Optional[str], tod: Optional[str]) -> None:
+        ch = "environment"
+        now = time.time()
+        if (now - self._loop_last_change_ts.get(ch, 0.0)) < self._loop_min_interval_s:
+            return
+        target = self._pick_env_loop(major, tod)
+        cur = self._loop_active.get(ch)
+        if target != cur:
+            self._loop_last_change_ts[ch] = now
+            self._loop_active[ch] = target
+            try:
+                if target and hasattr(self._backend, "play_sfx_loop"):
+                    self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
+                elif hasattr(self._backend, "stop_sfx_loop"):
+                    self._backend.stop_sfx_loop(channel=ch)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+    def _update_weather_loop(self, wtype: Optional[str]) -> None:
+        ch = "weather"
+        now = time.time()
+        if (now - self._loop_last_change_ts.get(ch, 0.0)) < self._loop_min_interval_s:
+            return
+        target = self._pick_weather_loop(wtype)
+        cur = self._loop_active.get(ch)
+        if target != cur:
+            self._loop_last_change_ts[ch] = now
+            self._loop_active[ch] = target
+            try:
+                if target and hasattr(self._backend, "play_sfx_loop"):
+                    self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
+                elif hasattr(self._backend, "stop_sfx_loop"):
+                    self._backend.stop_sfx_loop(channel=ch)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+    def _pick_env_loop(self, major: Optional[str], tod: Optional[str]) -> Optional[str]:
+        """Select best environment loop file based on major and time-of-day with fallback.
+        Search sound/sfx/loop/<domain> for files like domain_*_loop_XX.mp3.
+        Fallback order: major+tod → major → None.
+        """
+        try:
+            root = (self._project_root / "sound" / "sfx" / "loop")
+            if not major:
+                return None
+            dom = root / major
+            if not dom.exists():
+                return None
+            files: List[Path] = [p for p in dom.iterdir() if p.is_file() and p.suffix.lower() in {".mp3",".ogg",".wav",".flac"}]
+            def score(p: Path) -> int:
+                name = p.stem.lower()
+                s = 0
+                if major and major in name: s += 2
+                if "loop" in name: s += 1
+                if tod and tod in name: s += 2
+                return s
+            if not files:
+                return None
+            files.sort(key=score, reverse=True)
+            return str(files[0].resolve())
+        except Exception:
+            return None
+
+    def _pick_weather_loop(self, wtype: Optional[str]) -> Optional[str]:
+        try:
+            if not wtype:
+                return None
+            dom = (self._project_root / "sound" / "sfx" / "loop" / "weather")
+            if not dom.exists():
+                return None
+            files: List[Path] = [p for p in dom.iterdir() if p.is_file() and p.suffix.lower() in {".mp3",".ogg",".wav",".flac"}]
+            def score(p: Path) -> int:
+                name = p.stem.lower()
+                s = 0
+                if wtype and wtype in name: s += 3
+                if "storm" in name and wtype == "storm": s += 1
+                if "thunder" in name and wtype in ("storm","thunder"): s += 1
+                if "loop" in name: s += 1
+                return s
+            if not files:
+                return None
+            files.sort(key=score, reverse=True)
+            best = files[0]
+            return str(best.resolve()) if score(best) > 0 else None
+        except Exception:
+            return None

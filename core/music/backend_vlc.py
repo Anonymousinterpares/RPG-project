@@ -44,6 +44,8 @@ class VLCBackend:
         # Intensity state (0..1) for perceptual gain mapping
         self._intensity: float = 0.3
         self._intensity_gamma: float = 1.8  # perceptual curve; tweakable
+        # Looped SFX players by channel (e.g., 'environment', 'weather')
+        self._loop_players: dict[str, tuple[object, str]] = {}
 
         if self._enabled:
             try:
@@ -66,6 +68,16 @@ class VLCBackend:
             self._effects = max(0, min(100, int(effects)))
             self._muted = bool(muted)
             self._apply_current_volume_locked()
+            # Update loop players effects gain
+            try:
+                vol = 0 if self._muted else int(self._master * self._effects / 100)
+                for ch, (p, _) in list(self._loop_players.items()):
+                    try:
+                        p.audio_set_volume(vol)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
     def set_intensity(self, intensity: float, ramp_ms: int = 250) -> None:
         """Update perceived intensity (0..1) and ramp volume to new target.
@@ -355,3 +367,53 @@ class VLCBackend:
                 time.sleep(sleep_s)
         except Exception:
             pass
+
+    # --- Looped SFX API ---
+    def play_sfx_loop(self, file_path: str, channel: str = "environment") -> None:
+        if not self._enabled or not file_path:
+            return
+        with self._lock:
+            try:
+                current = self._loop_players.get(channel)
+                if current and current[1] == file_path:
+                    # already playing desired loop; ensure volume
+                    try:
+                        vol = 0 if self._muted else int(self._master * self._effects / 100)
+                        current[0].audio_set_volume(vol)
+                    except Exception:
+                        pass
+                    return
+                # stop previous
+                if current:
+                    try:
+                        current[0].stop()
+                    except Exception:
+                        pass
+                player = self._vlc_instance.media_player_new()
+                media = self._vlc_instance.media_new(file_path)
+                try:
+                    # loop indefinitely
+                    media.add_option("input-repeat=-1")
+                except Exception:
+                    pass
+                player.set_media(media)
+                vol = 0 if self._muted else int(self._master * self._effects / 100)
+                try:
+                    player.audio_set_volume(vol)
+                except Exception:
+                    pass
+                player.play()
+                self._loop_players[channel] = (player, file_path)
+            except Exception as e:
+                logger.warning(f"Looped SFX start failed: {e}")
+
+    def stop_sfx_loop(self, channel: str = "environment") -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            cur = self._loop_players.pop(channel, None)
+            if cur:
+                try:
+                    cur[0].stop()
+                except Exception:
+                    pass
