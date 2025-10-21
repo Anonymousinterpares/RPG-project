@@ -9,6 +9,7 @@ between state management, command processing, and game loop components.
 
 import time
 import json
+import os
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QObject, Signal, Slot
 from core.combat.enums import CombatStep, CombatState
@@ -48,6 +49,8 @@ class GameEngine(QObject):
     orchestrated_event_to_ui = Signal(object)
     # Emitted when GameContext changes (payload is dict)
     context_updated = Signal(object)
+    # Emitted when music/SFX playback state changes (list of display strings)
+    playback_updated = Signal(object)
 
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern."""
@@ -155,6 +158,9 @@ class GameEngine(QObject):
             from core.audio.sfx_manager import SFXManager
             self._music_director = get_music_director(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
             self._sfx_manager = SFXManager(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
+            self._playing_snapshot: list[str] = []
+            self._last_music_item: Optional[str] = None
+            self._last_sfx_items: list[str] = []
 
             web_mode = str(_os.environ.get("RPG_WEB_MODE", "0")) == "1"
             if not web_mode:
@@ -166,6 +172,15 @@ class GameEngine(QObject):
                 # Reuse same backend for SFX
                 try:
                     self._sfx_manager.set_backend(self._music_backend)
+                except Exception:
+                    pass
+                # Subscribe to playback updates
+                try:
+                    self._music_director.add_state_listener(self._on_music_state)
+                except Exception:
+                    pass
+                try:
+                    self._sfx_manager.add_listener(self._on_sfx_update)
                 except Exception:
                     pass
                 # Apply QSettings sound immediately
@@ -1273,6 +1288,12 @@ class GameEngine(QObject):
     def get_music_director(self):
         return getattr(self, '_music_director', None)
 
+    def get_playback_snapshot(self) -> list[str]:
+        try:
+            return list(self._playing_snapshot)
+        except Exception:
+            return []
+
     # --- GameContext accessors ---
     def get_game_context(self) -> Dict[str, Any]:
         try:
@@ -1444,6 +1465,44 @@ class GameEngine(QObject):
             return None
         except Exception:
             return None
+
+    # --- Playback aggregation ---
+    def _on_music_state(self, payload: dict) -> None:
+        try:
+            track = payload.get('track') or ''
+            if track:
+                self._last_music_item = f"music: {track}"
+            self._emit_playback()
+        except Exception:
+            pass
+
+    def _on_sfx_update(self, payload: dict) -> None:
+        try:
+            loops = payload.get('loops', {}) if isinstance(payload, dict) else {}
+            ones = payload.get('oneshots', []) if isinstance(payload, dict) else []
+            items: list[str] = []
+            for ch, path in loops.items():
+                base = os.path.basename(path)
+                items.append(f"sfx:{ch}: {base}")
+            for p in ones:
+                items.append(f"sfx:oneshot: {os.path.basename(p)}")
+            self._last_sfx_items = items
+            self._emit_playback()
+        except Exception:
+            pass
+
+    def _emit_playback(self) -> None:
+        try:
+            items: list[str] = []
+            if self._last_music_item:
+                items.append(self._last_music_item)
+            if self._last_sfx_items:
+                items.extend(self._last_sfx_items)
+            # Trim and store
+            self._playing_snapshot = items[:5]
+            self.playback_updated.emit(list(self._playing_snapshot))
+        except Exception:
+            pass
 
 # Convenience function (remains the same)
 def get_game_engine() -> GameEngine:

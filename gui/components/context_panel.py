@@ -96,6 +96,15 @@ class ContextPanelWidget(QWidget):
         self._json_view.setStyleSheet("QPlainTextEdit { background-color: #1E1E1E; color: #C8C8C8; font-family: Consolas, 'Courier New', monospace; font-size: 12px; border: 1px solid #555; }")
         self._json_view.setPlaceholderText("Captured GameContext (read-only)")
         lay.addWidget(self._json_view, stretch=1)
+
+        # Now Playing list (music + up to 4 SFX)
+        from PySide6.QtWidgets import QListWidget
+        self._now_playing = QListWidget()
+        self._now_playing.setStyleSheet("QListWidget { background-color: #1E1E1E; color: #E0E0E0; border: 1px solid #555; }")
+        self._now_playing.setMaximumHeight(110)
+        lay.addWidget(QLabel("Now Playing (music + SFX):"))
+        lay.addWidget(self._now_playing)
+
         lay.addWidget(self._status)
         lay.addStretch(1)
 
@@ -112,8 +121,19 @@ class ContextPanelWidget(QWidget):
         except Exception:
             pass
 
+        # Subscribe to playback updates
+        try:
+            if hasattr(self._engine, 'playback_updated'):
+                self._engine.playback_updated.connect(self._on_playback_updated)
+        except Exception:
+            pass
+
         # Initial load
         self.refresh_from_engine()
+        try:
+            self._on_playback_updated(self._engine.get_playback_snapshot())
+        except Exception:
+            pass
 
     def _on_engine_context_updated(self, payload: dict) -> None:
         # If the user is editing, do not clobber inputs; stash for later
@@ -166,6 +186,14 @@ class ContextPanelWidget(QWidget):
 
     def _mark_dirty(self, *args, **kwargs) -> None:
         self._dirty = True
+
+    def _on_playback_updated(self, items: list) -> None:
+        try:
+            self._now_playing.clear()
+            for entry in (items or [])[:5]:
+                self._now_playing.addItem(str(entry))
+        except Exception:
+            pass
 
     def apply_to_engine(self) -> None:
         payload = {

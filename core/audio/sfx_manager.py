@@ -73,10 +73,14 @@ class SFXManager:
         self._loop_last_change_ts: Dict[str, float] = {"environment": 0.0, "weather": 0.0}
         self._loop_min_interval_s: float = 1.0
         self._load_mappings()
+        # Event listeners (engine/UI subscribers)
+        self._listeners: List = []
         # Rotation management for looped channels
         self._loop_pool: Dict[str, List[str]] = {"environment": [], "weather": []}
         self._loop_next_swap_ts: Dict[str, float] = {"environment": 0.0, "weather": 0.0}
         self._loop_rotation_period_s: float = 120.0  # default rotation cadence for ambience
+        # Track recent one-shots (display window ~3s)
+        self._recent_oneshots: List[Tuple[str, float]] = []  # (abs_path, expire_ts)
         # Background rotator
         try:
             t = threading.Thread(target=self._rotator_worker, daemon=True)
@@ -90,6 +94,21 @@ class SFXManager:
 
     def set_enabled(self, enabled: bool) -> None:
         self._enabled = bool(enabled)
+
+    def add_listener(self, cb) -> None:
+        try:
+            if cb and cb not in getattr(self, '_listeners', []):
+                self._listeners.append(cb)
+        except Exception:
+            pass
+
+    def _notify(self) -> None:
+        payload = self.current_snapshot()
+        for cb in list(getattr(self, '_listeners', [])):
+            try:
+                cb(payload)
+            except Exception:
+                pass
 
     def _load_mappings(self) -> None:
         try:
@@ -130,6 +149,13 @@ class SFXManager:
                 return
             self._backend.play_sfx(full, category=category)
             self._last_play_ts[category] = now
+            # Track as recent one-shot for short display window
+            try:
+                self._recent_oneshots.append((full, now + 3.0))
+                self._prune_recent(now)
+                self._notify()
+            except Exception:
+                pass
         except Exception as e:
             logger.debug(f"SFX play skipped ({category}={value}): {e}")
 
@@ -158,8 +184,8 @@ class SFXManager:
             if not changed or ("crowd_level" in changed):
                 self._maybe_play("crowd", ctx.get("crowd_level"))
 
-            # Looped ambience management
-            self._update_environment_loop(major=major or biome or region or venue, tod=tod)
+            # Looped ambience management (domain preference: venue > major > biome > region)
+            self._update_environment_loop(major=major, tod=tod, venue=venue, biome=biome, region=region)
             self._update_weather_loop(wtype)
         except Exception:
             pass
@@ -183,12 +209,25 @@ class SFXManager:
             pass
 
     # --- Loops helpers ---
-    def _update_environment_loop(self, major: Optional[str], tod: Optional[str]) -> None:
+    def _update_environment_loop(self, major: Optional[str], tod: Optional[str], venue: Optional[str] = None, biome: Optional[str] = None, region: Optional[str] = None) -> None:
         ch = "environment"
         now = time.time()
         if (now - self._loop_last_change_ts.get(ch, 0.0)) < self._loop_min_interval_s:
             return
-        target, pool = self._pick_env_loop(major, tod, return_pool=True)
+        # Choose the first existing domain among venue, major, biome, region
+        domain_candidates = [venue, major, biome, region]
+        chosen: Optional[str] = None
+        root = (self._project_root / "sound" / "sfx" / "loop")
+        try:
+            for cand in domain_candidates:
+                if cand:
+                    p = (root / str(cand)).resolve()
+                    if p.exists() and p.is_dir():
+                        chosen = str(cand)
+                        break
+        except Exception:
+            chosen = major
+        target, pool = self._pick_env_loop(chosen, tod, return_pool=True)
         cur = self._loop_active.get(ch)
         # record pool for rotation
         self._loop_pool[ch] = pool or []
@@ -201,6 +240,7 @@ class SFXManager:
                     self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
                 elif hasattr(self._backend, "stop_sfx_loop"):
                     self._backend.stop_sfx_loop(channel=ch)  # type: ignore[attr-defined]
+                self._notify()
             except Exception:
                 pass
 
@@ -221,6 +261,7 @@ class SFXManager:
                     self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
                 elif hasattr(self._backend, "stop_sfx_loop"):
                     self._backend.stop_sfx_loop(channel=ch)  # type: ignore[attr-defined]
+                self._notify()
             except Exception:
                 pass
 
@@ -273,6 +314,7 @@ class SFXManager:
                         try:
                             self._backend.play_sfx_loop(new_path, channel=ch)  # type: ignore[attr-defined]
                             self._loop_active[ch] = new_path
+                            self._notify()
                         except Exception:
                             pass
                         self._loop_next_swap_ts[ch] = now + self._loop_rotation_period_s
@@ -305,3 +347,20 @@ class SFXManager:
             return (best_path, pool)
         except Exception:
             return (None, [])
+
+    def _prune_recent(self, now: Optional[float] = None) -> None:
+        try:
+            t = now or time.time()
+            self._recent_oneshots = [(p, exp) for (p, exp) in self._recent_oneshots if exp > t]
+        except Exception:
+            pass
+
+    def current_snapshot(self) -> Dict[str, Any]:
+        """Return a lightweight snapshot for UI: active loops and recent one-shots."""
+        try:
+            self._prune_recent()
+            loops = {k: v for k, v in self._loop_active.items() if v}
+            ones = [p for (p, _exp) in self._recent_oneshots][-3:]
+            return {"loops": loops, "oneshots": ones}
+        except Exception:
+            return {"loops": {}, "oneshots": []}
