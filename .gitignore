@@ -51,6 +51,7 @@ selected_files_documentation_*/
 selected_files_documentation*
 archiv*/
 sound*/music/
-!sound/music/
-!sound/music/README.md
-sound*/sounds/
+sound/music/
+sound_LEGACY/
+sound/music/README.md
+sound*/sfx/
