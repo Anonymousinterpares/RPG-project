@@ -457,6 +457,12 @@ class GameEngine(QObject):
                         pass
         except Exception:
             pass
+        # Play a short game start/load cue after successful load (best-effort)
+        try:
+            if loaded_state and hasattr(self, '_sfx_manager') and self._sfx_manager:
+                self._sfx_manager.play_one_shot('event', 'game_start')
+        except Exception:
+            pass
         return loaded_state
 
     
