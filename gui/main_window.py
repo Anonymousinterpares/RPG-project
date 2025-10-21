@@ -401,13 +401,13 @@ class MainWindow(QMainWindow):
             vol_layout = QHBoxLayout(vol_container)
             vol_layout.setContentsMargins(10, 8, 10, 8)
             vol_layout.setSpacing(8)
-            vol_label = QLabel("Music")
+            vol_label = QLabel("Master")
             self._music_slider = QSlider(Qt.Horizontal, vol_container)
             self._music_slider.setRange(0, 100)
             self._music_slider.setFixedWidth(150)
             self._music_slider.setSingleStep(2)
             self._music_slider.setPageStep(10)
-            self._music_slider.setToolTip("Music volume")
+            self._music_slider.setToolTip("Master volume (affects all sounds)")
             self._music_slider_value_label = QLabel("100%")
             vol_layout.addWidget(vol_label)
             vol_layout.addWidget(self._music_slider)
@@ -422,37 +422,37 @@ class MainWindow(QMainWindow):
             open_settings_action.triggered.connect(self._show_settings_dialog)
 
             # Connect slider changes to MusicDirector and persist to QSettings
-            def _apply_music_volume(value: int):
+            def _apply_master_volume(value: int):
                 try:
                     self._music_slider_value_label.setText(f"{int(value)}%")
                     s = QSettings("RPGGame", "Settings")
-                    master = int(s.value("sound/master_volume", 100))
-                    effects = int(s.value("sound/effects_volume", 100))
-                    music = int(value)
+                    master = int(value)
+                    music  = int(s.value("sound/music_volume", 100))
+                    effects= int(s.value("sound/effects_volume", 100))
                     director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                     if director:
                         director.set_volumes(master, music, effects)
-                    s.setValue("sound/music_volume", music)
+                    s.setValue("sound/master_volume", master)
                     s.sync()
                 except Exception as e:
                     try:
                         if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                            logger.warning(f"[DEV][MUSIC] Applying music volume failed: {e}")
+                            logger.warning(f"[DEV][MUSIC] Applying master volume failed: {e}")
                     except Exception:
                         pass
-            self._music_slider.valueChanged.connect(_apply_music_volume)
+            self._music_slider.valueChanged.connect(_apply_master_volume)
 
             # Volume button -> show the quick slider menu near the button
             def _on_open_volume_menu():
                 s = QSettings("RPGGame", "Settings")
                 try:
-                    current_music = int(s.value("sound/music_volume", 100))
+                    current_master = int(s.value("sound/master_volume", 100))
                 except Exception:
-                    current_music = 100
+                    current_master = 100
                 # Initialize slider position without emitting change
                 self._music_slider.blockSignals(True)
-                self._music_slider.setValue(current_music)
-                self._music_slider_value_label.setText(f"{current_music}%")
+                self._music_slider.setValue(current_master)
+                self._music_slider_value_label.setText(f"{current_master}%")
                 self._music_slider.blockSignals(False)
                 # Position the menu just below the button
                 pos = volume_button.mapToGlobal(QPoint(0, volume_button.height()))

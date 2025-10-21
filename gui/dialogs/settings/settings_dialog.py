@@ -501,11 +501,26 @@ class SettingsDialog(BaseDialog):
         # Save text speed setting (unchanged)
         self.settings.setValue("display/text_speed_delay", self.text_speed_slider.value())
 
-        # Save sound settings (unchanged)
+        # Save sound settings
         self.settings.setValue("sound/master_volume", self.master_volume_spin.value())
         self.settings.setValue("sound/music_volume", self.music_volume_spin.value())
         self.settings.setValue("sound/effects_volume", self.effects_volume_spin.value())
         self.settings.setValue("sound/enabled", self.sound_enabled_check.isChecked())
+        
+        # Apply to live audio backend immediately (affects music + all SFX/UI)
+        try:
+            from core.base.engine import get_game_engine
+            eng = get_game_engine()
+            director = getattr(eng, 'get_music_director', lambda: None)()
+            if director:
+                master  = int(self.master_volume_spin.value())
+                music   = int(self.music_volume_spin.value())
+                effects = int(self.effects_volume_spin.value())
+                enabled = bool(self.sound_enabled_check.isChecked())
+                director.set_volumes(master, music, effects)
+                director.set_muted(not enabled)
+        except Exception:
+            pass
 
         # Save gameplay settings
         self.settings.setValue("gameplay/difficulty", self.difficulty_combo.currentText())
