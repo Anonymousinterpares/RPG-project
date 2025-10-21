@@ -131,6 +131,13 @@ class MenuPanelWidget(QFrame):
         
         # Set initial width
         self.setFixedWidth(self._expanded_width)
+
+        # Wire UI sounds for left menu clicks (generic)
+        try:
+            from gui.utils.ui_sfx import map_container
+            map_container(self, click_kind='click')
+        except Exception:
+            pass
     
     def _create_menu_button(self, text: str, icon_name: str) -> QPushButton:
         """Create a styled menu button.

@@ -17,6 +17,8 @@
   },
   "ui": {
     "click": "sfx/ui/ui_click_01.mp3",
+    "tab_click": "sfx/ui/ui_tab_click_01.mp3",
+    "dropdown": "sfx/ui/ui_dropdown.mp3",
     "loot_pickup": "sfx/ui/loot_pickup_01.mp3"
   },
   "event": {
@@ -25,7 +27,10 @@
     "victory": "sfx/event/event_victory_fanfare_01.mp3",
     "defeat": "sfx/event/event_defeat_01.mp3",
     "weapon_draw": "sfx/event/event_weapon_draw_01.mp3",
-    "game_start": "sfx/event/event_game_start_01.mp3",
+    "game_start": [
+      "sfx/event/event_game_start_01.mp3",
+      "sfx/event/event_game_start_02.mp3"
+    ],
     "alert_short": "sfx/event/event_alert_short_01.mp3"
   },
   "magic": {

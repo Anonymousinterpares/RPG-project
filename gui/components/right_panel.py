@@ -216,6 +216,13 @@ class CollapsibleRightPanel(QFrame):
         
         # Set initial width
         self.setFixedWidth(self._expanded_width)
+
+        # Wire UI sounds: right panel clicks -> tab_click, tabs -> tab_click, dropdowns -> dropdown
+        try:
+            from gui.utils.ui_sfx import map_container
+            map_container(self, click_kind='tab_click', tab_kind='tab_click', dropdown_kind='dropdown')
+        except Exception:
+            pass
         
         # Connect tab changed signal
         self.tab_widget.currentChanged.connect(self._handle_tab_change)

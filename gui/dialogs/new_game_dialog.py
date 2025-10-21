@@ -110,6 +110,13 @@ class NewGameDialog(QDialog):
         # Connect signals
         self._connect_signals()
 
+        # Wire UI sounds for New Game dialog: tabs -> tab_click; dropdowns -> dropdown; other clicks -> dropdown
+        try:
+            from gui.utils.ui_sfx import map_container
+            map_container(self, click_kind='dropdown', tab_kind='tab_click', dropdown_kind='dropdown')
+        except Exception:
+            pass
+
         # Initial validation
         self._validate_form()
 

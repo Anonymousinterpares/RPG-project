@@ -46,6 +46,10 @@ class VLCBackend:
         self._intensity_gamma: float = 1.8  # perceptual curve; tweakable
         # Looped SFX players by channel (e.g., 'environment', 'weather')
         self._loop_players: dict[str, tuple[object, str]] = {}
+        # Low-latency oneshot SFX pool and media cache
+        self._sfx_pool: list = []
+        self._sfx_pool_idx: int = 0
+        self._media_cache: dict[str, object] = {}
 
         if self._enabled:
             try:
@@ -53,6 +57,19 @@ class VLCBackend:
                 self._player_a = self._vlc_instance.media_player_new()
                 self._player_b = self._vlc_instance.media_player_new()
                 self._use_a = True  # which player is active
+                # Pre-warm a small pool for low-latency UI SFX
+                try:
+                    for _ in range(6):
+                        p = self._vlc_instance.media_player_new()
+                        # Set initial volume now; updated in set_volumes as well
+                        vol = 0 if self._muted else int(self._master * self._effects / 100)
+                        try:
+                            p.audio_set_volume(vol)
+                        except Exception:
+                            pass
+                        self._sfx_pool.append(p)
+                except Exception:
+                    self._sfx_pool = []
                 logger.info("VLC backend initialized")
             except Exception as e:
                 logger.warning(f"Failed to initialize VLC instance: {e}")
@@ -68,10 +85,15 @@ class VLCBackend:
             self._effects = max(0, min(100, int(effects)))
             self._muted = bool(muted)
             self._apply_current_volume_locked()
-            # Update loop players effects gain
+            # Update loop players effects gain and sfx pool volume
             try:
                 vol = 0 if self._muted else int(self._master * self._effects / 100)
                 for ch, (p, _) in list(self._loop_players.items()):
+                    try:
+                        p.audio_set_volume(vol)
+                    except Exception:
+                        pass
+                for p in list(getattr(self, '_sfx_pool', []) or []):
                     try:
                         p.audio_set_volume(vol)
                     except Exception:
@@ -139,14 +161,29 @@ class VLCBackend:
         if not self._enabled or not file_path:
             return
         try:
-            sfx = self._vlc_instance.media_player_new()
-            media = self._vlc_instance.media_new(file_path)
-            sfx.set_media(media)
+            # Use low-latency pool for UI and general one-shots
+            player = None
+            try:
+                if self._sfx_pool:
+                    player = self._sfx_pool[self._sfx_pool_idx]
+                    self._sfx_pool_idx = (self._sfx_pool_idx + 1) % len(self._sfx_pool)
+            except Exception:
+                player = None
+            if player is None:
+                player = self._vlc_instance.media_player_new()
+            # Media cache
+            media = self._media_cache.get(file_path)
+            if media is None:
+                media = self._vlc_instance.media_new(file_path)
+                self._media_cache[file_path] = media
+            player.set_media(media)
             # Set effects volume scaled by master
             vol = 0 if self._muted else int(self._master * self._effects / 100)
-            sfx.audio_set_volume(vol)
-            sfx.play()
-            # Let VLC clean this up as it ends
+            try:
+                player.audio_set_volume(vol)
+            except Exception:
+                pass
+            player.play()
         except Exception as e:
             logger.warning(f"SFX playback failed: {e}")
 

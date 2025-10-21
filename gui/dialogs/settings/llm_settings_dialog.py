@@ -57,6 +57,13 @@ class LLMSettingsDialog(BaseSettingsDialog):
         
         # Populate the UI with settings
         self._populate_settings()
+
+        # Wire UI sounds for LLM Settings dialog
+        try:
+            from gui.utils.ui_sfx import map_container
+            map_container(self, click_kind='dropdown', tab_kind='tab_click', dropdown_kind='dropdown')
+        except Exception:
+            pass
     
     def _setup_ui(self):
         """Set up the user interface."""

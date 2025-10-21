@@ -138,22 +138,29 @@ class SFXManager:
         try:
             now = time.time()
             last = self._last_play_ts.get(category, 0.0)
-            if (now - last) < self._min_interval_s:
+            min_gap = self._min_interval_s if category != 'ui' else 0.05
+            if (now - last) < min_gap:
                 return
             mapping = self._map.get(category, {})
             file_rel = mapping.get(str(value).strip().lower())
             if not file_rel:
                 return
-            full = self._abs_path(file_rel)
-            if not full:
+            target = self._pick_variant_path(file_rel)
+            if not target:
                 return
-            self._backend.play_sfx(full, category=category)
+            self._backend.play_sfx(target, category=category)
             self._last_play_ts[category] = now
             # Track as recent one-shot for short display window
             try:
-                self._recent_oneshots.append((full, now + 3.0))
+                exp = now + 1.0  # shorter UI display window for snappiness
+                # Slightly longer (3s) for non-UI categories
+                if category != 'ui':
+                    exp = now + 3.0
+                self._recent_oneshots.append((target, exp))
                 self._prune_recent(now)
                 self._notify()
+                # Schedule a cleanup notify after expiry to clear stacked entries
+                self._notify_after(max(0.05, exp - now + 0.02))
             except Exception:
                 pass
         except Exception as e:
@@ -201,12 +208,82 @@ class SFXManager:
             file_rel = mapping.get(nm)
             if not file_rel:
                 return
-            full = self._abs_path(file_rel)
-            if not full:
+            # Resolve variants and pick one at random
+            target = self._pick_variant_path(file_rel)
+            if not target:
                 return
-            self._backend.play_sfx(full, category=cat)
+            self._backend.play_sfx(target, category=cat)
+            # Track in recent one-shots for UI
+            now = time.time()
+            exp = now + (1.0 if cat == 'ui' else 3.0)
+            self._recent_oneshots.append((target, exp))
+            self._prune_recent(now)
+            self._notify()
+            self._notify_after(max(0.05, exp - now + 0.02))
         except Exception:
             pass
+
+    # --- Helpers ---
+    def _notify_after(self, delay_s: float) -> None:
+        try:
+            def _run():
+                try:
+                    time.sleep(max(0.01, float(delay_s)))
+                    self._notify()
+                except Exception:
+                    pass
+            threading.Thread(target=_run, daemon=True).start()
+        except Exception:
+            pass
+
+    def _pick_variant_path(self, file_rel: Any) -> Optional[str]:
+        """Given a mapping entry that may be a string path or list of paths,
+        resolve to an absolute file path and, if multiple variants are available,
+        return a random choice. A variant is detected if sibling files share the
+        same stem prefix (e.g., *_01, *_02) or if a list is provided.
+        """
+        try:
+            import random as _rnd
+            candidates: List[str] = []
+            # List form in mapping
+            if isinstance(file_rel, list):
+                for rel in file_rel:
+                    full = self._abs_path(str(rel))
+                    if full:
+                        candidates.append(full)
+            elif isinstance(file_rel, str):
+                full = self._abs_path(file_rel)
+                if full:
+                    candidates.append(full)
+                # Expand sibling variants with the same prefix
+                try:
+                    p = Path(self._project_root / "sound" / file_rel)
+                    parent = p.parent.resolve()
+                    stem = p.stem.lower()
+                    # derive prefix by stripping trailing _NN digits if present
+                    import re as _re
+                    m = _re.match(r"^(.*?)(?:_?\d+)?$", stem)
+                    prefix = m.group(1) if m else stem
+                    exts = {".mp3", ".ogg", ".wav", ".flac"}
+                    for sibling in parent.iterdir():
+                        try:
+                            if sibling.is_file() and sibling.suffix.lower() in exts:
+                                s_stem = sibling.stem.lower()
+                                if s_stem.startswith(prefix):
+                                    abs_s = str(sibling.resolve())
+                                    if abs_s not in candidates:
+                                        candidates.append(abs_s)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            # Unique and choose
+            candidates = list(dict.fromkeys(candidates))
+            if not candidates:
+                return None
+            return _rnd.choice(candidates)
+        except Exception:
+            return None
 
     # --- Loops helpers ---
     def _update_environment_loop(self, major: Optional[str], tod: Optional[str], venue: Optional[str] = None, biome: Optional[str] = None, region: Optional[str] = None) -> None:
@@ -323,26 +400,34 @@ class SFXManager:
                 time.sleep(1.0)
 
     def _pick_weather_loop(self, wtype: Optional[str], return_pool: bool = False) -> Tuple[Optional[str], List[str]]:
+        """Only play a weather loop if there is an explicit filename match for the weather type.
+        No cross-type fallback: e.g., with weather='clear' and no '*clear*' files, return silence.
+        """
         try:
             if not wtype:
                 return (None, [])
             dom = (self._project_root / "sound" / "sfx" / "loop" / "weather")
             if not dom.exists():
                 return (None, [])
-            files: List[Path] = [p for p in dom.iterdir() if p.is_file() and p.suffix.lower() in {".mp3",".ogg",".wav",".flac"}]
+            all_files: List[Path] = [p for p in dom.iterdir() if p.is_file() and p.suffix.lower() in {".mp3",".ogg",".wav",".flac"}]
+            if not all_files:
+                return (None, [])
+            # Strict filter: only files that contain the weather token in the name
+            token = str(wtype).strip().lower()
+            files = [p for p in all_files if token in p.stem.lower()]
             if not files:
+                # No exact token match -> no weather loop
                 return (None, [])
             def score(p: Path) -> int:
                 name = p.stem.lower()
                 s = 0
-                if wtype and wtype in name: s += 3
-                if "storm" in name and wtype == "storm": s += 1
-                if "thunder" in name and wtype in ("storm","thunder"): s += 1
+                # Primary token presence already guaranteed; add minor tie-breakers only
+                if "storm" in name and token == "storm": s += 1
+                if "thunder" in name and token in ("storm", "thunder"): s += 1
                 if "loop" in name: s += 1
                 return s
             files.sort(key=score, reverse=True)
-            best = files[0]
-            best_path = str(best.resolve()) if score(best) > 0 else None
+            best_path = str(files[0].resolve())
             pool = [str(p.resolve()) for p in files]
             return (best_path, pool)
         except Exception:

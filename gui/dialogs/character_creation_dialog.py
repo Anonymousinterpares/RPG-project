@@ -157,6 +157,13 @@ class CharacterCreationDialog(NewGameDialog):
         # Initial validation LAST
         self._validate_form()
 
+        # Wire UI sounds for Character Creation dialog: tabs -> tab_click; dropdowns -> dropdown; other clicks -> dropdown
+        try:
+            from gui.utils.ui_sfx import map_container
+            map_container(self, click_kind='dropdown', tab_kind='tab_click', dropdown_kind='dropdown')
+        except Exception:
+            pass
+
     def _setup_ui_with_tabs(self):
         """Set up the main UI using tabs."""
         # Main layout for the dialog

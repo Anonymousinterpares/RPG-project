@@ -60,6 +60,14 @@ class SettingsDialog(BaseDialog):
         # Load settings into the UI
         self._load_settings()
 
+        # Wire UI sounds for Settings dialog
+        try:
+            from gui.utils.ui_sfx import map_container
+            # Tabs -> tab_click, dropdowns -> dropdown, other clicks -> dropdown (per requirement)
+            map_container(self, click_kind='dropdown', tab_kind='tab_click', dropdown_kind='dropdown')
+        except Exception:
+            pass
+
     def _setup_ui(self):
         """Set up the user interface."""
         # Create main layout

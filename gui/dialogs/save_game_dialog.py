@@ -98,6 +98,13 @@ class SaveGameDialog(QDialog):
         
         # Connect signals
         self._connect_signals()
+
+        # Wire UI sounds for Save dialog (all clicks -> dropdown style; no tabs)
+        try:
+            from gui.utils.ui_sfx import map_container
+            map_container(self, click_kind='dropdown', dropdown_kind='dropdown')
+        except Exception:
+            pass
     
     def _setup_ui(self):
         """Set up the user interface."""
