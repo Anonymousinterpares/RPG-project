@@ -952,11 +952,15 @@ class GameEngine(QObject):
             except Exception:
                 pass
             final_combat_outcome = combat_manager.state.name if getattr(combat_manager, 'state', None) else "Unknown"
-            # Victory/defeat SFX (best-effort)
+            # Victory/defeat/flee/surrender SFX (best-effort)
             try:
                 if hasattr(self, '_sfx_manager') and self._sfx_manager:
-                    if getattr(combat_manager, 'state', None) == CombatState.PLAYER_DEFEAT:
+                    st = getattr(combat_manager, 'state', None)
+                    if st == CombatState.PLAYER_DEFEAT:
                         self._sfx_manager.play_one_shot('event','defeat')
+                    elif st == CombatState.FLED:
+                        # Distinguish flee vs surrender not tracked in enum; prefer flee if CM marked FLED
+                        self._sfx_manager.play_one_shot('event','flee')
                     else:
                         self._sfx_manager.play_one_shot('event','victory')
             except Exception:
@@ -975,6 +979,19 @@ class GameEngine(QObject):
                     main_window = self.main_window_ref()
                     if main_window and hasattr(main_window, '_update_ui'):
                         QTimer.singleShot(0, main_window._update_ui)
+            except Exception:
+                pass
+
+            # Restore pre-combat mood if available
+            try:
+                md = getattr(self, 'get_music_director', lambda: None)()
+                prev_mood = getattr(self, '_pre_combat_mood', None)
+                prev_i = getattr(self, '_pre_combat_intensity', None)
+                if md and prev_mood:
+                    md.hard_set(prev_mood, intensity=prev_i if isinstance(prev_i, (int, float)) else None, reason="return_from_combat")
+                # Clear stored mood once applied
+                self._pre_combat_mood = None
+                self._pre_combat_intensity = None
             except Exception:
                 pass
 

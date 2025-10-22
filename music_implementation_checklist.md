@@ -83,16 +83,16 @@ Example manifest keys:
 ---
 
 ## 2A) Context Model (Location, Venue, Weather, Time of Day)
-[ ] Define canonical enums and synonyms mapping (data-driven) for:
+[x] Define canonical enums and synonyms mapping (data-driven) for:
 - location.major (top-level: city, forest, seaside, desert, mountain, dungeon, village, port, temple, ruins, camp, swamp, castle, etc.)
 - location.venue (fine-grained: tavern, market, blacksmith, chapel, library, fireplace, arena, cave, inn, manor, farm, bridge, tower, etc.)
 - weather.type (clear, overcast, rain, storm, snow, blizzard, fog, windy, sandstorm)
 - time_of_day (optional for selection weighting: dawn, day, dusk, night)
 
 [ ] Provide a synonyms map for each domain so LLM/world strings can be canonicalized (e.g., "town" → city, "pub" → tavern)
-[ ] Persist current context in saves: location.major, location.venue, weather.type (and time_of_day if used)
+[x] Persist current context in saves: location.major, location.venue, weather.type (and time_of_day if used)
 [x] Director biases selection using filename tokens (substring match); manifest tags optional. Fields used: location_major, location_venue, weather_type, time_of_day, biome, region, crowd_level, danger_level; booleans interior/underground add 0.5 when true.
-[ ] Engine owns context; LLM may propose (optional) but engine canonicalizes and applies policy
+[x] Engine owns context; LLM may propose (optional) but engine canonicalizes and applies policy
 
 Artifacts (proposed):
 - config/audio/context_enums.json (canonical values)
@@ -139,10 +139,10 @@ Artifacts (proposed):
 [x] Create module: core/music/director.py
 
 Context integration (Phase A scope):
-[ ] Accept and store context fields (location.major, location.venue, weather.type, time_of_day?)
-[ ] Expose set_context(...) or accept context via game state updates; canonicalize via synonyms config
+[x] Accept and store context fields (location.major, location.venue, weather.type, time_of_day?)
+[x] Expose set_context(...) or accept context via game state updates; canonicalize via synonyms config
 [ ] Weight track selection by matching manifest tags to current context (soft bias, not hard filter)
-[ ] Persist context in saves and restore on load
+[x] Persist context in saves and restore on load
 
 Responsibilities:
 - Holds canonical state: { mood, intensity [0..1], current_track, last_change_ts, muted }
@@ -319,7 +319,7 @@ Architecture:
 [x] New Game flow:
 - Hard‑set mood to ambient with default intensity; allow immediate playback (if volumes enabled)
 
-[ ] Optional status area:
+[x] Optional status area:
 - Show current mood, intensity, and track (for dev/testing)
 
 ---
@@ -329,7 +329,7 @@ Note: In the Web UI, Context tab fields are input-only and do not auto-populate;
 [x] Banner music controls (now functional):
 
 Context visibility (dev-only, optional):
-[ ] Small dev widget to display {mood, intensity, track, location.major, venue, weather}
+[x] Small dev widget to display {mood, intensity, track, location.major, venue, weather}
 - Play/pause: browser-only mute toggle
 - Next: calls /api/music/next endpoint
 - Volume: opens popover with real-time volume control
@@ -343,7 +343,7 @@ Context visibility (dev-only, optional):
 - Unlock audio context on Settings click (user gesture)
 - No intrusive overlay; follows autoplay best practices
 
-[ ] Dev/debug (optional):
+[x] Dev/debug (optional):
 - Show current mood/intensity/track in a small corner widget in dev mode
 
 ---
@@ -364,14 +364,14 @@ Optional context tool (if not driven purely by engine):
   "evidence": "string"
 }
 
-[ ] Validation (server‑side):
+[x] Validation (server‑side):
 - Reject malformed payloads
 - Clamp intensity
 - Map mood names case‑insensitively
 
 [ ] Command plumbing:
-- Extend core/game_flow/command_handlers.py with MUSIC handler that calls Director.suggest(...) or Director.next_track()/set_muted based on action
-- Engine events (combat start/end) call Director.hard_set(...)
+- [x] Extend core/game_flow/command_handlers.py with MUSIC handler that calls Director.suggest(...) or Director.next_track()/set_muted based on action
+- [x] Engine events (combat start/end) call Director.hard_set(...)
 
 [ ] Decision policy in Director:
 - Apply if confidence >= threshold and cooldown passed

@@ -31,6 +31,8 @@
       "sfx/event/event_game_start_01.mp3",
       "sfx/event/event_game_start_02.mp3"
     ],
+    "surrender": "sfx/event/event_surrender_01.mp3",
+    "flee": "sfx/event/event_flee_01.mp3",
     "alert_short": "sfx/event/event_alert_short_01.mp3"
   },
   "magic": {

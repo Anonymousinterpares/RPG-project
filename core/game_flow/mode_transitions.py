@@ -805,15 +805,24 @@ def _attempt_surrender_transition(engine: 'GameEngine', game_state: 'GameState',
         if game_state.combat_manager: game_state.combat_manager = None # Clear CM if mode changed
         game_state.current_combatants = []
 
-        # Music: revert to exploration/ambient after surrender
+        # Music: revert to pre-combat mood after surrender
         try:
             md = getattr(engine, 'get_music_director', lambda: None)()
             if md:
-                md.hard_set("exploration", intensity=0.4, reason="leave_combat_surrender")
+                prev_mood = getattr(engine, '_pre_combat_mood', None)
+                prev_i = getattr(engine, '_pre_combat_intensity', None)
+                if prev_mood:
+                    md.hard_set(prev_mood, intensity=prev_i if isinstance(prev_i, (int,float)) else None, reason="leave_combat_surrender")
         except Exception:
             pass
 
         narrative_result = f"Your surrender is accepted as there are no active opponents. The combat ends ({final_combat_state_name})."
+        # SFX: surrender
+        try:
+            if hasattr(engine, '_sfx_manager') and engine._sfx_manager:
+                engine._sfx_manager.play_one_shot('event','surrender')
+        except Exception:
+            pass
         # engine._output("system", narrative_result) # Orchestrator will handle this via CM queue
         return narrative_result
 
@@ -904,7 +913,20 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
         try:
             md = getattr(engine, 'get_music_director', lambda: None)()
             if md:
+                # Remember pre-combat mood/intensity to restore later
+                try:
+                    engine._pre_combat_mood = getattr(md, '_mood', None)
+                    engine._pre_combat_intensity = float(getattr(md, '_intensity', 0.6))
+                except Exception:
+                    engine._pre_combat_mood = getattr(engine, '_pre_combat_mood', None)
+                    engine._pre_combat_intensity = getattr(engine, '_pre_combat_intensity', 0.6)
                 md.hard_set("combat", intensity=0.7, reason="enter_combat")
+            # Combat start SFX
+            try:
+                if hasattr(engine, '_sfx_manager') and engine._sfx_manager:
+                    engine._sfx_manager.play_one_shot('event','combat_start')
+            except Exception:
+                pass
         except Exception:
             pass
         
@@ -948,6 +970,21 @@ def _attempt_flee_transition(engine: 'GameEngine', game_state: 'GameState', requ
         game_state.current_combatants = []
         narrative_result = "You successfully escaped the battle!"
         logger.info(f"Flee successful for {effective_actor_id}. Transitioned to NARRATIVE.")
+        # SFX + music restore
+        try:
+            if hasattr(engine, '_sfx_manager') and engine._sfx_manager:
+                engine._sfx_manager.play_one_shot('event','flee')
+        except Exception:
+            pass
+        try:
+            md = getattr(engine, 'get_music_director', lambda: None)()
+            if md:
+                prev_mood = getattr(engine, '_pre_combat_mood', None)
+                prev_i = getattr(engine, '_pre_combat_intensity', None)
+                if prev_mood:
+                    md.hard_set(prev_mood, intensity=prev_i if isinstance(prev_i, (int,float)) else None, reason="leave_combat_flee")
+        except Exception:
+            pass
     else:
         narrative_result = "Your attempt to flee was unsuccessful. The battle continues!" # Placeholder
         logger.info(f"Flee attempt for {effective_actor_id} seems to have failed or is being handled by CM. Staying in COMBAT.")
