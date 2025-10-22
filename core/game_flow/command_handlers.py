@@ -304,6 +304,62 @@ def _handle_music_command(engine: 'GameEngine', game_state: 'GameState', args: L
         logger.exception("MUSIC command error")
         return CommandResult.error(f"MUSIC command error: {e}")
 
+def _handle_set_context(engine: 'GameEngine', game_state: 'GameState', args: List[str]) -> CommandResult:
+    """Apply context changes from LLM via structured JSON (SET_CONTEXT tool).
+    Rules:
+      - Hierarchy: biome (outdoors/wild) → major (city/camp/village/...) → venue (tavern/market/... inside a major).
+      - Major may be explicitly "none": this means location is defined only by biome (and optional region).
+      - If venue is "none" (or null), there is no venue; ambience prefers major if set; otherwise biome.
+      - When a Major is set (non-None), biome should be "none"/ignored for ambience purposes.
+      - Accepted keys (flat or nested):
+        { location_major?, venue?, name?, weather?, time_of_day?, biome?, region?, interior?, underground?, crowd_level?, danger_level? }
+        or { location: {name?, major?, venue?}, weather: {type?}, ... }
+      - Strings "none", "no", "n/a", "null" canonically map to None for major, biome, and venue.
+    Engine canonicalizes and applies policy.
+    """
+    payload = _parse_single_json_arg(args)
+    if not isinstance(payload, dict) or not payload:
+        return CommandResult.invalid("SET_CONTEXT requires a JSON payload.")
+    try:
+        ctx: dict = {}
+        loc = {}
+        we = {}
+        # Nested accepts direct
+        if isinstance(payload.get('location'), dict):
+            loc = {k: payload['location'].get(k) for k in ('name','major','venue') if payload['location'].get(k) is not None}
+        if isinstance(payload.get('weather'), dict):
+            we = { 'type': payload['weather'].get('type') }
+        # Flat keys
+        if payload.get('location_major') is not None: loc['major'] = payload.get('location_major')
+        if payload.get('venue') is not None: loc['venue'] = payload.get('venue')
+        if payload.get('name') is not None: loc['name'] = payload.get('name')
+        if payload.get('weather') is not None: we['type'] = payload.get('weather')
+        if loc: ctx['location'] = loc
+        if we: ctx['weather'] = we
+        for key in ('time_of_day','biome','region','interior','underground','crowd_level','danger_level'):
+            if key in payload:
+                ctx[key] = payload[key]
+        engine.set_game_context(ctx, source="llm_set_context")
+        # Return a compact echo of applied keys
+        keys_applied = list(ctx.keys()) + [f"location.{k}" for k in loc.keys()] + (["weather.type"] if we else [])
+        return CommandResult.success(f"Context update requested: {', '.join(sorted(set(keys_applied)))}")
+    except Exception as e:
+        return CommandResult.error(f"SET_CONTEXT error: {e}")
+
+# --- LLM Command Mapping ---
+
+LLM_COMMAND_HANDLERS = {
+    "MODE_TRANSITION": handle_mode_transition,
+    "QUEST_UPDATE": None,   # placeholders; set below after function defs
+    "QUEST_STATUS": None,
+    "STATE_CHANGE": None,
+    "MUSIC": _handle_music_command,
+    "SET_CONTEXT": None,  # set below after function def
+}
+
+# register handler in table
+LLM_COMMAND_HANDLERS["SET_CONTEXT"] = _handle_set_context
+
 # --- Main Direct Command Dispatch ---
 
 MODE_TRANSITION_COMMANDS = {
@@ -319,15 +375,7 @@ MODE_TRANSITION_COMMANDS = {
     # Add other mode transition commands here
 }
 
-# --- LLM Command Mapping ---
 
-LLM_COMMAND_HANDLERS = {
-    "MODE_TRANSITION": handle_mode_transition,
-    "QUEST_UPDATE": None,   # placeholders; set below after function defs
-    "QUEST_STATUS": None,
-    "STATE_CHANGE": None,
-    "MUSIC": _handle_music_command,
-}
 def _parse_single_json_arg(args: List[str]) -> dict:
     try:
         import json

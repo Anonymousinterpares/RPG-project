@@ -28,12 +28,12 @@ _DEFAULT_ENUMS: Dict[str, Any] = {
 
 _DEFAULT_SYNONYMS: Dict[str, Any] = {
     "location": {
-        "major": {"town": "city", "hamlet": "village", "port town": "port", "camp": "camp"},
-        "venue": {"pub": "tavern", "smith": "blacksmith", "church": "chapel", "marketplace": "market"},
+        "major": {"town": "city", "hamlet": "village", "port town": "port", "camp": "camp", "none": "", "no": "", "n/a": "", "null": ""},
+        "venue": {"pub": "tavern", "smith": "blacksmith", "church": "chapel", "marketplace": "market", "none": "", "no": "", "n/a": "", "null": ""},
     },
     "weather": {"type": {"rainy": "rain", "snowing": "snow", "clear skies": "clear"}},
     "time_of_day": {"morning": "day", "afternoon": "day", "evening": "dusk", "nighttime": "night", "midnight": "night", "sunrise": "dawn", "sunset": "dusk"},
-    "biome": {"shore": "seaside", "coast": "seaside", "woods": "forest", "jungle": "forest"},
+    "biome": {"shore": "seaside", "coast": "seaside", "woods": "forest", "jungle": "forest", "none": "", "no": "", "n/a": "", "null": ""},
     "crowd_level": {"crowded": "busy", "packed": "busy", "empty streets": "empty"},
     "danger_level": {"safe": "calm", "high": "deadly", "dangerous": "tense"},
 }
@@ -298,6 +298,9 @@ def canonicalize_context(input_data: Dict[str, Any]) -> Tuple[GameContext, Dict[
             s = syn.get(domain, {}).get(key, {}).get(s, s)
         except Exception:
             pass
+        # Treat explicit empty-string mapping as None (no warning)
+        if s == "":
+            return None
         # whitelist
         allowed = []
         try:
@@ -320,6 +323,9 @@ def canonicalize_context(input_data: Dict[str, Any]) -> Tuple[GameContext, Dict[
             return None
         # synonyms (top-level like time_of_day, biome, crowd_level, danger_level)
         mapped = syn.get(key, {}).get(s, s) if isinstance(syn.get(key, {}), dict) else s
+        # Treat explicit empty-string mapping as None (no warning)
+        if mapped == "":
+            return None
         allowed = enums.get(key, []) if isinstance(enums.get(key, []), list) else []
         if allowed and mapped not in allowed:
             warnings[key] = f"Unrecognized '{mapped}', set to None"

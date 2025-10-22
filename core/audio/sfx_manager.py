@@ -178,6 +178,8 @@ class SFXManager:
             tod = str(ctx.get("time_of_day") or "").strip().lower() or None
             major = str(loc.get("major") or "").strip().lower() or None
             venue = str(loc.get("venue") or "").strip().lower() or None
+            if venue in {"none","no","n/a","null",""}:
+                venue = None
             biome = str(ctx.get("biome") or "").strip().lower() or None
             region = str(ctx.get("region") or "").strip().lower() or None
             wtype = str(weather.get("type") or "").strip().lower() or None
@@ -284,6 +286,62 @@ class SFXManager:
             return _rnd.choice(candidates)
         except Exception:
             return None
+
+    def play_magic_cast(self, system: Optional[str] = None, role: Optional[str] = None, spell_name: Optional[str] = None, failed: bool = False) -> None:
+        """Play magic casting SFX with multi-level selection:
+        1) If failed, play magic_failed*
+        2) Prefer files containing system token (e.g., 'ashen'); fallback to magic_generic*
+        3) Within candidates, prefer role token (offensive/defensive/utility)
+        4) If spell_name provided, prefer files containing that token
+        5) Randomize among remaining candidates
+        """
+        if not self._enabled or not self._backend:
+            return
+        try:
+            root = (self._project_root / "sound" / "sfx" / "magic")
+            if not root.exists():
+                return
+            files: List[Path] = [p for p in root.iterdir() if p.is_file() and p.suffix.lower() in {".mp3",".ogg",".wav",".flac"}]
+            if not files:
+                return
+            sys_tok = (system or "").strip().lower() or None
+            role_tok = (role or "").strip().lower() or None
+            spell_tok = (spell_name or "").strip().lower() or None
+            def name(p: Path) -> str:
+                return p.stem.lower()
+            candidates = []
+            if failed:
+                candidates = [p for p in files if 'magic_failed' in name(p)]
+            else:
+                if sys_tok:
+                    candidates = [p for p in files if sys_tok in name(p)]
+                if not candidates:
+                    candidates = [p for p in files if 'magic_generic' in name(p) or 'generic' in name(p)]
+            if not candidates:
+                return
+            # Prefer role within candidates
+            if role_tok:
+                role_filtered = [p for p in candidates if role_tok in name(p)]
+                if role_filtered:
+                    candidates = role_filtered
+            # Prefer exact spell token
+            if spell_tok:
+                spell_filtered = [p for p in candidates if spell_tok in name(p)]
+                if spell_filtered:
+                    candidates = spell_filtered
+            # Choose deterministically random
+            import random as _rnd
+            pick = str(_rnd.choice(candidates).resolve())
+            self._backend.play_sfx(pick, category='magic')
+            now = time.time()
+            try:
+                self._recent_oneshots.append((pick, now + 1.5))
+                self._prune_recent(now)
+                self._notify()
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     # --- Loops helpers ---
     def _update_environment_loop(self, major: Optional[str], tod: Optional[str], venue: Optional[str] = None, biome: Optional[str] = None, region: Optional[str] = None) -> None:

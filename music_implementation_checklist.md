@@ -141,7 +141,7 @@ Artifacts (proposed):
 Context integration (Phase A scope):
 [x] Accept and store context fields (location.major, location.venue, weather.type, time_of_day?)
 [x] Expose set_context(...) or accept context via game state updates; canonicalize via synonyms config
-[ ] Weight track selection by matching manifest tags to current context (soft bias, not hard filter)
+[x] Weight track selection by matching manifest tags to current context (soft bias, not hard filter)
 [x] Persist context in saves and restore on load
 
 Responsibilities:
@@ -352,7 +352,7 @@ Context visibility (dev-only, optional):
 [ ] Define function (tool) schema for LLM output (JSON):
 
 Optional context tool (if not driven purely by engine):
-[ ] Define SET_CONTEXT tool: { location_major?, venue?, weather?, time_of_day? }
+[x] Define SET_CONTEXT tool: { location_major?, venue?, weather?, time_of_day? }
 - Engine canonicalizes via synonyms, applies policy, and updates Director.
 - Alternatively, allow MUSIC tool to include optional context fields—but SET_CONTEXT keeps concerns cleaner.
 {

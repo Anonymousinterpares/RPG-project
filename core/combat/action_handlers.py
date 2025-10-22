@@ -346,6 +346,14 @@ def _handle_spell_action(manager: 'CombatManager', action: CombatAction, perform
         current_result_detail["message"] = "No target specified for spell."
         return current_result_detail
     
+    # Play magic SFX before resolving mechanics
+    try:
+        if hasattr(engine, '_sfx_manager') and engine._sfx_manager:
+            system_id = getattr(spell_obj, 'system_id', None) if spell_obj else None
+            role_tok = getattr(spell_obj, 'combat_role', None) if spell_obj else None
+            engine._sfx_manager.play_magic_cast(system_id, role_tok, getattr(spell_obj, 'id', action.name), failed=False)
+    except Exception:
+        pass
     # Use effects engine if we have effect_atoms, otherwise fallback to legacy handling
     if effect_atoms and spell_obj:
         return _handle_spell_with_effects_engine(manager, action, performer, performer_stats_manager, engine, current_result_detail, spell_obj, effect_atoms)

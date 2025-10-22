@@ -93,18 +93,40 @@
       danger_level:["calm","tense","deadly"]
     };
     const enums = data || fallback;
-    const fill = (id, arr) => {
+    const fill = (id, arr, withNone=false) => {
       const el = document.getElementById(id); if (!el) return; el.innerHTML='';
       const list = (arr||[]).map(v=>({value:String(v),label:String(v)}));
+      if (withNone) list.unshift({value:'None',label:'None'});
       list.forEach(o=>{ const opt=document.createElement('option'); opt.value=o.value; opt.textContent=o.label; el.appendChild(opt); });
     };
-    fill('dev-ctx-loc-major', enums.location?.major);
-    fill('dev-ctx-venue', enums.location?.venue);
+    fill('dev-ctx-loc-major', enums.location?.major, true);
+    fill('dev-ctx-venue', enums.location?.venue, true);
     fill('dev-ctx-weather', enums.weather?.type);
     fill('dev-ctx-tod', enums.time_of_day);
-    fill('dev-ctx-biome', enums.biome);
+    fill('dev-ctx-biome', enums.biome, true);
     fill('dev-ctx-crowd', enums.crowd_level);
     fill('dev-ctx-danger', enums.danger_level);
+
+    // Enforce dropdown rules: major None -> venue None/disabled; major set -> biome None; venue enabled
+    try {
+      const majorEl = document.getElementById('dev-ctx-loc-major');
+      const venueEl = document.getElementById('dev-ctx-venue');
+      const biomeEl = document.getElementById('dev-ctx-biome');
+      const applyRules = () => {
+        const maj = (majorEl.value||'').trim().toLowerCase();
+        if (['none','no','n/a','null',''].includes(maj)){
+          venueEl.value = 'None';
+          venueEl.disabled = true;
+          // Biome stands independently; do not force
+        } else {
+          venueEl.disabled = false;
+          biomeEl.value = 'None';
+        }
+      };
+      majorEl.addEventListener('change', applyRules);
+      // Apply once after initial fill
+      setTimeout(applyRules, 0);
+    } catch(e) { console.warn('context rules binding failed', e); }
   }
 
   async function refreshFromServer(){
@@ -142,19 +164,20 @@
   async function applyToServer(){
     console.log('[ContextPanel] Apply clicked');
     if (!window.apiClient || !apiClient.sessionId) return;
+    const norm = (v)=>{ const s=(v||'').trim().toLowerCase(); return ['none','no','n/a','null',''].includes(s) ? null : v; };
     const payload = {
       location: {
         name: document.getElementById('dev-ctx-loc-name').value || '',
-        major: document.getElementById('dev-ctx-loc-major').value || null,
-        venue: document.getElementById('dev-ctx-venue').value || null,
+        major: norm(document.getElementById('dev-ctx-loc-major').value),
+        venue: norm(document.getElementById('dev-ctx-venue').value),
       },
-      weather: { type: document.getElementById('dev-ctx-weather').value || null },
-      time_of_day: document.getElementById('dev-ctx-tod').value || null,
-      biome: document.getElementById('dev-ctx-biome').value || null,
+      weather: { type: norm(document.getElementById('dev-ctx-weather').value) },
+      time_of_day: norm(document.getElementById('dev-ctx-tod').value),
+      biome: norm(document.getElementById('dev-ctx-biome').value),
       interior: document.getElementById('dev-ctx-interior').checked,
       underground: document.getElementById('dev-ctx-underground').checked,
-      crowd_level: document.getElementById('dev-ctx-crowd').value || null,
-      danger_level: document.getElementById('dev-ctx-danger').value || null,
+      crowd_level: norm(document.getElementById('dev-ctx-crowd').value),
+      danger_level: norm(document.getElementById('dev-ctx-danger').value),
     };
     try {
       const res = await fetch(`/api/context/${apiClient.sessionId}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});

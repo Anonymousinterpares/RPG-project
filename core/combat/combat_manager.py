@@ -1080,6 +1080,12 @@ class CombatManager:
             self._add_to_log(cost_fail_msg)
             event_cost_fail = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cost_fail_msg, target_display=DisplayTarget.COMBAT_LOG)
             engine._combat_orchestrator.add_event_to_queue(event_cost_fail)
+            # SFX: magic failed due to insufficient mana
+            try:
+                if hasattr(engine, '_sfx_manager') and engine._sfx_manager:
+                    engine._sfx_manager.play_magic_cast(None, None, None, failed=True)
+            except Exception:
+                pass
             queued_events_flag = True
             self._last_action_result_detail.update({"success": False, "message": "Not enough mana."})
             return {**default_result, "message": "Not enough mana.", "queued_events": queued_events_flag}

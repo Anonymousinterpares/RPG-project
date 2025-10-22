@@ -410,7 +410,7 @@ class GameEngine(QObject):
                 try:
                     saved_ctx = getattr(loaded_state, 'game_context', None)
                     if isinstance(saved_ctx, dict) and saved_ctx:
-                        self.set_game_context(saved_ctx)
+                        self.set_game_context(saved_ctx, source="load_game")
                     else:
                         loc_name = getattr(getattr(loaded_state, 'world', None), 'current_location', None) or getattr(getattr(loaded_state, 'player', None), 'current_location', '')
                         loc_major = self.get_location_major()
@@ -655,6 +655,12 @@ class GameEngine(QObject):
             if mana_cost > 0:
                 current_mana = caster_sm.get_current_stat_value(DerivedStatType.MANA)
                 if current_mana < mana_cost:
+                    # SFX: magic failed (insufficient mana)
+                    try:
+                        if hasattr(self, '_sfx_manager') and self._sfx_manager:
+                            self._sfx_manager.play_magic_cast(getattr(spell, 'system_id', None), getattr(spell, 'combat_role', None), getattr(spell, 'id', None), failed=True)
+                    except Exception:
+                        pass
                     return CommandResult.error(f"Insufficient mana. Need {mana_cost}, have {current_mana:.1f}.")
                 
                 # Deduct mana cost
@@ -667,6 +673,12 @@ class GameEngine(QObject):
             if not targets:
                 return CommandResult.error(f"No valid targets found for spell '{spell.name}'.")
 
+            # SFX: play magic cast
+            try:
+                if hasattr(self, '_sfx_manager') and self._sfx_manager and spell:
+                    self._sfx_manager.play_magic_cast(getattr(spell, 'system_id', None), getattr(spell, 'combat_role', None), getattr(spell, 'id', None), failed=False)
+            except Exception:
+                pass
             # Apply effects
             effect_result = apply_effects(atoms=atoms, caster=caster_ctx, targets=targets)
             
@@ -1379,6 +1391,18 @@ class GameEngine(QObject):
                 if key in incoming:
                     setattr(merged_gc, key if key not in ('time_of_day',) else 'time_of_day', getattr(new_gc, key))
 
+            # Enrichment guard for explicit clears (e.g., venue=None)
+            explicit_venue_provided = (('location_venue' in incoming) or ('venue' in loc_in))
+            venue_provided_as_none = False
+            try:
+                v_raw = loc_in.get('venue') if isinstance(loc_in, dict) else None
+                if (v_raw is None) or (isinstance(v_raw, str) and v_raw.strip().lower() in ('', 'none', 'null', 'n/a')):
+                    venue_provided_as_none = ('venue' in loc_in)
+                if incoming.get('location_venue', '___MISSING___') is None:
+                    venue_provided_as_none = True
+            except Exception:
+                pass
+
             # Enrich from mapping by location name/id if available (non-overwriting)
             try:
                 # Extract optional location id from incoming
@@ -1389,6 +1413,9 @@ class GameEngine(QObject):
                     loc_id = None
                 loc_name = merged_gc.to_dict().get('location', {}).get('name')
                 merged_gc = enrich_context_from_location(merged_gc, location_name=loc_name, location_id=loc_id)
+                # If venue was explicitly provided as None, keep it None and do NOT let enrichment repopulate it
+                if explicit_venue_provided and venue_provided_as_none:
+                    merged_gc.location_venue = None
             except Exception:
                 pass
 
@@ -1461,6 +1488,7 @@ class GameEngine(QObject):
                 # include a timestamp for clients that want ordering
                 import time as _t
                 payload["ts"] = int(_t.time())
+                payload["source"] = source or "unknown"
                 self.context_updated.emit(payload)
             except Exception:
                 pass

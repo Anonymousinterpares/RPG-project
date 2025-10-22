@@ -1,0 +1,51 @@
+# Music manifest template for mood folders
+# Place this file as sound/music/<mood>/manifest.yaml (one per mood).
+# Only the `tracks` list is consumed by the engine today. Other keys are
+# informative and reserved for future features.
+
+mood: ambient            # Optional: human-friendly label for the folder
+version: 1               # Optional: schema version for future changes
+
+# Optional default intensity when the Director hard_sets this mood without an
+# explicit intensity. Not enforced by the engine—purely informative for now.
+default_intensity: 0.5
+
+# Tracks used by the Director for this mood. Each entry can define:
+# - file: relative filename inside this mood folder
+# - weight: selection weight (default 1.0). Higher = more likely when eligible
+# - tags: list of strings influencing selection when context matches.
+#         Supported context tags that improve odds when present:
+#           location_major, location_venue, weather_type, time_of_day,
+#           biome, region, crowd_level, danger_level, interior, underground
+# - loudness_offset_db: per-track loudness normalization offset (float, dB).
+#                       Positive = louder, negative = quieter vs baseline.
+#
+# Selection weighting formula (current engine):
+#   weight_eff = weight * (1 + 0.75*manifest_tag_matches) * (1 + 0.25*filename_matches)
+# where tag_matches are overlap with current context tokens and filename_matches
+# are simple substring matches against the filename (for backward-compat).
+
+tracks:
+  - file: example_city_evening_01.mp3
+    weight: 1.0
+    tags: [city, market, evening, interior]
+    loudness_offset_db: -1.0
+
+  - file: example_forest_dawn_01.mp3
+    weight: 0.8
+    tags: [forest, dawn, outdoors]
+    loudness_offset_db: 0.0
+
+  - file: example_general_loop_01.ogg
+    weight: 0.6
+    tags: [village, day]
+    loudness_offset_db: +0.5
+
+# Reserved (not read yet by the engine but included for completeness):
+# stingers:
+#   start:
+#     - file: stingers/enter_01.mp3
+#       loudness_offset_db: 0
+#   boss:
+#     - file: stingers/boss_hit_01.mp3
+#       loudness_offset_db: -2.0

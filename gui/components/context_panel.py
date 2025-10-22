@@ -68,11 +68,32 @@ class ContextPanelWidget(QWidget):
             except Exception:
                 pass
 
-        fill(self._loc_major, self._enums.get('location', {}).get('major'))
-        fill(self._loc_venue, self._enums.get('location', {}).get('venue'))
+        # Major list with 'None' option at top
+        try:
+            majors = list(self._enums.get('location', {}).get('major') or [])
+            if 'None' not in majors and 'none' not in [m.lower() for m in majors]:
+                majors.insert(0, 'None')
+            fill(self._loc_major, majors)
+        except Exception:
+            fill(self._loc_major, self._enums.get('location', {}).get('major'))
+        # Venue list with 'None' option at top
+        try:
+            venues = list(self._enums.get('location', {}).get('venue') or [])
+            if 'None' not in venues and 'none' not in [v.lower() for v in venues]:
+                venues.insert(0, 'None')
+            fill(self._loc_venue, venues)
+        except Exception:
+            fill(self._loc_venue, self._enums.get('location', {}).get('venue'))
         fill(self._weather, self._enums.get('weather', {}).get('type'))
         fill(self._tod, self._enums.get('time_of_day'))
-        fill(self._biome, self._enums.get('biome'))
+        # Biome list with 'None' option at top
+        try:
+            biomes = list(self._enums.get('biome') or [])
+            if 'None' not in biomes and 'none' not in [b.lower() for b in biomes]:
+                biomes.insert(0, 'None')
+            fill(self._biome, biomes)
+        except Exception:
+            fill(self._biome, self._enums.get('biome'))
         fill(self._crowd, self._enums.get('crowd_level'))
         fill(self._danger, self._enums.get('danger_level'))
         # Fill music moods from director (if available)
@@ -134,6 +155,8 @@ class ContextPanelWidget(QWidget):
             self._loc_name.textEdited.connect(self._mark_dirty)
             for cb in (self._loc_major, self._loc_venue, self._weather, self._tod, self._biome, self._crowd, self._danger):
                 cb.currentIndexChanged.connect(self._mark_dirty)
+            # When Major changes, enforce rules: if major!='None' -> biome='None'; if major='None' -> venue='None' and disable venue
+            self._loc_major.currentIndexChanged.connect(self._on_major_changed)
             self._interior.stateChanged.connect(self._mark_dirty)
             self._underground.stateChanged.connect(self._mark_dirty)
         except Exception:
@@ -143,6 +166,7 @@ class ContextPanelWidget(QWidget):
             self._music_mood.currentIndexChanged.connect(self._on_music_mood_changed)
         except Exception:
             pass
+
 
         # Subscribe to playback updates
         try:
@@ -158,6 +182,20 @@ class ContextPanelWidget(QWidget):
         except Exception:
             pass
 
+    def _on_major_changed(self, *args, **kwargs) -> None:
+        try:
+            maj = self._current_text(self._loc_major)
+            if isinstance(maj, str) and maj.strip().lower() in ("none","no","n/a","null"):
+                # No major: force venue to None and disable venue control; leave biome as user selected
+                self._select_combo(self._loc_venue, 'None')
+                self._loc_venue.setEnabled(False)
+            else:
+                # Major selected: set biome to None, enable venue choices
+                self._select_combo(self._biome, 'None')
+                self._loc_venue.setEnabled(True)
+        except Exception:
+            pass
+
     def _on_music_state_updated(self, payload: dict) -> None:
         try:
             mood = (payload or {}).get('mood')
@@ -167,14 +205,15 @@ class ContextPanelWidget(QWidget):
             pass
 
     def _on_engine_context_updated(self, payload: dict) -> None:
-        # If the user is editing, do not clobber inputs; stash for later
-        if self._dirty:
+        # If user is editing, only override on non-UI sources (turn/load/new)
+        src = (payload or {}).get('source')
+        if self._dirty and src == 'gui_dev_panel':
+            # keep manual edits
             self._pending_engine_ctx = payload
-            try:
-                self._status.setText("Engine updated context. Finish editing then Refresh/Apply.")
-            except Exception:
-                pass
             return
+        if self._dirty and src != 'gui_dev_panel':
+            # authoritative update (turn/load/new) → accept and clear dirty
+            self._dirty = False
         self.refresh_from_engine()
 
 
@@ -200,6 +239,16 @@ class ContextPanelWidget(QWidget):
             except Exception:
                 self._json_view.setPlainText(str(ctx))
             self._status.setText("Loaded current context.")
+            # Enforce venue enable/disable based on major
+            try:
+                maj = self._current_text(self._loc_major)
+                if isinstance(maj, str) and maj.strip().lower() in ("none","no","n/a","null"):
+                    self._loc_venue.setEnabled(False)
+                    self._select_combo(self._loc_venue, 'None')
+                else:
+                    self._loc_venue.setEnabled(True)
+            except Exception:
+                pass
             # Sync current music mood
             try:
                 md = self._engine.get_music_director() if hasattr(self._engine, 'get_music_director') else None
@@ -244,15 +293,30 @@ class ContextPanelWidget(QWidget):
             pass
 
     def apply_to_engine(self) -> None:
+        venue_text = self._current_text(self._loc_venue)
+        if isinstance(venue_text, str) and venue_text.strip().lower() in ("none","no","n/a","null"):
+            venue_value = None
+        else:
+            venue_value = venue_text
+        biome_text = self._current_text(self._biome)
+        if isinstance(biome_text, str) and biome_text.strip().lower() in ("none","no","n/a","null"):
+            biome_value = None
+        else:
+            biome_value = biome_text
+        major_text = self._current_text(self._loc_major)
+        if isinstance(major_text, str) and major_text.strip().lower() in ("none","no","n/a","null"):
+            major_value = None
+        else:
+            major_value = major_text
         payload = {
             'location': {
                 'name': self._loc_name.text().strip(),
-                'major': self._current_text(self._loc_major),
-                'venue': self._current_text(self._loc_venue),
+                'major': major_value,
+                'venue': venue_value,
             },
             'weather': { 'type': self._current_text(self._weather) },
             'time_of_day': self._current_text(self._tod),
-            'biome': self._current_text(self._biome),
+            'biome': biome_value,
             'interior': self._interior.isChecked(),
             'underground': self._underground.isChecked(),
             'crowd_level': self._current_text(self._crowd),

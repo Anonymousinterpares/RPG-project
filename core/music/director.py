@@ -38,6 +38,8 @@ class MusicDirector:
         self._current_track: Optional[str] = None  # absolute path (desktop)
         self._rotation: Dict[str, List[str]] = {}
         self._played: Dict[str, set] = {}
+        # Manifest metadata per mood: { mood: { abs_path: {weight: float, tags: set[str], loudness_offset_db: float} } }
+        self._track_meta: Dict[str, Dict[str, Dict]] = {}
         # Suggestion policy
         self._suggest_threshold: float = 0.7
         self._mood_cooldown_s: float = 5.0
@@ -198,6 +200,51 @@ class MusicDirector:
         except Exception:
             return []
 
+    def _load_manifest_for_mood(self, mood_dir: Path) -> Optional[Dict[str, Dict]]:
+        """Load optional manifest (YAML or JSON) for a mood directory.
+        Returns mapping { abs_path: {weight, tags, loudness_offset_db} } or None.
+        """
+        manifest = None
+        try:
+            yml = mood_dir / "manifest.yaml"
+            js = mood_dir / "manifest.json"
+            data = None
+            if yml.exists():
+                try:
+                    import yaml  # type: ignore
+                    with yml.open("r", encoding="utf-8") as f:
+                        data = yaml.safe_load(f)
+                except Exception:
+                    data = None
+            if data is None and js.exists():
+                try:
+                    import json as _json
+                    with js.open("r", encoding="utf-8") as f:
+                        data = _json.load(f)
+                except Exception:
+                    data = None
+            if not isinstance(data, dict):
+                return None
+            tracks = data.get("tracks") or []
+            out: Dict[str, Dict] = {}
+            for t in tracks:
+                try:
+                    rel = t.get("file")
+                    if not isinstance(rel, str):
+                        continue
+                    abs_p = str((mood_dir / rel).resolve())
+                    meta = {
+                        "weight": float(t.get("weight", 1.0)),
+                        "tags": list(t.get("tags", []) or []),
+                        "loudness_offset_db": float(t.get("loudness_offset_db", 0.0)),
+                    }
+                    out[abs_p] = meta
+                except Exception:
+                    continue
+            return out
+        except Exception:
+            return None
+
     def current_state(self) -> Dict:
         """Return a snapshot of current music state (for debug/API)."""
         with self._lock:
@@ -230,6 +277,8 @@ class MusicDirector:
             files.sort()
             self._rotation[mood] = files
             self._played[mood] = set()
+            # Try to load manifest metadata for weighting/tags
+            self._track_meta[mood] = self._load_manifest_for_mood(mood_dir) or {}
         logger.info(f"MusicDirector scanned moods: {list(self._rotation.keys())}")
 
     def _select_next_track_locked(self, mood: str, force_unplayed: bool = False) -> Optional[str]:
@@ -247,41 +296,49 @@ class MusicDirector:
         candidates = unplayed if force_unplayed else pool
         if self._current_track in candidates and len(candidates) > 1:
             candidates = [c for c in candidates if c != self._current_track]
-        # Context bias: prefer tracks whose filename contains any active context tokens
-        if self._context_bias_enabled:
-            ctx = {k: v for k, v in self._context.items() if v}
-            def _score(path: str) -> float:
-                base = os.path.basename(path).lower()
-                score = 1.0
-                # string tags
-                for key in ("location_major","location_venue","weather_type","time_of_day","biome","crowd_level","danger_level","region"):
-                    val = ctx.get(key)
-                    if isinstance(val, str) and val and val in base:
-                        score += 1.0
-                # boolean tags
-                if ctx.get("interior") is True and "interior" in base:
-                    score += 0.5
-                if ctx.get("underground") is True and "underground" in base:
-                    score += 0.5
-                return score
-            weights = [_score(p) for p in candidates]
+        # Context bias: combine manifest weights + tag matches + filename tokens into weighted choice
+        ctx = {k: v for k, v in self._context.items() if v}
+        def _context_tokens() -> List[str]:
+            toks: List[str] = []
+            for key in ("location_major","location_venue","weather_type","time_of_day","biome","crowd_level","danger_level","region"):
+                val = ctx.get(key)
+                if isinstance(val, str) and val:
+                    toks.append(val.lower())
+            if ctx.get("interior") is True:
+                toks.append("interior")
+            if ctx.get("underground") is True:
+                toks.append("underground")
+            return toks
+        tokens = _context_tokens()
+        meta = self._track_meta.get(mood, {})
+        def _weight_for(path: str) -> float:
+            base = os.path.basename(path).lower()
+            m = meta.get(path) or {}
+            w = float(m.get("weight", 1.0))
+            # Manifest tags
             try:
-                total = sum(weights)
-                if total > 0:
-                    r = random.random() * total
-                    acc = 0.0
-                    for p, w in zip(candidates, weights):
-                        acc += w
-                        if r <= acc:
-                            choice = p
-                            break
-                    else:
-                        choice = random.choice(candidates)
-                else:
-                    choice = random.choice(candidates)
+                tags = set([str(t).lower() for t in (m.get("tags") or [])])
             except Exception:
+                tags = set()
+            tag_matches = len(tags.intersection(tokens)) if tags else 0
+            # Filename token bias
+            filename_matches = sum(1 for t in tokens if t in base)
+            return max(0.01, w) * (1.0 + 0.75 * tag_matches) * (1.0 + 0.25 * filename_matches)
+        try:
+            weights = [_weight_for(p) for p in candidates]
+            total = sum(weights)
+            if total <= 0:
                 choice = random.choice(candidates)
-        else:
+            else:
+                r = random.random() * total
+                acc = 0.0
+                choice = candidates[-1]
+                for p, w in zip(candidates, weights):
+                    acc += w
+                    if r <= acc:
+                        choice = p
+                        break
+        except Exception:
             choice = random.choice(candidates)
         if choice:
             self._played[mood].add(choice)
@@ -297,7 +354,13 @@ class MusicDirector:
             cf_ms = max(400, min(4000, cf_ms))
         except Exception:
             cf_ms = 3000
-        transition = {"crossfade_ms": cf_ms}
+        # Attach loudness offset if manifest provides one
+        lou_db = 0.0
+        try:
+            lou_db = float((self._track_meta.get(self._mood, {}) or {}).get(track or "", {}).get("loudness_offset_db", 0.0))
+        except Exception:
+            lou_db = 0.0
+        transition = {"crossfade_ms": cf_ms, "loudness_offset_db": lou_db}
         if self._backend:
             try:
                 self._backend.apply_state(self._mood, self._intensity, track, transition)
