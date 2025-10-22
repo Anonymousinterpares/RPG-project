@@ -173,7 +173,7 @@ Public API (suggested):
 [x] def set_muted(self, muted: bool) -> None  # reflect UI or settings
 [x] def next_track(self, reason: str = "") -> None  # user skip
 [x] def set_volumes(self, master: int, music: int, effects: int) -> None
-[ ] def current_state(self) -> dict
+[x] def current_state(self) -> dict
 
 Implementation details:
 [ ] Confidence/hysteresis:
@@ -213,7 +213,7 @@ Intensity policy (Milestone 1):
 [x] Create module: core/music/backend_vlc.py (plus an abstract interface core/music/backend.py)
 
 Interface (example):
-[ ] class MusicBackend:
+[x] class MusicBackend:
 - apply_state(mood: str, intensity: float, track_path: Optional[str], transition: dict)
 - set_volumes(master: int, music: int, effects: int, muted: bool)
 - next_track()
@@ -221,12 +221,12 @@ Interface (example):
 - play_sfx(file_path: str, category: str)
 
 VLC implementation specifics:
-[ ] Players:
+[x] Players:
 - 2 main VLC media players for crossfading base music (current/next)
 - 1 stinger player (short‑lived or pooled)
 - SFX players: small pool (e.g., up to 8 concurrent); category aware (continuous vs instant)
 
-[ ] Crossfades:
+[x] Crossfades:
 - Constant‑power gain law for fade‑out/fade‑in over configurable ms
 - Schedule crossfade N seconds before track end or on Director change
 
@@ -234,22 +234,22 @@ VLC implementation specifics:
 - Apply per‑track loudness_offset_db to music player gain
 - Master/music/effects volumes computed as final linear gain factors
 
-[ ] Stingers & ducking:
+[x] Stingers & ducking:
 - On stinger start: duck current music by X dB immediately
 - On stinger end: ramp music back to prior gain over Y ms
 - If stinger missing: do nothing; continue baseline music
 
-[ ] Continuous SFX:
+[x] Continuous SFX:
 - Separate SFX gain bus (applied via volume on SFX players)
 - Loopable sources; allow fade start/stop if desired (optional in v1)
 
-[ ] Instantaneous SFX:
+[x] Instantaneous SFX:
 - Fire and forget; limit concurrency per category to avoid cacophony
 
-[ ] Mute semantics (no stop):
+[x] Mute semantics (no stop):
 - Muted = music gain to 0; tracks continue; rotation still advances
 
-[ ] Error handling:
+[x] Error handling:
 - If VLC media parse fails or playback fails, skip track, log error, continue
 
 [ ] Threading:
@@ -307,16 +307,16 @@ Architecture:
 ---
 
 ## 7) GUI Integration – Python
-[ ] MainWindow top‑right music controls:
+[x] MainWindow top‑right music controls:
 - Buttons wired to: mute/unmute toggle, next_track
 - Remove/disable any stop semantics
 - Tooltip updates reflecting state
 
-[ ] Apply QSettings on startup:
+[x] Apply QSettings on startup:
 - sound/enabled, sound/master_volume, sound/music_volume, sound/effects_volume
 - Call Director.set_volumes(...) and Director.set_muted(...)
 
-[ ] New Game flow:
+[x] New Game flow:
 - Hard‑set mood to ambient with default intensity; allow immediate playback (if volumes enabled)
 
 [ ] Optional status area:
@@ -425,7 +425,7 @@ MANDATORY additions (Phase A/B)
   - Extend SFXManager to support categories: ui, event, magic, loop (in addition to venue/weather/crowd)
   - Add start/stop management for looped categories with per-category debounce and concurrency caps
   - Keep SFX independent of music mood; both can play simultaneously
-[ ] Categories and routing:
+[x] Categories and routing:
 
 Planning deliverables (before implementation):
 [ ] Ambient library list defined (continuous + one-shot) with canonical tag names
@@ -443,8 +443,8 @@ Planning deliverables (before implementation):
 ---
 
 ## 12) Settings and Persistence
-[ ] QSettings / /api/gameplay_settings already exist; ensure both backends read/apply at startup and on change
-[ ] Persist and restore context fields (location.major, location.venue, weather.type, time_of_day?) alongside mood/intensity
+[x] QSettings / /api/gameplay_settings already exist; ensure both backends read/apply at startup and on change
+[x] Persist and restore context fields (location.major, location.venue, weather.type, time_of_day?) alongside mood/intensity
 [ ] Additional toggles (optional):
 - "allow_llm_music_influence": true/false – gates Director.suggest application
 - Per‑category SFX volume (e.g., UI vs combat SFX)
@@ -585,28 +585,28 @@ Python:
 [ ] config/audio/context_enums.json (canonical enums)
 [ ] config/audio/context_synonyms.json (string → canonical mapping)
 [x] config/audio/sfx_mappings.json (maps context values to exact SFX files; implemented)
-[ ] core/music/director.py (Director)
-[ ] core/music/backend.py (abstract interface)
-[ ] core/music/backend_vlc.py (VLC implementation)
+[x] core/music/director.py (Director)
+[x] core/music/backend.py (abstract interface)
+[x] core/music/backend_vlc.py (VLC implementation)
 [ ] core/music/__init__.py (optional)
 [x] Wire in core/base/engine.py to construct Director and backend; expose minimal getters
 [ ] core/game_flow/command_handlers.py – MUSIC handler
-[ ] gui/main_window.py – wire buttons to Director
-[ ] gui/dialogs/settings/settings_dialog.py – volumes apply to Director
+[x] gui/main_window.py – wire buttons to Director
+[x] gui/dialogs/settings/settings_dialog.py – volumes apply to Director
 [ ] sound/music/<mood>/manifest.yaml (optional)
 [ ] sound/sfx/... manifests (optional)
 
 Python (new/updated for SFX):
-- [ ] Extend core/audio/sfx_manager.py to:
+- [x] Extend core/audio/sfx_manager.py to:
   • recognize categories: ui, event, magic, loop, venue, weather, crowd
   • play_one_shot(category, name) API for programmed triggers
   • start_loop(name, tokens) / stop_loop(name) with fallback policy
   • debounce per category and concurrency caps
-- [ ] Extend core/base/engine.py to wire:
+- [x] Extend core/base/engine.py to wire:
   • UI hooks (menu click, loot) → sfx_manager.play_one_shot('ui','click'|'loot')
   • Combat/state events (combat_start, victory, defeat) → sfx_manager.play_one_shot('event', ...)
   • Context updates → sfx_manager.apply_context(...) to manage loops (forest_night, rain)
-- [ ] Update config/audio/sfx_mappings.json with sections: ui, event, magic, venue, weather, crowd
+- [x] Update config/audio/sfx_mappings.json with sections: ui, event, magic, venue, weather, crowd
 - [ ] Add config/audio/sfx_loops.json (optional) for explicit loop overrides
 - [ ] Tests: tests/test_sfx_events.py, tests/test_sfx_loops_fallback.py
 

@@ -51,6 +51,8 @@ class GameEngine(QObject):
     context_updated = Signal(object)
     # Emitted when music/SFX playback state changes (list of display strings)
     playback_updated = Signal(object)
+    # Emitted with full MusicDirector state (dict) when music changes
+    music_state_updated = Signal(object)
 
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern."""
@@ -1478,6 +1480,11 @@ class GameEngine(QObject):
             track = payload.get('track') or ''
             if track:
                 self._last_music_item = f"music: {track}"
+            # Emit detailed music state for interested UI (e.g., Context tab mood control)
+            try:
+                self.music_state_updated.emit(dict(payload))
+            except Exception:
+                pass
             self._emit_playback()
         except Exception:
             pass

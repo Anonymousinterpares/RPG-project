@@ -191,6 +191,13 @@ class MusicDirector:
             if callback not in self._listeners:
                 self._listeners.append(callback)
 
+    def list_moods(self) -> List[str]:
+        """Return available mood names discovered from folders (sorted)."""
+        try:
+            return sorted(list(self._rotation.keys()))
+        except Exception:
+            return []
+
     def current_state(self) -> Dict:
         """Return a snapshot of current music state (for debug/API)."""
         with self._lock:

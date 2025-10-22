@@ -31,6 +31,12 @@ class ContextPanelWidget(QWidget):
                 self._engine.context_updated.connect(self._on_engine_context_updated)
         except Exception:
             pass
+        # React to live music state changes (mood/track)
+        try:
+            if hasattr(self._engine, 'music_state_updated'):
+                self._engine.music_state_updated.connect(self._on_music_state_updated)
+        except Exception:
+            pass
         # Style to match dark panel (legible inputs)
         self.setStyleSheet("""
             QLabel { color: #E0E0E0; }
@@ -47,6 +53,8 @@ class ContextPanelWidget(QWidget):
         self._weather = QComboBox()
         self._tod = QComboBox()
         self._biome = QComboBox()
+        # Music controls (dev): current mood
+        self._music_mood = QComboBox()
         self._interior = QCheckBox("Interior")
         self._underground = QCheckBox("Underground")
         self._crowd = QComboBox()
@@ -67,6 +75,15 @@ class ContextPanelWidget(QWidget):
         fill(self._biome, self._enums.get('biome'))
         fill(self._crowd, self._enums.get('crowd_level'))
         fill(self._danger, self._enums.get('danger_level'))
+        # Fill music moods from director (if available)
+        try:
+            md = self._engine.get_music_director() if hasattr(self._engine, 'get_music_director') else None
+            moods = md.list_moods() if md and hasattr(md, 'list_moods') else []
+            self._music_mood.clear()
+            for m in moods:
+                self._music_mood.addItem(m)
+        except Exception:
+            pass
 
         form.addRow("Location Name", self._loc_name)
         form.addRow("Major", self._loc_major)
@@ -74,6 +91,7 @@ class ContextPanelWidget(QWidget):
         form.addRow("Weather", self._weather)
         form.addRow("Time of Day", self._tod)
         form.addRow("Biome", self._biome)
+        form.addRow("Music Mood", self._music_mood)
         form.addRow(self._interior)
         form.addRow(self._underground)
         form.addRow("Crowd", self._crowd)
@@ -120,6 +138,11 @@ class ContextPanelWidget(QWidget):
             self._underground.stateChanged.connect(self._mark_dirty)
         except Exception:
             pass
+        # Change mood immediately when user selects a new value
+        try:
+            self._music_mood.currentIndexChanged.connect(self._on_music_mood_changed)
+        except Exception:
+            pass
 
         # Subscribe to playback updates
         try:
@@ -132,6 +155,14 @@ class ContextPanelWidget(QWidget):
         self.refresh_from_engine()
         try:
             self._on_playback_updated(self._engine.get_playback_snapshot())
+        except Exception:
+            pass
+
+    def _on_music_state_updated(self, payload: dict) -> None:
+        try:
+            mood = (payload or {}).get('mood')
+            if mood:
+                self._select_combo(self._music_mood, mood)
         except Exception:
             pass
 
@@ -169,6 +200,14 @@ class ContextPanelWidget(QWidget):
             except Exception:
                 self._json_view.setPlainText(str(ctx))
             self._status.setText("Loaded current context.")
+            # Sync current music mood
+            try:
+                md = self._engine.get_music_director() if hasattr(self._engine, 'get_music_director') else None
+                if md and hasattr(md, 'current_state'):
+                    m = (md.current_state() or {}).get('mood')
+                    self._select_combo(self._music_mood, m)
+            except Exception:
+                pass
         except Exception as e:
             self._status.setText(f"Failed to refresh: {e}")
 
@@ -186,6 +225,15 @@ class ContextPanelWidget(QWidget):
 
     def _mark_dirty(self, *args, **kwargs) -> None:
         self._dirty = True
+
+    def _on_music_mood_changed(self, index: int) -> None:
+        try:
+            mood = self._current_text(self._music_mood)
+            md = self._engine.get_music_director() if hasattr(self._engine, 'get_music_director') else None
+            if md and mood:
+                md.hard_set(mood, reason="dev_panel_combo")
+        except Exception:
+            pass
 
     def _on_playback_updated(self, items: list) -> None:
         try:
@@ -213,10 +261,18 @@ class ContextPanelWidget(QWidget):
         try:
             if hasattr(self._engine, 'set_game_context'):
                 self._engine.set_game_context(payload, source="gui_dev_panel")
-                self._status.setText("Applied context to engine.")
-                # Clear dirty state and pending engine push
-                self._dirty = False
-                self._pending_engine_ctx = None
+            # Apply music mood if selected
+            try:
+                md = self._engine.get_music_director() if hasattr(self._engine, 'get_music_director') else None
+                mood = self._current_text(self._music_mood)
+                if md and mood:
+                    md.hard_set(mood, reason="dev_panel")
+            except Exception:
+                pass
+            self._status.setText("Applied context to engine.")
+            # Clear dirty state and pending engine push
+            self._dirty = False
+            self._pending_engine_ctx = None
         except Exception as e:
             self._status.setText(f"Failed to apply: {e}")
 
