@@ -214,6 +214,7 @@ class SFXManager:
             target = self._pick_variant_path(file_rel)
             if not target:
                 return
+            # Play via backend (backend applies per-category trims)
             self._backend.play_sfx(target, category=cat)
             # Track in recent one-shots for UI
             now = time.time()

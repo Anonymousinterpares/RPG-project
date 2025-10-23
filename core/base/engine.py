@@ -190,11 +190,13 @@ class GameEngine(QObject):
                 master = int(s.value("sound/master_volume", 100))
                 music  = int(s.value("sound/music_volume", 100))
                 effects= int(s.value("sound/effects_volume", 100))
-                enabled= s.value("sound/enabled", True)
+                enabled= s.value("sound/enabled", True, type=bool)
                 muted = not bool(enabled)
                 self._music_director.set_volumes(master, music, effects)
                 self._music_director.set_muted(muted)
                 logger.info(f"Music/SFX system initialized (desktop backend, enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
+                # Ensure UI/SFX trims are obvious to edit:
+                # core/music/backend_vlc.py: set self.UI_TRIM_DB / self.SFX_TRIM_DB in __init__
                 # Expose quick SFX helpers for UI/logic
                 self.sfx_play = getattr(self._sfx_manager, 'play_one_shot', None)
             else:

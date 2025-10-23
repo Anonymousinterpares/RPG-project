@@ -1257,7 +1257,7 @@ class MainWindow(QMainWindow):
                 master = int(s.value("sound/master_volume", 100))
                 music  = int(s.value("sound/music_volume", 100))
                 effects= int(s.value("sound/effects_volume", 100))
-                enabled= s.value("sound/enabled", True)
+                enabled= s.value("sound/enabled", True, type=bool)
                 director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                 if director:
                     director.set_volumes(master, music, effects)

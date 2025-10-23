@@ -70,6 +70,14 @@ class MusicDirector:
             self._scan_tracks()
         except Exception as e:
             logger.warning(f"Music scan failed: {e}")
+        # Link back-reference for SFX manager (for post-SFX reassert)
+        try:
+            from core.audio.sfx_manager import SFXManager
+            # Find the singleton created in engine init
+            from core.base.config import get_config as _gc
+            # This is best-effort; engine wires sfx->backend. We'll set on first get.
+        except Exception:
+            pass
 
     # --- Public API ---
     def set_backend(self, backend) -> None:
@@ -78,6 +86,12 @@ class MusicDirector:
             # ensure current volumes/mute are applied
             if self._backend:
                 self._backend.set_volumes(self._master, self._music, self._effects, self._muted)
+                # Register auto-advance callback if backend supports it
+                try:
+                    if hasattr(self._backend, 'set_track_end_callback'):
+                        self._backend.set_track_end_callback(lambda: self.next_track("auto_end"))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
 
     # --- Phase A/B: context API (accepts multiple fields) ---
     def set_context(self, location_major: Optional[str] = None, **kwargs) -> None:
@@ -186,6 +200,13 @@ class MusicDirector:
     def next_track(self, reason: str = "user_skip") -> None:
         with self._lock:
             track = self._select_next_track_locked(self._mood, force_unplayed=True)
+            # If no track chosen (empty pool), do nothing
+            if not track and (self._rotation.get(self._mood) or []):
+                # fallback: pick first
+                try:
+                    track = (self._rotation.get(self._mood) or [None])[0]
+                except Exception:
+                    track = None
             self._apply_locked(track, reason)
 
     def add_state_listener(self, callback: Callable[[Dict], None]) -> None:
@@ -354,13 +375,12 @@ class MusicDirector:
             cf_ms = max(400, min(4000, cf_ms))
         except Exception:
             cf_ms = 3000
-        # Attach loudness offset if manifest provides one
-        lou_db = 0.0
+        # Loop-single hint for backend: if this mood has only one track, request backend looping
         try:
-            lou_db = float((self._track_meta.get(self._mood, {}) or {}).get(track or "", {}).get("loudness_offset_db", 0.0))
+            loop_single = len(self._rotation.get(self._mood) or []) == 1
         except Exception:
-            lou_db = 0.0
-        transition = {"crossfade_ms": cf_ms, "loudness_offset_db": lou_db}
+            loop_single = False
+        transition = {"crossfade_ms": cf_ms, "loop_single": loop_single}
         if self._backend:
             try:
                 self._backend.apply_state(self._mood, self._intensity, track, transition)

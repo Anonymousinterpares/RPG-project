@@ -36,6 +36,11 @@ class VLCBackend:
         self._music = 100
         self._effects = 100
         self._muted = False
+        # Fixed per-category trims (dB). Tweak these lines to adjust relative loudness.
+        self.UI_TRIM_DB = 0.0   # UI one-shots (e.g., clicks)
+        self.SFX_TRIM_DB = 0.0  # General SFX (environment, events)
+        # Callback for end-of-track notification to Director
+        self._on_track_end = None
         self._crossfade_ms_default = 3000
         self._in_fade = False
         self._current_path: Optional[str] = None
@@ -85,17 +90,19 @@ class VLCBackend:
             self._effects = max(0, min(100, int(effects)))
             self._muted = bool(muted)
             self._apply_current_volume_locked()
-            # Update loop players effects gain and sfx pool volume
+            # Update loop players effects gain and sfx pool volume with fixed trims
             try:
-                vol = 0 if self._muted else int(self._master * self._effects / 100)
+                base = 0 if self._muted else int(self._master * self._effects / 100)
+                sfx_factor = 10 ** (float(self.SFX_TRIM_DB) / 20.0)
+                ui_factor  = 10 ** (float(self.UI_TRIM_DB) / 20.0)
                 for ch, (p, _) in list(self._loop_players.items()):
                     try:
-                        p.audio_set_volume(vol)
+                        p.audio_set_volume(int(max(0, min(100, base * sfx_factor))))
                     except Exception:
                         pass
                 for p in list(getattr(self, '_sfx_pool', []) or []):
                     try:
-                        p.audio_set_volume(vol)
+                        p.audio_set_volume(int(max(0, min(100, base * max(sfx_factor, ui_factor)))))
                     except Exception:
                         pass
             except Exception:
@@ -177,8 +184,11 @@ class VLCBackend:
                 media = self._vlc_instance.media_new(file_path)
                 self._media_cache[file_path] = media
             player.set_media(media)
-            # Set effects volume scaled by master
-            vol = 0 if self._muted else int(self._master * self._effects / 100)
+            # Set effects volume scaled by master and fixed per-category trims (editable below)
+            base = 0 if self._muted else int(self._master * self._effects / 100)
+            trim_db = self.UI_TRIM_DB if category == 'ui' else self.SFX_TRIM_DB
+            factor = 10 ** (float(trim_db) / 20.0)
+            vol = int(max(0, min(100, base * factor)))
             try:
                 player.audio_set_volume(vol)
             except Exception:
@@ -208,17 +218,54 @@ class VLCBackend:
                 pass
             # If no track provided, just apply current volume for intensity change
             if not track_path:
+                # Update loudness offset to neutral when no specific track
+                try:
+                    self._vol_loudness_db = float(transition.get("loudness_offset_db", 0.0)) if isinstance(transition, dict) else 0.0
+                except Exception:
+                    self._vol_loudness_db = 0.0
                 self._apply_current_volume_locked()
                 return
             # If same track and we're already playing, keep going (no forced restart)
             if self._current_path == track_path and self._is_current_playing_locked():
                 self._apply_current_volume_locked()
                 return
+            # Capture loudness normalization offset for this track
+            try:
+                self._vol_loudness_db = float(transition.get("loudness_offset_db", 0.0)) if isinstance(transition, dict) else 0.0
+            except Exception:
+                self._vol_loudness_db = 0.0
             # Set up next player with media
             try:
                 player_next = self._player_b if self._use_a else self._player_a
                 media = self._vlc_instance.media_new(track_path)
+                # If Director indicated single-track mood, loop media indefinitely in VLC
+                try:
+                    if isinstance(transition, dict) and transition.get("loop_single", False):
+                        media.add_option("input-repeat=-1")
+                except Exception:
+                    pass
                 player_next.set_media(media)
+                # Attach end-of-media events so Director can advance for multi-track moods
+                try:
+                    loop_single = bool(isinstance(transition, dict) and transition.get("loop_single", False))
+                except Exception:
+                    loop_single = False
+                if not loop_single:
+                    try:
+                        ev = player_next.event_manager()
+                        if ev is not None:
+                            def _on_end(evt=None):
+                                try:
+                                    def _notify():
+                                        time.sleep(0.05)
+                                        self._notify_track_end_safe()
+                                    threading.Thread(target=_notify, daemon=True).start()
+                                except Exception:
+                                    self._notify_track_end_safe()
+                            ev.event_attach(vlc.EventType.MediaPlayerEndReached, _on_end)
+                            ev.event_attach(vlc.EventType.MediaPlayerEncounteredError, lambda evt=None: self._notify_track_end_safe())
+                    except Exception:
+                        pass
                 # Start silent
                 player_next.audio_set_volume(0)
                 res = player_next.play()
@@ -285,7 +332,10 @@ class VLCBackend:
         try:
             base = 0 if self._muted else int(self._master * self._music / 100)
             gain = self._intensity_gain(self._intensity)
-            return int(base * gain)
+            tgt = int(base * gain)
+            if tgt < 0: tgt = 0
+            if tgt > 100: tgt = 100
+            return tgt
         except Exception:
             return 0
 
@@ -454,3 +504,45 @@ class VLCBackend:
                     cur[0].stop()
                 except Exception:
                     pass
+
+    def _get_trim_db_for_category(self, category: str) -> float:
+        """Category gain trims (dB). Source: QSettings if available, else ENV, else 0.
+        Keys: sound/ui_trim_db, sound/sfx_trim_db; ENV: UI_SFX_TRIM_DB, GEN_SFX_TRIM_DB.
+        """
+        try:
+            # Prefer QSettings
+            try:
+                from PySide6.QtCore import QSettings  # type: ignore
+                s = QSettings("RPGGame", "Settings")
+                if category == 'ui':
+                    val = s.value("sound/ui_trim_db", 0.0)
+                else:
+                    val = s.value("sound/sfx_trim_db", 0.0)
+                try:
+                    return float(val)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            import os as _os
+            if category == 'ui':
+                return float(_os.environ.get('UI_SFX_TRIM_DB', '0'))
+            return float(_os.environ.get('GEN_SFX_TRIM_DB', '0'))
+        except Exception:
+            return 0.0
+
+    # Optional callback registration from Director
+    def set_track_end_callback(self, callback):  # type: ignore[override]
+        try:
+            self._on_track_end = callback
+        except Exception:
+            self._on_track_end = None
+
+    def _notify_track_end_safe(self) -> None:
+        try:
+            cb = getattr(self, '_on_track_end', None)
+            if callable(cb):
+                cb()
+        except Exception:
+            pass
+

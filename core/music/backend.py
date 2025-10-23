@@ -5,7 +5,7 @@ Backends implement platform/runtime-specific playback (e.g., VLC for desktop,
 Web Audio in browser – the latter lives client-side and is not represented here).
 """
 from __future__ import annotations
-from typing import Optional, Protocol, Dict
+from typing import Optional, Protocol, Dict, Callable
 
 class MusicBackend(Protocol):
     """Protocol for music playback backends (desktop)."""
@@ -42,6 +42,10 @@ class MusicBackend(Protocol):
 
     def play_sfx(self, file_path: str, category: str) -> None:
         """Play a one-shot SFX. Category may inform routing/volume caps."""
+        ...
+
+    # Optional: notify when current track ends so Director can advance
+    def set_track_end_callback(self, callback: Callable[[], None]) -> None:  # pragma: no cover - optional
         ...
 
     # Optional looped SFX API (used when available)
