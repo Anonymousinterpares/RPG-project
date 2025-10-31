@@ -19,6 +19,7 @@ from gui.components.character_sheet import CharacterSheetWidget
 from gui.components.inventory_panel import InventoryPanelWidget
 from gui.components.journal_panel import JournalPanelWidget
 from gui.components.context_panel import ContextPanelWidget
+from gui.components.grimoire_panel import GrimoirePanelWidget
 
 class CustomTabBar(QTabBar):
     """Custom tab bar that emits a signal when the selected tab is clicked again."""
@@ -155,11 +156,13 @@ class CollapsibleRightPanel(QFrame):
         self.character_sheet = CharacterSheetWidget()
         self.inventory_panel = InventoryPanelWidget()
         self.journal_panel = JournalPanelWidget()
+        self.grimoire_panel = GrimoirePanelWidget()
         
         # Add tabs
         self.tab_widget.addTab(self.character_sheet, "Character")
         self.tab_widget.addTab(self.inventory_panel, "Inventory")
         self.tab_widget.addTab(self.journal_panel, "Journal")
+        self.tab_widget.addTab(self.grimoire_panel, "Grimoire")
 
         # Dev-only: Context tab
         try:
@@ -339,3 +342,29 @@ class CollapsibleRightPanel(QFrame):
     def update_journal(self, journal_data=None):
         """Update the journal tab with journal data."""
         self.journal_panel.update_journal(journal_data)
+
+    def update_grimoire(self):
+        """Update the grimoire tab with player's known spells and current mode for cast enable/disable."""
+        try:
+            from core.base.state import get_state_manager
+            from core.magic.spell_catalog import get_spell_catalog
+            state_manager = get_state_manager()
+            state = state_manager.current_state if state_manager else None
+            player = getattr(state, 'player', None)
+            mode = getattr(state, 'current_mode', None)
+            known_spells = player.list_known_spells() if player and hasattr(player, 'list_known_spells') else []
+            catalog = get_spell_catalog()
+            # Build a lightweight dict of spells grouped by system
+            spells_by_system = {}
+            for sid in known_spells:
+                sp = catalog.get_spell_by_id(sid)
+                if not sp:
+                    continue
+                spells_by_system.setdefault(sp.system_id, []).append(sp)
+            self.grimoire_panel.refresh(spells_by_system, mode)
+        except Exception:
+            # Fail-safe: clear panel
+            try:
+                self.grimoire_panel.refresh({}, None)
+            except Exception:
+                pass

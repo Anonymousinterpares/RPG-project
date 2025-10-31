@@ -510,6 +510,15 @@ class MainWindow(QMainWindow):
         else:
             logger.error("[GUI] MainWindow: CRITICAL - self.right_panel.inventory_panel not found during signal connection.")
 
+        # Connect signals from GrimoirePanelWidget
+        if hasattr(self.right_panel, 'grimoire_panel'):
+            try:
+                self.right_panel.grimoire_panel.cast_spell_requested.disconnect(self._handle_cast_spell_requested)
+            except Exception:
+                pass
+            self.right_panel.grimoire_panel.cast_spell_requested.connect(self._handle_cast_spell_requested)
+            logger.info("[GUI] MainWindow: Connected signals from GrimoirePanelWidget (via right_panel).")
+
         # Connect signals from CharacterSheetWidget (via right_panel)
         if hasattr(self.right_panel, 'character_sheet'):
             self.right_panel.character_sheet.item_unequip_from_slot_requested.connect(self._handle_item_unequip_from_slot_requested)
@@ -591,6 +600,8 @@ class MainWindow(QMainWindow):
                 self.right_panel.update_journal(
                     self.game_engine.state_manager.current_state.journal
                 )
+        elif index == 3:  # Grimoire tab
+            self.right_panel.update_grimoire()
     
     # Define a worker for running commands in a separate thread
     class CommandWorker(QObject):
@@ -970,6 +981,10 @@ class MainWindow(QMainWindow):
             
             journal_data = getattr(state, "journal", None)
             if journal_data is not None and hasattr(self.right_panel, 'update_journal'): self.right_panel.update_journal(journal_data)
+
+            # Update grimoire (known spells and cast enable state)
+            if hasattr(self.right_panel, 'update_grimoire'):
+                self.right_panel.update_grimoire()
 
             self.status_bar.update_status(
                 location=getattr(state.player, 'current_location', 'Unknown') if state.player else 'N/A',
@@ -2152,6 +2167,51 @@ class MainWindow(QMainWindow):
             logger.warning(f"Failed to unequip item from slot: {slot_to_unequip.value}")
         
         self._update_ui()
+
+    @Slot(str, object)
+    def _handle_cast_spell_requested(self, spell_id: str, target_id: object):
+        """Handle deterministic cast request from Grimoire UI.
+        Builds a SpellAction and drives CombatManager into mechanics resolution.
+        """
+        try:
+            state = self.game_engine.state_manager.current_state
+            if not state or state.current_mode != InteractionMode.COMBAT or not getattr(state, 'combat_manager', None):
+                self.game_output.append_system_message("Casting is only available during combat.", gradual=False)
+                return
+            cm = state.combat_manager
+            # Ensure it's player's turn / awaiting input
+            if cm.current_step != CombatStep.AWAITING_PLAYER_INPUT:
+                self.game_output.append_system_message("Please wait until your turn to act.", gradual=False)
+                return
+            # Resolve performer id (player)
+            performer_id = getattr(cm, '_player_entity_id', None)
+            if not performer_id:
+                self.game_output.append_system_message("Cannot cast: player entity not set in combat.", gradual=False)
+                return
+            # Fetch spell data for cost
+            try:
+                from core.magic.spell_catalog import get_spell_catalog
+                cat = get_spell_catalog()
+                sp = cat.get_spell_by_id(spell_id)
+                data = getattr(sp, 'data', {}) if sp else {}
+                cost_mp = float(data.get('mana_cost', data.get('cost', 0)) or 0)
+            except Exception:
+                cost_mp = 0.0
+            from core.combat.combat_action import SpellAction
+            action = SpellAction(
+                performer_id=performer_id,
+                spell_name=str(spell_id),
+                target_ids=[str(target_id)] if target_id else [],
+                cost_mp=cost_mp,
+                dice_notation="",
+                description=f"Casting {spell_id}"
+            )
+            cm._pending_action = action  # Intentional direct set per deterministic UI path
+            cm.current_step = CombatStep.RESOLVING_ACTION_MECHANICS
+            cm.process_combat_step(self.game_engine)
+        except Exception as e:
+            logger.error(f"Failed to handle UI cast for {spell_id}: {e}", exc_info=True)
+            self.game_output.append_system_message("System error preparing spell cast.", gradual=False)
 
     @Slot(EquipmentSlot, str)
     def _handle_item_drop_from_slot_requested(self, slot_to_unequip: EquipmentSlot, item_id_to_drop: str):
