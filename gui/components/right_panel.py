@@ -344,27 +344,43 @@ class CollapsibleRightPanel(QFrame):
         self.journal_panel.update_journal(journal_data)
 
     def update_grimoire(self):
-        """Update the grimoire tab with player's known spells and current mode for cast enable/disable."""
+        """Update the grimoire tab with player's known spells, current mode, and mana."""
         try:
             from core.base.state import get_state_manager
             from core.magic.spell_catalog import get_spell_catalog
+            from core.stats.stats_base import DerivedStatType
+            
             state_manager = get_state_manager()
             state = state_manager.current_state if state_manager else None
             player = getattr(state, 'player', None)
             mode = getattr(state, 'current_mode', None)
+            
+            # Get known spells
             known_spells = player.list_known_spells() if player and hasattr(player, 'list_known_spells') else []
             catalog = get_spell_catalog()
-            # Build a lightweight dict of spells grouped by system
+            
+            # Build spells grouped by system
             spells_by_system = {}
             for sid in known_spells:
                 sp = catalog.get_spell_by_id(sid)
                 if not sp:
                     continue
                 spells_by_system.setdefault(sp.system_id, []).append(sp)
-            self.grimoire_panel.refresh(spells_by_system, mode)
+            
+            # Get current and max mana from stats manager
+            current_mana = 0.0
+            max_mana = 0.0
+            if state_manager and state_manager.stats_manager:
+                try:
+                    current_mana = state_manager.stats_manager.get_stat_value(DerivedStatType.MANA)
+                    max_mana = state_manager.stats_manager.get_stat_value(DerivedStatType.MAX_MANA)
+                except Exception:
+                    pass
+            
+            self.grimoire_panel.refresh(spells_by_system, mode, current_mana, max_mana)
         except Exception:
             # Fail-safe: clear panel
             try:
-                self.grimoire_panel.refresh({}, None)
+                self.grimoire_panel.refresh({}, None, 0.0, 0.0)
             except Exception:
                 pass
