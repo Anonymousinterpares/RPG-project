@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Any
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QScrollArea, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QComboBox, QGroupBox, QMenu, QMessageBox, QFrame, QPushButton
+    QLineEdit, QComboBox, QGroupBox, QMenu, QMessageBox, QFrame, QPushButton, QDialog
 )
 
 from core.base.state import get_state_manager
@@ -569,7 +569,10 @@ class GrimoirePanelWidget(QScrollArea):
                     allies_or_self.append(ent)
         except Exception:
             pass
-        # Auto/select menu
+        # Get spell name for dialog
+        spell_name = getattr(sp, 'name', sid) if sp else sid
+        
+        # Auto/select with enhanced visual dialog
         if role == 'offensive':
             if len(alive_enemies) == 0:
                 QMessageBox.information(self, "Casting", "No valid enemy targets.")
@@ -577,15 +580,13 @@ class GrimoirePanelWidget(QScrollArea):
             if len(alive_enemies) == 1:
                 self.cast_spell_requested.emit(sid, alive_enemies[0].id)
                 return
-            menu = QMenu(self)
-            actions = []
-            for e in alive_enemies:
-                act = menu.addAction(e.combat_name)
-                act.setData(e.id)
-                actions.append(act)
-            sel = menu.exec(self.cast_btn.mapToGlobal(self.cast_btn.rect().bottomLeft()))
-            if sel and sel.data():
-                self.cast_spell_requested.emit(sid, sel.data())
+            # Show enhanced target selection dialog
+            from gui.dialogs.target_selection_dialog import TargetSelectionDialog
+            dialog = TargetSelectionDialog(alive_enemies, spell_name, self)
+            if dialog.exec() == QDialog.Accepted:
+                target_id = dialog.get_selected_target()
+                if target_id:
+                    self.cast_spell_requested.emit(sid, target_id)
         elif role == 'defensive':
             if len(allies_or_self) == 0:
                 QMessageBox.information(self, "Casting", "No valid allies.")
@@ -594,15 +595,13 @@ class GrimoirePanelWidget(QScrollArea):
             if len(allies_or_self) == 1:
                 self.cast_spell_requested.emit(sid, allies_or_self[0].id)
                 return
-            menu = QMenu(self)
-            actions = []
-            for e in allies_or_self:
-                act = menu.addAction(e.combat_name)
-                act.setData(e.id)
-                actions.append(act)
-            sel = menu.exec(self.cast_btn.mapToGlobal(self.cast_btn.rect().bottomLeft()))
-            if sel and sel.data():
-                self.cast_spell_requested.emit(sid, sel.data())
+            # Show enhanced target selection dialog
+            from gui.dialogs.target_selection_dialog import TargetSelectionDialog
+            dialog = TargetSelectionDialog(allies_or_self, spell_name, self)
+            if dialog.exec() == QDialog.Accepted:
+                target_id = dialog.get_selected_target()
+                if target_id:
+                    self.cast_spell_requested.emit(sid, target_id)
         else:
             # utility: disabled in combat per design
             QMessageBox.information(self, "Casting", "This spell is not available during combat.")
