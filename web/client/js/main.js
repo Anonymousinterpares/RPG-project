@@ -22,11 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize UI event listeners
     uiManager.initEventListeners();
     
+    // Global delegated click handler for UI sounds
+    setupGlobalClickSounds();
+    
     // Wire header music controls
     initHeaderMusicControls();
 
     // New Game button
-    document.getElementById('new-game-btn').addEventListener('click', () => {
+    document.getElementById('new-game-btn').addEventListener('click', () => { playUiClick();
         uiManager.openModal('newGame');
         
         // Initialize character creator if available
@@ -96,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Save Game button
-    document.getElementById('save-game-btn').addEventListener('click', () => {
+    document.getElementById('save-game-btn').addEventListener('click', () => { playUiClick();
         if (!apiClient.hasActiveSession()) {
             uiManager.showNotification('No active game to save', 'warning');
             return;
@@ -112,12 +115,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Load Game button
-    document.getElementById('load-game-btn').addEventListener('click', () => {
+    document.getElementById('load-game-btn').addEventListener('click', () => { playUiClick();
         loadSavesList();
     });
     
     // Settings button
-    document.getElementById('settings-btn').addEventListener('click', async () => {
+    document.getElementById('settings-btn').addEventListener('click', async () => { playUiClick();
         uiManager.openModal('settings');
         // Unlock audio context ONLY if not already created (for user gesture)
         // Do NOT force-resume if context is suspended intentionally
@@ -138,9 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // LLM button opens settings to LLM tab
-    const llmBtn = document.getElementById('llm-btn');
+    const llmBtn = document.getElementById('llm-btn'); // plays UI click via helper
+    
     if (llmBtn) {
-        llmBtn.addEventListener('click', async () => {
+        llmBtn.addEventListener('click', async () => { playUiClick();
             uiManager.openModal('settings');
             try { await uiManager.loadLLMSettings(); } catch {}
             // switch to llm tab
@@ -151,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Exit button
     const exitBtn = document.getElementById('exit-btn');
     if (exitBtn) {
-        exitBtn.addEventListener('click', async () => {
+        exitBtn.addEventListener('click', async () => { playUiClick();
             try { await apiClient.endSession(); } catch {}
             uiManager.disableCommandInput();
             hideGamePanels();
@@ -160,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Command submission
-    document.getElementById('send-command-btn').addEventListener('click', () => {
+    document.getElementById('send-command-btn').addEventListener('click', () => { playUiClick();
         sendCommand();
     });
     
@@ -178,12 +182,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Listen for new session creation
-    document.addEventListener('session-created', (e) => {
+    document.addEventListener('session-created', async (e) => {
         // Show game panels when session is created
         showGamePanels();
         // Always reconnect to ensure fresh connection
         connectWebSocket(e.detail.sessionId);
         uiManager.enableCommandInput();
+        // Create/resume AudioContext immediately on a clear user gesture
+        try { if (window.webMusicManager) await window.webMusicManager.enableAudio(); } catch {}
     });
     
     // Check for existing session
@@ -447,20 +453,33 @@ function connectWebSocket(sessionId, options = {}) {
         uiManager.addMessage('Connection to server lost. Attempting to reconnect...', 'system');
     });
     
-    webSocketClient.on('connect', (data) => {
+    webSocketClient.on('connect', async (data) => {
         uiManager.addMessage('Connected to game server.', 'system');
+        // Attempt to enable audio context immediately
+        try { if (window.webMusicManager) await window.webMusicManager.enableAudio(); } catch {}
     });
     
     // Live UI updates from server events
     webSocketClient.on('stats_changed', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
     webSocketClient.on('turn_order_update', () => { try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
-    // Music state from server -> WebAudio manager
-    webSocketClient.on('music_state', (data) => {
+    // Music state from server -> WebAudio manager and ContextPanel mood
+    webSocketClient.on('music_state', async (data) => {
+        try { window.__lastMusicState = data; } catch {}
+        try { if (window.webMusicManager) await window.webMusicManager.enableAudio(); } catch {}
         try { if (window.webMusicManager) window.webMusicManager.applyState(data||{}); } catch (e) { console.warn(e); }
+        try { if (window.ContextPanel && typeof window.ContextPanel.onMusicState === 'function') window.ContextPanel.onMusicState(data||{}); } catch (e) { console.warn(e); }
     });
-    // Game context updates -> Dev Context Panel
+    // Game context updates -> Dev Context Panel + SFX manager
     webSocketClient.on('game_context', (data) => {
         try { if (window.ContextPanel && typeof window.ContextPanel.onContextUpdate === 'function') window.ContextPanel.onContextUpdate(data||{}); } catch (e) { console.warn(e); }
+        const ctx = (data&&data.data)||data||{};
+        try {
+            if (window.webMusicManager && typeof window.webMusicManager.applyContext === 'function') {
+                window.webMusicManager.applyContext(ctx);
+            } else {
+                window.__pendingCtx = ctx;
+            }
+        } catch (e) { console.warn(e); }
     });
     webSocketClient.on('ui_bar_update_phase1', (data) => { try { uiManager.updateResourceBarPhase1(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
     webSocketClient.on('ui_bar_update_phase2', (data) => { try { uiManager.updateResourceBarPhase2(data?.bar_type||data?.metadata?.bar_type||'hp', data||{}); } catch (e) { console.warn(e); } });
@@ -490,8 +509,53 @@ function connectWebSocket(sessionId, options = {}) {
         try { uiManager.appendCombatLogLine(data || {}); } catch (e) { console.warn(e); }
     });
     webSocketClient.on('journal_updated', ()=>{ try { uiManager.refreshUI(); } catch (e) { console.warn(e); } });
+    // SFX updates from server
+    webSocketClient.on('sfx_update', (data) => {
+        try {
+            if (window.webMusicManager && typeof window.webMusicManager.onSfxUpdate === 'function') {
+                window.webMusicManager.onSfxUpdate(data || {});
+            }
+        } catch (e) { console.warn('[SFX] Handler error:', e); }
+    });
+    // Playback snapshot updates (music + SFX combined)
+    webSocketClient.on('playback_updated', (data) => {
+        try {
+            // Forward to context panel if it exists
+            if (window.ContextPanel && typeof window.ContextPanel.onPlaybackUpdate === 'function') {
+                window.ContextPanel.onPlaybackUpdate(data || []);
+            }
+        } catch (e) { console.warn('[Playback] Handler error:', e); }
+    });
 // Connect WebSocket only after setting up all handlers
     webSocketClient.connect(id);
+}
+
+// SFX helper for UI clicks
+function playUiClick() {
+    try { if (window.webMusicManager) window.webMusicManager.playSfx('ui','click'); } catch {}
+}
+
+// Global delegated event listener for all UI buttons and tabs
+function setupGlobalClickSounds() {
+    // Delegated click handler on document for all buttons
+    document.addEventListener('click', (ev) => {
+        const target = ev.target;
+        // Check if target or closest ancestor is a button, tab button, or interactive element
+        if (target.matches('button, .rp-tab-btn, .lp-tab-btn, input[type="button"], input[type="submit"]') ||
+            target.closest('button, .rp-tab-btn, .lp-tab-btn, input[type="button"], input[type="submit"]')) {
+            playUiClick();
+        }
+    }, true); // Use capture phase to ensure sound plays before handler
+    
+    // Delegated change handler for dropdowns
+    document.addEventListener('change', (ev) => {
+        const target = ev.target;
+        if (target.matches('select')) {
+            try {
+                if (window.webMusicManager) window.webMusicManager.playSfx('ui', 'dropdown');
+            } catch {}
+        }
+    });
 }
 
 // Header music controls: browser-only mute/volume and server-side next
@@ -538,6 +602,9 @@ function initHeaderMusicControls() {
     if (btnPlay) {
         btnPlay.addEventListener('click', async () => {
             try {
+                playUiClick();
+                // Ensure audio context is created on first interaction
+                if (window.webMusicManager) await window.webMusicManager.enableAudio();
                 syncFromSettings();
                 popMute.checked = !popMute.checked;
                 applyVolumes();
@@ -549,6 +616,7 @@ function initHeaderMusicControls() {
     if (btnNext) {
         btnNext.addEventListener('click', async () => {
             try {
+                playUiClick();
                 if (!apiClient.hasActiveSession()) {
                     uiManager.showNotification('No active session', 'warning');
                     return;
@@ -578,7 +646,7 @@ function initHeaderMusicControls() {
                 pop.style.display = 'none';
             }
         };
-        btnVol.addEventListener('click', (ev) => { ev.stopPropagation(); togglePop(); });
+        btnVol.addEventListener('click', (ev) => { ev.stopPropagation(); playUiClick(); togglePop(); });
         document.addEventListener('click', (ev) => {
             // Close popover if clicking outside; allow clicks inside popover itself
             if (!pop.contains(ev.target) && !btnVol.contains(ev.target)) {

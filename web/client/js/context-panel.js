@@ -52,6 +52,7 @@
         <div class="form-group"><label>Weather</label><select id="dev-ctx-weather"></select></div>
         <div class="form-group"><label>Time of Day</label><select id="dev-ctx-tod"></select></div>
         <div class="form-group"><label>Biome</label><select id="dev-ctx-biome"></select></div>
+        <div class="form-group"><label>Music Mood</label><select id="dev-ctx-mood"></select></div>
         <div class="form-group"><label>Interior</label><input id="dev-ctx-interior" type="checkbox"></div>
         <div class="form-group"><label>Underground</label><input id="dev-ctx-underground" type="checkbox"></div>
         <div class="form-group"><label>Crowd</label><select id="dev-ctx-crowd"></select></div>
@@ -59,6 +60,12 @@
         <div style="display:flex;gap:8px;margin-top:8px;">
           <button id="dev-ctx-refresh" class="secondary-btn">Refresh</button>
           <button id="dev-ctx-apply" class="primary-btn">Apply</button>
+        </div>
+        <div style="margin-top:12px;">
+          <h4 style="margin:0 0 6px 0;color:#eee;font-size:13px;">Now Playing (music + SFX)</h4>
+          <ul id="dev-ctx-now-playing" style="list-style:none;padding:0;margin:0;max-height:110px;overflow-y:auto;background:#1e1e1e;border:1px solid #444;border-radius:4px;">
+            <li style="padding:4px 8px;color:#888;font-size:12px;">No playback info</li>
+          </ul>
         </div>
       </div>`;
     content.appendChild(pane);
@@ -72,13 +79,25 @@
     });
 
     // Bind actions
-    document.getElementById('dev-ctx-refresh').addEventListener('click', refreshFromServer);
-    document.getElementById('dev-ctx-apply').addEventListener('click', applyToServer);
+    document.getElementById('dev-ctx-refresh').addEventListener('click', () => {
+      try {
+        if (window.webMusicManager) window.webMusicManager.playSfx('ui', 'click');
+      } catch {}
+      refreshFromServer();
+    });
+    document.getElementById('dev-ctx-apply').addEventListener('click', () => {
+      try {
+        if (window.webMusicManager) window.webMusicManager.playSfx('ui', 'click');
+      } catch {}
+      applyToServer();
+    });
 
-    // Fetch enums to populate selects (from static JSON)
+    // Fetch enums to populate selects (server endpoint; falls back to inline list)
     try {
-      fetch('/sound/../config/audio/context_enums.json') // path trick: served root static only for /sound, but server mounts /sound only; fallback to inline list
-        .then(r=>r.json()).then(populateEnums).catch(()=>populateEnums(null));
+      fetch('/api/context/enums')
+        .then(r=> r.ok ? r.json() : Promise.reject(new Error('bad status')))
+        .then(populateEnums)
+        .catch(()=>populateEnums(null));
     } catch { populateEnums(null); }
     return true;
   }
@@ -127,6 +146,9 @@
       // Apply once after initial fill
       setTimeout(applyRules, 0);
     } catch(e) { console.warn('context rules binding failed', e); }
+
+    // If we already have a context snapshot (from WS or refresh), prefill now
+    try { if (state.ctx) prefillForm(state.ctx); } catch {}
   }
 
   async function refreshFromServer(){
@@ -139,6 +161,7 @@
       state.ctx = ctx;
       renderCtx(ctx);
       prefillForm(ctx);
+      try { if (window.webMusicManager) window.webMusicManager.applyContext(ctx||{}); } catch {}
     } catch(e) { console.warn('refreshFromServer failed', e); }
   }
 
@@ -159,6 +182,23 @@
     try { document.getElementById('dev-ctx-underground').checked = !!ctx.underground; } catch{}
     setVal('dev-ctx-crowd', ctx.crowd_level);
     setVal('dev-ctx-danger', ctx.danger_level);
+    
+    // Apply venue enable/disable rules after prefilling
+    try {
+      const majorEl = document.getElementById('dev-ctx-loc-major');
+      const venueEl = document.getElementById('dev-ctx-venue');
+      const biomeEl = document.getElementById('dev-ctx-biome');
+      if (majorEl && venueEl && biomeEl) {
+        const maj = (majorEl.value||'').trim().toLowerCase();
+        if (['none','no','n/a','null',''].includes(maj)){
+          venueEl.value = 'None';
+          venueEl.disabled = true;
+        } else {
+          venueEl.disabled = false;
+          biomeEl.value = 'None';
+        }
+      }
+    } catch(e) { console.warn('[ContextPanel] Rule enforcement error:', e); }
   }
 
   async function applyToServer(){
@@ -180,20 +220,147 @@
       danger_level: norm(document.getElementById('dev-ctx-danger').value),
     };
     try {
+      // Send context to backend - this will trigger SFX via backend's set_game_context
       const res = await fetch(`/api/context/${apiClient.sessionId}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      // Apply selected music mood immediately via backend (mirror desktop GUI)
+      try {
+        const moodEl = document.getElementById('dev-ctx-mood');
+        const mood = (moodEl && moodEl.value) ? String(moodEl.value).trim() : '';
+        if (mood) {
+          fetch(`/api/music/hard_set/${apiClient.sessionId}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mood }) }).catch(()=>{});
+        }
+      } catch { /* ignore */ }
       if (res.ok) {
-        // Refresh display
-        await refreshFromServer();
+        // Update state and display
+        const ctx = {
+          location: payload.location,
+          weather: payload.weather,
+          time_of_day: payload.time_of_day,
+          biome: payload.biome,
+          interior: payload.interior,
+          underground: payload.underground,
+          crowd_level: payload.crowd_level,
+          danger_level: payload.danger_level
+        };
+        state.ctx = ctx;
+        renderCtx(ctx);
+        
+        // Also apply locally for instant feedback; WS update will follow
+        if (window.webMusicManager && typeof window.webMusicManager.applyContext === 'function') {
+          window.webMusicManager.applyContext(ctx);
+        }
+        
+        console.log('[ContextPanel] Context applied successfully:', ctx);
+      } else {
+        console.warn('[ContextPanel] Failed to apply context:', res.status);
       }
     } catch(e) { console.warn('applyToServer failed', e); }
   }
+
+  async function fetchAndFillMoods(){
+    try {
+      const el = document.getElementById('dev-ctx-mood'); if (!el) return;
+      if (!window.apiClient || !apiClient.sessionId) {
+        // Fallback if no session
+        const fallbackMoods = ['ambient', 'combat', 'exploration', 'tension', 'mystery'];
+        el.innerHTML='';
+        fallbackMoods.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; el.appendChild(o); });
+        return;
+      }
+      
+      // Fetch from backend
+      const res = await fetch(`/api/music/moods/${apiClient.sessionId}`);
+      const j = await res.json();
+      const moods = (j && j.moods) || [];
+      
+      // Add current mood from state if not in list
+      try {
+        const ms = window.__lastMusicState;
+        if (ms && (ms.data || ms).mood) {
+          const currentMood = (ms.data || ms).mood;
+          if (!moods.includes(currentMood)) {
+            moods.unshift(currentMood);
+          }
+        }
+      } catch {}
+      
+      el.innerHTML='';
+      moods.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; el.appendChild(o); });
+      
+      // Select last known mood if available
+      try { 
+        const ms = window.__lastMusicState; 
+        const mood = (ms && (ms.data||ms).mood) || null; 
+        if (mood) el.value = mood; 
+      } catch {}
+    } catch(e) { 
+      console.warn('[ContextPanel] fetchAndFillMoods error:', e);
+      // Fallback on error
+      const el = document.getElementById('dev-ctx-mood');
+      if (el && el.options.length === 0) {
+        const fallbackMoods = ['ambient', 'combat', 'exploration', 'tension', 'mystery'];
+        fallbackMoods.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; el.appendChild(o); });
+      }
+    }
+  }
+
+  // Mood change -> call backend hard_set endpoint
+  try {
+    document.addEventListener('change', (ev)=>{
+      const t = ev.target; if (!t || t.id !== 'dev-ctx-mood') return;
+      try {
+        if (!window.apiClient || !apiClient.sessionId) return;
+        const mood = (t.value||'').trim(); if (!mood) return;
+        console.log(`[ContextPanel] Mood change requested: ${mood}`);
+        // Call backend to actually change the mood
+        fetch(`/api/music/hard_set/${apiClient.sessionId}`, { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body: JSON.stringify({ mood }) 
+        }).then(res => {
+          if (res.ok) {
+            console.log(`[ContextPanel] Music mood set to ${mood}`);
+          } else {
+            console.warn(`[ContextPanel] Failed to set mood: ${res.status}`);
+          }
+        }).catch(e => {
+          console.warn('[ContextPanel] Mood change request failed:', e);
+        });
+      } catch(e) { console.warn('[ContextPanel] Mood change error:', e); }
+    });
+  } catch {}
 
   async function init(){
     const dev = await fetchDevFlag();
     if (!dev) return; // Do not show in production
     if (!ensureTab()) return;
     // Initial fetch shortly after session creation
-    document.addEventListener('session-created', ()=> setTimeout(refreshFromServer, 300));
+    document.addEventListener('session-created', ()=> { 
+      setTimeout(refreshFromServer, 300); 
+      setTimeout(fetchAndFillMoods, 350);
+      // Start periodic playback updates
+      startPlaybackUpdates();
+    });
+    // If a session already exists, populate moods shortly after load
+    setTimeout(()=>{ 
+      try { fetchAndFillMoods(); } catch{}
+      try { startPlaybackUpdates(); } catch{}
+    }, 400);
+  }
+  
+  function startPlaybackUpdates() {
+    // Periodically pull playback snapshot from WebMusicManager
+    if (state._playbackInterval) return; // Already running
+    state._playbackInterval = setInterval(() => {
+      try {
+        if (window.webMusicManager && typeof window.webMusicManager.getPlaybackSnapshot === 'function') {
+          const snapshot = window.webMusicManager.getPlaybackSnapshot();
+          if (window.ContextPanel && typeof window.ContextPanel.onPlaybackUpdate === 'function') {
+            window.ContextPanel.onPlaybackUpdate(snapshot);
+          }
+        }
+      } catch(e) { /* ignore */ }
+    }, 1000); // Update every second
   }
 
   // Expose minimal API for WS updates
@@ -201,6 +368,50 @@
     onContextUpdate: function(data){
       const ctx = data && data.data ? data.data : data;
       state.ctx = ctx; renderCtx(ctx); prefillForm(ctx);
+    },
+    onMusicState: function(data){
+      try { 
+        const mood = (data && (data.data||data).mood) || null; 
+        if (!mood) return; 
+        const el=document.getElementById('dev-ctx-mood'); 
+        if (el) {
+          // Update mood dropdown
+          el.value = mood;
+          // Also update fallback mood list if this is a new mood
+          if (!Array.from(el.options).some(opt => opt.value === mood)) {
+            const opt = document.createElement('option');
+            opt.value = mood;
+            opt.textContent = mood;
+            el.insertBefore(opt, el.firstChild);
+            el.value = mood;
+          }
+        }
+      } catch {}
+    },
+    onPlaybackUpdate: function(items){
+      try {
+        const list = document.getElementById('dev-ctx-now-playing');
+        if (!list) return;
+        list.innerHTML = '';
+        if (!items || items.length === 0) {
+          const li = document.createElement('li');
+          li.style.padding = '4px 8px';
+          li.style.color = '#888';
+          li.style.fontSize = '12px';
+          li.textContent = 'No playback info';
+          list.appendChild(li);
+          return;
+        }
+        items.slice(0, 5).forEach(item => {
+          const li = document.createElement('li');
+          li.style.padding = '4px 8px';
+          li.style.color = '#e0e0e0';
+          li.style.fontSize = '12px';
+          li.style.borderBottom = '1px solid #333';
+          li.textContent = item;
+          list.appendChild(li);
+        });
+      } catch(e) { console.warn('[ContextPanel] onPlaybackUpdate error:', e); }
     }
   };
 

@@ -26,6 +26,8 @@ class WebSocketClient {
             'combat_log_set_html': [],
             'narrative': [],
             'journal_updated': [],
+            'sfx_update': [],
+            'playback_updated': [],
             'error': []
         };
         

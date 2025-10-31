@@ -367,7 +367,8 @@ class SFXManager:
         cur = self._loop_active.get(ch)
         # record pool for rotation
         self._loop_pool[ch] = pool or []
-        if target != cur:
+        changed = (target != cur)
+        if changed:
             self._loop_last_change_ts[ch] = now
             self._loop_active[ch] = target
             self._loop_next_swap_ts[ch] = now + self._loop_rotation_period_s
@@ -376,9 +377,13 @@ class SFXManager:
                     self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
                 elif hasattr(self._backend, "stop_sfx_loop"):
                     self._backend.stop_sfx_loop(channel=ch)  # type: ignore[attr-defined]
-                self._notify()
             except Exception:
                 pass
+        # Always notify on context apply to keep web client in sync
+        try:
+            self._notify()
+        except Exception:
+            pass
 
     def _update_weather_loop(self, wtype: Optional[str]) -> None:
         ch = "weather"
@@ -388,7 +393,8 @@ class SFXManager:
         target, pool = self._pick_weather_loop(wtype, return_pool=True)
         cur = self._loop_active.get(ch)
         self._loop_pool[ch] = pool or []
-        if target != cur:
+        changed = (target != cur)
+        if changed:
             self._loop_last_change_ts[ch] = now
             self._loop_active[ch] = target
             self._loop_next_swap_ts[ch] = now + self._loop_rotation_period_s
@@ -397,9 +403,13 @@ class SFXManager:
                     self._backend.play_sfx_loop(target, channel=ch)  # type: ignore[attr-defined]
                 elif hasattr(self._backend, "stop_sfx_loop"):
                     self._backend.stop_sfx_loop(channel=ch)  # type: ignore[attr-defined]
-                self._notify()
             except Exception:
                 pass
+        # Always notify on context apply to keep web client in sync
+        try:
+            self._notify()
+        except Exception:
+            pass
 
     def _pick_env_loop(self, major: Optional[str], tod: Optional[str], return_pool: bool = False) -> Tuple[Optional[str], List[str]]:
         """Select best environment loop and pool for rotation.

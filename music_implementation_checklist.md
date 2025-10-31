@@ -13,6 +13,12 @@ Use this document to drive work across multiple sessions without relying on pers
 
 ---
 
+Dev diagnostics (web) – 2025-10-23:
+- Context tab dropdowns empty/not prefilled: root cause was client fetching enums from /sound/../config/... which is blocked. Added /api/context/enums and updated client to use it; also re-prefill after enum fill. Fields now populate.
+- No music in web: AudioContext wasn't created until Settings opened. Enabled creation on session-created and on first header play click. Web now starts playback after first user gesture.
+
+---
+
 ## 0) Shared Principles and Constraints (accepted)
 - Music is always “playing” in principle. We never depend on a “stopped” state. Muting/unmuting and track changes are supported. No explicit “stop” control in UI.
 - Stingers/layers are supported but optional; if a stinger or layered element is missing, we DO NOT pause or restart. We continue the currently playing track.

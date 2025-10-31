@@ -880,8 +880,82 @@ def _attach_engine_listeners(session_id: str, engine: GameEngine):
             ctx_conn = on_context_updated
     except Exception as e:
         logger.warning(f"Failed to attach context_updated listener: {e}")
+    
+    # SFX state listener from engine's SFXManager (if present)
+    sfx_conn = None
+    try:
+        sfx_mgr = getattr(engine, '_sfx_manager', None)
+        if sfx_mgr and hasattr(sfx_mgr, 'add_listener'):
+            def _to_web_sound_url(path: Optional[str]) -> Optional[str]:
+                try:
+                    if not path:
+                        return None
+                    p = _PathlibPath(path).resolve()
+                    base = (_PathlibPath(project_root) / "sound").resolve()
+                    p_str = str(p)
+                    b_str = str(base)
+                    if p_str.startswith(b_str):
+                        rel = p.relative_to(base).as_posix()
+                        return f"/sound/{rel}"
+                    # Fallback: try to find last occurrence of "sound/" in path
+                    s_idx = p_str.lower().rfind("sound")
+                    if s_idx >= 0:
+                        try:
+                            tail = p_str[s_idx+len("sound"):].lstrip("/\\").replace("\\", "/")
+                            return f"/sound/{tail}"
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                return None
 
-    session_listeners[session_id] = {"stats_conn": stats_conn, "orch_conn": orch_conn, "out_conn": out_conn, "music_conn": music_conn, "ctx_conn": ctx_conn}
+            def on_sfx_update(payload: dict):
+                try:
+                    loops = (payload or {}).get('loops', {}) if isinstance(payload, dict) else {}
+                    ones = (payload or {}).get('oneshots', []) if isinstance(payload, dict) else []
+                    web_loops = {}
+                    for ch, p in (loops or {}).items():
+                        url = _to_web_sound_url(p)
+                        if url:
+                            web_loops[ch] = url
+                    web_ones = []
+                    for p in (ones or []):
+                        url = _to_web_sound_url(p)
+                        if url:
+                            web_ones.append(url)
+                    _emit_ws({"type": "sfx_update", "data": {"loops": web_loops, "oneshots": web_ones}})
+                except Exception as e:
+                    logger.warning(f"WS sfx_update emit failed: {e}")
+            sfx_mgr.add_listener(on_sfx_update)
+            sfx_conn = on_sfx_update
+            logger.info(f"Attached SFX listener for session {session_id}")
+    except Exception as e:
+        logger.warning(f"Failed to attach SFX listener: {e}")
+    
+    # Playback aggregation listener (music + SFX combined)
+    playback_conn = None
+    try:
+        if hasattr(engine, 'playback_updated'):
+            def on_playback_updated(items: list):
+                try:
+                    _emit_ws({"type": "playback_updated", "data": items})
+                except Exception:
+                    pass
+            engine.playback_updated.connect(on_playback_updated)
+            playback_conn = on_playback_updated
+            logger.info(f"Attached playback listener for session {session_id}")
+    except Exception as e:
+        logger.warning(f"Failed to attach playback listener: {e}")
+
+    session_listeners[session_id] = {
+        "stats_conn": stats_conn, 
+        "orch_conn": orch_conn, 
+        "out_conn": out_conn, 
+        "music_conn": music_conn, 
+        "ctx_conn": ctx_conn,
+        "sfx_conn": sfx_conn,
+        "playback_conn": playback_conn
+    }
 
 def _cleanup_session(session_id: str):
     """Clean up a session's resources."""
@@ -1935,6 +2009,30 @@ async def post_context(session_id: str, payload: dict = Body(default={})):
         logger.error(f"Error setting context: {e}")
         raise HTTPException(status_code=500, detail="Failed to set context")
 
+# Lightweight enums for dev-context panel (web)
+@app.get("/api/context/enums")
+async def get_context_enums():
+    try:
+        # Load canonical enum lists from the same source as desktop GUI
+        from core.context.game_context import load_context_enums as _load_ctx_enums
+        enums = _load_ctx_enums() or {}
+        # Ensure it's JSON-serializable dict
+        return enums if isinstance(enums, dict) else {}
+    except Exception as e:
+        logger.warning(f"Error loading context enums: {e}")
+        # Minimal fallback mirrors client fallback to avoid breakage
+        return {
+            "location": {
+                "major": ["city","forest","camp","village","castle","dungeon","seaside","desert","mountain","swamp","ruins","port","temple"],
+                "venue": ["tavern","market","blacksmith","inn","chapel","library","manor","arena","fireplace","bridge","tower","cave","farm"],
+            },
+            "weather": {"type": ["clear","overcast","rain","storm","snow","blizzard","fog","windy","sandstorm"]},
+            "time_of_day": ["deep_night","pre_dawn","dawn","morning","noon","afternoon","evening","sunset","night"],
+            "biome": ["forest","desert","swamp","mountain","seaside","plains","ruins"],
+            "crowd_level": ["empty","sparse","busy"],
+            "danger_level": ["calm","tense","deadly"],
+        }
+
 # --- Music control endpoints (server-authoritative actions) ---
 @app.post("/api/music/next/{session_id}")
 async def music_next(session_id: str):
@@ -1952,6 +2050,92 @@ async def music_next(session_id: str):
     except Exception as e:
         logger.error(f"Error advancing music track: {e}")
         raise HTTPException(status_code=500, detail="Failed to advance music track")
+
+@app.get("/api/music/moods/{session_id}")
+async def get_music_moods(session_id: str):
+    """Get list of available music moods from MusicDirector."""
+    try:
+        engine = active_sessions.get(session_id)
+        if not engine:
+            raise HTTPException(status_code=404, detail="Session not found")
+        md = getattr(engine, 'get_music_director', lambda: None)()
+        if not md:
+            return {"status": "success", "moods": []}
+        moods = md.list_moods() if hasattr(md, 'list_moods') else []
+        return {"status": "success", "moods": moods}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting music moods: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get music moods")
+
+# --- SFX directory listing endpoints to support Web UI loop selection ---
+@app.get("/api/sfx/loop_list/{domain}")
+async def api_sfx_loop_list(domain: str):
+    try:
+        base = _PathlibPath(project_root) / "sound" / "sfx" / "loop" / domain
+        if not base.exists() or not base.is_dir():
+            return {"status": "success", "files": []}
+        exts = {".mp3", ".ogg", ".wav", ".flac"}
+        items = []
+        for p in sorted(base.iterdir()):
+            try:
+                if p.is_file() and p.suffix.lower() in exts:
+                    rel = p.relative_to(_PathlibPath(project_root) / "sound").as_posix()
+                    items.append(f"/sound/{rel}")
+            except Exception:
+                pass
+        return {"status": "success", "files": items}
+    except Exception as e:
+        logger.error(f"Error listing sfx loop domain '{domain}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to list SFX loop domain")
+
+@app.get("/api/sfx/weather_list/{token}")
+async def api_sfx_weather_list(token: str):
+    try:
+        base = _PathlibPath(project_root) / "sound" / "sfx" / "loop" / "weather"
+        if not base.exists() or not base.is_dir():
+            return {"status": "success", "files": []}
+        exts = {".mp3", ".ogg", ".wav", ".flac"}
+        token_l = str(token).strip().lower()
+        items = []
+        for p in sorted(base.iterdir()):
+            try:
+                if p.is_file() and p.suffix.lower() in exts and token_l in p.stem.lower():
+                    rel = p.relative_to(_PathlibPath(project_root) / "sound").as_posix()
+                    items.append(f"/sound/{rel}")
+            except Exception:
+                pass
+        return {"status": "success", "files": items}
+    except Exception as e:
+        logger.error(f"Error listing weather SFX for token '{token}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to list weather SFX")
+
+class HardSetRequest(BaseModel):
+    mood: str = Field(..., description="Music mood to set")
+    intensity: Optional[float] = Field(None, ge=0.0, le=1.0, description="Optional intensity override")
+
+@app.post("/api/music/hard_set/{session_id}")
+async def music_hard_set(session_id: str, request: HardSetRequest):
+    """Set music mood directly (hard set), bypassing suggestion system."""
+    try:
+        engine = active_sessions.get(session_id)
+        if not engine:
+            raise HTTPException(status_code=404, detail="Session not found")
+        md = getattr(engine, 'get_music_director', lambda: None)()
+        if not md:
+            raise HTTPException(status_code=500, detail="MusicDirector not available")
+        if not hasattr(md, 'hard_set'):
+            raise HTTPException(status_code=500, detail="MusicDirector does not support hard_set")
+        # Call hard_set with mood and optional intensity
+        md.hard_set(request.mood, intensity=request.intensity, reason="web_context_panel")
+        logger.info(f"Music mood hard_set to '{request.mood}' for session {session_id}")
+        return {"status": "success", "message": f"Music mood set to {request.mood}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting music mood: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to set music mood: {e}")
 
 @app.get("/api/config/dev")
 async def get_dev_flag():
