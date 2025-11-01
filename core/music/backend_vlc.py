@@ -13,6 +13,7 @@ import os
 
 try:
     import vlc  # type: ignore
+    instance = vlc.Instance('--quiet --no-video-title-show')
 except Exception:  # pragma: no cover - environment may lack VLC
     vlc = None
 
