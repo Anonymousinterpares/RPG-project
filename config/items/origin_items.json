@@ -70,7 +70,7 @@
     ],
     "stats": [
       {
-        "name": "spell_power_bonus",
+        "name": "MAGIC_ATTACK",
         "value": 1,
         "display_name": "Spell Power"
       }
@@ -501,7 +501,7 @@
     ],
     "dice_roll_effects": [
       {
-        "effect_type": "physical_blunt_damage",
+        "effect_type": "bludgeoning",
         "dice_notation": "1d6"
       }
     ],
@@ -534,7 +534,7 @@
         "display_name": "Armor"
       },
       {
-        "name": "magic_resistance_minor",
+        "name": "MAGIC_DEFENSE",
         "value": 5,
         "display_name": "Minor Magic Resist",
         "is_percentage": true
@@ -1186,7 +1186,7 @@
         "display_name": "Armor"
       },
       {
-        "name": "magic_resistance_minor",
+        "name": "MAGIC_DEFENSE",
         "value": 2,
         "display_name": "Minor Magic Resist",
         "is_percentage": true

@@ -169,7 +169,7 @@
     "is_stackable": false,
     "stats": [
       {
-        "name": "carrying_capacity",
+        "name": "CARRY_CAPACITY",
         "value": 20,
         "display_name": "Extra Carrying Capacity"
       }
