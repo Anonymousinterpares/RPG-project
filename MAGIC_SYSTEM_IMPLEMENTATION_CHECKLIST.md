@@ -186,19 +186,29 @@ Phase 4 — World Configurator Validation & Data Entry (no runtime behavior chan
 
 
 Phase 5 — GUI (PySide6) Magic UI per MAGIC_SYSTEM_UI_design_doc.md
-- [ ] Add Grimoire tab to right panel (accordion by Magic System)
-  - [ ] Hover tooltip: mana cost, casting time, brief effect summary
-  - [ ] Spell Details dialog (singleton, non-modal): full spell info from config
-- [ ] Cast button
-  - [ ] Enabled only in COMBAT mode (disabled in NARRATIVE)
-  - [ ] On click: present target menu based on selector and current combatants
-  - [ ] Targeting rules in UI: offensive → enemy list (auto-select if only one); defensive/recovery → self or ally list (default self in 1:1); non-combat-only spells are disabled in combat
-  - [ ] Dispatch to engine via CombatManager by creating a SpellAction (do not call execute_cast_spell directly from UI)
-  - [ ] Do not call UI from core. Observe orchestrated DisplayEvents
-- [ ] Resource bars and status areas
-  - [ ] Ensure modifier/status effects applied by spells render correctly via signals
-  - [ ] Show temporary buffs/debuffs with duration when available (turns)
-- [ ] Follow Qt signals/slots best practices; avoid direct calls across components; wire via MainWindow hub
+- [x] Add Grimoire tab to right panel (accordion by Magic System)
+  - [x] Hover tooltip: mana cost, casting time, brief effect summary (rich HTML tooltips with icons and color coding)
+  - [x] Spell Details dialog (singleton, non-modal): full spell info from config with formatted sections
+  - [x] Animated accordion with QPropertyAnimation (250ms, InOutQuad easing)
+  - [x] Custom SpellItemWidget with role-based color coding (offensive=red, defensive=blue, utility=purple)
+  - [x] Enhanced CastButton with 7 visual states and image background support
+  - [x] Quick Stats section showing current/max mana and spell count
+  - [x] Search and filter functionality (by name, role, magic system)
+  - [x] Empty state handling with helpful message
+  - [x] Mana cost validation (insufficient mana state on Cast button)
+  - [x] Cooldown placeholder system (ready for future implementation)
+- [x] Cast button
+  - [x] Enabled only in COMBAT mode (disabled in NARRATIVE)
+  - [x] On click: present enhanced target selection dialog with HP bars and color coding
+  - [x] Targeting rules in UI: offensive → enemy list (auto-select if only one); defensive/recovery → self or ally list (default self in 1:1); non-combat-only spells are disabled in combat
+  - [x] Dispatch to engine via CombatManager by creating a SpellAction (does not call execute_cast_spell directly from UI)
+  - [x] Does not call UI from core. Observes orchestrated DisplayEvents
+  - [x] Visual target selection with HP bars, color-coded by health percentage (green>75%, yellow>50%, orange>25%, red<25%)
+- [x] Resource bars and status areas
+  - [x] Mana display integrated in Grimoire Quick Stats section
+  - [x] Updates on refresh with current/max mana from StatsManager
+  - [~] Show temporary buffs/debuffs with duration when available (turns) - buffs/debuffs display exists in Character tab; Grimoire focuses on casting
+- [x] Follow Qt signals/slots best practices; avoid direct calls across components; wire via MainWindow hub
 
 
 Phase 6 — WebUI (client + server)
