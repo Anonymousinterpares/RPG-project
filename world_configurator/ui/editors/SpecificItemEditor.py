@@ -318,8 +318,25 @@ class SpecificItemEditor(QWidget):
                 self._effect_types: List[str] = [str(x).strip().lower() for x in ets if isinstance(x, str)]
             else:
                 self._effect_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
+            # Load dice tiers from defense.typed_resistance_tiers
+            self._dice_tiers = {}
+            try:
+                defense = combat_cfg.get("defense", {}) if isinstance(combat_cfg, dict) else {}
+                tiers = defense.get("typed_resistance_tiers", {}) if isinstance(defense, dict) else {}
+                if isinstance(tiers, dict) and tiers:
+                    # normalize keys to canonical order minor/medium/major/supreme if present
+                    for k, v in tiers.items():
+                        key = str(k).strip().lower()
+                        val = str(v).strip()
+                        if key and val:
+                            self._dice_tiers[key] = val
+            except Exception:
+                self._dice_tiers = {}
+            if not self._dice_tiers:
+                self._dice_tiers = {"minor": "1d4", "medium": "1d6", "major": "1d8", "supreme": "1d10"}
         except Exception:
             self._effect_types = ["slashing","piercing","bludgeoning","fire","cold","lightning","poison","acid","arcane"]
+            self._dice_tiers = {"minor": "1d4", "medium": "1d6", "major": "1d8", "supreme": "1d10"}
 
         self._setup_ui()
         
@@ -836,7 +853,10 @@ class SpecificItemEditor(QWidget):
         self.details_form_layout.addRow("Tags:", self.tags_edit)
 
         # Typed Resistances (structured editor)
-        self.typed_res_editor = TypedResistancesEditor(effect_types=getattr(self, "_effect_types", []))
+        self.typed_res_editor = TypedResistancesEditor(
+            effect_types=getattr(self, "_effect_types", []),
+            dice_tiers=getattr(self, "_dice_tiers", None)
+        )
         self.details_form_layout.addRow("Typed Resistances:", self.typed_res_editor)
 
         # Custom Properties (simple JSON string for now)

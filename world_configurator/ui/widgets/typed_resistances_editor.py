@@ -3,9 +3,9 @@
 TypedResistancesEditor: A structured editor widget for item custom_properties typed resistances.
 
 - Percent mode: one numeric spin box per allowed combat damage type.
-- Dice mode: one dice notation input per type (NdS±M), with optional tier quick-pick.
+- Dice mode: select a predefined tier per type (no manual entry) from config-defined tiers.
 - get_values() returns non-zero percent entries.
-- get_dice_values() returns non-empty valid dice entries.
+- get_dice_values() returns selected dice values per type.
 - set_values()/set_dice_values() populate from existing dicts.
 
 Usage:
@@ -17,12 +17,11 @@ Usage:
 """
 from __future__ import annotations
 
-import re
 from typing import Dict, List, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QFormLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, QVBoxLayout, QLineEdit, QComboBox
+    QWidget, QFormLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, QVBoxLayout, QComboBox
 )
 
 
@@ -41,9 +40,7 @@ class TypedResistancesEditor(QWidget):
         self._effect_types: List[str] = [str(t).strip().lower() for t in (effect_types or []) if isinstance(t, str)]
         # Map damage_type -> QSpinBox (percent)
         self._spins: Dict[str, QSpinBox] = {}
-        # Map damage_type -> QLineEdit (dice)
-        self._dice_edits: Dict[str, QLineEdit] = {}
-        # Map damage_type -> QComboBox (tier quick-pick)
+        # Map damage_type -> QComboBox (tier pick)
         self._tier_boxes: Dict[str, QComboBox] = {}
         # Tier mapping
         self._dice_tiers = {k: v for k, v in ((dice_tiers or {
@@ -52,8 +49,6 @@ class TypedResistancesEditor(QWidget):
             "major": "1d8",
             "supreme": "1d10",
         }).items())}
-        # Dice regex
-        self._dice_re = re.compile(r"^\d+d\d+(?:[+-]\d+)?$")
 
         self._build_ui()
 
@@ -79,32 +74,18 @@ class TypedResistancesEditor(QWidget):
             spin.setToolTip("Percentage resistance modifier. Negative means vulnerability.")
             self._spins[dmg_type] = spin
 
-            # Dice editor
-            dice_edit = QLineEdit()
-            dice_edit.setPlaceholderText("e.g., 1d6")
-            dice_edit.setToolTip("Dice-based mitigation rolled per hit (NdS±M).")
-            self._dice_edits[dmg_type] = dice_edit
-
-            # Tier pick
+            # Tier pick (no manual dice entry)
             tier = QComboBox()
             tier.addItem("", "")
             for k in ["minor","medium","major","supreme"]:
                 if k in self._dice_tiers:
                     tier.addItem(k.title(), k)
-            tier.setToolTip("Quick-pick a dice tier (fills dice field).")
-            def _bind_tier(box: QComboBox, edit: QLineEdit):
-                def _on_change(_idx: int):
-                    key = box.currentData()
-                    if key:
-                        edit.setText(self._dice_tiers.get(key, ""))
-                return _on_change
-            tier.currentIndexChanged.connect(_bind_tier(tier, dice_edit))
+            tier.setToolTip("Select dice power tier for mitigation; manual entry disabled by design.")
             self._tier_boxes[dmg_type] = tier
 
-            # Layout: label | percent | dice | tier
+            # Layout: label | percent | tier
             row.addWidget(label)
             row.addWidget(spin, 1)
-            row.addWidget(dice_edit, 1)
             row.addWidget(tier)
 
             container = QWidget()
@@ -148,35 +129,33 @@ class TypedResistancesEditor(QWidget):
     # Dice API
     def set_dice_values(self, values: Optional[Dict[str, str]]) -> None:
         vals = values or {}
-        for dmg_type, edit in self._dice_edits.items():
-            s = str(vals.get(dmg_type, "") or "").strip()
-            edit.setText(s)
-            # Best-effort set tier combobox selection if matches mapping
+        for dmg_type, box in self._tier_boxes.items():
+            s = str(vals.get(dmg_type, "") or "").strip().lower()
+            # Find tier whose dice matches s
+            idx = 0
             try:
-                matched_key = None
-                for k, dn in self._dice_tiers.items():
-                    if s and s.lower() == str(dn).lower():
-                        matched_key = k
-                        break
-                box = self._tier_boxes.get(dmg_type)
-                if box is not None:
-                    # find index by data
-                    idx = 0
-                    if matched_key:
-                        for i in range(box.count()):
-                            if box.itemData(i) == matched_key:
-                                idx = i; break
-                    box.setCurrentIndex(idx)
+                if s:
+                    for i in range(box.count()):
+                        key = box.itemData(i)
+                        if key and str(self._dice_tiers.get(key, "")).lower() == s:
+                            idx = i
+                            break
+                box.setCurrentIndex(idx)
             except Exception:
-                pass
+                try:
+                    box.setCurrentIndex(0)
+                except Exception:
+                    pass
 
     def get_dice_values(self) -> Dict[str, str]:
-        """Return only non-empty, valid dice values as {damage_type: dice}."""
+        """Return only selected tier dice values as {damage_type: dice}."""
         out: Dict[str, str] = {}
-        for dmg_type, edit in self._dice_edits.items():
-            s = str(edit.text() or "").strip()
-            if s and self._dice_re.match(s):
-                out[dmg_type] = s
+        for dmg_type, box in self._tier_boxes.items():
+            key = box.currentData()
+            if key:
+                dn = self._dice_tiers.get(key)
+                if dn:
+                    out[dmg_type] = str(dn)
         return out
 
     def clear_all(self) -> None:
