@@ -165,6 +165,18 @@ class StatusEffectManager:
         # Apply the stat modifiers if we have a stats manager
         if self.stats_manager and effect.modifier_group:
             self.stats_manager.add_modifier_group(effect.modifier_group)
+        # Wire typed resistances (percent and dice) from status custom_data if provided
+        try:
+            if self.stats_manager and isinstance(effect.custom_data, dict):
+                src_id = f"status_{effect.id}"
+                tr = effect.custom_data.get("typed_resistances")
+                if isinstance(tr, dict) and hasattr(self.stats_manager, 'set_resistance_contribution'):
+                    self.stats_manager.set_resistance_contribution(src_id, tr)
+                trd = effect.custom_data.get("typed_resistances_dice")
+                if isinstance(trd, dict) and hasattr(self.stats_manager, 'set_resistance_dice_contribution'):
+                    self.stats_manager.set_resistance_dice_contribution(src_id, trd)
+        except Exception:
+            pass
         
         logger.debug(f"Added status effect: {effect.name} (Duration: {effect.duration})")
     
@@ -186,6 +198,16 @@ class StatusEffectManager:
         # Remove the stat modifiers if we have a stats manager
         if self.stats_manager and effect.modifier_group:
             self.stats_manager.remove_modifier_group(effect.modifier_group.id)
+        # Remove any typed resistance contributions wired from this status
+        try:
+            if self.stats_manager:
+                src_id = f"status_{effect.id}"
+                if hasattr(self.stats_manager, 'remove_resistance_contribution'):
+                    self.stats_manager.remove_resistance_contribution(src_id)
+                if hasattr(self.stats_manager, 'remove_resistance_dice_contribution'):
+                    self.stats_manager.remove_resistance_dice_contribution(src_id)
+        except Exception:
+            pass
         
         # Remove the effect
         del self.active_effects[effect_id]

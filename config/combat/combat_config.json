@@ -64,6 +64,12 @@
       "resistance_effectiveness": 1.0,
       "resistance_cap": 75,
       "spell_save_base": 8
+    },
+    "typed_resistance_tiers": {
+      "minor": "1d4",
+      "medium": "1d6",
+      "major": "1d8",
+      "supreme": "1d10"
     }
   },
   

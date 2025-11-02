@@ -1085,11 +1085,19 @@ class SpecificItemEditor(QWidget):
 
         # Populate typed resistances editor from custom_properties
         typed_res = {}
+        typed_res_dice = {}
         if isinstance(custom_props, dict):
             tr = custom_props.get("typed_resistances")
             if isinstance(tr, dict):
                 typed_res = {str(k).strip().lower(): int(v) for k, v in tr.items() if isinstance(k, str) and isinstance(v, (int, float))}
+            trd = custom_props.get("typed_resistances_dice")
+            if isinstance(trd, dict):
+                typed_res_dice = {str(k).strip().lower(): str(v).strip() for k, v in trd.items() if isinstance(k, str) and isinstance(v, (str, int, float))}
         self.typed_res_editor.set_values(typed_res)
+        try:
+            self.typed_res_editor.set_dice_values(typed_res_dice)
+        except Exception:
+            pass
 
         self._update_conditional_field_visibility()
 
@@ -1188,6 +1196,16 @@ class SpecificItemEditor(QWidget):
         else:
             if isinstance(cp, dict):
                 cp.pop("typed_resistances", None)
+        # Apply dice-based typed resistances
+        try:
+            typed_res_dice = self.typed_res_editor.get_dice_values()
+        except Exception:
+            typed_res_dice = {}
+        if typed_res_dice:
+            cp["typed_resistances_dice"] = typed_res_dice
+        else:
+            if isinstance(cp, dict):
+                cp.pop("typed_resistances_dice", None)
         # Persist or remove custom_properties key
         if isinstance(cp, dict) and cp:
             item_data["custom_properties"] = cp
@@ -1221,6 +1239,8 @@ class SpecificItemEditor(QWidget):
         # Reset typed resistances editor
         try:
             self.typed_res_editor.set_values({})
+            if hasattr(self.typed_res_editor, 'set_dice_values'):
+                self.typed_res_editor.set_dice_values({})
         except Exception:
             pass
         self._update_conditional_field_visibility()

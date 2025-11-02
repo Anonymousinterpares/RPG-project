@@ -206,7 +206,8 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
     def _sync_stats_modifiers(self) -> None:
         """
         Override of EquipmentManager method to trigger stats synchronization.
-        In addition to any upstream hooks, this wires equipment-based typed resistances into the StatsManager.
+        In addition to any upstream hooks, this wires equipment-based typed resistances (percent and dice)
+        into the StatsManager.
         """
         if not self._stats_manager:
             logger.debug("No stats manager available for equipment modifier sync")
@@ -224,8 +225,15 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
         try:
             from core.inventory.item_enums import EquipmentSlot
             for slot in EquipmentSlot:
+                sid = f"equip_{slot.value}"
                 try:
-                    self._stats_manager.remove_resistance_contribution(f"equip_{slot.value}")
+                    self._stats_manager.remove_resistance_contribution(sid)
+                except Exception:
+                    pass
+                try:
+                    # Also clear dice-based contributions
+                    if hasattr(self._stats_manager, 'remove_resistance_dice_contribution'):
+                        self._stats_manager.remove_resistance_dice_contribution(sid)
                 except Exception:
                     pass
         except Exception as clr_err:
@@ -241,11 +249,10 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
                 cp = getattr(it, 'custom_properties', {}) if hasattr(it, 'custom_properties') else {}
                 if not isinstance(cp, dict):
                     continue
+                # Percent-based typed resistances
                 typed_map = None
-                # Prefer explicit key to avoid conflicts with generic names
                 if 'typed_resistances' in cp and isinstance(cp['typed_resistances'], dict):
                     typed_map = cp['typed_resistances']
-                # Build sanitized mapping from allowed types only
                 if isinstance(typed_map, dict):
                     sanitized: Dict[str, float] = {}
                     for k, v in typed_map.items():
@@ -261,6 +268,31 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
                             logger.debug(f"Applied typed resistances from {it.name} in {slot.value}: {sanitized}")
                         except Exception as ap_err:
                             logger.debug(f"Failed applying typed resistances for {it.name}: {ap_err}")
+                # Dice-based typed resistances
+                typed_dice_map = None
+                if 'typed_resistances_dice' in cp and isinstance(cp['typed_resistances_dice'], dict):
+                    typed_dice_map = cp['typed_resistances_dice']
+                if isinstance(typed_dice_map, dict):
+                    sanitized_dice: Dict[str, list] = {}
+                    for k, v in typed_dice_map.items():
+                        try:
+                            dt = str(k or "").strip().lower()
+                            if dt not in allowed_types:
+                                continue
+                            if isinstance(v, list):
+                                notations = [str(x).strip() for x in v if isinstance(x, (str, int, float)) and str(x).strip()]
+                            else:
+                                notations = [str(v).strip()] if str(v).strip() else []
+                            if notations:
+                                sanitized_dice[dt] = notations
+                        except Exception:
+                            continue
+                    if sanitized_dice and hasattr(self._stats_manager, 'set_resistance_dice_contribution'):
+                        try:
+                            self._stats_manager.set_resistance_dice_contribution(f"equip_{slot.value}", sanitized_dice)
+                            logger.debug(f"Applied typed resistance dice from {it.name} in {slot.value}: {sanitized_dice}")
+                        except Exception as ap_err:
+                            logger.debug(f"Failed applying typed resistance dice for {it.name}: {ap_err}")
         except Exception as apply_err:
             logger.debug(f"Error applying equipment typed resistances: {apply_err}")
         # Upstream hook if present (non-critical)
@@ -270,7 +302,6 @@ class InventoryManager(InventoryItemOperations, InventoryLimits, EquipmentManage
                 logger.debug("Triggered equipment modifier synchronization with stats manager")
             except Exception as e:
                 logger.error(f"Error synchronizing equipment modifiers with stats manager: {e}")
-    
     def save_to_file(self, filepath: str, include_unknown: bool = True) -> bool:
         """
         Save the inventory to a JSON file.
