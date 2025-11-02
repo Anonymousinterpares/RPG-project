@@ -6,6 +6,11 @@ Guiding principles
 - Keep data-driven: new knobs go to config and JSON schemas; registry governs stat names.
 - Prefer additive changes and feature flags; avoid breaking existing flows.
 
+Status update (Phase 0 data normalization)
+- Dry-run re-executed; unknown_effect_types now 0; remaining unknown stats are intentional (consumables, typed resistances, skill-like labels, requirements).
+- Applied normalization with --apply; items updated to canonical stat names (total_renamed=19 across 5 files), ensuring equipment modifiers map cleanly to engine enums.
+- Proceeding to next step: Typed Resistances foundation (dice + percent).
+
 Scope of this document
 - 2) Typed magical resistances (dice-based with tiers)
 - 3) Attack speed via Action Points (AP) model
@@ -30,28 +35,20 @@ Data model (items/statuses/config)
   - Optional: resistance_presets mapping tier→default dice (e.g., minor: 1d4, medium: 1d6, major: 1d8, supreme: 1d10), for editor quick-pick.
 
 Engine integration (StatsManager)
-- Extend typed resistance storage to support both percent and dice:
-  - Keep existing percent path: _typed_resist_contrib_by_source and get_resistance_percent (already present).
-  - Add parallel dice path:
-    - _typed_resist_dice_by_source: Dict[source_id, Dict[damage_type, List[dice_notation]]]
-    - set_resistance_dice_contribution(source_id, {"fire": ["1d6"], "poison": ["1d4"]})
-    - get_resistance_dice_pool(damage_type) -> List[dice_notation]
-- Equipment sync: when reading item.custom_properties.typed_resistances
-  - If entry has percent, call set_resistance_contribution
-  - If entry has dice, call set_resistance_dice_contribution
-- Status effects: when applying a status via effects engine, allow custom_data on the effect to carry typed_resistances contributions; upon add/remove, call the same StatsManager contribution APIs with a stable source_id (status id).
+- Status: IMPLEMENTED
+  - Percent path: _typed_resist_contrib_by_source + get_resistance_percent (cap via combat.defense.magical.resistance_cap)
+  - Dice path: _typed_resist_dice_by_source + set_resistance_dice_contribution + get_resistance_dice_pool
+- Equipment sync: IMPLEMENTED (percent)
+  - InventoryManager._sync_stats_modifiers reads item.custom_properties.typed_resistances and calls set_resistance_contribution per slot
+  - Next: extend to support dice entries on items if/when authoring adopts dice for resistances
+- Status effects: PLANNED
+  - When status_apply atoms carry typed resistance contributions, call StatsManager.set_resistance_* with a stable status source_id on add/remove
 
 Engine integration (EffectsEngine)
-- In _apply_damage_to_target pipeline, insert new step after flat DR and before percent resistance:
-  1) Shields/absorbs (existing)
-  2) Flat DR / Magic Defense (existing)
-  3) Typed resistance dice:
-     - Gather all dice notations for this damage_type via get_resistance_dice_pool
-     - Roll each notation once per hit; sum; clamp to remaining damage after flat
-     - Record "typed_resist_dice_sum" and per-die rolls in breakdown for logs
-  4) Percent typed resistance (existing via get_resistance_percent with 90% cap)
-  5) Apply to HEALTH
-- Logging via orchestrator (system messages) with breakdown lines: raw → absorbed → after_flat → -dice (rolled N) → -pct (X%) → final.
+- Status: IMPLEMENTED
+  - _apply_damage_to_target now rolls typed resistance dice (once per notation) before percent mitigation
+  - Breakdown includes typed_resist_dice_sum, typed_resist_dice_rolls, after_dice
+- Logging via orchestrator (for melee in action_handlers) remains; effects engine returns breakdown for upstream display if desired.
 
 World Configurator & Validation
 - Editor widgets for typed_resistances per type with two modes (dice/percent) and optional tier quick-pick.
@@ -63,8 +60,7 @@ QA & Telemetry
 - Log samples in tests to ensure breakdown formatting is stable.
 
 Cutover & Safety
-- Feature flag (optional): combat.defense.typed_resist_dice_enabled (default true once merged).
-- Backward-compatible: percent-only items continue to work; dice-only items provide additional pre-pct mitigation.
+- Backward-compatible: percent-only items already work; dice path is additive (pre-pct); disabled when no dice contributions present.
 
 ---
 

@@ -164,15 +164,33 @@ def _apply_damage_to_target(target: TargetContext, atom: Dict[str, Any], caster:
             flat_dr = 0.0
         after_flat = max(0.0, remainder - max(0.0, flat_dr))
 
-        # 4) Typed resistance percentage
+        # 4) Typed resistance dice (roll once per provided notation)
+        typed_dice_total = 0.0
+        typed_dice_rolls: List[Tuple[str, float]] = []
+        try:
+            if hasattr(sm, "get_resistance_dice_pool"):
+                pool = sm.get_resistance_dice_pool(norm_type) or []
+                for dn in pool:
+                    try:
+                        rd = roll_dice_notation(str(dn))
+                        val = float(rd.get("total", 0))
+                        typed_dice_total += val
+                        typed_dice_rolls.append((str(dn), val))
+                    except Exception:
+                        continue
+        except Exception:
+            typed_dice_total = 0.0
+        after_dice = max(0.0, after_flat - max(0.0, typed_dice_total))
+
+        # 5) Typed resistance percentage
         typed_pct = 0.0
         try:
             if hasattr(sm, "get_resistance_percent"):
                 typed_pct = float(sm.get_resistance_percent(norm_type))
         except Exception:
             typed_pct = 0.0
-        resisted_amt = max(0.0, after_flat * max(-100.0, min(100.0, typed_pct)) / 100.0)
-        final = max(0.0, after_flat - resisted_amt)
+        resisted_amt = max(0.0, after_dice * max(-100.0, min(100.0, typed_pct)) / 100.0)
+        final = max(0.0, after_dice - resisted_amt)
 
         # 5) Apply to HEALTH as damage
         try:
@@ -188,6 +206,9 @@ def _apply_damage_to_target(target: TargetContext, atom: Dict[str, Any], caster:
             "after_shield": float(remainder),
             "flat_dr": float(flat_dr),
             "after_flat": float(after_flat),
+            "typed_resist_dice_sum": float(typed_dice_total),
+            "typed_resist_dice_rolls": [(dn, float(val)) for dn, val in typed_dice_rolls],
+            "after_dice": float(after_dice),
             "typed_resist_pct": float(typed_pct),
             "typed_resist_amt": float(resisted_amt),
             "final": float(final),

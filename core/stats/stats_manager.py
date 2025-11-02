@@ -50,6 +50,9 @@ class StatsManager(QObject):
         # Typed resistance contributions by source_id -> {damage_type: percent}
         # Example: {"armor_chest": {"slashing": 10, "fire": 5}}
         self._typed_resist_contrib_by_source: Dict[str, Dict[str, float]] = {}
+        # Dice-based typed resistance contributions by source_id -> {damage_type: ["NdS±M", ...]}
+        # Each notation is rolled once per hit; sums are clamped against remaining damage before percent mitigation.
+        self._typed_resist_dice_by_source: Dict[str, Dict[str, List[str]]] = {}
 
         # Absorb shields by source_id -> {"remaining": float, "damage_type": Optional[str],
         #                                 "stacking_rule": str, "duration_unit": Optional[str],
@@ -570,7 +573,7 @@ class StatsManager(QObject):
 
     def set_resistance_contribution(self, source_id: str, resistances: Dict[str, float]) -> None:
         """
-        Set or update a source contribution to typed resistances.
+        Set or update a source contribution to typed resistances (percent).
         - source_id: stable key (e.g., equipment slot or item instance id)
         - resistances: mapping of damage_type -> percent (can be negative for vulnerability)
         """
@@ -591,12 +594,68 @@ class StatsManager(QObject):
         self._typed_resist_contrib_by_source[src] = sanitized
 
     def remove_resistance_contribution(self, source_id: str) -> None:
-        """Remove a source's contribution to typed resistances."""
+        """Remove a source's contribution to typed resistances (percent)."""
         try:
             if source_id in self._typed_resist_contrib_by_source:
                 del self._typed_resist_contrib_by_source[source_id]
         except Exception:
             pass
+
+    def set_resistance_dice_contribution(self, source_id: str, resist_dice: Dict[str, Any]) -> None:
+        """
+        Set or update dice-based typed resistance contributions.
+        - source_id: stable key (e.g., equipment slot, item instance id, status id)
+        - resist_dice: mapping of damage_type -> dice notation or list of notations (e.g., {"fire": "1d6"} or {"fire": ["1d6","1d4-1"]})
+        """
+        try:
+            if not isinstance(source_id, str) or not source_id.strip():
+                return
+            src = source_id.strip()
+            mapping: Dict[str, List[str]] = {}
+            if isinstance(resist_dice, dict):
+                for k, v in resist_dice.items():
+                    try:
+                        dt = str(k or "").strip().lower()
+                        if not dt:
+                            continue
+                        if isinstance(v, list):
+                            notations = [str(x).strip() for x in v if isinstance(x, (str,int,float))]
+                        else:
+                            notations = [str(v).strip()]
+                        notations = [n for n in notations if n]
+                        if notations:
+                            mapping[dt] = notations
+                    except Exception:
+                        continue
+            self._typed_resist_dice_by_source[src] = mapping
+        except Exception:
+            pass
+
+    def remove_resistance_dice_contribution(self, source_id: str) -> None:
+        """Remove a source's dice-based typed resistance contribution."""
+        try:
+            if source_id in self._typed_resist_dice_by_source:
+                del self._typed_resist_dice_by_source[source_id]
+        except Exception:
+            pass
+
+    def get_resistance_dice_pool(self, damage_type: str) -> List[str]:
+        """
+        Aggregate all dice notations for a given damage type from all sources.
+        Returns a list of dice strings to roll once each for the current hit.
+        """
+        pool: List[str] = []
+        try:
+            dt = str(damage_type or "").strip().lower()
+            for _src, mp in self._typed_resist_dice_by_source.items():
+                if not isinstance(mp, dict):
+                    continue
+                vals = mp.get(dt)
+                if isinstance(vals, list):
+                    pool.extend([str(x) for x in vals if isinstance(x, (str,int,float))])
+        except Exception:
+            pass
+        return [p for p in pool if p]
 
     # --- Absorb shield management -------------------------------------------------
     def add_absorb_shield(

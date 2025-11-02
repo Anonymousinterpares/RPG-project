@@ -222,7 +222,7 @@
     "rarity": "common",
     "stats": [
       {
-        "name": "melee_attack",
+        "name": "MELEE_ATTACK",
         "value": 3,
         "display_name": "Melee Attack"
       }
