@@ -72,7 +72,7 @@ class InventoryPanelWidget(QScrollArea):
         self._create_item_details()
     
     def _create_header(self):
-        """Create the inventory header section."""
+        """Create the inventory header section with fantasy-themed styling."""
         # Create header layout
         header_layout = QHBoxLayout()
         
@@ -80,38 +80,41 @@ class InventoryPanelWidget(QScrollArea):
         currency_group = QGroupBox("Currency")
         currency_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 15px;
+                background-color: rgba(26, 20, 16, 0.85);
+                border: 2px solid #5a4a3a;
+                border-radius: 8px;
+                margin-top: 18px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #c9a875;
+                padding: 10px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #c9a875;
             }
         """)
         
         currency_layout = QHBoxLayout(currency_group)
+        currency_layout.setSpacing(12)
         
         # Create labels for currency
         gold_label = QLabel("Gold:")
-        gold_label.setStyleSheet("color: #FFD700; font-weight: bold;")
+        gold_label.setStyleSheet("color: #FFD700; font-weight: bold; font-size: 13px;")
         self.gold_value = QLabel("0")
-        self.gold_value.setStyleSheet("color: #FFD700;")
+        self.gold_value.setStyleSheet("color: #FFD700; font-weight: 600; font-size: 13px;")
         
         silver_label = QLabel("Silver:")
-        silver_label.setStyleSheet("color: #C0C0C0; font-weight: bold;")
+        silver_label.setStyleSheet("color: #C0C0C0; font-weight: bold; font-size: 13px;")
         self.silver_value = QLabel("0")
-        self.silver_value.setStyleSheet("color: #C0C0C0;")
+        self.silver_value.setStyleSheet("color: #C0C0C0; font-weight: 600; font-size: 13px;")
         
         copper_label = QLabel("Copper:")
-        copper_label.setStyleSheet("color: #B87333; font-weight: bold;")
+        copper_label.setStyleSheet("color: #B87333; font-weight: bold; font-size: 13px;")
         self.copper_value = QLabel("0")
-        self.copper_value.setStyleSheet("color: #B87333;")
+        self.copper_value.setStyleSheet("color: #B87333; font-weight: 600; font-size: 13px;")
         
         # Add currency labels to layout
         currency_layout.addWidget(gold_label)
@@ -125,33 +128,36 @@ class InventoryPanelWidget(QScrollArea):
         weight_group = QGroupBox("Weight")
         weight_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 15px;
+                background-color: rgba(26, 20, 16, 0.85);
+                border: 2px solid #5a4a3a;
+                border-radius: 8px;
+                margin-top: 18px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #c9a875;
+                padding: 10px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #c9a875;
             }
         """)
         
         weight_layout = QHBoxLayout(weight_group)
+        weight_layout.setSpacing(12)
         
         # Create labels for weight
         current_weight_label = QLabel("Current:")
-        current_weight_label.setStyleSheet("color: #BBBBBB; font-weight: bold;")
+        current_weight_label.setStyleSheet("color: #c9a875; font-weight: bold; font-size: 13px;")
         self.current_weight_value = QLabel("0.0")
-        self.current_weight_value.setStyleSheet("color: #E0E0E0;")
+        self.current_weight_value.setStyleSheet("color: #d4c5a0; font-weight: 600; font-size: 13px;")
         
         max_weight_label = QLabel("Max:")
-        max_weight_label.setStyleSheet("color: #BBBBBB; font-weight: bold;")
+        max_weight_label.setStyleSheet("color: #c9a875; font-weight: bold; font-size: 13px;")
         self.max_weight_value = QLabel("50.0")
-        self.max_weight_value.setStyleSheet("color: #E0E0E0;")
+        self.max_weight_value.setStyleSheet("color: #d4c5a0; font-weight: 600; font-size: 13px;")
         
         # Add weight labels to layout
         weight_layout.addWidget(current_weight_label)
@@ -165,76 +171,106 @@ class InventoryPanelWidget(QScrollArea):
         
         # Add header layout to main layout
         self.main_layout.addLayout(header_layout)
-    
+
     def _create_item_list(self):
-        """Create the item list section."""
+        """Create the item list section with fantasy-themed styling."""
         # Create item list group
         item_list_group = QGroupBox("Items")
         item_list_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 15px;
+                background-color: rgba(26, 20, 16, 0.85);
+                border: 2px solid #5a4a3a;
+                border-radius: 8px;
+                margin-top: 18px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #c9a875;
+                padding: 10px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #c9a875;
             }
         """)
         
         item_list_layout = QVBoxLayout(item_list_group)
+        item_list_layout.setSpacing(10)
         
         # Create filter layout
         filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(8)
         
         # Create filter combobox
         filter_label = QLabel("Type:")
-        filter_label.setStyleSheet("color: #BBBBBB;")
+        filter_label.setStyleSheet("color: #c9a875; font-weight: 600; font-size: 13px;")
         
         self.filter_combo = QComboBox()
-        # Populate from ItemType enum; store enum value as userData, None for All
         self.filter_combo.addItem("All", None)
         for itype in ItemType:
             label = itype.value.replace('_', ' ').title()
             self.filter_combo.addItem(label, itype.value)
         self.filter_combo.setStyleSheet("""
             QComboBox {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                border-radius: 3px;
-                padding: 3px;
+                background-color: rgba(26, 20, 16, 0.9);
+                color: #d4c5a0;
+                border: 2px solid #5a4a3a;
+                border-radius: 5px;
+                padding: 5px 8px;
+                font-size: 13px;
+                font-weight: 600;
             }
             QComboBox::drop-down {
                 border: none;
-                border-left: 1px solid #555555;
+                border-left: 2px solid #5a4a3a;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #c9a875;
+                margin-right: 5px;
+            }
+            QComboBox:hover {
+                border-color: #6a5a4a;
+                background-color: rgba(36, 28, 22, 0.9);
             }
             QComboBox QAbstractItemView {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-                selection-background-color: #0E639C;
+                background-color: rgba(26, 20, 16, 0.95);
+                color: #d4c5a0;
+                selection-background-color: #5a4a3a;
+                selection-color: #c9a875;
+                border: 2px solid #5a4a3a;
+                outline: none;
             }
         """)
         
         # Add a name search field
         search_label = QLabel("Search:")
-        search_label.setStyleSheet("color: #BBBBBB;")
+        search_label.setStyleSheet("color: #c9a875; font-weight: 600; font-size: 13px;")
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Type to filter by item name...")
         self.search_edit.setStyleSheet("""
             QLineEdit {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                border-radius: 3px;
-                padding: 3px;
+                background-color: rgba(26, 20, 16, 0.9);
+                color: #d4c5a0;
+                border: 2px solid #5a4a3a;
+                border-radius: 5px;
+                padding: 5px 8px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QLineEdit:focus {
+                border-color: #6a5a4a;
+                background-color: rgba(36, 28, 22, 0.9);
+            }
+            QLineEdit::placeholder {
+                color: #7a6a5a;
             }
         """)
+        
         # Connect filter changes
         self.filter_combo.currentIndexChanged.connect(self._on_filter_changed)
         self.search_edit.textChanged.connect(self._on_filter_changed)
@@ -249,21 +285,25 @@ class InventoryPanelWidget(QScrollArea):
         self.item_list = QListWidget()
         self.item_list.setStyleSheet("""
             QListWidget {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                border-radius: 3px;
-                alternate-background-color: #383838;
+                background-color: rgba(20, 16, 12, 0.85);
+                color: #d4c5a0;
+                border: 2px solid #4a3a30;
+                border-radius: 5px;
+                alternate-background-color: rgba(30, 24, 18, 0.85);
+                font-size: 13px;
+                font-weight: 600;
             }
             QListWidget::item {
-                padding: 5px;
-                border-bottom: 1px solid #444444;
+                padding: 8px;
+                border-bottom: 1px solid #3a2a20;
             }
             QListWidget::item:selected {
-                background-color: #0E639C;
+                background-color: rgba(90, 74, 58, 0.7);
+                color: #c9a875;
+                border-left: 3px solid #c9a875;
             }
             QListWidget::item:hover {
-                background-color: #383838;
+                background-color: rgba(60, 48, 36, 0.6);
             }
         """)
         self.item_list.setAlternatingRowColors(True)
@@ -273,32 +313,39 @@ class InventoryPanelWidget(QScrollArea):
         item_list_layout.addLayout(filter_layout)
         item_list_layout.addWidget(self.item_list)
         
-        # Create action buttons layout (for Use, Examine, Equip, Drop)
+        # Create action buttons layout
         action_button_layout = QHBoxLayout()
-        action_button_layout.setSpacing(5)
+        action_button_layout.setSpacing(8)
         
-        # Style for buttons
+        # Fantasy-themed button style
         button_style = """
             QPushButton {
-                background-color: #333333;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                border-radius: 4px;
-                padding: 5px 10px;
-                min-height: 25px; /* Ensure consistent height */
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4a3a2a, stop:1 #2d2416);
+                color: #c9a875;
+                border: 2px solid #5a4a3a;
+                border-radius: 6px;
+                padding: 6px 12px;
+                min-height: 28px;
+                font-weight: bold;
+                font-size: 13px;
             }
             QPushButton:hover {
-                background-color: #444444;
-                border-color: #666666;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a4a3a, stop:1 #3a2a1a);
+                border-color: #6a5a4a;
+                color: #d4c5a0;
             }
             QPushButton:pressed {
-                background-color: #222222;
-                border-color: #777777;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2d2416, stop:1 #1a1410);
+                border-color: #7a6a5a;
             }
             QPushButton:disabled {
-                background-color: #2A2A2A;
-                color: #666666;
-                border-color: #444444;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2a2220, stop:1 #1a1410);
+                color: #5a4a3a;
+                border-color: #3a2a20;
             }
         """
         
@@ -347,7 +394,7 @@ class InventoryPanelWidget(QScrollArea):
         # Connect right-click context menu
         self.item_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.item_list.customContextMenuRequested.connect(self._show_context_menu)
-        
+       
     def _on_filter_changed(self):
         """Refresh the displayed inventory when filter changes."""
         try:
@@ -358,37 +405,52 @@ class InventoryPanelWidget(QScrollArea):
             pass
         
     def _create_item_details(self):
-        """Create the item details section."""
+        """Create the item details section with fantasy-themed styling."""
         # Create item details group
         item_details_group = QGroupBox("Item Details")
         item_details_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 15px;
+                background-color: rgba(26, 20, 16, 0.85);
+                border: 2px solid #5a4a3a;
+                border-radius: 8px;
+                margin-top: 18px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #c9a875;
+                padding: 10px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #c9a875;
             }
         """)
         
         item_details_layout = QVBoxLayout(item_details_group)
+        item_details_layout.setSpacing(8)
         
         # Create labels for item details
         self.item_name_label = QLabel("No item selected")
-        self.item_name_label.setStyleSheet("font-size: 14pt; font-weight: bold; color: #E0E0E0;")
+        self.item_name_label.setStyleSheet("""
+            font-size: 15pt; 
+            font-weight: bold; 
+            color: #c9a875;
+        """)
         
         self.item_type_label = QLabel("")
-        self.item_type_label.setStyleSheet("font-size: 12pt; color: #CCCCCC;")
+        self.item_type_label.setStyleSheet("""
+            font-size: 12pt; 
+            color: #a89060;
+            font-weight: 600;
+        """)
         
         self.item_description_label = QLabel("")
-        self.item_description_label.setStyleSheet("color: #BBBBBB;")
+        self.item_description_label.setStyleSheet("""
+            color: #d4c5a0;
+            font-size: 11pt;
+            line-height: 1.4;
+        """)
         self.item_description_label.setWordWrap(True)
         
         # Add labels to item details layout
@@ -477,7 +539,7 @@ class InventoryPanelWidget(QScrollArea):
             logger.warning(f"[INVENTORY] Could not fetch full Item object for ID {selected_item_id} to display description.")
             
     def _show_context_menu(self, position):
-        """Show the context menu for the item list."""
+        """Show the context menu for the item list with fantasy-themed styling."""
         list_widget_item = self.item_list.itemAt(position)
         if not list_widget_item:
             return
@@ -487,7 +549,6 @@ class InventoryPanelWidget(QScrollArea):
             logger.warning("[INVENTORY] Context menu triggered on item with no ID.")
             return
 
-        # Find the item dict in self.items to get its properties like type and equipped status
         item_dict = next((it_d for it_d in self.items if it_d['id'] == selected_item_id), None)
         if not item_dict:
             logger.error(f"[INVENTORY] Context menu: Item ID {selected_item_id} not found in internal self.items list.")
@@ -502,15 +563,26 @@ class InventoryPanelWidget(QScrollArea):
         context_menu = QMenu(self)
         context_menu.setStyleSheet("""
             QMenu {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-                border: 1px solid #555555;
+                background-color: rgba(26, 20, 16, 0.95);
+                color: #d4c5a0;
+                border: 2px solid #5a4a3a;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 13px;
+                font-weight: 600;
             }
             QMenu::item {
-                padding: 5px 20px;
+                padding: 8px 25px;
+                border-radius: 3px;
             }
             QMenu::item:selected {
-                background-color: #0E639C;
+                background-color: rgba(90, 74, 58, 0.7);
+                color: #c9a875;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #5a4a3a;
+                margin: 5px 10px;
             }
         """)
         
@@ -547,6 +619,7 @@ class InventoryPanelWidget(QScrollArea):
             self.item_drop_requested.emit(selected_item_id)
         else:
             logger.debug(f"[INVENTORY] Context menu dismissed or unknown action for {selected_item_id}")
+
             
     def _on_use_clicked(self):
         """Handle use button click."""
@@ -829,12 +902,35 @@ class InventoryPanelWidget(QScrollArea):
         logger.info(f"InventoryPanel updated with manager {getattr(inv_manager, 'instance_id_for_debug', 'UNKNOWN_INSTANCE')}. Displaying {self.item_list.count()} items after filter. Internal self.items count: {len(self.items)}.")
 
     def _create_collect_items_button(self):
-        """Creates the 'Collect Items' button."""
+        """Creates the 'Collect Items' button with fantasy-themed styling."""
         self.collect_button = QPushButton("Collect Dropped Items")
-        self.collect_button.setStyleSheet(self.use_button.styleSheet()) # Reuse style
-        self.collect_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed) # Expand horizontally
+        self.collect_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4a3a2a, stop:1 #2d2416);
+                color: #c9a875;
+                border: 2px solid #5a4a3a;
+                border-radius: 6px;
+                padding: 8px 12px;
+                min-height: 32px;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a4a3a, stop:1 #3a2a1a);
+                border-color: #6a5a4a;
+                color: #d4c5a0;
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2d2416, stop:1 #1a1410);
+                border-color: #7a6a5a;
+            }
+        """)
+        self.collect_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.collect_button.clicked.connect(self._on_collect_items_clicked)
-        self.collect_button.setEnabled(True) # Assuming always enabled, logic can be added if needed
+        self.collect_button.setEnabled(True)
         return self.collect_button
     
     def _on_collect_items_clicked(self):
