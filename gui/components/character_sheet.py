@@ -227,7 +227,6 @@ class CharacterSheetWidget(QScrollArea):
             self._clear_stat_displays()
             
     def _setup_ui(self):
-
         # Create the main layout
         self.main_layout = QVBoxLayout(self.character_widget)
         self.main_layout.setContentsMargins(10, 10, 10, 10)
@@ -247,26 +246,27 @@ class CharacterSheetWidget(QScrollArea):
         self._create_skills_section()
         
         # Create equipment section
-        self._create_equipment_section()        
-    
+        self._create_equipment_section()
+        
     def _create_header(self):
-        """Create the character header section."""
-        # Group box for character header
+        """Create the character header section with enhanced styling."""
         header_group = QGroupBox("Character")
         header_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 2px solid #6b4423;
+                border-radius: 8px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #f4d89f;
+                padding-top: 20px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #f4d89f;
             }
         """)
         
@@ -278,16 +278,16 @@ class CharacterSheetWidget(QScrollArea):
         portrait_frame.setFixedSize(100, 100)
         portrait_frame.setStyleSheet("""
             QFrame {
-                border: 1px solid #555555;
-                background-color: #222222;
+                border: 2px solid #6b4423;
+                background-color: #1a1410;
+                border-radius: 4px;
             }
         """)
         
-        # Character portrait label - this will be replaced with the actual image when available
         self.portrait_label = QLabel("Portrait")
         self.portrait_label.setAlignment(Qt.AlignCenter)
-        self.portrait_label.setStyleSheet("color: #888888;")
-        self.portrait_label.setScaledContents(True)  # Make the image scale to fit the label
+        self.portrait_label.setStyleSheet("color: #8b7355;")
+        self.portrait_label.setScaledContents(True)
         
         portrait_layout = QVBoxLayout(portrait_frame)
         portrait_layout.addWidget(self.portrait_label)
@@ -295,79 +295,78 @@ class CharacterSheetWidget(QScrollArea):
         # Character info
         info_layout = QVBoxLayout()
         
-        # Create labels for character info
         self.name_label = QLabel("Name: Unknown")
-        self.name_label.setStyleSheet("font-size: 14pt; font-weight: bold; color: #E0E0E0;")
+        self.name_label.setStyleSheet("font-size: 14pt; font-weight: bold; color: #f4d89f;")
         
         self.race_class_label = QLabel("Race: Unknown | Class: Unknown")
-        self.race_class_label.setStyleSheet("font-size: 12pt; color: #CCCCCC;")
+        self.race_class_label.setStyleSheet("font-size: 12pt; color: #c9a875;")
         
         self.level_exp_label = QLabel("Level: 1 | Experience: 0/100")
-        self.level_exp_label.setStyleSheet("font-size: 11pt; color: #BBBBBB;")
+        self.level_exp_label.setStyleSheet("font-size: 11pt; color: #b8a080;")
         
-        # Experience bar
+        # Experience bar with gradient styling
         self.exp_bar = QProgressBar()
         self.exp_bar.setRange(0, 100)
         self.exp_bar.setValue(0)
         self.exp_bar.setTextVisible(True)
         self.exp_bar.setStyleSheet("""
             QProgressBar {
-                background-color: #333333;
-                border: 1px solid #555555;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 1px solid #6b4423;
                 border-radius: 3px;
                 text-align: center;
-                color: white;
+                color: #e8d4b8;
+                height: 20px;
             }
             QProgressBar::chunk {
-                background-color: #006699;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #6b8ea6, stop:1 #4a6a7a);
                 border-radius: 3px;
             }
         """)
         
-        # Add widgets to layout
         info_layout.addWidget(self.name_label)
         info_layout.addWidget(self.race_class_label)
         info_layout.addWidget(self.level_exp_label)
         info_layout.addWidget(self.exp_bar)
         
-        # Add layouts to header
         header_layout.addWidget(portrait_frame)
-        header_layout.addLayout(info_layout, 1)  # 1 is the stretch factor
+        header_layout.addLayout(info_layout, 1)
         
-        # Add header to main layout
         self.main_layout.addWidget(header_group)
     
     def _create_stats_section(self):
-        """Create the character stats section."""
-
-        # --- Create Primary Stats Group Box ---
+        """Create the character stats section with enhanced styling."""
+        
+        # --- Primary Stats Group ---
         primary_stats_group = QGroupBox("Primary Stats")
         primary_stats_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 2px solid #6b4423;
+                border-radius: 8px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #f4d89f;
+                padding-top: 20px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #f4d89f;
             }
         """)
         primary_stats_layout = QGridLayout(primary_stats_group)
-        primary_stats_layout.setColumnStretch(0, 1)  # First column stat names
-        primary_stats_layout.setColumnStretch(1, 0)  # First column values (no stretch)
-        primary_stats_layout.setColumnStretch(2, 1)  # Second column stat names
-        primary_stats_layout.setColumnStretch(3, 0)  # Second column values (no stretch)
-        primary_stats_layout.setColumnMinimumWidth(1, 50)  # Minimum width for value columns
+        primary_stats_layout.setColumnStretch(0, 1)
+        primary_stats_layout.setColumnStretch(1, 0)
+        primary_stats_layout.setColumnStretch(2, 1)
+        primary_stats_layout.setColumnStretch(3, 0)
+        primary_stats_layout.setColumnMinimumWidth(1, 50)
         primary_stats_layout.setColumnMinimumWidth(3, 50)
-        primary_stats_layout.setHorizontalSpacing(10)  # Add some spacing between columns
+        primary_stats_layout.setHorizontalSpacing(10)
 
-        # Add primary stats - Using Enum Name as stat_id
         self._add_stat(primary_stats_layout, 0, 0, StatType.STRENGTH.name, "Strength", "")
         self._add_stat(primary_stats_layout, 0, 1, StatType.DEXTERITY.name, "Dexterity", "")
         self._add_stat(primary_stats_layout, 1, 0, StatType.CONSTITUTION.name, "Constitution", "")
@@ -377,48 +376,51 @@ class CharacterSheetWidget(QScrollArea):
         self._add_stat(primary_stats_layout, 3, 0, StatType.WILLPOWER.name, "Willpower", "")
         self._add_stat(primary_stats_layout, 3, 1, StatType.INSIGHT.name, "Insight", "")
 
-        # --- Create Resources Group Box ---
+        # --- Resources Group ---
         resources_group = QGroupBox("Resources")
         resources_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 2px solid #6b4423;
+                border-radius: 8px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #f4d89f;
+                padding-top: 20px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #f4d89f;
             }
         """)
         resources_layout = QVBoxLayout(resources_group)
 
-        # Create resource bars
         self.resource_bars = {}
-        self._add_resource_bar(resources_layout, "Health", 100, 100, "#CC3333")
-        self._add_resource_bar(resources_layout, "Mana", 50, 50, "#3366CC")
-        self._add_resource_bar(resources_layout, "Stamina", 100, 100, "#66CC33")
+        self._add_resource_bar(resources_layout, "Health", 100, 100, "#c45f5f", "#8b3a3a")
+        self._add_resource_bar(resources_layout, "Mana", 50, 50, "#5f7fc4", "#3a4a7a")
+        self._add_resource_bar(resources_layout, "Stamina", 100, 100, "#5a9068", "#3a5a45")
 
-        # --- Create Combat Status Group Box (Modified to be Turn Order / Initiative only) ---
-        combat_info_group = QGroupBox("Combat Info") # Renamed for clarity
+        # --- Combat Info Group ---
+        combat_info_group = QGroupBox("Combat Info")
         combat_info_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 2px solid #6b4423;
+                border-radius: 8px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #f4d89f;
+                padding-top: 20px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #f4d89f;
             }
         """)
         combat_info_layout = QVBoxLayout(combat_info_group)
@@ -428,139 +430,130 @@ class CharacterSheetWidget(QScrollArea):
 
         # Status Effects section
         status_label = QLabel("Status Effects:")
-        status_label.setStyleSheet("color: #BBBBBB; font-weight: bold;")
+        status_label.setStyleSheet("color: #c9a875; font-weight: 600; font-size: 13px; margin-top: 10px;")
         combat_info_layout.addWidget(status_label)
 
         self.status_effects_list = QTextEdit()
         self.status_effects_list.setReadOnly(True)
-        self.status_effects_list.setMaximumHeight(60) # Keep height manageable
+        self.status_effects_list.setMaximumHeight(60)
         self.status_effects_list.setStyleSheet("""
             QTextEdit {
-                background-color: #222222;
-                border: 1px solid #444444;
-                color: #E0E0E0;
-                padding: 3px;
+                background-color: rgba(0, 0, 0, 0.3);
+                border: 1px solid #4a3a30;
+                color: #e8d4b8;
+                padding: 5px;
+                border-radius: 3px;
             }
         """)
         combat_info_layout.addWidget(self.status_effects_list)
         
-        # Turn Order section (kept for consistency, but might be less prominent if combat display is primary)
+        # Turn Order section
         turn_label = QLabel("Turn Order:")
-        turn_label.setStyleSheet("color: #BBBBBB; font-weight: bold;")
+        turn_label.setStyleSheet("color: #c9a875; font-weight: 600; font-size: 13px; margin-top: 10px;")
         combat_info_layout.addWidget(turn_label)
 
         self.turn_order_list = QTextEdit()
         self.turn_order_list.setReadOnly(True)
-        self.turn_order_list.setMaximumHeight(80) # Increased height for better visibility
+        self.turn_order_list.setMaximumHeight(80)
         self.turn_order_list.setStyleSheet("""
             QTextEdit {
-                background-color: #222222;
-                border: 1px solid #444444;
-                color: #E0E0E0;
-                padding: 3px;
-                line-height: 1.2; /* Adjust line height for readability */
+                background-color: rgba(0, 0, 0, 0.3);
+                border: 1px solid #4a3a30;
+                color: #e8d4b8;
+                padding: 5px;
+                border-radius: 3px;
+                line-height: 1.2;
             }
         """)
         combat_info_layout.addWidget(self.turn_order_list)
 
         # Initiative label
         initiative_layout = QHBoxLayout()
-        initiative_title_label = QLabel("Initiative:") # Changed variable name to avoid conflict
-        initiative_title_label.setStyleSheet("color: #BBBBBB; font-weight: bold;")
+        initiative_title_label = QLabel("Initiative:")
+        initiative_title_label.setStyleSheet("color: #c9a875; font-weight: 600; font-size: 13px;")
         self.initiative_value = QLabel("0")
-        self.initiative_value.setStyleSheet("color: #E0E0E0;")
+        self.initiative_value.setStyleSheet("color: #e8d4b8; font-size: 13px;")
         self.initiative_value.setAlignment(Qt.AlignRight)
         initiative_layout.addWidget(initiative_title_label)
         initiative_layout.addWidget(self.initiative_value)
         combat_info_layout.addLayout(initiative_layout)
 
-
-        # --- Create Derived Stats Group Box ---
+        # --- Derived Stats Group ---
         derived_stats_group = QGroupBox("Derived Stats")
         derived_stats_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 2px solid #6b4423;
+                border-radius: 8px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #f4d89f;
+                padding-top: 20px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #f4d89f;
             }
         """)
         derived_stats_layout = QGridLayout(derived_stats_group)
-        derived_stats_layout.setColumnStretch(0, 1)  # First column stat names
-        derived_stats_layout.setColumnStretch(1, 0)  # First column values (no stretch)
-        derived_stats_layout.setColumnStretch(2, 1)  # Second column stat names
-        derived_stats_layout.setColumnStretch(3, 0)  # Second column values (no stretch)
-        derived_stats_layout.setColumnMinimumWidth(1, 50)  # Minimum width for value columns
+        derived_stats_layout.setColumnStretch(0, 1)
+        derived_stats_layout.setColumnStretch(1, 0)
+        derived_stats_layout.setColumnStretch(2, 1)
+        derived_stats_layout.setColumnStretch(3, 0)
+        derived_stats_layout.setColumnMinimumWidth(1, 50)
         derived_stats_layout.setColumnMinimumWidth(3, 50)
-        derived_stats_layout.setHorizontalSpacing(10)  # Add some spacing between columns
+        derived_stats_layout.setHorizontalSpacing(10)
 
-        # Add derived stats - Using Enum Name as stat_id
         self._add_stat(derived_stats_layout, 0, 0, DerivedStatType.MELEE_ATTACK.name, "Melee Attack", "")
         self._add_stat(derived_stats_layout, 0, 1, DerivedStatType.RANGED_ATTACK.name, "Ranged Attack", "")
         self._add_stat(derived_stats_layout, 1, 0, DerivedStatType.MAGIC_ATTACK.name, "Magic Attack", "")
         self._add_stat(derived_stats_layout, 1, 1, DerivedStatType.DEFENSE.name, "Defense", "")
         self._add_stat(derived_stats_layout, 2, 0, DerivedStatType.MAGIC_DEFENSE.name, "Magic Defense", "")
-        # Initiative is now in Combat Info, removing from here to avoid duplication
-        # self._add_stat(derived_stats_layout, 2, 1, DerivedStatType.INITIATIVE.name, "Initiative", "")
         self._add_stat(derived_stats_layout, 3, 0, DerivedStatType.CARRY_CAPACITY.name, "Carry Capacity", "")
         self._add_stat(derived_stats_layout, 3, 1, DerivedStatType.MOVEMENT.name, "Movement", "")
-        self._add_stat(derived_stats_layout, 2, 1, DerivedStatType.DAMAGE_REDUCTION.name, "Damage Reduction", "") # Added DR
+        self._add_stat(derived_stats_layout, 2, 1, DerivedStatType.DAMAGE_REDUCTION.name, "Damage Reduction", "")
 
-        # --- Add the group boxes to the main layout ---
+        # Add all groups to main layout
         self.main_layout.addWidget(resources_group)
-        self.main_layout.addWidget(combat_info_group) # Add the renamed group
+        self.main_layout.addWidget(combat_info_group)
         self.main_layout.addWidget(primary_stats_group)
         self.main_layout.addWidget(derived_stats_group)
-
+        
     def _add_stat(self, layout, row, col, stat_id, stat_name, value):
-            """Add a stat to the stats layout."""
-            # Create label
-            label = QLabel(f"{stat_name}:") # Use descriptive name for the row label
-            label.setStyleSheet("color: #BBBBBB; font-weight: bold; padding-right: 5px;")
-            label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)  # Right align for closer spacing to values
+        """Add a stat to the stats layout with enhanced styling."""
+        label = QLabel(f"{stat_name}:")
+        label.setStyleSheet("color: #c9a875; font-weight: 600; padding-right: 5px; font-size: 13px;")
+        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-            # Create value label - use the Enum Name (stat_id) as the key
-            value_label = StatLabel(value, stat_id) # Pass Enum Name ("STR", "MELEE_ATTACK")
-            # Ensure HTML (for colored deltas) is rendered
-            try:
-                value_label.setTextFormat(Qt.RichText)
-            except Exception:
-                pass
-            # Set minimum width and restore original color
-            value_label.setStyleSheet("color: #E0E0E0; min-width: 50px; padding-left: 5px;")
-            value_label.setAlignment(Qt.AlignLeft)  # Changed to left align for closer spacing
+        value_label = StatLabel(value, stat_id)
+        try:
+            value_label.setTextFormat(Qt.RichText)
+        except Exception:
+            pass
+        value_label.setStyleSheet("color: #e8d4b8; min-width: 50px; padding-left: 5px; font-size: 13px;")
+        value_label.setAlignment(Qt.AlignLeft)
 
-            # Store the value label using the Enum Name as the key
-            if stat_id in [s.name for s in StatType]:
-                self.primary_stat_labels[stat_id] = value_label
-            else:
-                self.derived_stat_labels[stat_id] = value_label
+        if stat_id in [s.name for s in StatType]:
+            self.primary_stat_labels[stat_id] = value_label
+        else:
+            self.derived_stat_labels[stat_id] = value_label
 
-            # Add to layout
-            layout.addWidget(label, row, col * 2)
-            layout.addWidget(value_label, row, col * 2 + 1)
-    
-    def _add_resource_bar(self, layout, name, value, max_value, color):
-        """Add a resource bar to the layout."""
-        # Create container
+        layout.addWidget(label, row, col * 2)
+        layout.addWidget(value_label, row, col * 2 + 1)
+
+    def _add_resource_bar(self, layout, name, value, max_value, light_color, dark_color):
+        """Add a resource bar with gradient styling."""
         container = QWidget()
         container_layout = QVBoxLayout(container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         container_layout.setSpacing(2)
         
-        # Create label
         label = QLabel(f"{name}: {value}/{max_value}")
-        label.setStyleSheet("color: #BBBBBB; font-weight: bold;")
+        label.setStyleSheet("color: #c9a875; font-weight: 600; font-size: 13px;")
         
-        # Create progress bar
         progress_bar = QProgressBar()
         progress_bar.setRange(0, max_value)
         progress_bar.setValue(value)
@@ -568,85 +561,85 @@ class CharacterSheetWidget(QScrollArea):
         progress_bar.setFormat(f"%v/%m")
         progress_bar.setStyleSheet(f"""
             QProgressBar {{
-                background-color: #333333;
-                border: 1px solid #555555;
+                background-color: rgba(0, 0, 0, 0.3);
+                border: 1px solid #4a3a30;
                 border-radius: 3px;
                 text-align: center;
-                color: white;
+                color: #e8d4b8;
+                height: 22px;
             }}
             QProgressBar::chunk {{
-                background-color: {color};
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {light_color}, stop:1 {dark_color});
                 border-radius: 3px;
             }}
         """)
         
-        # Add to container
         container_layout.addWidget(label)
         container_layout.addWidget(progress_bar)
         
-        # Store the bar
         self.resource_bars[name.lower()] = (label, progress_bar)
         
-        # Add to layout
         layout.addWidget(container)
-    
+
     def _create_skills_section(self):
-        """Create the character skills section."""
-        # Group box for skills
+        """Create the character skills section with enhanced styling."""
         skills_group = QGroupBox("Skills")
         skills_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 2px solid #6b4423;
+                border-radius: 8px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #f4d89f;
+                padding-top: 20px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #f4d89f;
             }
         """)
         
         skills_layout = QVBoxLayout(skills_group)
         
-        # Create a label for when no skills are available
         self.no_skills_label = QLabel("No skills available yet.")
-        self.no_skills_label.setStyleSheet("color: #888888; font-style: italic;")
+        self.no_skills_label.setStyleSheet("color: #8b7355; font-style: italic;")
         self.no_skills_label.setAlignment(Qt.AlignCenter)
         
         skills_layout.addWidget(self.no_skills_label)
         
-        # Add skills to main layout
         self.main_layout.addWidget(skills_group)
-    
+
     def _create_equipment_section(self):
-        """Create the character equipment section using QGridLayout and self.equip_labels."""
+        """Create the character equipment section with enhanced styling."""
         equipment_group = QGroupBox("Equipment")
         equipment_group.setStyleSheet("""
             QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
+                background-color: rgba(20, 15, 10, 0.8);
+                border: 2px solid #6b4423;
+                border-radius: 8px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: #f4d89f;
+                padding-top: 20px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
+                color: #f4d89f;
             }
         """)
         
         equipment_layout = QGridLayout(equipment_group)
-        equipment_layout.setSpacing(5) 
+        equipment_layout.setSpacing(5)
         
-        self.equip_labels: Dict[str, CharacterSheetWidget.EquippedItemLabel] = {} 
+        self.equip_labels: Dict[str, CharacterSheetWidget.EquippedItemLabel] = {}
         slots_to_display = [
             EquipmentSlot.HEAD, EquipmentSlot.NECK,
             EquipmentSlot.CHEST, EquipmentSlot.BACK,
@@ -658,7 +651,7 @@ class CharacterSheetWidget(QScrollArea):
             EquipmentSlot.TRINKET_1, EquipmentSlot.TRINKET_2
         ]
 
-        num_cols = 2 
+        num_cols = 2
         for i, slot_enum in enumerate(slots_to_display):
             row = i // num_cols
             col = i % num_cols
@@ -666,20 +659,19 @@ class CharacterSheetWidget(QScrollArea):
             slot_display_name = slot_enum.value.replace('_', ' ').title()
             
             slot_label_widget = QLabel(f"{slot_display_name}:")
-            slot_label_widget.setStyleSheet("color: #BBBBBB; font-weight: bold; padding-right: 5px;")
+            slot_label_widget.setStyleSheet("color: #c9a875; font-weight: 600; padding-right: 5px; font-size: 13px;")
             slot_label_widget.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             
-            # Use the new EquippedItemLabel
             value_label_widget = CharacterSheetWidget.EquippedItemLabel("None", slot_enum, None, self)
-            value_label_widget.set_item_data("None", None) # Initial state
-            value_label_widget.setMinimumWidth(120) 
+            value_label_widget.set_item_data("None", None)
+            value_label_widget.setMinimumWidth(120)
             value_label_widget.setWordWrap(True)
             value_label_widget.context_menu_requested_for_slot.connect(self._handle_equipped_item_context_menu)
             
             self.equip_labels[slot_enum.value] = value_label_widget
             
-            equipment_layout.addWidget(slot_label_widget, row, col * 2)     
-            equipment_layout.addWidget(value_label_widget, row, col * 2 + 1) 
+            equipment_layout.addWidget(slot_label_widget, row, col * 2)
+            equipment_layout.addWidget(value_label_widget, row, col * 2 + 1)
         
         self.main_layout.addWidget(equipment_group)
 
@@ -1485,10 +1477,10 @@ class CharacterSheetWidget(QScrollArea):
             self.item_id = item_id
             if item_id:
                 self.setCursor(Qt.PointingHandCursor)
-                self.setStyleSheet("color: #E0E0E0;") # Normal color for equipped item
+                self.setStyleSheet("color: #e8d4b8; font-size: 13px;")
             else:
                 self.setCursor(Qt.ArrowCursor)
-                self.setStyleSheet("color: #888888; font-style: italic;") # Dim for "None"
+                self.setStyleSheet("color: #8b7355; font-style: italic; font-size: 13px;")
 
         def show_context_menu_slot(self, position: QPoint):
             if self.item_id: # Only show menu if an item is equipped
