@@ -1606,6 +1606,37 @@ class MainWindow(QMainWindow):
         logger.info(f"MainWindow processing orchestrated event: {event}")
         state = self.game_engine.state_manager.current_state
 
+        # --- AP System: Handle AP_UPDATE event ---
+        if event.type == DisplayEventType.AP_UPDATE:
+            metadata = event.metadata or {}
+            entity_id = metadata.get("entity_id")
+            
+            player_id = None
+            if state and state.player:
+                player_id = getattr(state.player, 'id', getattr(state.player, 'stats_manager_id', None))
+
+            # --- DIAGNOSTIC LOGGING ---
+            logger.info(f"[AP_UPDATE] Handling event for entity {entity_id}. Player ID is {player_id}.")
+
+            if entity_id == player_id:
+                if self.right_panel and self.right_panel.character_sheet:
+                    current_ap = metadata.get("current_ap", 0.0)
+                    max_ap = metadata.get("max_ap", 0.0)
+                    logger.info(f"[AP_UPDATE] IDs MATCH. Calling update_ap_display with current_ap={current_ap}, max_ap={max_ap}.")
+                    self.right_panel.character_sheet.update_ap_display(current_ap, max_ap)
+                else:
+                    logger.error("[AP_UPDATE] IDs matched, but self.right_panel.character_sheet reference is broken!")
+            else:
+                logger.info(f"[AP_UPDATE] IDs MISMATCH. This event is not for the player character.")
+            
+            # TODO: Update AP display for other entities in CombatDisplay if implemented
+
+            # This is a UI-only update, signal completion immediately
+            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
+                QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
+            return
+        # --- End AP System ---
+
         target_widget = None
         # Determine primary target widget
         if event.target_display == DisplayTarget.COMBAT_LOG:
@@ -1794,7 +1825,6 @@ class MainWindow(QMainWindow):
             logger.error(f"Orchestrated event has non-string content and is not a known special type: {event}")
             if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
                 self.game_engine._combat_orchestrator._handle_visual_display_complete()
-
     def _initialize_panel_effects(self):
         """Initialize QGraphicsOpacityEffect for panels that will be animated."""
         if not hasattr(self, 'center_opacity_effect'):

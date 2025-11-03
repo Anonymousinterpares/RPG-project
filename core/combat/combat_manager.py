@@ -253,6 +253,23 @@ class CombatManager:
 
         # --- ECFA Change: Flag for orchestrator control ---
         self.waiting_for_display_completion: bool = False
+        
+        # --- AP System ---
+        self.ap_pool: Dict[str, float] = {}
+        self._ap_config: Dict[str, Any] = {}
+        # --- End AP System ---
+
+        # --- FIX: Load AP config directly on initialization ---
+        try:
+            from core.utils.json_utils import load_json
+            combat_config = load_json("config/combat/combat_config.json")
+            self._ap_config = combat_config.get("ap_system", {})
+            logger.info(f"[AP_DEBUG] CombatManager initialized and loaded AP config directly from combat_config.json. Enabled: {self._ap_config.get('enabled', False)}")
+        except Exception as e:
+            logger.error(f"Failed to load AP system config from combat_config.json during CombatManager init: {e}")
+            self._ap_config = {}
+        # --- END FIX ---
+
         # --- End ECFA Change ---
 
     def _cleanup_llm_objects(self, thread: QThread, worker: QObject, bridge: QObject) -> None:
@@ -774,7 +791,16 @@ class CombatManager:
                 entity.initiative = total_initiative
                 initiative_values.append((entity_id, total_initiative))
                 roll_detail_msg = f"{entity.combat_name} rolls initiative: {total_initiative:.0f} (Base:{base_initiative:.0f} + Roll:{roll})"
-                self._add_to_log(roll_detail_msg) 
+                self._add_to_log(roll_detail_msg)
+
+                # --- AP System: Initiative Bonus ---
+                if self._ap_config.get("enabled", False) and total_initiative > 15: # Threshold for bonus
+                    bonus_ap = self._ap_config.get("initiative_bonus_ap", 2.0)
+                    self.ap_pool[entity_id] = self.ap_pool.get(entity_id, 0.0) + bonus_ap
+                    bonus_msg = f"{entity.combat_name} gets an initiative bonus of {bonus_ap} AP!"
+                    engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=bonus_msg, target_display=DisplayTarget.COMBAT_LOG))
+                # --- End AP System ---
+
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=roll_detail_msg, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name))
                 events_queued_this_pass = True
 
@@ -796,52 +822,97 @@ class CombatManager:
             self.waiting_for_display_completion = False # No new messages, proceed
 
     def _step_starting_round(self, engine):
-        """Increments round, queues messages, sets first actor step, then pauses."""
-        if not hasattr(engine, '_combat_orchestrator'):
-            logger.error("Orchestrator not found on engine in _step_starting_round.")
-            self.end_combat("Internal error: Orchestrator unavailable for round start.")
-            self.current_step = CombatStep.COMBAT_ENDED
-            return
+            """Increments round, queues messages, sets first actor step, then pauses."""
+            if not hasattr(engine, '_combat_orchestrator'):
+                logger.error("Orchestrator not found on engine in _step_starting_round.")
+                self.end_combat("Internal error: Orchestrator unavailable for round start.")
+                self.current_step = CombatStep.COMBAT_ENDED
+                return
 
-        from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
-        
-        self.round_number += 1
-        round_start_msg = f"Round {self.round_number} begins!"
-        self._add_to_log(round_start_msg) 
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=round_start_msg, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name))
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+            
+            self.round_number += 1
+            round_start_msg = f"Round {self.round_number} begins!"
+            self._add_to_log(round_start_msg) 
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=round_start_msg, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name))
 
-        if not self.turn_order:
-            logger.error("Cannot start round: Turn order is empty. This should have been set by _step_rolling_initiative.")
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content="System Error: Turn order missing for round start.", target_display=DisplayTarget.COMBAT_LOG))
-            self.end_combat("Error: Turn order missing.")
-            self.current_step = CombatStep.ENDING_COMBAT
-            self.waiting_for_display_completion = True 
-            return
+            if not self.turn_order:
+                logger.error("Cannot start round: Turn order is empty. This should have been set by _step_rolling_initiative.")
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content="System Error: Turn order missing for round start.", target_display=DisplayTarget.COMBAT_LOG))
+                self.end_combat("Error: Turn order missing.")
+                self.current_step = CombatStep.ENDING_COMBAT
+                self.waiting_for_display_completion = True 
+                return
+                
+            turn_order_log_msg = "Turn order: " + ", ".join(self.entities[eid].combat_name for eid in self.turn_order if eid in self.entities and self.entities[eid].is_alive() and getattr(self.entities[eid], 'is_active_in_combat', True))
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=turn_order_log_msg, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name + "_order_display"))
+                
+            first_actor_this_round_id = None
+            first_actor_index_this_round = -1
+            for i, entity_id_in_order in enumerate(self.turn_order):
+                entity = self.entities.get(entity_id_in_order)
+                if entity and entity.is_alive() and getattr(entity, 'is_active_in_combat', True):
+                    if first_actor_this_round_id is None: 
+                        first_actor_this_round_id = entity_id_in_order
+                        first_actor_index_this_round = i
             
-        turn_order_log_msg = "Turn order: " + ", ".join(self.entities[eid].combat_name for eid in self.turn_order if eid in self.entities and self.entities[eid].is_alive() and getattr(self.entities[eid], 'is_active_in_combat', True))
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=turn_order_log_msg, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name + "_order_display"))
+            if first_actor_this_round_id:
+                self.current_turn_index = first_actor_index_this_round 
+                self._active_entity_id = first_actor_this_round_id
+
+                # --- AP System: AP Regeneration ---
+                if self._ap_config.get("enabled", False):
+                    try:
+                        stats_manager = self._get_entity_stats_manager(first_actor_this_round_id)
+                        if stats_manager:
+                            max_ap = stats_manager.get_stat_value(DerivedStatType.MAX_AP)
+                            ap_regen = stats_manager.get_stat_value(DerivedStatType.AP_REGENERATION)
+                            
+                            current_ap = self.ap_pool.get(first_actor_this_round_id, 0.0)
+                            new_ap = min(max_ap, current_ap + ap_regen)
+                            self.ap_pool[first_actor_this_round_id] = new_ap
+                            
+                            entity_name = self.entities[first_actor_this_round_id].combat_name
+                            regen_msg = f"{entity_name} regenerates {ap_regen:.0f} AP."
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=regen_msg, target_display=DisplayTarget.COMBAT_LOG))
+                            
+                            ap_update_event = DisplayEvent(
+                                type=DisplayEventType.AP_UPDATE,
+                                content={},
+                                metadata={"entity_id": first_actor_this_round_id, "current_ap": new_ap, "max_ap": max_ap},
+                                target_display=DisplayTarget.MAIN_GAME_OUTPUT
+                            )
+                            engine._combat_orchestrator.add_event_to_queue(ap_update_event)
+                    except Exception as e:
+                        logger.error(f"Failed to regenerate AP for entity {first_actor_this_round_id}: {e}")
+                # --- End AP System ---
+
+                # --- FIX: Announce whose turn it is ---
+                turn_announce_msg = f"It is now {self.entities[self._active_entity_id].combat_name}'s turn."
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=turn_announce_msg, target_display=DisplayTarget.COMBAT_LOG))
+                # --- END FIX ---
+
+                logger.info(f"Round {self.round_number}. First active entity identified: {self.entities[self._active_entity_id].combat_name}")
+                self._set_next_actor_step(self._active_entity_id, engine) # Pass engine here
+            else:
+                logger.warning("No active entities found to start the round. Ending combat.")
+                self._check_combat_state() 
+                if self.state == CombatState.IN_PROGRESS: self.end_combat("No active combatants to start round.")
+                self.current_step = CombatStep.ENDING_COMBAT
             
-        first_actor_this_round_id = None
-        first_actor_index_this_round = -1
-        for i, entity_id_in_order in enumerate(self.turn_order):
-            entity = self.entities.get(entity_id_in_order)
-            if entity and entity.is_alive() and getattr(entity, 'is_active_in_combat', True):
-                if first_actor_this_round_id is None: 
-                    first_actor_this_round_id = entity_id_in_order
-                    first_actor_index_this_round = i
-        
-        if first_actor_this_round_id:
-            self.current_turn_index = first_actor_index_this_round 
-            self._active_entity_id = first_actor_this_round_id
-            logger.info(f"Round {self.round_number}. First active entity identified: {self.entities[self._active_entity_id].combat_name}")
-            self._set_next_actor_step(self._active_entity_id, engine) # Pass engine here
-        else:
-            logger.warning("No active entities found to start the round. Ending combat.")
-            self._check_combat_state() 
-            if self.state == CombatState.IN_PROGRESS: self.end_combat("No active combatants to start round.")
-            self.current_step = CombatStep.ENDING_COMBAT
-        
-        self.waiting_for_display_completion = True
+            self.waiting_for_display_completion = True
+            
+    def _initialize_ap_for_all(self):
+        """Initializes or resets the AP pool for all current combatants."""
+        if self._ap_config.get("enabled", False):
+            base_ap = self._ap_config.get("base_ap", 4.0)
+            for entity_id, entity in self.entities.items():
+                try:
+                    self.ap_pool[entity_id] = float(base_ap)
+                    logger.info(f"Initialized AP for {entity.combat_name} to {self.ap_pool[entity_id]}")
+                except Exception as e:
+                    logger.error(f"Failed to initialize AP for entity {entity_id}: {e}")
+
     def receive_player_action(self, engine: 'GameEngine', intent: str):
         if self.current_step != CombatStep.AWAITING_PLAYER_INPUT:
             logger.warning(f"Received player action intent '{intent[:50]}...' but current step is {self.current_step}. Ignoring.")
@@ -851,7 +922,7 @@ class CombatManager:
         self.current_step = CombatStep.PROCESSING_PLAYER_ACTION
         self.process_combat_step(engine)
 
-    def prepare_for_combat(self, player_entity: CombatEntity, enemy_entities: List[CombatEntity], surprise: bool, initiating_intent: str):
+    def prepare_for_combat(self, engine: 'GameEngine', player_entity: CombatEntity, enemy_entities: List[CombatEntity], surprise: bool, initiating_intent: str):
         logger.info(f"Preparing for combat. Surprise: {surprise}. Intent: '{initiating_intent[:50]}...'")
         self.entities = {}
         self.turn_order = []
@@ -869,6 +940,10 @@ class CombatManager:
         self._is_surprise_round = False # Initialize
         self._surprise_round_entities = [] # Initialize
 
+        # --- AP System Initialization ---
+        self.ap_pool = {}
+        # --- Config loading is now handled in __init__ ---
+
         if not hasattr(player_entity, 'combat_name') or not player_entity.combat_name:
             logger.error(f"Player entity missing combat_name: {player_entity.name}")
             player_entity.combat_name = player_entity.name # Fallback
@@ -883,6 +958,27 @@ class CombatManager:
             self.entities[enemy.id] = enemy
             self._enemy_entity_ids.append(enemy.id)
             logger.info(f"Added entity to combat prep: {enemy.name} (Combat Name: {enemy.combat_name}, ID: {enemy.id})")
+
+        # --- AP System: Set initial AP for all entities ---
+        self._initialize_ap_for_all() # Use the new helper method
+
+        # --- FIX: Queue initial AP_UPDATE events for UI --- 
+        if self._ap_config.get("enabled", False) and hasattr(engine, '_combat_orchestrator'):
+            for entity_id, entity in self.entities.items():
+                stats_manager = self._get_entity_stats_manager(entity_id)
+                if stats_manager:
+                    max_ap = stats_manager.get_stat_value(DerivedStatType.MAX_AP)
+                    current_ap = self.ap_pool.get(entity_id, 0.0)
+                    ap_update_event = DisplayEvent(
+                        type=DisplayEventType.AP_UPDATE,
+                        content={},
+                        metadata={"entity_id": entity_id, "current_ap": current_ap, "max_ap": max_ap},
+                        target_display=DisplayTarget.MAIN_GAME_OUTPUT,
+                        source_step='PREPARE_FOR_COMBAT'
+                    )                    
+                    engine._combat_orchestrator.add_event_to_queue(ap_update_event)
+            logger.info("Queued initial AP_UPDATE events for all combatants.")
+        # --- END FIX ---
 
         # Explicitly sync CombatEntity fields with their StatsManagers
         for entity_id, combat_entity_obj in self.entities.items():
@@ -1011,132 +1107,172 @@ class CombatManager:
         return final_cost, cost_details
 
     def perform_action(self, action: CombatAction, engine: Optional['GameEngine'] = None) -> Dict[str, Any]:
-        """
-        Performs the *mechanics* of a combat action, updating state via StatsManager.
-        It now also queues DisplayEvents for rolls, damage, UI updates via the orchestrator
-        by calling handlers from action_handlers.py.
-        Stamina/Mana costs are now applied *before* the action handler is called.
-        Does NOT call agents or advance turns. Returns a detailed result dictionary for internal use
-        and a flag if events were queued.
+            """
+            Performs the *mechanics* of a combat action, updating state via StatsManager.
+            It now also queues DisplayEvents for rolls, damage, UI updates via the orchestrator
+            by calling handlers from action_handlers.py.
+            Stamina/Mana costs are now applied *before* the action handler is called.
+            Does NOT call agents or advance turns. Returns a detailed result dictionary for internal use
+            and a flag if events were queued.
 
-        Args:
-            action: The action to perform.
-            engine: The GameEngine instance (for accessing orchestrator).
+            Args:
+                action: The action to perform.
+                engine: The GameEngine instance (for accessing orchestrator).
 
-        Returns:
-            Dictionary with the detailed results and a 'queued_events': True/False flag.
-        """
-        if not engine or not hasattr(engine, '_combat_orchestrator'):
-            logger.error("Engine or Orchestrator unavailable in perform_action. Cannot queue display events.")
-            return {"success": False, "message": "Internal Error: Orchestrator missing.", "queued_events": False}
+            Returns:
+                Dictionary with the detailed results and a 'queued_events': True/False flag.
+            """
+            if not engine or not hasattr(engine, '_combat_orchestrator'):
+                logger.error("Engine or Orchestrator unavailable in perform_action. Cannot queue display events.")
+                return {"success": False, "message": "Internal Error: Orchestrator missing.", "queued_events": False}
 
-        from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
 
-        default_result = {"success": False, "message": "Action could not be performed.", "queued_events": False}
-        if self.state != CombatState.IN_PROGRESS:
-            return {**default_result, "message": "Combat is not in progress"}
+            default_result = {"success": False, "message": "Action could not be performed.", "queued_events": False}
+            if self.state != CombatState.IN_PROGRESS:
+                return {**default_result, "message": "Combat is not in progress"}
 
-        performer = self.entities.get(action.performer_id)
-        if not performer:
-            return {**default_result, "message": "Performer entity not found"}
+            performer = self.entities.get(action.performer_id)
+            if not performer:
+                return {**default_result, "message": "Performer entity not found"}
 
-        performer_stats_manager = self._get_entity_stats_manager(performer.id)
-        if not performer_stats_manager:
-            logger.error(f"Could not find StatsManager for performer {performer.id}.")
-            err_msg = f"Internal Error: Stats missing for {performer.combat_name}."
-            event_err = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=err_msg, target_display=DisplayTarget.COMBAT_LOG)
-            engine._combat_orchestrator.add_event_to_queue(event_err)
-            return {**default_result, "message": err_msg, "queued_events": True}
+            performer_stats_manager = self._get_entity_stats_manager(performer.id)
+            if not performer_stats_manager:
+                logger.error(f"Could not find StatsManager for performer {performer.id}.")
+                err_msg = f"Internal Error: Stats missing for {performer.combat_name}."
+                event_err = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=err_msg, target_display=DisplayTarget.COMBAT_LOG)
+                engine._combat_orchestrator.add_event_to_queue(event_err)
+                return {**default_result, "message": err_msg, "queued_events": True}
 
-        queued_events_flag = False 
+            queued_events_flag = False
 
-        stamina_cost, cost_details_stamina = self._calculate_stamina_cost(action, performer)
-        mana_cost = action.cost_mp
-        current_stamina_val = performer_stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
-        current_mana_val = performer_stats_manager.get_current_stat_value(DerivedStatType.MANA)
-        
-        self._last_action_result_detail = {
-            "performer_id": performer.id, "performer_name": performer.combat_name,
-            "action_name": action.name, "stamina_cost_calculated": stamina_cost,
-            "mana_cost_calculated": mana_cost,
-            "action_id_for_narration": action.id # Store action ID for outcome narration matching
-        }
-        if action.targets:
-            target_obj = self.entities.get(action.targets[0])
-            if target_obj: self._last_action_result_detail["target_name"] = target_obj.combat_name
-            self._last_action_result_detail["target_id"] = action.targets[0]
+            # --- AP System: Cost Check ---
+            ap_cost = 0.0
+            if self._ap_config.get("enabled", False):
+                action_costs = self._ap_config.get("action_costs", {})
+                ap_cost = action_costs.get(action.action_type.name.lower(), 0.0)
+                current_ap = self.ap_pool.get(performer.id, 0.0)
+                if current_ap < ap_cost:
+                    cost_fail_msg = f"{performer.combat_name} tries to {action.name} but lacks AP ({current_ap:.1f}/{ap_cost:.1f})"
+                    self._add_to_log(cost_fail_msg)
+                    event_cost_fail = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cost_fail_msg, target_display=DisplayTarget.COMBAT_LOG)
+                    engine._combat_orchestrator.add_event_to_queue(event_cost_fail)
+                    queued_events_flag = True
+                    self._last_action_result_detail.update({"success": False, "message": "Not enough AP."})
+                    return {**default_result, "message": "Not enough AP.", "queued_events": queued_events_flag}
+            # --- End AP System ---
 
-        if current_stamina_val < stamina_cost:
-            cost_fail_msg = f"{performer.combat_name} tries to {action.name} but lacks stamina ({current_stamina_val:.1f}/{stamina_cost:.1f})"
-            self._add_to_log(cost_fail_msg) 
-            event_cost_fail = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cost_fail_msg, target_display=DisplayTarget.COMBAT_LOG)
-            engine._combat_orchestrator.add_event_to_queue(event_cost_fail)
-            queued_events_flag = True
-            self._last_action_result_detail.update({"success": False, "message": "Not enough stamina."})
-            return {**default_result, "message": "Not enough stamina.", "queued_events": queued_events_flag}
-        
-        if mana_cost > 0 and current_mana_val < mana_cost:
-            cost_fail_msg = f"{performer.combat_name} tries to {action.name} but lacks mana ({current_mana_val:.1f}/{mana_cost:.1f})"
-            self._add_to_log(cost_fail_msg)
-            event_cost_fail = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cost_fail_msg, target_display=DisplayTarget.COMBAT_LOG)
-            engine._combat_orchestrator.add_event_to_queue(event_cost_fail)
-            # SFX: magic failed due to insufficient mana
-            try:
-                if hasattr(engine, '_sfx_manager') and engine._sfx_manager:
-                    engine._sfx_manager.play_magic_cast(None, None, None, failed=True)
-            except Exception:
-                pass
-            queued_events_flag = True
-            self._last_action_result_detail.update({"success": False, "message": "Not enough mana."})
-            return {**default_result, "message": "Not enough mana.", "queued_events": queued_events_flag}
 
-        # --- Defer resource cost visual updates to the action handler (after roll/attempt text) ---
-        # Costs are recorded here to be applied (and displayed) by the handler at the correct timing
-        self._last_action_result_detail["stamina_spent"] = stamina_cost
-        self._last_action_result_detail["stamina_remaining_after_action_preview"] = current_stamina_val - stamina_cost
-        self._last_action_result_detail["mana_spent"] = mana_cost if mana_cost > 0 else 0
-        self._last_action_result_detail["mana_remaining_after_action_preview"] = (current_mana_val - mana_cost) if mana_cost > 0 else current_mana_val
-        new_mana_preview = current_mana_val
-        
-        # Action handler execution
-        try:
-            action_handler_func = None
-            if action.action_type == ActionType.ATTACK: action_handler_func = _handle_attack_action 
-            elif action.action_type == ActionType.SPELL: action_handler_func = _handle_spell_action   
-            elif action.action_type == ActionType.DEFEND: action_handler_func = _handle_defend_action 
-            elif action.action_type == ActionType.ITEM: action_handler_func = _handle_item_action   
-            elif action.action_type == ActionType.FLEE: action_handler_func = _handle_flee_action_mechanics
+            stamina_cost, cost_details_stamina = self._calculate_stamina_cost(action, performer)
+            mana_cost = action.cost_mp
+            current_stamina_val = performer_stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
+            current_mana_val = performer_stats_manager.get_current_stat_value(DerivedStatType.MANA)
+            
+            self._last_action_result_detail = {
+                "performer_id": performer.id, "performer_name": performer.combat_name,
+                "action_name": action.name, "stamina_cost_calculated": stamina_cost,
+                "mana_cost_calculated": mana_cost,
+                "action_id_for_narration": action.id # Store action ID for outcome narration matching
+            }
+            if action.targets:
+                target_obj = self.entities.get(action.targets[0])
+                if target_obj: self._last_action_result_detail["target_name"] = target_obj.combat_name
+                self._last_action_result_detail["target_id"] = action.targets[0]
 
-            if action_handler_func:
-                # _last_action_result_detail is passed to be updated by the handler
-                handler_result_dict = action_handler_func(self, action, performer, performer_stats_manager, engine, self._last_action_result_detail)
-                # The handler_result_dict is now effectively the updated self._last_action_result_detail
-                if handler_result_dict.get("queued_events", False): queued_events_flag = True
-            else:
-                generic_action_msg = f"{performer.combat_name} performs action: {action.name} (Type: {action.action_type.name}) - No specific handler."
-                self._add_to_log(generic_action_msg)
-                event_generic = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=generic_action_msg, target_display=DisplayTarget.COMBAT_LOG)
-                engine._combat_orchestrator.add_event_to_queue(event_generic)
+            if current_stamina_val < stamina_cost:
+                cost_fail_msg = f"{performer.combat_name} tries to {action.name} but lacks stamina ({current_stamina_val:.1f}/{stamina_cost:.1f})"
+                self._add_to_log(cost_fail_msg) 
+                event_cost_fail = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cost_fail_msg, target_display=DisplayTarget.COMBAT_LOG)
+                engine._combat_orchestrator.add_event_to_queue(event_cost_fail)
                 queued_events_flag = True
-                self._last_action_result_detail.update({"success": True, "message": f"Performed generic action: {action.name}"})
+                self._last_action_result_detail.update({"success": False, "message": "Not enough stamina."})
+                return {**default_result, "message": "Not enough stamina.", "queued_events": queued_events_flag}
+            
+            if mana_cost > 0 and current_mana_val < mana_cost:
+                cost_fail_msg = f"{performer.combat_name} tries to {action.name} but lacks mana ({current_mana_val:.1f}/{mana_cost:.1f})"
+                self._add_to_log(cost_fail_msg)
+                event_cost_fail = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cost_fail_msg, target_display=DisplayTarget.COMBAT_LOG)
+                engine._combat_orchestrator.add_event_to_queue(event_cost_fail)
+                # SFX: magic failed due to insufficient mana
+                try:
+                    if hasattr(engine, '_sfx_manager') and engine._sfx_manager:
+                        engine._sfx_manager.play_magic_cast(None, None, None, failed=True)
+                except Exception:
+                    pass
+                queued_events_flag = True
+                self._last_action_result_detail.update({"success": False, "message": "Not enough mana."})
+                return {**default_result, "message": "Not enough mana.", "queued_events": queued_events_flag}
 
-        except Exception as e:
-            logger.error(f"Error executing action {action.name} mechanics for {performer.combat_name}: {e}", exc_info=True)
-            exec_err_msg = f"System Error during {action.name}: {e}"
-            event_exec_err = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=exec_err_msg, target_display=DisplayTarget.COMBAT_LOG)
-            engine._combat_orchestrator.add_event_to_queue(event_exec_err)
-            queued_events_flag = True
-            self._last_action_result_detail.update({"success": False, "message": f"Error during execution: {e}"})
-            return {**default_result, "message": f"Error: {e}", "queued_events": queued_events_flag}
-        
-        # Update the main result dict with success being the success of the mechanical action itself
-        # (e.g., hit, spell landed, item used as intended)
-        # The handlers directly modify self._last_action_result_detail.
-        final_action_success = self._last_action_result_detail.get("success", False)
-        final_action_message = self._last_action_result_detail.get("message", "Action processed.")
-        
-        return {"success": final_action_success, "message": final_action_message, "queued_events": queued_events_flag, "details": self._last_action_result_detail}
-    
+            # --- Apply Resource Costs and Queue UI Updates ---
+            # Stamina
+            new_stamina = current_stamina_val - stamina_cost
+            performer_stats_manager.set_current_stat(DerivedStatType.STAMINA, new_stamina)
+            max_stamina = performer_stats_manager.get_stat_value(DerivedStatType.MAX_STAMINA)
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE1, content={}, metadata={"entity_id": performer.id, "bar_type": "stamina", "old_value": current_stamina_val, "new_value_preview": new_stamina, "max_value": max_stamina}))
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={}, metadata={"entity_id": performer.id, "bar_type": "stamina", "final_new_value": new_stamina, "max_value": max_stamina}))
+
+            # Mana
+            if mana_cost > 0:
+                new_mana = current_mana_val - mana_cost
+                performer_stats_manager.set_current_stat(DerivedStatType.MANA, new_mana)
+                max_mana = performer_stats_manager.get_stat_value(DerivedStatType.MAX_MANA)
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE1, content={}, metadata={"entity_id": performer.id, "bar_type": "mana", "old_value": current_mana_val, "new_value_preview": new_mana, "max_value": max_mana}))
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={}, metadata={"entity_id": performer.id, "bar_type": "mana", "final_new_value": new_mana, "max_value": max_mana}))
+
+            # AP
+            if self._ap_config.get("enabled", False):
+                current_ap = self.ap_pool.get(performer.id, 0.0)
+                new_ap = current_ap - ap_cost
+                self.ap_pool[performer.id] = new_ap
+                max_ap = performer_stats_manager.get_stat_value(DerivedStatType.MAX_AP)
+                ap_update_event = DisplayEvent(
+                    type=DisplayEventType.AP_UPDATE,
+                    content={},
+                    metadata={"entity_id": performer.id, "current_ap": new_ap, "max_ap": max_ap},
+                    target_display=DisplayTarget.MAIN_GAME_OUTPUT
+                )
+                engine._combat_orchestrator.add_event_to_queue(ap_update_event)
+                logger.info(f"Deducted {ap_cost} AP from {performer.combat_name}. New AP: {new_ap}")
+            # --- End Apply Resource Costs ---
+
+            # Action handler execution
+            try:
+                action_handler_func = None
+                if action.action_type == ActionType.ATTACK: action_handler_func = _handle_attack_action 
+                elif action.action_type == ActionType.SPELL: action_handler_func = _handle_spell_action   
+                elif action.action_type == ActionType.DEFEND: action_handler_func = _handle_defend_action 
+                elif action.action_type == ActionType.ITEM: action_handler_func = _handle_item_action   
+                elif action.action_type == ActionType.FLEE: action_handler_func = _handle_flee_action_mechanics
+
+                if action_handler_func:
+                    # _last_action_result_detail is passed to be updated by the handler
+                    handler_result_dict = action_handler_func(self, action, performer, performer_stats_manager, engine, self._last_action_result_detail)
+                    # The handler_result_dict is now effectively the updated self._last_action_result_detail
+                    if handler_result_dict.get("queued_events", False): queued_events_flag = True
+                else:
+                    generic_action_msg = f"{performer.combat_name} performs action: {action.name} (Type: {action.action_type.name}) - No specific handler."
+                    self._add_to_log(generic_action_msg)
+                    event_generic = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=generic_action_msg, target_display=DisplayTarget.COMBAT_LOG)
+                    engine._combat_orchestrator.add_event_to_queue(event_generic)
+                    queued_events_flag = True
+                    self._last_action_result_detail.update({"success": True, "message": f"Performed generic action: {action.name}"})
+
+            except Exception as e:
+                logger.error(f"Error executing action {action.name} mechanics for {performer.combat_name}: {e}", exc_info=True)
+                exec_err_msg = f"System Error during {action.name}: {e}"
+                event_exec_err = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=exec_err_msg, target_display=DisplayTarget.COMBAT_LOG)
+                engine._combat_orchestrator.add_event_to_queue(event_exec_err)
+                queued_events_flag = True
+                self._last_action_result_detail.update({"success": False, "message": f"Error during execution: {e}"})
+                return {**default_result, "message": f"Error: {e}", "queued_events": queued_events_flag}
+            
+            # Update the main result dict with success being the success of the mechanical action itself
+            # (e.g., hit, spell landed, item used as intended)
+            # The handlers directly modify self._last_action_result_detail.
+            final_action_success = self._last_action_result_detail.get("success", False)
+            final_action_message = self._last_action_result_detail.get("message", "Action processed.")
+            
+            return {"success": final_action_success, "message": final_action_message, "queued_events": queued_events_flag, "details": self._last_action_result_detail}
     def _step_processing_npc_action(self, engine):
         """Processes the NPC's stored intent, queues attempt narrative, converts to action, sets next step, then pauses."""
         if not hasattr(engine, '_combat_orchestrator') or not hasattr(engine, '_combat_narrator_agent'):
@@ -2038,59 +2174,112 @@ class CombatManager:
         self.current_step = CombatStep.COMBAT_ENDED # This signals GameEngine to take over for mode change etc.
         self.waiting_for_display_completion = True # Pause for this last combat log message
 
-    def _step_advancing_turn(self, engine):
-        """Advances the turn, queues message, sets next actor step, then pauses."""
-        if not hasattr(engine, '_combat_orchestrator'):
-            logger.error("Orchestrator not found on engine in _step_advancing_turn.")
-            self.end_combat("Internal error: Orchestrator unavailable for turn advancement.")
-            self.current_step = CombatStep.COMBAT_ENDED
-            return
+    def _step_advancing_turn(self, engine): # Added engine parameter
+            """
+            Advances the turn to the next entity in the turn order.
+            If the round is over, starts a new round.
+            Checks for combat end conditions.
+            """
+            # --- AP System: Multi-Action Check ---
+            if self._ap_config.get("enabled", False):
+                try:
+                    actor_id = self._active_entity_id
+                    actor = self.entities.get(actor_id)
+                    if actor and actor.is_alive():
+                        current_ap = self.ap_pool.get(actor_id, 0.0)
+                        min_ap_for_action = self._ap_config.get("min_ap_for_action", 1.0)
 
-        from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
-        logger.debug("Executing step: ADVANCING_TURN")
+                        if current_ap >= min_ap_for_action:
+                            logger.info(f"{actor.combat_name} has {current_ap:.1f} AP remaining, gets another action.")
+                            msg = f"{actor.combat_name} has enough energy for another action."
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=msg, target_display=DisplayTarget.COMBAT_LOG))
+                            
+                            # This loops back to the input step for the SAME actor.
+                            self._set_next_actor_step(actor_id, engine)
+                            return # Exit to prevent advancing to the next entity
+                except Exception as e:
+                    logger.error(f"Error in multi-action check: {e}")
+            # --- End AP System ---
 
-        self._last_action_result_detail = None 
+            # Check for combat end conditions before advancing
+            if self._check_combat_state():
+                self.current_step = CombatStep.ENDING_COMBAT
+                return
+            if not hasattr(engine, '_combat_orchestrator'):
+                logger.error("Orchestrator not found on engine in _step_advancing_turn.")
+                self.end_combat("Internal error: Orchestrator unavailable for turn advancement.")
+                self.current_step = CombatStep.COMBAT_ENDED
+                return
 
-        next_entity_id = self._advance_turn() 
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+            logger.debug("Executing step: ADVANCING_TURN")
 
-        if self.state != CombatState.IN_PROGRESS:
-            logger.info(f"Combat ended ({self.state.name}) during/after _advance_turn. Moving to ENDING_COMBAT step.")
-            self.current_step = CombatStep.ENDING_COMBAT
-            self.waiting_for_display_completion = False 
-            return
+            self._last_action_result_detail = None 
 
-        if next_entity_id is None: # Should be caught by _advance_turn's _check_combat_state
-            logger.error("Advancing turn failed to find next active entity, but combat state is IN_PROGRESS. This indicates an issue in _advance_turn or _check_combat_state. Forcing end.")
-            if self.state == CombatState.IN_PROGRESS: self.end_combat("Error: Could not determine next turn.")
-            self.current_step = CombatStep.ENDING_COMBAT
-            self.waiting_for_display_completion = False
-            return
+            next_entity_id = self._advance_turn() 
 
-        # --- Logic to queue "It is now X's turn" and set next step ---
-        next_entity_obj = self.entities.get(next_entity_id)
-        queued_turn_message = False
-        if next_entity_obj:
-            turn_msg = f"It is now {next_entity_obj.combat_name}'s turn."
-            # _add_to_log for this message is handled in _advance_turn
-            event_next_turn = DisplayEvent(
-                type=DisplayEventType.SYSTEM_MESSAGE, content=turn_msg,
-                target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name
-            )
-            engine._combat_orchestrator.add_event_to_queue(event_next_turn)
-            queued_turn_message = True
-        
-        # Determine the actual next game step (AWAITING_PLAYER_INPUT or AWAITING_NPC_INTENT)
-        # Pass engine so TURN_ORDER_UPDATE is queued for UI
-        self._set_next_actor_step(next_entity_id, engine) 
-        # self.current_step is now updated by _set_next_actor_step
+            if self.state != CombatState.IN_PROGRESS:
+                logger.info(f"Combat ended ({self.state.name}) during/after _advance_turn. Moving to ENDING_COMBAT step.")
+                self.current_step = CombatStep.ENDING_COMBAT
+                self.waiting_for_display_completion = False 
+                return
 
-        if queued_turn_message:
-            self.waiting_for_display_completion = True # Pause for the "next turn" message
-        else:
-            # If no message was queued (should not happen if next_entity_obj exists),
-            # don't pause, let process_combat_step loop continue to the new current_step.
-            self.waiting_for_display_completion = False
+            if next_entity_id is None: # Should be caught by _advance_turn's _check_combat_state
+                logger.error("Advancing turn failed to find next active entity, but combat state is IN_PROGRESS. This indicates an issue in _advance_turn or _check_combat_state. Forcing end.")
+                if self.state == CombatState.IN_PROGRESS: self.end_combat("Error: Could not determine next turn.")
+                self.current_step = CombatStep.ENDING_COMBAT
+                self.waiting_for_display_completion = False
+                return
 
+            # --- Logic to queue "It is now X's turn" and set next step ---
+            next_entity_obj = self.entities.get(next_entity_id)
+            queued_turn_message = False
+            if next_entity_id:
+                # --- AP System: AP Regeneration ---
+                if self._ap_config.get("enabled", False):
+                    try:
+                        stats_manager = self._get_entity_stats_manager(next_entity_id)
+                        if stats_manager:
+                            max_ap = stats_manager.get_stat_value(DerivedStatType.MAX_AP)
+                            ap_regen = stats_manager.get_stat_value(DerivedStatType.AP_REGENERATION)
+                            
+                            current_ap = self.ap_pool.get(next_entity_id, 0.0)
+                            new_ap = min(max_ap, current_ap + ap_regen)
+                            self.ap_pool[next_entity_id] = new_ap
+                            
+                            entity_name = self.entities[next_entity_id].combat_name
+                            regen_msg = f"{entity_name} regenerates {ap_regen:.0f} AP."
+                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=regen_msg, target_display=DisplayTarget.COMBAT_LOG))
+                            
+                            ap_update_event = DisplayEvent(
+                                type=DisplayEventType.AP_UPDATE,
+                                content={},
+                                metadata={"entity_id": next_entity_id, "current_ap": new_ap, "max_ap": max_ap},
+                                target_display=DisplayTarget.MAIN_GAME_OUTPUT
+                            )
+                            engine._combat_orchestrator.add_event_to_queue(ap_update_event)
+                    except Exception as e:
+                        logger.error(f"Failed to regenerate AP for entity {next_entity_id}: {e}")
+                # --- End AP System ---
+
+                # --- FIX: Announce whose turn it is ---
+                turn_announce_msg = f"It is now {self.entities[next_entity_id].combat_name}'s turn."
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=turn_announce_msg, target_display=DisplayTarget.COMBAT_LOG))
+                queued_turn_message = True
+                # --- END FIX ---
+
+                self._active_entity_id = next_entity_id
+                logger.info(f"Advancing turn to: {self.entities[next_entity_id].combat_name}")
+                self._set_next_actor_step(next_entity_id, engine) # Pass engine 
+            # self.current_step is now updated by _set_next_actor_step
+
+            if queued_turn_message:
+                self.waiting_for_display_completion = True # Pause for the "next turn" message
+            else:
+                # If no message was queued (should not happen if next_entity_obj exists),
+                # don't pause, let process_combat_step loop continue to the new current_step.
+                self.waiting_for_display_completion = False
+                
     def _advance_turn(self) -> Optional[str]:
         if not self.turn_order:
             logger.error("Cannot advance turn: Turn order is empty.")

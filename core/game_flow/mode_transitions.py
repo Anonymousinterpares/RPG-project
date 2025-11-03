@@ -897,6 +897,7 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
         surprise = request.get("surprise", False)
         
         combat_manager.prepare_for_combat(
+            engine=engine, # Pass engine
             player_entity=player_entity,
             enemy_entities=enemy_entities,
             surprise=surprise,
@@ -909,6 +910,11 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
         game_state.set_interaction_mode(InteractionMode.COMBAT) 
         logger.info("Transitioned game_state to COMBAT mode.")
         
+        # --- FIX: Explicitly start the combat processing loop ---
+        logger.info("[COMBAT_START_FIX] Kicking off CombatManager processing loop after preparation.")
+        combat_manager.process_combat_step(engine)
+        # --- END FIX ---
+
         # Music: enter combat mood immediately (authoritative hard-set)
         try:
             md = getattr(engine, 'get_music_director', lambda: None)()
@@ -946,7 +952,7 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
         if game_state.current_mode == InteractionMode.COMBAT: 
             game_state.set_interaction_mode(InteractionMode.NARRATIVE) # This will also clear is_transitioning_to_combat
         return f"System Error: Failed to initiate combat transition: {str(e)}"
-
+    
 def _attempt_flee_transition(engine: 'GameEngine', game_state: 'GameState', request: Dict[str, Any], effective_actor_id: str) -> str:
     """Handles the attempt to flee from Combat to Narrative mode."""
     logger.info(f"Attempting to flee combat for actor {effective_actor_id}.")

@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 # Use a forward reference (string) to avoid circular import at runtime
 # from core.base.engine import GameEngine
 from typing import TYPE_CHECKING
+
+from core.stats.stats_base import DerivedStatType
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.base.state import GameState # Keep GameState
@@ -431,6 +433,12 @@ def load_game(engine: 'GameEngine', filename: str) -> Optional[GameState]:
     """
     logger.info(f"Loading game from {filename}")
 
+    # --- FIX: Reset input-blocking flags from previous sessions ---
+    if hasattr(engine, '_waiting_for_closing_narrative_display'):
+        engine._waiting_for_closing_narrative_display = False
+        logger.info("Reset _waiting_for_closing_narrative_display flag on engine.")
+    # --- END FIX ---
+
     # Clean up existing game if present
     if engine._state_manager.current_state is not None:
         logger.info("Cleaning up existing game before loading")
@@ -547,6 +555,35 @@ def load_game(engine: 'GameEngine', filename: str) -> Optional[GameState]:
                     source_step='LOAD_GAME_REHYDRATE'
                 )
             )
+            # --- FIX: Rehydrate AP pool and UI ---
+            if hasattr(cm, 'ap_pool'):
+                # Fallback for old saves: if ap_pool is missing or empty, initialize it
+                if not cm.ap_pool:
+                    logger.info("AP pool empty on load, initializing for all combatants.")
+                    if hasattr(cm, '_initialize_ap_for_all'): # Check for new helper method
+                        cm._initialize_ap_for_all()
+                    else: # Manual fallback
+                        ap_config = getattr(cm, '_ap_config', {})
+                        base_ap = ap_config.get("base_ap", 4.0)
+                        for entity_id in cm.entities:
+                            cm.ap_pool[entity_id] = float(base_ap)
+
+                # Queue AP_UPDATE events for all entities to populate the UI
+                for entity_id, entity in cm.entities.items():
+                    stats_manager = cm._get_entity_stats_manager(entity_id)
+                    if stats_manager:
+                        max_ap = stats_manager.get_stat_value(DerivedStatType.MAX_AP)
+                        current_ap = cm.ap_pool.get(entity_id, 0.0)
+                        ap_update_event = DisplayEvent(
+                            type=DisplayEventType.AP_UPDATE,
+                            content={},
+                            metadata={"entity_id": entity_id, "current_ap": current_ap, "max_ap": max_ap},
+                            target_display=DisplayTarget.MAIN_GAME_OUTPUT,
+                            source_step='LOAD_GAME_REHYDRATE'
+                        )
+                        engine._combat_orchestrator.add_event_to_queue(ap_update_event)
+                logger.info("Queued AP_UPDATE events for all combatants on load.")
+            # --- END FIX ---
     except Exception as rehyd_err:
         logger.warning(f"Could not rehydrate combat UI on load: {rehyd_err}")
 
@@ -571,7 +608,6 @@ def load_game(engine: 'GameEngine', filename: str) -> Optional[GameState]:
             engine._output("system", "You continue your adventure...")
 
     return game_state
-
 
 def _generate_reintroductory_narrative_content(engine: 'GameEngine', game_state: 'GameState') -> Optional[str]:
     """

@@ -21,6 +21,7 @@ class DisplayEventType(Enum):
     COMBAT_LOG_SET_HTML = auto()    # New: Directly set Combat Log HTML (rehydration)
     APPLY_ENTITY_RESOURCE_UPDATE = auto()  # New: Apply a resource (hp/mp/stamina) change to an entity's model
     APPLY_ENTITY_STATE_UPDATE = auto()     # New: Apply state flags (e.g., is_active_in_combat)
+    AP_UPDATE = auto()                     # New: For AP bar updates
     # Add more event types as needed
     
 class DisplayTarget(Enum):

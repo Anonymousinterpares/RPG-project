@@ -21,6 +21,26 @@
     "turns_per_round": 1,
     "opportunity_attacks": true
   },
+
+  "ap_system": {
+    "enabled": true,
+    "base_ap": 4.0,
+    "base_regeneration": 2.0,
+    "initiative_bonus_ap": 2.0,
+    "max_ap_formula": "4 + CONSTITUTION / 4",
+    "ap_regeneration_formula": "2 + DEXTERITY / 5",
+    "min_ap_for_action": 1.0,
+    "action_costs": {
+      "attack": 4,
+      "spell": 4,
+      "skill": 2,
+      "defend": 4,
+      "item": 1,
+      "flee": 4,
+      "move": 2,
+      "pass": 0
+    }
+  },
   
   "attack": {
     "melee": {

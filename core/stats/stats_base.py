@@ -52,6 +52,8 @@ class DerivedStatType(Enum):
     MAX_MANA = "Max Mana Points"       # Maximum magic resource 
     STAMINA = "Stamina"                # Current physical resource
     MAX_STAMINA = "Max Stamina"        # Maximum physical resource 
+    MAX_AP = "Max Action Points"       # Maximum action points
+    AP_REGENERATION = "AP Regeneration"  # AP recovery per turn
     RESOLVE = "Resolve"                # Social/Mental composure 'health'
     MAX_RESOLVE = "Max Resolve"        # Maximum social/mental composure
     

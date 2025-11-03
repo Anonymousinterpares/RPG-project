@@ -186,7 +186,9 @@ class StatsManager(QObject):
                 DerivedStatType.MANA: "Your current magical energy. Required for casting spells.",
                 DerivedStatType.MAX_MANA: "Your maximum magical energy.",          
                 DerivedStatType.STAMINA: "Your current physical energy. Required for special physical actions.",
-                DerivedStatType.MAX_STAMINA: "Your maximum physical energy.",      
+                DerivedStatType.MAX_STAMINA: "Your maximum physical energy.",
+                DerivedStatType.MAX_AP: "Your maximum action points for use in combat.",
+                DerivedStatType.AP_REGENERATION: "The amount of action points you recover at the start of your turn.",
                 DerivedStatType.RESOLVE: "Your current social/mental composure. Reduced by stress or social defeats.",
                 DerivedStatType.MAX_RESOLVE: "Your maximum social/mental composure.",
                 DerivedStatType.MELEE_ATTACK: "Your ability to hit opponents in melee combat.",
@@ -907,6 +909,30 @@ class StatsManager(QObject):
         for stat_type in DerivedStatType:
             # Skip recalculating the *current* value of resources here
             if stat_type in [DerivedStatType.HEALTH, DerivedStatType.RESOLVE, DerivedStatType.MANA, DerivedStatType.STAMINA]:
+                continue
+
+            if stat_type == DerivedStatType.MAX_AP:
+                try:
+                    con = self.get_stat_value(StatType.CONSTITUTION)
+                    # Formula from config: 4 + CON / 4
+                    new_base_value = 4.0 + math.floor(con / 4.0)
+                    if stat_type not in self.derived_stats:
+                        self.derived_stats[stat_type] = Stat(name=stat_type, base_value=0.0, category=StatCategory.DERIVED, description=self._get_stat_description(stat_type))
+                    self.derived_stats[stat_type].base_value = float(new_base_value)
+                except Exception as e:
+                    logger.error(f"Error calculating MAX_AP: {e}")
+                continue
+
+            if stat_type == DerivedStatType.AP_REGENERATION:
+                try:
+                    dex = self.get_stat_value(StatType.DEXTERITY)
+                    # Formula from config: 2 + DEX / 5
+                    new_base_value = 2.0 + math.floor(dex / 5.0)
+                    if stat_type not in self.derived_stats:
+                        self.derived_stats[stat_type] = Stat(name=stat_type, base_value=0.0, category=StatCategory.DERIVED, description=self._get_stat_description(stat_type))
+                    self.derived_stats[stat_type].base_value = float(new_base_value)
+                except Exception as e:
+                    logger.error(f"Error calculating AP_REGENERATION: {e}")
                 continue
 
             try:

@@ -48,32 +48,45 @@ def get_npc_intent(engine: 'GameEngine', game_state: 'GameState', npc_id: str) -
         context_builder = ContextBuilder()
         context = context_builder.build_context(game_state, current_mode, actor_id=npc_id)
         
+        # --- FIX: Add dynamic combat context to prompt ---
+        dynamic_prompt_additions = ""
         if current_mode == InteractionMode.COMBAT and game_state.combat_manager:
             combat_manager = game_state.combat_manager
-            current_entity = combat_manager.get_entity_by_id(npc_id) if hasattr(combat_manager, 'get_entity_by_id') else None
-            player_entity = None
+            npc_entity = combat_manager.entities.get(npc_id)
+
+            # 1. Determine Valid Targets
+            valid_targets = []
+            is_npc_hostile = npc_id in combat_manager._enemy_entity_ids
             for entity_id, entity in combat_manager.entities.items():
-                 if hasattr(entity, 'entity_type') and entity.entity_type == EntityType.PLAYER:
-                     player_entity = entity
-                     break
-            if current_entity and player_entity:
-                 combat_status = {
-                     "current_entity": {"id": npc_id, "name": getattr(current_entity, 'name', 'Unknown'), "hp": getattr(current_entity, 'current_hp', 0), "max_hp": getattr(current_entity, 'max_hp', 0)},
-                     "player": {"id": player_entity.id, "name": player_entity.name, "hp": player_entity.current_hp, "max_hp": player_entity.max_hp},
-                     "turn_order": combat_manager.turn_order,
-                     "current_turn": npc_id,
-                     "round": combat_manager.round_number
-                 }
-                 if 'combat_context' not in context: context['combat_context'] = {}
-                 context['combat_context'].update(combat_status)
+                if not entity.is_alive():
+                    continue
+                is_entity_hostile = entity_id in combat_manager._enemy_entity_ids
+                if is_npc_hostile != is_entity_hostile: # Add if they are on opposing sides
+                    valid_targets.append(entity.combat_name)
+            
+            if valid_targets:
+                dynamic_prompt_additions += f"\n- Valid Targets: {valid_targets}"
+
+            # 2. Determine Affordable Actions
+            ap_config = getattr(combat_manager, '_ap_config', {})
+            if ap_config.get("enabled", False):
+                action_costs = ap_config.get("action_costs", {})
+                current_ap = combat_manager.ap_pool.get(npc_id, 0.0)
+                affordable_actions = [name for name, cost in action_costs.items() if current_ap >= cost]
+                if affordable_actions:
+                    dynamic_prompt_additions += f"\n- Affordable Actions (AP Cost): { {name: action_costs[name] for name in affordable_actions} }"
+        # --- END FIX ---
 
         prompt = (
             f"You are the AI controlling the character '{npc_id}'.\n"
-            f"Current Situation:\n{json.dumps(context, indent=2, default=str)}\n" 
+            f"Current Situation:\n{json.dumps(context, indent=2, default=str)}\n"
             f"Game Mode: {current_mode.name}\n"
             f"It is currently your turn ('{npc_id}').\n"
+            f"--- Your Tactical Options ---"
+            f"{dynamic_prompt_additions}\n"
+            f"-----------------------------\n"
             f"Based on the situation, your character's likely goals, stats, and available abilities (if known), "
-            f"state the *single, specific action* you will take this turn. Be concise and action-oriented.\n"
+            f"state the *single, specific action* you will take this turn. You MUST choose an action from the 'Affordable Actions' list and a target from the 'Valid Targets' list if applicable. Be concise and action-oriented.\n"
             f"Examples: 'Attack the player with sword', 'Cast Fireball at Qa', 'Use Healing Potion on self', 'Defend', 'Attempt to flee'.\n"
             f"Your Action Intent:" 
         )

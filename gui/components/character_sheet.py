@@ -23,6 +23,7 @@ from core.stats.modifier import StatModifier
 from core.stats.stats_base import StatType, DerivedStatType, Stat, StatCategory
 from core.stats.stats_manager import get_stats_manager
 from core.utils.logging_config import get_logger
+from gui.components.ap_display_widget import APDisplayWidget
 
 logger = get_logger("GUI")
 
@@ -421,6 +422,9 @@ class CharacterSheetWidget(QScrollArea):
             }
         """)
         combat_info_layout = QVBoxLayout(combat_info_group)
+
+        self.ap_display = APDisplayWidget(self)
+        combat_info_layout.addWidget(self.ap_display)
 
         # Status Effects section
         status_label = QLabel("Status Effects:")
@@ -1244,6 +1248,14 @@ class CharacterSheetWidget(QScrollArea):
         if bar_type_key in self._pending_bar_updates:
             data = self._pending_bar_updates.pop(bar_type_key)
             self.animate_resource_bar_ui_bar_update_phase2(bar_type_key, {"final_new_value": data["final_value"], "max_value": data["max_value"]})
+
+    def update_ap_display(self, current_ap: float, max_ap: float):
+        """Updates the AP display widget with new values."""
+        logger.info(f"[CharacterSheet] update_ap_display called with current_ap: {current_ap}, max_ap: {max_ap}")
+        if hasattr(self, 'ap_display'):
+            self.ap_display.update_ap(current_ap, max_ap)
+        else:
+            logger.error("[CharacterSheet] update_ap_display called, but self.ap_display widget does not exist!")
 
     @Slot(dict)
     def handle_turn_order_update(self, event_data: Dict[str, Any]):
