@@ -26,6 +26,23 @@ from gui.components.grimoire.cast_button import CastButton, CastButtonState
 
 logger = get_logger("GRIMOIRE")
 
+COLORS = {
+    'background_dark': '#1a1410',
+    'background_med': '#2d2520',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'border_light': '#5a4a40',
+    'text_primary': '#c9a875',
+    'text_secondary': '#8b7a65',
+    'text_disabled': '#5a4a40',
+    'mana': '#1178BB',
+    'mana_glow': '#4a9ed5',
+    'offensive': '#D94A38',
+    'defensive': '#5a9068',
+    'utility': '#8b7a65',
+    'selected': '#c9a875',
+    'hover': '#4a3a30',
+}
 
 class GrimoirePanelWidget(QScrollArea):
     """Enhanced widget to display player's spells with search, filter, mana validation, and animated UI."""
@@ -79,33 +96,58 @@ class GrimoirePanelWidget(QScrollArea):
     def _create_quick_stats_section(self):
         """Create the quick stats section showing mana and spell count."""
         self.stats_group = QGroupBox("Mana")
-        self.stats_group.setStyleSheet(self._get_groupbox_style())
+        self.stats_group.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {COLORS['background_light']};
+                border: 2px solid {COLORS['border_dark']};
+                border-radius: 6px;
+                margin-top: 18px;
+                font-weight: bold;
+                color: {COLORS['text_primary']};
+                padding-top: 12px;
+                font-size: 13px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-top: 5px;
+            }}
+        """)
         
         stats_layout = QHBoxLayout(self.stats_group)
         
         # Mana display
         self.mana_label = QLabel("0 / 0")
-        self.mana_label.setStyleSheet("color: #1178BB; font-size: 14pt; font-weight: bold;")
+        self.mana_label.setStyleSheet(f"""
+            color: {COLORS['mana']};
+            font-size: 14pt;
+            font-weight: bold;
+        """)
         stats_layout.addWidget(QLabel("💧"), 0)
         stats_layout.addWidget(self.mana_label, 1)
         
         # Spell count
         self.spell_count_label = QLabel("Spells: 0")
-        self.spell_count_label.setStyleSheet("color: #BBBBBB; font-size: 10pt;")
+        self.spell_count_label.setStyleSheet(f"""
+            color: {COLORS['text_secondary']};
+            font-size: 10pt;
+        """)
         stats_layout.addWidget(self.spell_count_label, 0)
         
         self.main_layout.addWidget(self.stats_group)
-    
+
     def _create_search_filter_section(self):
         """Create the search and filter controls."""
         filter_frame = QFrame()
-        filter_frame.setStyleSheet("""
-            QFrame {
-                background-color: #2D2D30;
-                border: 1px solid #444444;
-                border-radius: 4px;
+        filter_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['background_med']};
+                border: 2px solid {COLORS['border_dark']};
+                border-radius: 6px;
                 padding: 5px;
-            }
+            }}
         """)
         
         filter_layout = QVBoxLayout(filter_frame)
@@ -115,17 +157,21 @@ class GrimoirePanelWidget(QScrollArea):
         # Search bar
         search_layout = QHBoxLayout()
         search_label = QLabel("🔍 Search:")
-        search_label.setStyleSheet("color: #BBBBBB;")
+        search_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Filter by spell name...")
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #1E1E1E;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                border-radius: 3px;
-                padding: 4px;
-            }
+        self.search_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_dark']};
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 11pt;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {COLORS['text_primary']};
+            }}
         """)
         self.search_input.textChanged.connect(self._on_filter_changed)
         search_layout.addWidget(search_label)
@@ -136,34 +182,49 @@ class GrimoirePanelWidget(QScrollArea):
         
         # Role filter
         role_label = QLabel("Role:")
-        role_label.setStyleSheet("color: #BBBBBB;")
+        role_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         self.role_filter = QComboBox()
         self.role_filter.addItems(["All", "Offensive", "Defensive", "Utility"])
-        self.role_filter.setStyleSheet("""
-            QComboBox {
-                background-color: #1E1E1E;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                border-radius: 3px;
-                padding: 4px;
-            }
-            QComboBox::drop-down {
+        combobox_style = f"""
+            QComboBox {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_dark']};
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 10pt;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {COLORS['border_light']};
+            }}
+            QComboBox::drop-down {{
                 border: none;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-                selection-background-color: #0E639C;
-            }
-        """)
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid {COLORS['text_secondary']};
+                margin-right: 5px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS['background_med']};
+                color: {COLORS['text_primary']};
+                selection-background-color: {COLORS['hover']};
+                selection-color: {COLORS['selected']};
+                border: 1px solid {COLORS['border_dark']};
+            }}
+        """
+        self.role_filter.setStyleSheet(combobox_style)
         self.role_filter.currentTextChanged.connect(self._on_filter_changed)
         
         # System filter
         system_label = QLabel("System:")
-        system_label.setStyleSheet("color: #BBBBBB;")
+        system_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         self.system_filter = QComboBox()
         self.system_filter.addItem("All")
-        self.system_filter.setStyleSheet(self.role_filter.styleSheet())
+        self.system_filter.setStyleSheet(combobox_style)
         self.system_filter.currentTextChanged.connect(self._on_filter_changed)
         
         filters_layout.addWidget(role_label)
@@ -175,11 +236,29 @@ class GrimoirePanelWidget(QScrollArea):
         filter_layout.addLayout(filters_layout)
         
         self.main_layout.addWidget(filter_frame)
-    
+
     def _create_spells_section(self):
         """Create the collapsible spells section."""
         self.spells_group = QGroupBox("Known Spells")
-        self.spells_group.setStyleSheet(self._get_groupbox_style())
+        self.spells_group.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {COLORS['background_light']};
+                border: 2px solid {COLORS['border_dark']};
+                border-radius: 6px;
+                margin-top: 18px;
+                font-weight: bold;
+                color: {COLORS['text_primary']};
+                padding-top: 12px;
+                font-size: 13px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-top: 5px;
+            }}
+        """)
         
         self.spells_layout = QVBoxLayout(self.spells_group)
         self.spells_layout.setContentsMargins(8, 10, 8, 8)
@@ -192,8 +271,8 @@ class GrimoirePanelWidget(QScrollArea):
             "training with NPCs, or completing quests."
         )
         self.empty_state_label.setAlignment(Qt.AlignCenter)
-        self.empty_state_label.setStyleSheet("""
-            color: #888888;
+        self.empty_state_label.setStyleSheet(f"""
+            color: {COLORS['text_disabled']};
             font-style: italic;
             font-size: 11pt;
             padding: 40px;
@@ -202,17 +281,17 @@ class GrimoirePanelWidget(QScrollArea):
         self.spells_layout.addWidget(self.empty_state_label)
         
         self.main_layout.addWidget(self.spells_group)
-    
+
     def _create_action_bar(self):
         """Create the action bar with Cast and Details buttons."""
         action_frame = QFrame()
-        action_frame.setStyleSheet("""
-            QFrame {
-                background-color: #2D2D30;
-                border: 1px solid #444444;
-                border-radius: 4px;
+        action_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['background_med']};
+                border: 2px solid {COLORS['border_dark']};
+                border-radius: 6px;
                 padding: 8px;
-            }
+            }}
         """)
         
         action_layout = QHBoxLayout(action_frame)
@@ -224,27 +303,29 @@ class GrimoirePanelWidget(QScrollArea):
         
         # Details button
         self.details_btn = QPushButton("View Details")
-        self.details_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #555555;
-                color: #FFFFFF;
-                border: 2px solid #666666;
+        self.details_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['background_light']};
+                color: {COLORS['text_primary']};
+                border: 2px solid {COLORS['border_dark']};
                 border-radius: 6px;
                 font-size: 10pt;
                 font-weight: bold;
-                padding: 8px 16px;
+                padding: 10px 16px;
                 min-width: 100px;
-            }
-            QPushButton:hover {
-                background-color: #666666;
-            }
-            QPushButton:pressed {
-                background-color: #444444;
-            }
-            QPushButton:disabled {
-                background-color: #3A3A3A;
-                color: #777777;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['hover']};
+                border: 2px solid {COLORS['border_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['background_dark']};
+            }}
+            QPushButton:disabled {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_disabled']};
+                border: 2px solid {COLORS['background_dark']};
+            }}
         """)
         self.details_btn.setEnabled(False)
         self.details_btn.clicked.connect(self._on_details_clicked)
@@ -253,28 +334,28 @@ class GrimoirePanelWidget(QScrollArea):
         action_layout.addWidget(self.details_btn, 1)
         
         self.main_layout.addWidget(action_frame)
-    
+
     def _get_groupbox_style(self) -> str:
         """Get consistent QGroupBox styling."""
-        return """
-            QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 15px;
+        return f"""
+            QGroupBox {{
+                background-color: {COLORS['background_light']};
+                border: 2px solid {COLORS['border_dark']};
+                border-radius: 6px;
+                margin-top: 18px;
                 font-weight: bold;
-                color: #E0E0E0;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
+                color: {COLORS['text_primary']};
+                padding-top: 12px;
+                font-size: 13px;
+            }}
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
                 padding-top: 5px;
-            }
+            }}
         """
-    
     def refresh(self, spells_by_system: Dict[str, List[Any]], mode: Optional[InteractionMode], current_mana: float = 0.0, max_mana: float = 0.0):
         """Rebuild the grimoire UI with spells, update mana, and set mode."""
         self._spells_by_system = spells_by_system or {}
@@ -412,11 +493,11 @@ class GrimoirePanelWidget(QScrollArea):
             
             # Role color
             role_colors = {
-                'Offensive': '#D94A38',
-                'Defensive': '#0E639C',
-                'Utility': '#8B7FBF'
+                'Offensive': COLORS['offensive'],
+                'Defensive': COLORS['defensive'],
+                'Utility': COLORS['utility']
             }
-            role_color = role_colors.get(role, '#888888')
+            role_color = role_colors.get(role, COLORS['text_disabled'])
             
             # Build effect summary
             atoms = getattr(spell, 'effect_atoms', []) or []
@@ -429,24 +510,23 @@ class GrimoirePanelWidget(QScrollArea):
                 effect_summary = ", ".join(f"{k.capitalize()} x{effect_types[k]}" for k in effect_types)
             
             tooltip_html = f"""
-            <div style='background-color: #2D2D30; padding: 8px; border: 1px solid #555;'>
-                <p style='margin: 0; color: #E0E0E0; font-size: 11pt;'><b>{name}</b></p>
-                <p style='margin: 2px 0; color: {role_color}; font-size: 9pt;'><b>⚔ {role}</b></p>
-                <hr style='border: 1px solid #555; margin: 4px 0;'>
-                <table style='color: #BBBBBB; font-size: 9pt;'>
-                    <tr><td>💧 Mana:</td><td><b>{mana_cost}</b></td></tr>
-                    <tr><td>⏱ Cast Time:</td><td><b>{cast_time}</b></td></tr>
-                    <tr><td>📏 Range:</td><td><b>{spell_range}</b></td></tr>
+            <div style='background-color: {COLORS['background_med']}; padding: 10px; border: 2px solid {COLORS['border_dark']}; border-radius: 4px;'>
+                <p style='margin: 0; color: {COLORS['text_primary']}; font-size: 12pt; font-weight: bold;'>{name}</p>
+                <p style='margin: 2px 0; color: {role_color}; font-size: 10pt; font-weight: bold;'>⚔ {role}</p>
+                <hr style='border: 1px solid {COLORS['border_dark']}; margin: 6px 0;'>
+                <table style='color: {COLORS['text_secondary']}; font-size: 9pt;'>
+                    <tr><td>💧 Mana:</td><td style='padding-left: 8px;'><b style='color: {COLORS['mana']};'>{mana_cost}</b></td></tr>
+                    <tr><td>⏱ Cast Time:</td><td style='padding-left: 8px;'><b>{cast_time}</b></td></tr>
+                    <tr><td>📏 Range:</td><td style='padding-left: 8px;'><b>{spell_range}</b></td></tr>
                 </table>
-                <hr style='border: 1px solid #555; margin: 4px 0;'>
-                <p style='margin: 2px 0; color: #AAAAAA; font-size: 9pt;'>{effect_summary}</p>
+                <hr style='border: 1px solid {COLORS['border_dark']}; margin: 6px 0;'>
+                <p style='margin: 2px 0; color: {COLORS['text_secondary']}; font-size: 9pt; font-style: italic;'>{effect_summary}</p>
             </div>
             """
             return tooltip_html
         except Exception as e:
             logger.warning(f"Failed to build tooltip: {e}")
             return "Spell"
-    
     def _on_filter_changed(self):
         """Handle filter changes by rebuilding the spell list."""
         self._rebuild_spell_widgets()
