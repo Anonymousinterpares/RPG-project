@@ -7,6 +7,21 @@ from PySide6.QtGui import (QPainter, QPolygonF, QColor, QPen, QBrush,
 
 logger = logging.getLogger(__name__)
 
+# --- STYLING COLORS ---
+COLORS = {
+    'background_dark': '#1a1410',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'text_primary': '#c9a875',
+    'ap_pip_active_light': '#4a7c59',
+    'ap_pip_active_dark': '#2d5a3a',
+    'ap_pip_border_active': '#5a9068',
+    'ap_pip_glow_active': 'rgba(90, 144, 104, 30)',
+    'overflow_text': '#5a9068',
+}
+# --- END STYLING COLORS ---
+
+
 class APDisplayWidget(QWidget):
     """
     A widget to visually display Action Points (AP) using a hybrid pip system
@@ -34,8 +49,8 @@ class APDisplayWidget(QWidget):
         self.main_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         self.ap_label = QLabel("Action Points")
-        self.ap_label.setStyleSheet("""
-            color: #c9a875;
+        self.ap_label.setStyleSheet(f"""
+            color: {COLORS['text_primary']};
             font-weight: 600;
             font-size: 13px;
         """)
@@ -52,8 +67,8 @@ class APDisplayWidget(QWidget):
         self.main_layout.addWidget(self.pip_drawing_widget)
 
         self.overflow_label = QLabel("")
-        self.overflow_label.setStyleSheet("""
-            color: #5a9068;
+        self.overflow_label.setStyleSheet(f"""
+            color: {COLORS['overflow_text']};
             font-weight: bold;
             font-size: 14px;
         """)
@@ -78,8 +93,6 @@ class APDisplayWidget(QWidget):
             self.overflow_label.show()
         else:
             self.overflow_label.hide()
-
-
 class _APDrawingWidget(QWidget):
     """Internal widget to draw the hexagonal AP pips with enhanced visual effects."""
     
@@ -132,12 +145,12 @@ class _APDrawingWidget(QWidget):
         
         if is_active:
             # Active gradient: green tones matching game's stamina bar
-            gradient.setColorAt(0, QColor("#4a7c59"))  # Lighter green
-            gradient.setColorAt(1, QColor("#2d5a3a"))  # Darker green
+            gradient.setColorAt(0, QColor(COLORS['ap_pip_active_light']))
+            gradient.setColorAt(1, QColor(COLORS['ap_pip_active_dark']))
         else:
             # Inactive gradient: dark brown/gray
-            gradient.setColorAt(0, QColor("#3a302a"))  # Lighter dark
-            gradient.setColorAt(1, QColor("#1a1410"))  # Darker dark
+            gradient.setColorAt(0, QColor(COLORS['background_light']))
+            gradient.setColorAt(1, QColor(COLORS['background_dark']))
         
         return gradient
 
@@ -175,10 +188,10 @@ class _APDrawingWidget(QWidget):
             
             # Border color
             if is_active:
-                border_color = QColor("#5a9068")  # Bright green border
+                border_color = QColor(COLORS['ap_pip_border_active'])
                 border_width = 2
             else:
-                border_color = QColor("#4a3a30")  # Dark brown border
+                border_color = QColor(COLORS['border_dark'])
                 border_width = 1
             
             painter.setPen(QPen(border_color, border_width))
@@ -205,7 +218,7 @@ class _APDrawingWidget(QWidget):
             if is_active:
                 glow_radius = radius + 1
                 glow_path = self._create_hexagon_path(x_center, y_center, glow_radius)
-                painter.setPen(QPen(QColor(90, 144, 104, 30), 2))
+                painter.setPen(QPen(QColor(COLORS['ap_pip_glow_active']), 2))
                 painter.setBrush(Qt.NoBrush)
                 painter.drawPath(glow_path)
 

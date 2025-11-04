@@ -18,6 +18,21 @@ from core.inventory.currency_manager import CurrencyManager
 
 logger = logging.getLogger("GUI")
 
+# --- STYLING COLORS ---
+COLORS = {
+    'background_dark': '#1a1410',
+    'background_med': '#2d2520',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'border_light': '#5a4a40',
+    'text_primary': '#c9a875',
+    'text_secondary': '#8b7a65',
+    'text_bright': '#e8d4b8',
+    'hover': '#4a3a30',
+}
+# --- END STYLING COLORS ---
+
+
 class ItemInfoDialog(QDialog):
     """Dialog to display detailed information about an item."""
 
@@ -26,57 +41,45 @@ class ItemInfoDialog(QDialog):
         self.item = item
         self.setWindowTitle("Item Information")
         self.setMinimumSize(400, 550) # Increased min height
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2E2E2E;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-            }
-            QLabel {
-                color: #E0E0E0;
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {COLORS['background_med']};
+                color: {COLORS['text_bright']};
+                border: 1px solid {COLORS['border_dark']};
+            }}
+            QLabel {{
+                color: {COLORS['text_bright']};
                 background-color: transparent;
-            }
-            QTextBrowser {
-                background-color: #252525;
-                color: #CFCFCF;
-                border: 1px solid #444444;
+            }}
+            QTextBrowser {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_secondary']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 3px;
-                padding: 5px; /* Added padding */
-            }
-            QPushButton {
-                background-color: #4A4A4A;
-                color: #E0E0E0;
-                border: 1px solid #666666;
+                padding: 5px;
+            }}
+            QPushButton {{
+                background-color: {COLORS['background_light']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
                 padding: 8px 16px;
                 font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5A5A5A;
-            }
-            QPushButton:pressed {
-                background-color: #3A3A3A;
-            }
-            QScrollArea {
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['hover']};
+                border-color: {COLORS['border_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['background_dark']};
+            }}
+            QScrollArea {{
                 border: none;
                 background-color: transparent;
-            }
-            QWidget#scrollAreaWidgetContents { 
+            }}
+            QWidget#scrollAreaWidgetContents {{ 
                 background-color: transparent;
-            }
-            QGroupBox { /* Basic style for potential future group boxes */
-                color: #E0E0E0;
-                font-weight: bold;
-                border: 1px solid #444444;
-                border-radius: 3px;
-                margin-top: 10px; /* Space above groupbox */
-                padding-top: 15px; /* Space for title */
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-                padding: 0 5px;
-            }
+            }}
         """)
 
         self.main_layout = QVBoxLayout(self)
@@ -103,7 +106,7 @@ class ItemInfoDialog(QDialog):
         # Name and Rarity
         name_rarity_layout = QHBoxLayout()
         self.name_label = QLabel("Item Name")
-        self.name_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
+        self.name_label.setStyleSheet(f"font-size: 16pt; font-weight: bold; color: {COLORS['text_primary']};")
         name_rarity_layout.addWidget(self.name_label)
         name_rarity_layout.addStretch()
         self.rarity_label = QLabel("(Rarity)")
@@ -113,13 +116,13 @@ class ItemInfoDialog(QDialog):
 
         # Type
         self.type_label = QLabel("Type: ?")
-        self.type_label.setStyleSheet("font-size: 11pt;")
+        self.type_label.setStyleSheet(f"font-size: 11pt; color: {COLORS['text_secondary']};")
         self.content_layout.addWidget(self.type_label)
         
         self.content_layout.addWidget(self._create_separator())
 
         # Description
-        self.description_title_label = QLabel("<b>Description:</b>")
+        self.description_title_label = QLabel(f"<b style='color: {COLORS['text_primary']};'>Description:</b>")
         self.content_layout.addWidget(self.description_title_label)
         self.description_browser = QTextBrowser()
         self.description_browser.setPlaceholderText("?")
@@ -146,7 +149,7 @@ class ItemInfoDialog(QDialog):
         self.content_layout.addWidget(self._create_separator())
 
         # Stats & Effects
-        self.stats_effects_title_label = QLabel("<b>Stats & Effects:</b>")
+        self.stats_effects_title_label = QLabel(f"<b style='color: {COLORS['text_primary']};'>Stats & Effects:</b>")
         self.content_layout.addWidget(self.stats_effects_title_label)
         self.stats_browser = QTextBrowser()
         self.stats_browser.setPlaceholderText("?")
@@ -155,7 +158,7 @@ class ItemInfoDialog(QDialog):
         self.content_layout.addWidget(self.stats_browser)
         
         # Custom Properties
-        self.custom_props_title_label = QLabel("<b>Properties:</b>") # Changed title slightly for clarity
+        self.custom_props_title_label = QLabel(f"<b style='color: {COLORS['text_primary']};'>Properties:</b>") # Changed title slightly for clarity
         self.content_layout.addWidget(self.custom_props_title_label)
         self.custom_props_browser = QTextBrowser()
         self.custom_props_browser.setPlaceholderText("?")
@@ -165,6 +168,7 @@ class ItemInfoDialog(QDialog):
 
         # Tags
         self.tags_label = QLabel("Tags: ?")
+        self.tags_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         self.tags_label.setWordWrap(True)
         self.content_layout.addWidget(self.tags_label)
 
@@ -180,15 +184,16 @@ class ItemInfoDialog(QDialog):
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setFrameShadow(QFrame.Shadow.Sunken)
-        sep.setStyleSheet("color: #444444;") # Make it slightly visible
+        sep.setStyleSheet(f"color: {COLORS['border_dark']};") # Make it slightly visible
         return sep
 
     def _add_grid_row(self, label_text: str, value_text: str, row: int) -> QLabel:
         """Helper to add a row to the grid layout."""
         label = QLabel(label_text)
-        label.setStyleSheet("font-weight: bold;")
+        label.setStyleSheet(f"font-weight: bold; color: {COLORS['text_primary']};")
         label.setAlignment(Qt.AlignRight | Qt.AlignTop) # Align right and top for multi-line values
         value = QLabel(value_text)
+        value.setStyleSheet(f"color: {COLORS['text_secondary']};")
         value.setWordWrap(True) # Allow values to wrap
         self.grid_layout.addWidget(label, row, 0)
         self.grid_layout.addWidget(value, row, 1)

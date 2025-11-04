@@ -2,7 +2,9 @@
 from PySide6.QtWidgets import QDialog
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QScreen # Correct import for QScreen
+from core.utils.logging_config import get_logger
 
+logger = get_logger("BASE_DIALOG")
 class BaseDialog(QDialog):
     """Base class for dialogs to enforce maximum size constraints."""
     

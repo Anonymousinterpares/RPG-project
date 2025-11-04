@@ -14,6 +14,23 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, Slot
 
+# --- STYLING COLORS ---
+COLORS = {
+    'background_dark': '#1a1410',
+    'background_med': '#2d2520',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'border_light': '#5a4a40',
+    'text_primary': '#c9a875',
+    'text_secondary': '#8b7a65',
+    'text_disabled': '#5a4a40',
+    'text_bright': '#e8d4b8',
+    'selected': '#c9a875',
+    'hover': '#4a3a30',
+}
+# --- END STYLING COLORS ---
+
+
 class SaveGameDialog(QDialog):
     """Dialog for saving the game."""
     
@@ -25,72 +42,76 @@ class SaveGameDialog(QDialog):
         self.setWindowTitle("Save Game")
         self.setMinimumWidth(400)
         self.setMinimumHeight(300)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-            }
-            QLabel {
-                color: #E0E0E0;
-            }
-            QLineEdit {
-                background-color: #1E1E1E;
-                color: #E0E0E0;
-                border: 1px solid #3F3F46;
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {COLORS['background_med']};
+                color: {COLORS['text_bright']};
+            }}
+            QLabel {{
+                color: {COLORS['text_primary']};
+                font-weight: bold;
+            }}
+            QLineEdit {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_bright']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
                 padding: 5px;
-            }
-            QLineEdit:focus {
-                border-color: #0E639C;
-            }
-            QPushButton {
-                background-color: #0E639C;
-                color: white;
-                border: none;
+            }}
+            QLineEdit:focus {{
+                border-color: {COLORS['text_primary']};
+            }}
+            QPushButton {{
+                background-color: {COLORS['background_light']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
                 padding: 8px 16px;
                 font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177BB;
-            }
-            QPushButton:pressed {
-                background-color: #0A4C7C;
-            }
-            QPushButton:disabled {
-                background-color: #666666;
-                color: #AAAAAA;
-            }
-            QGroupBox {
-                border: 1px solid #555555;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['hover']};
+                border-color: {COLORS['border_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['background_dark']};
+            }}
+            QPushButton:disabled {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_disabled']};
+                border-color: {COLORS['background_dark']};
+            }}
+            QGroupBox {{
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 5px;
                 margin-top: 15px;
                 font-weight: bold;
-            }
-            QGroupBox::title {
+                color: {COLORS['text_primary']};
+            }}
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
-                color: #E0E0E0;
-            }
-            QListWidget {
-                background-color: #1E1E1E;
-                color: #E0E0E0;
-                border: 1px solid #3F3F46;
+            }}
+            QListWidget {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_bright']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
-                alternate-background-color: #383838;
-            }
-            QListWidget::item {
+                alternate-background-color: {COLORS['background_med']};
+            }}
+            QListWidget::item {{
                 padding: 5px;
-                border-bottom: 1px solid #444444;
-            }
-            QListWidget::item:selected {
-                background-color: #0E639C;
-            }
-            QListWidget::item:hover {
-                background-color: #383838;
-            }
+                border-bottom: 1px solid {COLORS['border_dark']};
+            }}
+            QListWidget::item:selected {{
+                background-color: {COLORS['hover']};
+                color: {COLORS['selected']};
+            }}
+            QListWidget::item:hover {{
+                background-color: {COLORS['hover']};
+            }}
         """)
         
         # Set up the UI

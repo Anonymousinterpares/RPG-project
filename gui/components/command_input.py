@@ -16,6 +16,13 @@ from PySide6.QtGui import QIcon, QPalette, QBrush, QPixmap
 
 from gui.utils.resource_manager import get_resource_manager
 
+# --- STYLING COLORS ---
+COLORS = {
+    'background_dark': '#1a1410',
+    'border_dark': '#4a3a30',
+    'text_primary': '#c9a875',
+}
+
 class CommandInputWidget(QFrame):
     """Widget for entering commands."""
     
@@ -57,24 +64,27 @@ class CommandInputWidget(QFrame):
             }
         """)
         
-        # Create the command line edit with semi-transparent white background
+        # Create the command line edit with fantasy theme
         self.command_edit = QLineEdit()
         self.command_edit.setPlaceholderText("Enter a command or type 'help'...")
-        self.command_edit.setStyleSheet("""
-            QLineEdit {
-                background-color: rgba(255, 255, 255, 0.7);
-                color: #2e2e2e;
-                border: 1px solid #c4b59d;
+        self.command_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
                 padding: 8px;
                 font-family: 'Garamond', serif;
                 font-size: 14pt;
                 margin-left: 5px;
                 margin-right: 5px;
-            }
+            }}
+            QLineEdit:focus {{
+                border-color: {COLORS['text_primary']};
+            }}
         """)
         
-        # Create the submit button with generic button styling
+        # Create the submit button with the original image-based styling
         self.submit_button = QPushButton("Enter")
         self.submit_button.setStyleSheet("""
             QPushButton {

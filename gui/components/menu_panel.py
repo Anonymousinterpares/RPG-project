@@ -16,6 +16,18 @@ from PySide6.QtGui import QIcon, QPixmap
 
 from gui.utils.resource_manager import get_resource_manager
 
+COLORS = {
+    'background_med_transparent': 'rgba(45, 37, 32, 0.5)', # rgba version of #2d2520
+    'border_light': '#5a4a40',
+    'text_ivory': '#fff5cc',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'hover': '#4a3a30',
+    'pressed': '#1a1410',
+    'negative_text': '#D94A38',
+}
+# --- END STYLING COLORS ---
+
 class MenuPanelWidget(QFrame):
     """Collapsible left menu panel for the RPG game GUI."""
     
@@ -30,33 +42,17 @@ class MenuPanelWidget(QFrame):
     def __init__(self, parent: Optional[QWidget] = None):
         """Initialize the menu panel widget."""
         super().__init__(parent)
-
-        # Set the desired opacity (0 = fully transparent, 100 = fully opaque)
-        menu_panel_opacity_percent = 50 # Example: 85% opaque (adjust as needed)
-
-        # Convert percentage to alpha value (0.0 to 1.0)
-        alpha_value = menu_panel_opacity_percent / 100.0
-
-        # Define the base background color RGB values (from #333333)
-        base_r, base_g, base_b = 51, 51, 51
         
         # Set frame properties using rgba for background
         self.setFrameShape(QFrame.StyledPanel)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
         self.setStyleSheet(f"""
             MenuPanelWidget {{
-                /* Use rgba for background color with transparency */
-                background-color: rgba({base_r}, {base_g}, {base_b}, {alpha_value}); 
-                
-                /* Keep other styles */
-                border: 1px solid #555555; 
+                background-color: {COLORS['background_med_transparent']}; 
+                border: 1px solid {COLORS['border_light']}; 
                 border-radius: 5px;
             }}
-            /* Ensure buttons inside the panel remain opaque (using their own styles) */
-            /* No changes needed here as buttons have specific styles set later */
         """)
-        
-
         
         # Get resource manager
         self.resource_manager = get_resource_manager()
@@ -64,12 +60,12 @@ class MenuPanelWidget(QFrame):
         # Create animation properties
         self._expanded = True
         self._animation = None
-        self._expanded_width = 150  # Increase width from 100 to 120
-        self._collapsed_width = 40  # Increase collapsed width from 30 to 40
+        self._expanded_width = 150
+        self._collapsed_width = 40
         
         # Set up the UI
         self._setup_ui()
-    
+
     def _setup_ui(self):
         """Set up the user interface."""
         # Create the main layout
@@ -81,19 +77,19 @@ class MenuPanelWidget(QFrame):
         self.toggle_button = QToolButton()
         self.toggle_button.setIcon(self.resource_manager.get_icon("toggle_button_left"))
         self.toggle_button.setIconSize(QSize(16, 16))
-        self.toggle_button.setStyleSheet("""
-            QToolButton {
-                background-color: #444444;
-                border: 1px solid #555555;
+        self.toggle_button.setStyleSheet(f"""
+            QToolButton {{
+                background-color: {COLORS['background_light']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 3px;
                 padding: 3px;
-            }
-            QToolButton:hover {
-                background-color: #555555;
-            }
-            QToolButton:pressed {
-                background-color: #333333;
-            }
+            }}
+            QToolButton:hover {{
+                background-color: {COLORS['hover']};
+            }}
+            QToolButton:pressed {{
+                background-color: {COLORS['pressed']};
+            }}
         """)
         self.toggle_button.clicked.connect(self.toggle_expanded)
         
@@ -153,14 +149,13 @@ class MenuPanelWidget(QFrame):
         button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         
         # Use generic button backgrounds instead of specific ones
-        button.setStyleSheet("""
-            QPushButton {
+        button.setStyleSheet(f"""
+            QPushButton {{
                 background-image: url('images/gui/button_normal.png');
                 background-position: center;
                 background-repeat: no-repeat;
                 background-color: transparent;
-
-                color: #E0E0E0;
+                color: {COLORS['text_ivory']};
                 border: none;
                 padding: 8px;
                 text-align: center;
@@ -170,15 +165,15 @@ class MenuPanelWidget(QFrame):
                 border-radius: 5px;
                 margin-left: 5px;
                 margin-right: 10px;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-image: url('images/gui/button_hover.png');
-            }
-            QPushButton:pressed {
+            }}
+            QPushButton:pressed {{
                 background-image: url('images/gui/button_pressed.png');
-                color: #FF0000;
+                color: {COLORS['negative_text']};
                 font-weight: bold;
-            }
+            }}
         """)
         
         return button

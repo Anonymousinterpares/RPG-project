@@ -6,6 +6,23 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QFont, QColor, QPalette
 
+# --- STYLING COLORS ---
+COLORS = {
+    'background_dark': '#1a1410',
+    'background_med': '#2d2520',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'border_light': '#5a4a40',
+    'text_primary': '#c9a875',
+    'text_secondary': '#8b7a65',
+    'text_bright': '#e8d4b8',
+    'negative': '#D94A38',
+    'positive': '#5a9068',
+    'hover': '#4a3a30',
+}
+# --- END STYLING COLORS ---
+
+
 class GameOverDialog(QDialog):
     """Dialog displayed when the player is defeated."""
 
@@ -24,50 +41,52 @@ class GameOverDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint | Qt.FramelessWindowHint)
 
         # --- Styling ---
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(30, 30, 30, 0.95); /* Dark semi-transparent background */
-                border: 2px solid #8B0000; /* Dark red border */
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: rgba(26, 20, 16, 0.95); /* Dark semi-transparent background from theme */
+                border: 2px solid {COLORS['negative']}; /* Use theme's negative color for border */
                 border-radius: 15px;
-            }
-            QLabel#GameOverTitle {
-                color: #DC143C; /* Crimson red */
+            }}
+            QLabel#GameOverTitle {{
+                color: {COLORS['negative']};
                 font-size: 48px;
                 font-weight: bold;
                 qproperty-alignment: 'AlignCenter';
                 padding: 20px;
-            }
-            QLabel#GameOverReason {
-                color: #E0E0E0; /* Light gray */
+            }}
+            QLabel#GameOverReason {{
+                color: {COLORS['text_bright']};
                 font-size: 16px;
                 qproperty-alignment: 'AlignCenter';
                 padding-bottom: 20px;
-            }
-            QPushButton {
-                background-color: #555555;
-                color: #FFFFFF;
-                border: 1px solid #777777;
+            }}
+            QPushButton {{
+                background-color: {COLORS['background_light']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 5px;
                 padding: 10px 20px;
                 font-size: 14px;
+                font-weight: bold;
                 min-width: 120px;
-            }
-            QPushButton:hover {
-                background-color: #666666;
-                border: 1px solid #999999;
-            }
-            QPushButton:pressed {
-                background-color: #444444;
-            }
-            QPushButton#LoadLastSaveButton {
-                background-color: #4CAF50; /* Green for emphasis */
-            }
-            QPushButton#LoadLastSaveButton:hover {
-                background-color: #66BB69;
-            }
-             QPushButton#LoadLastSaveButton:pressed {
-                background-color: #3B8C3E;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['hover']};
+                border: 1px solid {COLORS['border_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['background_dark']};
+            }}
+            QPushButton#LoadLastSaveButton {{
+                background-color: {COLORS['positive']}; /* Use theme's positive color */
+                color: {COLORS['background_dark']};
+            }}
+            QPushButton#LoadLastSaveButton:hover {{
+                background-color: #6fc881; /* Lighter green */
+            }}
+             QPushButton#LoadLastSaveButton:pressed {{
+                background-color: #4a7c59; /* Darker green */
+            }}
         """)
 
         # --- Layout ---
