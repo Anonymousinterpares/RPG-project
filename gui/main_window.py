@@ -14,11 +14,11 @@ from concurrent.futures import ThreadPoolExecutor
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QStackedWidget, QDialog, QLabel, QPushButton, 
-    QTextEdit, QScrollArea, QGraphicsOpacityEffect, QMessageBox, QSizePolicy,
-    QMenu, QSlider, QWidgetAction
+    QApplication, QToolButton, QGraphicsOpacityEffect, QMessageBox, QSizePolicy,
+    QMenu, QSlider, QWidgetAction, QLineEdit, QTextEdit, QPlainTextEdit, QTabBar
 )
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, Signal, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QIcon, QPixmap, QPalette, QBrush, QColor, QMovie, QTextCursor # Added QTextCursor
+from PySide6.QtGui import QIcon, QPixmap, QPalette, QBrush, QColor, QMovie, QTextCursor, QCursor
 from core.inventory import get_inventory_manager
 from core.inventory.item import Item
 from core.inventory.item_enums import EquipmentSlot
@@ -39,12 +39,25 @@ from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
 
 logger = get_logger("GUI")
 
+# --- STYLING COLORS (for main_window specific styles) ---
+COLORS = {
+    'background_dark_transparent': 'rgba(26, 20, 16, 0.85)',
+    'border_dark': '#4a3a30',
+    'input_background': 'rgba(255, 255, 255, 0.7)',
+    'input_border': '#c4b59d',
+    'input_text': '#0d47a1', # This was the original user input color, can be themed if needed
+}
 class MainWindow(QMainWindow):
     """Main window for the RPG game GUI."""
     
     def __init__(self):
             super().__init__()
             
+            # --- CURSOR SETUP ---
+            self._setup_cursors()
+            self.setCursor(self.normal_cursor)
+            # --- END CURSOR SETUP ---
+
             self._previous_mode = None # Track previous mode for transitions
             
             # Get resource manager
@@ -68,6 +81,9 @@ class MainWindow(QMainWindow):
             # Set up the UI
             self._setup_ui()
             
+            self._apply_link_cursor_to_buttons()
+            self._apply_text_cursor_to_text_widgets()
+
             # Connect signals and slots
             self._connect_signals()
             
@@ -75,6 +91,74 @@ class MainWindow(QMainWindow):
             self._update_styling()
 
             self._last_submitted_command = None
+
+    def _setup_cursors(self):
+        """Load custom cursors from image files."""
+        try:
+            # Use .cur files as they are the standard for cursors
+            normal_pixmap = QPixmap("images/gui/cursors/NORMAL.cur")
+            link_pixmap = QPixmap("images/gui/cursors/LINK-SELECT.cur")
+            text_pixmap = QPixmap("images/gui/cursors/TEXT.cur")
+
+            # --- NORMAL CURSOR ---
+            if normal_pixmap.isNull():
+                logger.warning("Failed to load NORMAL.cur cursor, using default.")
+                self.normal_cursor = QCursor(Qt.ArrowCursor)
+            else:
+                # Specify the "hot spot" - where the click actually happens.
+                # For your cursor, this looks like the top-left corner.
+                self.normal_cursor = QCursor(normal_pixmap, 0, 0)
+
+            # --- LINK CURSOR ---
+            if link_pixmap.isNull():
+                logger.warning("Failed to load LINK-SELECT.cur cursor, using default.")
+                self.link_cursor = QCursor(Qt.PointingHandCursor)
+            else:
+                self.link_cursor = QCursor(link_pixmap, 0, 0)
+
+            # --- TEXT CURSOR ---
+            if text_pixmap.isNull():
+                logger.warning("Failed to load TEXT.cur cursor, using default.")
+                self.text_cursor = QCursor(Qt.IBeamCursor)
+            else:
+                # The hot spot for a text cursor is typically in the middle.
+                self.text_cursor = QCursor(text_pixmap, int(text_pixmap.width() / 2), int(text_pixmap.height() / 2))
+
+        except Exception as e:
+            logger.error(f"Error setting up custom cursors: {e}")
+            # Fallback defaults
+            self.normal_cursor = QCursor(Qt.ArrowCursor)
+            self.link_cursor = QCursor(Qt.PointingHandCursor)
+            self.text_cursor = QCursor(Qt.IBeamCursor)
+    
+    def _apply_link_cursor_to_buttons(self):
+        """Finds all relevant widgets and applies the link cursor."""
+        # This can be expanded to include any widget that should act like a link
+        widgets = self.findChildren(QPushButton) + \
+                  self.findChildren(QToolButton) + \
+                  self.findChildren(QTabBar)
+
+        for widget in widgets:
+            widget.setCursor(self.link_cursor)
+
+        logger.info(f"Applied link cursor to {len(widgets)} widgets.")
+
+    def _apply_text_cursor_to_text_widgets(self):
+        """Apply the TEXT cursor to editable text widgets."""
+        # QLineEdit is simple, just set its cursor directly
+        line_edits = self.findChildren(QLineEdit)
+        for widget in line_edits:
+            widget.setCursor(self.text_cursor)
+
+        # QTextEdit and QPlainTextEdit are complex, set the cursor on their viewport
+        text_areas = self.findChildren(QTextEdit) + self.findChildren(QPlainTextEdit)
+        editable_text_areas = [widget for widget in text_areas if not widget.isReadOnly()]
+        
+        for widget in editable_text_areas:
+            widget.viewport().setCursor(self.text_cursor)
+
+        logger.info(f"Applied text cursor to {len(line_edits) + len(editable_text_areas)} editable text widgets.")
+
 
     def _apply_initial_window_state(self):
         """Apply saved window state and geometry when the window is first shown."""
@@ -234,6 +318,9 @@ class MainWindow(QMainWindow):
         self.menu_panel = MenuPanelWidget()
         
         self.game_output = GameOutputWidget()
+        self.game_output.text_edit.setCursor(self.normal_cursor) # Force normal cursor
+        self.game_output.text_edit.viewport().setCursor(self.normal_cursor) # Force on viewport too
+
         if hasattr(self.game_output, 'visualDisplayComplete') and hasattr(self.game_engine._combat_orchestrator, '_handle_visual_display_complete'):
             self.game_output.visualDisplayComplete.connect(self.game_engine._combat_orchestrator._handle_visual_display_complete)
             logger.info("Connected GameOutputWidget.visualDisplayComplete to Orchestrator.")
@@ -242,9 +329,14 @@ class MainWindow(QMainWindow):
         self.narrative_layout.addWidget(self.game_output, 1)
         
         self.narrative_command_input = CommandInputWidget()
+        # Set object name for specific styling
+        self.narrative_command_input.setObjectName("NarrativeCommandInput")
         self.narrative_layout.addWidget(self.narrative_command_input, 0)
         
         self.combat_display = CombatDisplay()
+        self.combat_display.log_text.setCursor(self.normal_cursor) # Force normal cursor
+        self.combat_display.log_text.viewport().setCursor(self.normal_cursor)
+        
         if hasattr(self.combat_display, 'visualDisplayComplete') and hasattr(self.game_engine._combat_orchestrator, '_handle_visual_display_complete'):
             self.combat_display.visualDisplayComplete.connect(self.game_engine._combat_orchestrator._handle_visual_display_complete)
             logger.info("Connected CombatDisplay.visualDisplayComplete to Orchestrator.")
@@ -253,6 +345,8 @@ class MainWindow(QMainWindow):
         self.combat_layout.addWidget(self.combat_display, 1)
         
         self.combat_command_input = CommandInputWidget()
+        # Set object name for specific styling
+        self.combat_command_input.setObjectName("CombatCommandInput")
         self.combat_layout.addWidget(self.combat_command_input, 0)
         
         self.mode_stacked_widget.addWidget(self.narrative_view)
@@ -866,7 +960,8 @@ class MainWindow(QMainWindow):
                 self._game_over_dialog_shown = True 
                 self.narrative_command_input.setEnabled(False)
                 self.combat_command_input.setEnabled(False)
-                dialog = GameOverDialog(self)
+
+                dialog = GameOverDialog(parent=self)
                 dialog.set_reason("You have been defeated!") 
                 dialog.new_game_requested.connect(self._show_new_game_dialog)
                 dialog.load_game_requested.connect(self._show_load_game_dialog)
@@ -1028,7 +1123,7 @@ class MainWindow(QMainWindow):
     def _show_new_game_dialog(self):
         """Show dialog for creating a new game."""
         from gui.dialogs.character_creation_dialog import CharacterCreationDialog
-        dialog = CharacterCreationDialog(self)
+        dialog = CharacterCreationDialog(parent=self)
         if dialog.exec():
             character_data = dialog.get_character_data()
             if not character_data: 
@@ -1048,7 +1143,7 @@ class MainWindow(QMainWindow):
     def _show_save_game_dialog(self):
         """Show dialog for saving the game."""
         from gui.dialogs.save_game_dialog import SaveGameDialog
-        dialog = SaveGameDialog(self)
+        dialog = SaveGameDialog(parent=self)
         if dialog.exec():
             # Save the game with the provided name
             save_name = dialog.save_name_edit.text()
@@ -1075,7 +1170,7 @@ class MainWindow(QMainWindow):
     def _show_load_game_dialog(self):
         """Show dialog for loading a saved game."""
         from gui.dialogs.load_game_dialog import LoadGameDialog
-        dialog = LoadGameDialog(self)
+        dialog = LoadGameDialog(parent=self)
         if dialog.exec():
             # Load the selected save
             save_filename = dialog.selected_save
@@ -1166,7 +1261,7 @@ class MainWindow(QMainWindow):
         logger.info("Imported SettingsDialog.") # Log import success
 
         try:
-            dialog = SettingsDialog(self)
+            dialog = SettingsDialog(parent=self)
             logger.info("SettingsDialog instance created.") # Log instance creation
         except Exception as e:
             logger.error(f"Error INSTANTIATING SettingsDialog: {e}", exc_info=True)
@@ -1396,29 +1491,29 @@ class MainWindow(QMainWindow):
         # Update command input styling
         user_input_font_family = settings.value("style/user_input_font_family", "Garamond")
         user_input_font_size = int(settings.value("style/user_input_font_size", 14))
-        user_input_font_color = settings.value("style/user_input_font_color", "#0d47a1")
         
-        # Create a dark frame around command input and enter button
         # Get transparency setting
         input_opacity = int(settings.value("style/input_opacity", 100))
         opacity_percent = input_opacity / 100.0
         
         # Calculate RGB values for the background
-        bg_color_obj = QColor("#333333")
+        bg_color_obj = QColor(COLORS['background_dark_transparent'])
         r, g, b = bg_color_obj.red(), bg_color_obj.green(), bg_color_obj.blue()
         
-        # Common style for command inputs
-        command_input_style = f"""
-            CommandInputWidget {{
+        # --- SCOPED STYLING ---
+        # Apply specific styles to the command inputs using their object names
+        # This prevents the QLineEdit style from leaking to other dialogs.
+        self.setStyleSheet(f"""
+            CommandInputWidget#NarrativeCommandInput, CommandInputWidget#CombatCommandInput {{
                 background-color: rgba({r}, {g}, {b}, {opacity_percent});
                 border-radius: 10px;
                 padding: 5px;
-                border: 2px solid #333333; /* Same as left/right panels */
+                border: 2px solid {COLORS['border_dark']};
             }}
-            QLineEdit {{
-                background-color: rgba(255, 255, 255, 0.7);
-                color: {user_input_font_color};
-                border: 1px solid #c4b59d;
+            CommandInputWidget#NarrativeCommandInput QLineEdit, CommandInputWidget#CombatCommandInput QLineEdit {{
+                background-color: {COLORS['input_background']};
+                color: {COLORS['input_text']};
+                border: 1px solid {COLORS['input_border']};
                 border-radius: 4px;
                 padding: 8px;
                 font-family: '{user_input_font_family}';
@@ -1426,15 +1521,12 @@ class MainWindow(QMainWindow):
                 margin-left: 5px;
                 margin-right: 5px;
             }}
-        """
-        
-        # Apply style to both command inputs
-        self.narrative_command_input.setStyleSheet(command_input_style)
-        self.combat_command_input.setStyleSheet(command_input_style)
+        """)
+        # --- END SCOPED STYLING ---
     
     def _show_llm_settings_dialog(self):
         """Show dialog for LLM settings."""
-        dialog = LLMSettingsDialog(self)
+        dialog = LLMSettingsDialog(parent=self)
         dialog.settings_saved.connect(self._on_llm_settings_saved)
         dialog.exec()
     
@@ -2063,7 +2155,7 @@ class MainWindow(QMainWindow):
 
         if item:
             from gui.dialogs.item_info_dialog import ItemInfoDialog # Local import
-            dialog = ItemInfoDialog(item, self)
+            dialog = ItemInfoDialog(item, parent=self)
             dialog.exec()
         else:
             self.game_output.append_system_message(f"Could not find details for item ID: {item_id}", gradual=False)

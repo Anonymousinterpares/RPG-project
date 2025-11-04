@@ -14,7 +14,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor
 
 from core.inventory.item import Item
-from core.inventory.currency_manager import CurrencyManager 
+from core.inventory.currency_manager import CurrencyManager
+from gui.dialogs.base_dialog import BaseDialog 
 
 logger = logging.getLogger("GUI")
 
@@ -33,7 +34,7 @@ COLORS = {
 # --- END STYLING COLORS ---
 
 
-class ItemInfoDialog(QDialog):
+class ItemInfoDialog(BaseDialog):
     """Dialog to display detailed information about an item."""
 
     def __init__(self, item: Optional[Item] = None, parent: Optional[QWidget] = None):

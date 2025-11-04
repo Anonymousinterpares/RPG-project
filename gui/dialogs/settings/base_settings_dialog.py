@@ -15,10 +15,12 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
 
+from gui.dialogs.base_dialog import BaseDialog
+
 # Get the module logger
 logger = logging.getLogger("GUI")
 
-class BaseSettingsDialog(QDialog):
+class BaseSettingsDialog(BaseDialog):
     """Base dialog for settings dialogs."""
     
     # Signal emitted when settings are saved

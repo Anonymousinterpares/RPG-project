@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, Slot
 
+from gui.dialogs.base_dialog import BaseDialog
+
 # --- STYLING COLORS ---
 COLORS = {
     'background_dark': '#1a1410',
@@ -31,7 +33,7 @@ COLORS = {
 # --- END STYLING COLORS ---
 
 
-class SaveGameDialog(QDialog):
+class SaveGameDialog(BaseDialog):
     """Dialog for saving the game."""
     
     def __init__(self, parent=None):

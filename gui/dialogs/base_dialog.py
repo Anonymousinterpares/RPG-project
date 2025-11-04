@@ -1,7 +1,5 @@
 #gui/dialogs/base_dialog.py
-from PySide6.QtWidgets import QDialog
-from PySide6.QtCore import QSize
-from PySide6.QtGui import QScreen # Correct import for QScreen
+from PySide6.QtWidgets import QDialog, QPushButton, QToolButton, QLineEdit, QTextEdit, QPlainTextEdit
 from core.utils.logging_config import get_logger
 
 logger = get_logger("BASE_DIALOG")
@@ -10,7 +8,32 @@ class BaseDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Common dialog settings can go here if needed
+        if parent and hasattr(parent, 'normal_cursor'):
+            self.setCursor(parent.normal_cursor)
+            self._apply_cursors_to_children(parent)
+
+    def _apply_cursors_to_children(self, main_window):
+        """Finds all relevant child widgets and applies custom cursors from the main window."""
+        if not hasattr(main_window, 'link_cursor'):
+            return # Don't do anything if cursors aren't loaded
+
+        # Apply link cursor to buttons
+        buttons = self.findChildren(QPushButton) + self.findChildren(QToolButton)
+        for button in buttons:
+            button.setCursor(main_window.link_cursor)
+
+        # Apply text cursor to editable text widgets
+        if hasattr(main_window, 'text_cursor'):
+            # QLineEdit
+            line_edits = self.findChildren(QLineEdit)
+            for widget in line_edits:
+                widget.setCursor(main_window.text_cursor)
+
+            # QTextEdit and QPlainTextEdit
+            text_areas = self.findChildren(QTextEdit) + self.findChildren(QPlainTextEdit)
+            for widget in text_areas:
+                if not widget.isReadOnly():
+                    widget.viewport().setCursor(main_window.text_cursor)
 
     def showEvent(self, event):
         """Override showEvent to adjust maximum size safely."""

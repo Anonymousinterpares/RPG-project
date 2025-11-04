@@ -26,98 +26,129 @@ from core.base.config import get_config
 
 logger = get_logger("GUI")
 
+# --- STYLING COLORS ---
+COLORS = {
+    'background_dark': '#1a1410',
+    'background_med': '#2d2520',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'border_light': '#5a4a40',
+    'text_primary': '#c9a875',
+    'text_secondary': '#8b7a65',
+    'text_disabled': '#5a4a40',
+    'text_bright': '#e8d4b8',
+    'selected': '#c9a875',
+    'hover': '#4a3a30',
+    'positive': '#5a9068',
+    'negative': '#D94A38'
+}
 class CharacterCreationDialog(NewGameDialog):
     """Extended dialog for creating a new game character with Origin selection and stat allocation."""
 
     def __init__(self, parent=None):
         """Initialize the character creation dialog."""
         # We call QDialog's init directly as we heavily override the UI from NewGameDialog
-        QDialog.__init__(self, parent)
+        super().__init__(parent)
 
         # Set window properties from NewGameDialog if desired
         self.setWindowTitle("Create New Character")
         self.setMinimumWidth(800)
-        # --- MODIFICATION: Reduced height ---
-        self.setMinimumHeight(550) # Adjusted height (was 650)
-        # --- END MODIFICATION ---
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-            }
-            QLabel {
-                color: #E0E0E0;
+        self.setMinimumHeight(550)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {COLORS['background_med']};
+                color: {COLORS['text_bright']};
+            }}
+            QLabel {{
+                color: {COLORS['text_primary']};
                 padding-top: 3px;
-            }
-            QLineEdit, QTextEdit, QComboBox {
-                background-color: #1E1E1E;
-                color: #E0E0E0;
-                border: 1px solid #3F3F46;
+            }}
+            QLineEdit, QTextEdit, QComboBox {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_bright']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
                 padding: 5px;
-            }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-                border-color: #0E639C;
-            }
-            QPushButton {
-                background-color: #0E639C;
-                color: white;
-                border: none;
+            }}
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {{
+                border-color: {COLORS['text_primary']};
+            }}
+            QComboBox::drop-down {{
+                border: none; width: 15px;
+            }}
+            QComboBox::down-arrow {{
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 5px solid {COLORS['text_secondary']};
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS['background_med']};
+                color: {COLORS['text_bright']};
+                selection-background-color: {COLORS['hover']};
+                selection-color: {COLORS['selected']};
+                border: 1px solid {COLORS['border_dark']};
+            }}
+            QPushButton {{
+                background-color: {COLORS['background_light']};
+                color: {COLORS['text_primary']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
                 padding: 8px 16px;
                 font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177BB;
-            }
-            QPushButton:pressed {
-                background-color: #0A4C7C;
-            }
-            QPushButton:disabled {
-                background-color: #666666;
-                color: #AAAAAA;
-            }
-            QGroupBox {
-                border: 1px solid #555555;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['hover']};
+                border-color: {COLORS['border_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['background_dark']};
+            }}
+            QPushButton:disabled {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_disabled']};
+            }}
+            QGroupBox {{
+                background-color: {COLORS['background_light']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 5px;
                 margin-top: 10px;
                 padding-top: 10px;
                 font-weight: bold;
-            }
-            QGroupBox::title {
+                color: {COLORS['text_primary']};
+            }}
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding: 0 10px 0 10px;
-                color: #E0E0E0;
-            }
-            QTabWidget::pane {
-                border: 1px solid #555555;
-                background-color: #333333;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid {COLORS['border_dark']};
+                background-color: {COLORS['background_med']};
                 border-radius: 5px;
-            }
-            QTabBar::tab {
-                background-color: #444444;
-                color: #CCCCCC;
-                border: 1px solid #555555;
+            }}
+            QTabBar::tab {{
+                background-color: {COLORS['background_dark']};
+                color: {COLORS['text_secondary']};
+                border: 1px solid {COLORS['border_dark']};
                 border-bottom: none;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
                 padding: 6px 10px;
                 margin-right: 2px;
-            }
-            QTabBar::tab:selected {
-                background-color: #333333;
-                color: #E0E0E0;
-            }
-            QScrollArea {
+            }}
+            QTabBar::tab:selected {{
+                background-color: {COLORS['background_med']};
+                color: {COLORS['text_primary']};
+            }}
+            QScrollArea {{
                 border: none;
                 background-color: transparent;
-            }
-            #OriginDetailsLabel {
-                color: #CCCCCC;
+            }}
+            #OriginDetailsLabel {{
+                color: {COLORS['text_secondary']};
                 padding-left: 5px;
                 padding-top: 0px;
-            }
+            }}
         """)
 
         # Load data dynamically
@@ -922,7 +953,18 @@ class CharacterCreationDialog(NewGameDialog):
         reqs = modifier_info.minimum_requirements
         recomm = modifier_info.recommended_stats
 
-        info_text = f"<div style='font-weight: bold; font-size: 13px;'>{race} {class_name} Stat Info</div><hr>"
+        # --- UPDATED STYLING FOR THIS LABEL ---
+        self.stat_info_label.setStyleSheet(f"""
+            QLabel {{
+                color: {COLORS['text_secondary']}; 
+                background-color: {COLORS['background_dark']}; 
+                padding: 10px; 
+                border-radius: 5px;
+                border: 1px solid {COLORS['border_dark']};
+            }}
+        """)
+
+        info_text = f"<div style='font-weight: bold; font-size: 13px; color: {COLORS['text_primary']};'>{race} {class_name} Stat Info</div><hr style='border-color: {COLORS['border_dark']};'>"
 
         def format_mods(mods_dict, color_pos, color_neg):
             if not mods_dict: return "None"
@@ -933,8 +975,8 @@ class CharacterCreationDialog(NewGameDialog):
                     parts.append(f"<span style='color: {color}'>{stat} {mod:+d}</span>")
             return ", ".join(parts) if parts else "None"
 
-        info_text += f"<div style='margin-bottom: 8px;'><b>Race Modifiers:</b> {format_mods(race_mods, '#4CAF50', '#F44336')}</div>"
-        info_text += f"<div style='margin-bottom: 8px;'><b>Class Modifiers:</b> {format_mods(class_mods, '#2196F3', '#F44336')}</div>"
+        info_text += f"<div style='margin-bottom: 8px;'><b>Race Modifiers:</b> {format_mods(race_mods, COLORS['positive'], COLORS['negative'])}</div>"
+        info_text += f"<div style='margin-bottom: 8px;'><b>Class Modifiers:</b> {format_mods(class_mods, COLORS['positive'], COLORS['negative'])}</div>"
 
         req_text = ", ".join([f"{stat} {val}" for stat, val in sorted(reqs.items())]) if reqs else "None"
         info_text += f"<div style='margin-bottom: 8px;'><b>Minimum Requirements:</b> {req_text}</div>"

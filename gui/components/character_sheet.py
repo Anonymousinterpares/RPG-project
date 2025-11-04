@@ -1403,10 +1403,16 @@ class CharacterSheetWidget(QScrollArea):
             self.setText(text)
             self.item_id = item_id
             if item_id:
-                self.setCursor(Qt.PointingHandCursor)
+                # --- FIX: Use the parent's link_cursor if available ---
+                main_win = self.window()
+                if hasattr(main_win, 'link_cursor'):
+                    self.setCursor(main_win.link_cursor)
+                else:
+                    self.setCursor(Qt.PointingHandCursor)
+                # --- END FIX ---
                 self.setStyleSheet(f"color: {COLORS['text_bright']}; font-size: 13px;")
             else:
-                self.setCursor(Qt.ArrowCursor)
+                self.unsetCursor() # Revert to the parent's cursor
                 self.setStyleSheet(f"color: {COLORS['text_secondary']}; font-style: italic; font-size: 13px;")
 
         def show_context_menu_slot(self, position: QPoint):
