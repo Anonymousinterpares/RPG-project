@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
             self._setup_cursors()
             self.setCursor(self.normal_cursor)
             # --- END CURSOR SETUP ---
-
+            
             self._previous_mode = None # Track previous mode for transitions
             
             # Get resource manager
@@ -145,17 +145,22 @@ class MainWindow(QMainWindow):
 
     def _apply_text_cursor_to_text_widgets(self):
         """Apply the TEXT cursor to editable text widgets."""
-        # QLineEdit is simple, just set its cursor directly
-        line_edits = self.findChildren(QLineEdit)
+        # QLineEdit
+        line_edits = [w for w in self.findChildren(QLineEdit) if not w.isReadOnly()]
         for widget in line_edits:
             widget.setCursor(self.text_cursor)
 
-        # QTextEdit and QPlainTextEdit are complex, set the cursor on their viewport
+        # QTextEdit and QPlainTextEdit
         text_areas = self.findChildren(QTextEdit) + self.findChildren(QPlainTextEdit)
         editable_text_areas = [widget for widget in text_areas if not widget.isReadOnly()]
         
         for widget in editable_text_areas:
             widget.viewport().setCursor(self.text_cursor)
+
+        # Set normal cursor on read-only text areas
+        read_only_text_areas = [widget for widget in text_areas if widget.isReadOnly()]
+        for widget in read_only_text_areas:
+            widget.viewport().setCursor(self.normal_cursor)
 
         logger.info(f"Applied text cursor to {len(line_edits) + len(editable_text_areas)} editable text widgets.")
 

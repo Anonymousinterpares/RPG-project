@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QScrollArea, QFrame, QGroupBox, QListWidget, QListWidgetItem,
     QPushButton, QMenu, QToolButton, QSizePolicy, QComboBox, QLineEdit
 )
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QFont, QPixmap, QIcon, QCursor, QColor
 
 from core.inventory.item_manager import get_inventory_manager
@@ -54,7 +54,22 @@ class InventoryPanelWidget(QScrollArea):
         
         # Set up the UI
         self._setup_ui()
-    
+        QTimer.singleShot(0, self._apply_cursors)
+
+    def _apply_cursors(self):
+        """Applies custom cursors to child widgets."""
+        main_win = self.window()
+        if not main_win:
+            return
+
+        if hasattr(main_win, 'link_cursor'):
+            self.filter_combo.setCursor(main_win.link_cursor)
+            if self.filter_combo.view():
+                self.filter_combo.view().setCursor(main_win.link_cursor)
+        
+        if hasattr(main_win, 'text_cursor'):
+            self.search_edit.setCursor(main_win.text_cursor)
+
     def _setup_ui(self):
         """Set up the user interface."""
         # Create the main layout
@@ -280,7 +295,7 @@ class InventoryPanelWidget(QScrollArea):
         filter_layout.addWidget(self.filter_combo)
         filter_layout.addWidget(search_label)
         filter_layout.addWidget(self.search_edit, 1)
-        
+
         # Create item list
         self.item_list = QListWidget()
         self.item_list.setStyleSheet("""

@@ -18,6 +18,15 @@ from core.utils.logging_config import get_logger
 
 logger = get_logger("GRIMOIRE")
 
+# --- ADD COLORS FOR STYLING ---
+COLORS = {
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'hover': '#4a3a30',
+    'text_primary': '#c9a875',
+    'text_bright': '#e8d4b8',
+    'content_bg': '#252528', # A slightly different dark for content
+}
 
 class CollapsibleMagicSystemSection(QWidget):
     """
@@ -67,45 +76,47 @@ class CollapsibleMagicSystemSection(QWidget):
         # Create header
         self._create_header()
         
-        # Create content area (spells container)
         self.content_area = QWidget()
         self.content_layout = QVBoxLayout(self.content_area)
         self.content_layout.setContentsMargins(10, 5, 10, 5)
         self.content_layout.setSpacing(3)
         
         # Style content area
-        self.content_area.setStyleSheet("""
-            QWidget {
-                background-color: #2A2A2A;
+        self.content_area.setStyleSheet(f"""
+            QWidget {{
+                background-color: {COLORS['content_bg']};
                 border: none;
                 border-bottom-left-radius: 5px;
                 border-bottom-right-radius: 5px;
-            }
+            }}
         """)
         
         self.main_layout.addWidget(self.content_area)
-        
-        # Start expanded
         self.content_area.setVisible(True)
-    
+
+    def set_header_cursor(self, cursor):
+        """Sets the cursor for the header frame."""
+        if hasattr(self, 'header_frame'):
+            self.header_frame.setCursor(cursor)
+
     def _create_header(self):
         """Create the clickable header section."""
-        self.header = QFrame()
-        self.header.setFrameShape(QFrame.StyledPanel)
-        self.header.setCursor(Qt.PointingHandCursor)
-        self.header.setStyleSheet("""
-            QFrame {
-                background-color: #3A3A3A;
-                border: 1px solid #555555;
+        self.header_frame = QFrame() # Renamed from self.header to be more specific
+        self.header_frame.setFrameShape(QFrame.StyledPanel)
+        # The cursor will be set dynamically via set_header_cursor
+        self.header_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['background_light']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 5px;
                 padding: 8px;
-            }
-            QFrame:hover {
-                background-color: #454545;
-            }
+            }}
+            QFrame:hover {{
+                background-color: {COLORS['hover']};
+            }}
         """)
         
-        header_layout = QHBoxLayout(self.header)
+        header_layout = QHBoxLayout(self.header_frame)
         header_layout.setContentsMargins(8, 4, 8, 4)
         
         # Arrow indicator (will be rotated)
@@ -119,15 +130,15 @@ class CollapsibleMagicSystemSection(QWidget):
         # System name
         self.title_label = QLabel(f"{self.system_name} ({self._spell_count})")
         self.title_label.setFont(QFont("Arial", 11, QFont.Bold))
-        self.title_label.setStyleSheet("color: #E0E0E0; background: transparent; border: none;")
+        self.title_label.setStyleSheet(f"color: {COLORS['text_primary']}; background: transparent; border: none;")
         
         header_layout.addWidget(self.arrow_label)
         header_layout.addWidget(self.title_label, 1)
         
         # Make header clickable
-        self.header.mousePressEvent = lambda event: self.toggle_expansion()
+        self.header_frame.mousePressEvent = lambda event: self.toggle_expansion()
         
-        self.main_layout.addWidget(self.header)
+        self.main_layout.addWidget(self.header_frame)
     
     def add_spell_widget(self, spell_widget: QWidget):
         """

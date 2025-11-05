@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (
     QScrollArea, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QComboBox, QGroupBox, QMenu, QMessageBox, QFrame, QPushButton, QDialog
@@ -63,7 +63,7 @@ class GrimoirePanelWidget(QScrollArea):
                 border: none;
             }
         """)
-        
+
         # State tracking
         self._spells_by_system: Dict[str, List[Any]] = {}
         self._all_spells: List[Any] = []
@@ -92,7 +92,27 @@ class GrimoirePanelWidget(QScrollArea):
         
         # Spacer at bottom
         self.main_layout.addStretch()
-    
+        
+        QTimer.singleShot(0, self._apply_cursors)
+
+    def _apply_cursors(self):
+        """Applies custom cursors to child widgets."""
+        main_win = self.window()
+        if not main_win:
+            return
+
+        if hasattr(main_win, 'link_cursor'):
+            self.role_filter.setCursor(main_win.link_cursor)
+            if self.role_filter.view():
+                self.role_filter.view().setCursor(main_win.link_cursor)
+            
+            self.system_filter.setCursor(main_win.link_cursor)
+            if self.system_filter.view():
+                self.system_filter.view().setCursor(main_win.link_cursor)
+        
+        if hasattr(main_win, 'text_cursor'):
+            self.search_input.setCursor(main_win.text_cursor)
+
     def _create_quick_stats_section(self):
         """Create the quick stats section showing mana and spell count."""
         self.stats_group = QGroupBox("Mana")
@@ -408,6 +428,8 @@ class GrimoirePanelWidget(QScrollArea):
         total_filtered = sum(len(spells) for spells in filtered_by_system.values())
         self.empty_state_label.setVisible(total_filtered == 0)
         
+        main_win = self.window()
+
         # Create collapsible sections for each system
         for system_id in sorted(filtered_by_system.keys()):
             spells = filtered_by_system[system_id]
@@ -422,7 +444,11 @@ class GrimoirePanelWidget(QScrollArea):
                 system_name=system_name,
                 spell_count=len(spells)
             )
-            
+
+            # Apply cursor if main window and cursor are available
+            if main_win and hasattr(main_win, 'link_cursor'):
+                section.set_header_cursor(main_win.link_cursor)
+
             # Add spell widgets to section
             for spell in sorted(spells, key=lambda s: getattr(s, 'name', getattr(s, 'id', ''))):
                 spell_id = spell.id
@@ -433,7 +459,11 @@ class GrimoirePanelWidget(QScrollArea):
                     spell_name=spell_name,
                     spell_obj=spell
                 )
-                
+
+                # Apply cursor if main window and cursor are available
+                if main_win and hasattr(main_win, 'link_cursor'):
+                    spell_widget.setCursor(main_win.link_cursor)
+
                 # Connect signals
                 spell_widget.clicked.connect(self._on_spell_selected)
                 spell_widget.double_clicked.connect(self._on_spell_double_clicked)

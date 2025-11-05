@@ -11,15 +11,30 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QTextEdit, QGroupBox,
     QHBoxLayout, QFrame, QScrollArea, QWidget
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 
 from core.utils.logging_config import get_logger
+from gui.dialogs.base_dialog import BaseDialog
 
 logger = get_logger("SPELL_DETAILS")
 
+# --- STYLING COLORS ---
+COLORS = {
+    'background_dark': '#1a1410',
+    'background_med': '#2d2520',
+    'background_light': '#3a302a',
+    'border_dark': '#4a3a30',
+    'text_primary': '#c9a875',
+    'text_secondary': '#8b7a65',
+    'text_bright': '#e8d4b8',
+    'offensive': '#D94A38',
+    'defensive': '#5a9068',
+    'utility': '#8b7a65',
+    'mana': '#1178BB',
+}
 
-class SpellDetailsDialog(QDialog):
+class SpellDetailsDialog(BaseDialog):
     """Enhanced spell details dialog with rich formatted display."""
     
     def __init__(self, spell_obj: Any, parent: Optional[object] = None):
@@ -31,13 +46,15 @@ class SpellDetailsDialog(QDialog):
         self.setWindowTitle(f"Spell: {name}")
         self.setModal(False)
         self.resize(500, 600)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2D2D30;
-            }
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {COLORS['background_med']};
+            }}
         """)
         
         self._setup_ui()
+
+        QTimer.singleShot(0, self._apply_cursors)
     
     def _setup_ui(self):
         """Set up the user interface with formatted sections."""
@@ -79,35 +96,29 @@ class SpellDetailsDialog(QDialog):
         system_id = getattr(self.spell_obj, 'system_id', 'Unknown System')
         role = getattr(self.spell_obj, 'combat_role', 'offensive').capitalize()
         
-        # Role colors
-        role_colors = {
-            'Offensive': '#D94A38',
-            'Defensive': '#0E639C',
-            'Utility': '#8B7FBF'
-        }
-        role_color = role_colors.get(role, '#888888')
+        role_color = COLORS.get(role.lower(), COLORS['text_secondary'])
         
         header_label = QLabel()
         header_label.setText(f"""
             <div style='padding: 10px;'>
-                <h2 style='color: #E0E0E0; margin: 0;'>{name}</h2>
-                <p style='color: #BBBBBB; margin: 5px 0 0 0;'>
-                    <span style='color: #1178BB;'>📖 {system_id}</span> &nbsp;|&nbsp;
+                <h2 style='color: {COLORS['text_primary']}; margin: 0;'>{name}</h2>
+                <p style='color: {COLORS['text_secondary']}; margin: 5px 0 0 0;'>
+                    <span style='color: {COLORS['mana']};'>📖 {system_id}</span> &nbsp;|&nbsp;
                     <span style='color: {role_color};'>⚔ {role}</span>
                 </p>
             </div>
         """)
         header_label.setTextFormat(Qt.RichText)
         header_label.setWordWrap(True)
-        header_label.setStyleSheet("""
-            QLabel {
-                background-color: #3A3A3A;
-                border: 1px solid #555555;
+        header_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: {COLORS['background_light']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 5px;
-            }
+            }}
         """)
         layout.addWidget(header_label)
-    
+
     def _create_description_section(self, layout: QVBoxLayout):
         """Create the thematic description section."""
         data = getattr(self.spell_obj, 'data', {}) or {}
@@ -120,11 +131,11 @@ class SpellDetailsDialog(QDialog):
             group_layout = QVBoxLayout(group)
             desc_label = QLabel(description)
             desc_label.setWordWrap(True)
-            desc_label.setStyleSheet("color: #CCCCCC; padding: 5px;")
+            desc_label.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 5px;")
             group_layout.addWidget(desc_label)
             
             layout.addWidget(group)
-    
+
     def _create_mechanics_section(self, layout: QVBoxLayout):
         """Create the mechanics section with spell statistics."""
         data = getattr(self.spell_obj, 'data', {}) or {}
@@ -135,50 +146,76 @@ class SpellDetailsDialog(QDialog):
         group_layout = QVBoxLayout(group)
         group_layout.setSpacing(8)
         
-        # Extract mechanics data
+        mechanics_frame = QFrame()
+        mechanics_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['background_dark']};
+                border: 1px solid {COLORS['border_dark']};
+                border-radius: 4px;
+                padding: 5px;
+            }}
+        """)
+        mechanics_layout = QVBoxLayout(mechanics_frame)
+        
         mana_cost = data.get('mana_cost') or data.get('cost') or data.get('mp', 'Unknown')
         casting_time = data.get('casting_time') or data.get('cast_time', 'Unknown')
         spell_range = data.get('range', 'Unknown')
         target = data.get('target', 'Unknown')
         tags = data.get('tags', [])
         
-        # Create formatted mechanics display
         mechanics_html = f"""
-            <table style='width: 100%; color: #E0E0E0;'>
+            <table style='width: 100%; color: {COLORS['text_bright']};'>
                 <tr>
-                    <td style='padding: 4px; width: 40%;'><b>💧 Mana Cost:</b></td>
+                    <td style='padding: 4px; width: 40%;'><b style='color: {COLORS['text_primary']};'>💧 Mana Cost:</b></td>
                     <td style='padding: 4px;'>{mana_cost}</td>
                 </tr>
-                <tr style='background-color: #2A2A2A;'>
-                    <td style='padding: 4px;'><b>⏱ Casting Time:</b></td>
+                <tr style='background-color: {COLORS['background_light']};'>
+                    <td style='padding: 4px;'><b style='color: {COLORS['text_primary']};'>⏱ Casting Time:</b></td>
                     <td style='padding: 4px;'>{casting_time}</td>
                 </tr>
                 <tr>
-                    <td style='padding: 4px;'><b>📏 Range:</b></td>
+                    <td style='padding: 4px;'><b style='color: {COLORS['text_primary']};'>📏 Range:</b></td>
                     <td style='padding: 4px;'>{spell_range}</td>
                 </tr>
-                <tr style='background-color: #2A2A2A;'>
-                    <td style='padding: 4px;'><b>🎯 Target:</b></td>
+                <tr style='background-color: {COLORS['background_light']};'>
+                    <td style='padding: 4px;'><b style='color: {COLORS['text_primary']};'>🎯 Target:</b></td>
                     <td style='padding: 4px;'>{target}</td>
                 </tr>
             </table>
         """
         
-        if tags:
-            tags_str = ', '.join([str(t) for t in tags])
-            mechanics_html += f"""
-                <p style='margin-top: 8px; color: #AAAAAA;'>
-                    <b>Tags:</b> {tags_str}
-                </p>
-            """
-        
         mechanics_label = QLabel(mechanics_html)
         mechanics_label.setTextFormat(Qt.RichText)
-        mechanics_label.setStyleSheet("padding: 5px;")
-        group_layout.addWidget(mechanics_label)
+        mechanics_layout.addWidget(mechanics_label)
+
+        if tags:
+            tags_str = ', '.join([str(t) for t in tags])
+            tags_html = f"<p style='margin-top: 8px; color: {COLORS['text_secondary']};'><b>Tags:</b> {tags_str}</p>"
+            tags_label = QLabel(tags_html)
+            tags_label.setTextFormat(Qt.RichText)
+            tags_label.setStyleSheet("padding-top: 5px;") # Add some space
+            mechanics_layout.addWidget(tags_label)
+
+        group_layout.addWidget(mechanics_frame)
         
         layout.addWidget(group)
-    
+
+    def _apply_cursors(self):
+        """Applies custom cursors to child widgets of this dialog."""
+        main_win = self.window()
+        if not main_win:
+            # This dialog is parented to the Grimoire panel, so we need to get the main window from there.
+            if self.parent() and hasattr(self.parent(), 'window'):
+                 main_win = self.parent().window()
+            else:
+                return
+
+        if hasattr(main_win, 'normal_cursor'):
+            # Set normal cursor on read-only text areas
+            text_areas = self.findChildren(QLabel) # QTextBrowser is not used here
+            for widget in text_areas:
+                widget.setCursor(main_win.normal_cursor)
+
     def _create_effects_section(self, layout: QVBoxLayout):
         """Create the effects section listing all spell effects."""
         atoms = getattr(self.spell_obj, 'effect_atoms', []) or []
@@ -203,13 +240,13 @@ class SpellDetailsDialog(QDialog):
         """Create a widget for a single effect atom."""
         frame = QFrame()
         frame.setFrameShape(QFrame.StyledPanel)
-        frame.setStyleSheet("""
-            QFrame {
-                background-color: #252528;
-                border: 1px solid #444444;
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['background_dark']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 4px;
                 padding: 8px;
-            }
+            }}
         """)
         
         frame_layout = QVBoxLayout(frame)
@@ -228,7 +265,7 @@ class SpellDetailsDialog(QDialog):
         icon = effect_icons.get(effect_type, '◆')
         
         type_label = QLabel(f"<b>{icon} Effect {index}: {effect_type.capitalize()}</b>")
-        type_label.setStyleSheet("color: #E0E0E0;")
+        type_label.setStyleSheet(f"color: {COLORS['text_primary']};")
         type_label.setTextFormat(Qt.RichText)
         frame_layout.addWidget(type_label)
         
@@ -252,28 +289,28 @@ class SpellDetailsDialog(QDialog):
             details_label = QLabel(details_html)
             details_label.setTextFormat(Qt.RichText)
             details_label.setWordWrap(True)
-            details_label.setStyleSheet("color: #BBBBBB; font-size: 9pt;")
+            details_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 9pt;")
             frame_layout.addWidget(details_label)
         
         return frame
     
     def _get_groupbox_style(self) -> str:
         """Get consistent QGroupBox styling."""
-        return """
-            QGroupBox {
-                background-color: #333333;
-                border: 1px solid #555555;
+        return f"""
+            QGroupBox {{
+                background-color: {COLORS['background_light']};
+                border: 1px solid {COLORS['border_dark']};
                 border-radius: 5px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: #E0E0E0;
+                color: {COLORS['text_primary']};
                 padding-top: 10px;
-            }
-            QGroupBox::title {
+            }}
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding-left: 10px;
                 padding-right: 10px;
                 padding-top: 5px;
-            }
+            }}
         """

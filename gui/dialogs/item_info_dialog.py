@@ -126,6 +126,7 @@ class ItemInfoDialog(BaseDialog):
         self.description_title_label = QLabel(f"<b style='color: {COLORS['text_primary']};'>Description:</b>")
         self.content_layout.addWidget(self.description_title_label)
         self.description_browser = QTextBrowser()
+        self.description_browser.setTextInteractionFlags(Qt.NoTextInteraction)
         self.description_browser.setPlaceholderText("?")
         self.description_browser.setOpenExternalLinks(True)
         self.description_browser.setMinimumHeight(60) 

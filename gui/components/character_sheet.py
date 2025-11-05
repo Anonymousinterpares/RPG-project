@@ -394,6 +394,7 @@ class CharacterSheetWidget(QScrollArea):
 
         self.status_effects_list = QTextEdit()
         self.status_effects_list.setReadOnly(True)
+        self.status_effects_list.setTextInteractionFlags(Qt.NoTextInteraction)
         self.status_effects_list.setMaximumHeight(60)
         self.status_effects_list.setStyleSheet(f"""
             QTextEdit {{
@@ -413,6 +414,7 @@ class CharacterSheetWidget(QScrollArea):
 
         self.turn_order_list = QTextEdit()
         self.turn_order_list.setReadOnly(True)
+        self.turn_order_list.setTextInteractionFlags(Qt.NoTextInteraction)
         self.turn_order_list.setMaximumHeight(80)
         self.turn_order_list.setStyleSheet(f"""
             QTextEdit {{

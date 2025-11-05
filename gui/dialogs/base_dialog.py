@@ -1,5 +1,5 @@
 #gui/dialogs/base_dialog.py
-from PySide6.QtWidgets import QDialog, QPushButton, QToolButton, QLineEdit, QTextEdit, QPlainTextEdit
+from PySide6.QtWidgets import QDialog, QPushButton, QToolButton, QLineEdit, QTextEdit, QPlainTextEdit, QListWidget, QTableWidget, QComboBox
 from core.utils.logging_config import get_logger
 
 logger = get_logger("BASE_DIALOG")
@@ -8,32 +8,60 @@ class BaseDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        if parent and hasattr(parent, 'normal_cursor'):
-            self.setCursor(parent.normal_cursor)
-            self._apply_cursors_to_children(parent)
+        
+        main_window = self
+        while hasattr(main_window, 'parent') and main_window.parent():
+            main_window = main_window.parent()
+            # Once we find an object that has the cursor attributes, we've found our source.
+            if hasattr(main_window, 'normal_cursor'):
+                break
+        
+        if hasattr(main_window, 'normal_cursor'):
+            self.setCursor(main_window.normal_cursor)
+            self._apply_cursors_to_children(main_window)
 
     def _apply_cursors_to_children(self, main_window):
         """Finds all relevant child widgets and applies custom cursors from the main window."""
         if not hasattr(main_window, 'link_cursor'):
-            return # Don't do anything if cursors aren't loaded
+            return
 
-        # Apply link cursor to buttons
-        buttons = self.findChildren(QPushButton) + self.findChildren(QToolButton)
-        for button in buttons:
-            button.setCursor(main_window.link_cursor)
+        # --- LINK CURSOR ---
+        link_widgets = self.findChildren(QPushButton) + \
+                       self.findChildren(QToolButton) + \
+                       self.findChildren(QListWidget) + \
+                       self.findChildren(QTableWidget)
+        for widget in link_widgets:
+            widget.setCursor(main_window.link_cursor)
+            # For lists/tables, the viewport is what matters for the item area
+            if hasattr(widget, 'viewport'):
+                widget.viewport().setCursor(main_window.link_cursor)
 
-        # Apply text cursor to editable text widgets
+        # Special handling for ComboBox popups (which are QListViews)
+        combos = self.findChildren(QComboBox)
+        for combo in combos:
+            combo.setCursor(main_window.link_cursor)
+            if hasattr(combo, 'view') and combo.view():
+                combo.view().setCursor(main_window.link_cursor)
+
+        # --- TEXT CURSOR ---
         if hasattr(main_window, 'text_cursor'):
             # QLineEdit
-            line_edits = self.findChildren(QLineEdit)
+            line_edits = [w for w in self.findChildren(QLineEdit) if not w.isReadOnly()]
             for widget in line_edits:
                 widget.setCursor(main_window.text_cursor)
 
             # QTextEdit and QPlainTextEdit
             text_areas = self.findChildren(QTextEdit) + self.findChildren(QPlainTextEdit)
-            for widget in text_areas:
-                if not widget.isReadOnly():
-                    widget.viewport().setCursor(main_window.text_cursor)
+            editable_text_areas = [widget for widget in text_areas if not widget.isReadOnly()]
+            for widget in editable_text_areas:
+                widget.viewport().setCursor(main_window.text_cursor)
+        
+        # --- NORMAL CURSOR for Read-Only Text ---
+        if hasattr(main_window, 'normal_cursor'):
+            text_areas = self.findChildren(QTextEdit) + self.findChildren(QPlainTextEdit)
+            read_only_areas = [widget for widget in text_areas if widget.isReadOnly()]
+            for widget in read_only_areas:
+                widget.viewport().setCursor(main_window.normal_cursor)
 
     def showEvent(self, event):
         """Override showEvent to adjust maximum size safely."""

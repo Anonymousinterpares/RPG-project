@@ -79,6 +79,19 @@ class JournalPanelWidget(QScrollArea):
         
         # Set up the UI
         self._setup_ui()
+
+        # --- FIX: APPLY CURSORS AFTER UI IS BUILT ---
+        main_win = self.window()
+        if hasattr(main_win, 'link_cursor'):
+            # Apply to tab bars
+            self.tab_widget.tabBar().setCursor(main_win.link_cursor)
+            self.quest_status_tabs.tabBar().setCursor(main_win.link_cursor)
+        
+        if hasattr(main_win, 'text_cursor'):
+            # Apply to editable text widgets
+            self.character_info_editor.viewport().setCursor(main_win.text_cursor)
+            self.note_editor.viewport().setCursor(main_win.text_cursor)
+        # --- END FIX ---
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -704,6 +717,11 @@ class JournalPanelWidget(QScrollArea):
             return
         from PySide6.QtWidgets import QMenu
         menu = QMenu(self)
+        
+        main_win = self.window()
+        if hasattr(main_win, 'link_cursor'):
+            menu.setCursor(main_win.link_cursor)
+
         menu.setStyleSheet(f"""
             QMenu {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
