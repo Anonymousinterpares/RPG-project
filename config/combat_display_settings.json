@@ -1,5 +1,5 @@
 {
-    "background_image": "map.png",
+    "background_image": "background_game_output.png",
     "font_family": "Segoe UI",
     "font_size": 9,
     "font_size_player_name_offset": 1,

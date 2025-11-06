@@ -1826,8 +1826,14 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     logger.error(f"Error updating CharacterSheet for player bar update: {e}", exc_info=True)
 
-            # Update CombatEntityWidget in CombatDisplay
-            entity_widget_combat_display = self.combat_display.entity_widgets.get(entity_id)
+            # --- FIX: Find the target widget by checking both allies and enemies panels ---
+            entity_widget_combat_display = None
+            if hasattr(self.combat_display, 'allies_panel') and entity_id in self.combat_display.allies_panel.entity_widgets:
+                entity_widget_combat_display = self.combat_display.allies_panel.entity_widgets.get(entity_id)
+            elif hasattr(self.combat_display, 'enemies_panel') and entity_id in self.combat_display.enemies_panel.entity_widgets:
+                entity_widget_combat_display = self.combat_display.enemies_panel.entity_widgets.get(entity_id)
+            # --- END FIX ---
+
             logger.info(f"CombatDisplay widget exists for entity? {bool(entity_widget_combat_display)}")
             animation_invoked = False
             if entity_widget_combat_display:
@@ -1922,6 +1928,7 @@ class MainWindow(QMainWindow):
             logger.error(f"Orchestrated event has non-string content and is not a known special type: {event}")
             if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
                 self.game_engine._combat_orchestrator._handle_visual_display_complete()
+
     def _initialize_panel_effects(self):
         """Initialize QGraphicsOpacityEffect for panels that will be animated."""
         if not hasattr(self, 'center_opacity_effect'):
