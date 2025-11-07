@@ -5,12 +5,12 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from PySide6.QtWidgets import (
-    QDialog, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
     QPushButton, QGroupBox, QDialogButtonBox, QFontDialog, QColorDialog,
-    QSizePolicy, QFrame, QScrollArea
+    QFrame, QScrollArea, QSpinBox
 )
-from PySide6.QtGui import QPixmap, QIcon, QFont, QColor, QPalette
-from PySide6.QtCore import Qt, Slot, QSize
+from PySide6.QtGui import QPixmap, QFont, QColor
+from PySide6.QtCore import Qt, Slot
 
 from gui.dialogs.base_dialog import BaseDialog
 
@@ -21,46 +21,43 @@ class CombatSettingsDialog(BaseDialog):
     """Dialog for configuring Combat Display settings."""
 
     def __init__(self, current_settings: Dict[str, Any], image_dir: str, parent: Optional[QWidget] = None):
-        """
-        Initialize the settings dialog.
-
-        Args:
-            current_settings: A dictionary containing the current settings.
-            image_dir: The absolute path to the directory containing background images.
-            parent: The parent widget.
-        """
+        """Initialize the settings dialog."""
         super().__init__(parent)
         self.setWindowTitle("Combat Display Settings")
-        self.setMinimumHeight(550) # Increased height slightly
-        self.setMinimumWidth(850) # Increased width slightly
+        self.setMinimumHeight(600)
+        self.setMinimumWidth(850)
 
-        # Store settings and image directory
         self.settings = current_settings.copy()
         self.image_dir = image_dir
         self.available_images: List[str] = []
         self.current_image_index: int = -1
         self.color_buttons: Dict[str, QPushButton] = {}
 
-        # Main layout
         main_layout = QVBoxLayout(self)
+        top_layout = QHBoxLayout()
 
-        # --- Sections ---
-        main_layout.addWidget(self._setup_background_section())
-        main_layout.addWidget(self._setup_font_section())
+        # Left side for Background and Fonts
+        left_v_layout = QVBoxLayout()
+        left_v_layout.addWidget(self._setup_background_section())
+        left_v_layout.addWidget(self._setup_font_section())
+        left_v_layout.addStretch()
+        top_layout.addLayout(left_v_layout, 1)
+
+        # Right side for Colors
         color_group = self._setup_color_section()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(color_group)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        main_layout.addWidget(scroll_area, 1) # Allow color section to expand
+        top_layout.addWidget(scroll_area, 1)
 
-        # --- Dialog Buttons ---
+        main_layout.addLayout(top_layout)
+
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         main_layout.addWidget(button_box)
 
-        # Load initial values into UI elements
         self._load_settings_to_ui()
 
     # --- Section Setup Methods ---
@@ -116,20 +113,35 @@ class CombatSettingsDialog(BaseDialog):
         return group
 
     def _setup_font_section(self) -> QGroupBox:
-        """Create the GroupBox for font settings."""
-        group = QGroupBox("Font Settings")
-        layout = QHBoxLayout(group) # Use QHBoxLayout for side-by-side
+        """Create the GroupBox for all font and header settings."""
+        group = QGroupBox("Fonts & Headers")
+        layout = QFormLayout(group)
+        layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
-        # Font Selection Button
-        font_button = QPushButton("Choose Base Font...")
-        font_button.setToolTip("Select font family and base size for most elements")
-        font_button.clicked.connect(self._choose_font)
-        layout.addWidget(font_button)
+        # --- Header Font ---
+        header_font_button = QPushButton("Choose Header Font...")
+        header_font_button.clicked.connect(self._choose_header_font)
+        self.header_font_preview = QLabel("Header Preview")
+        header_font_layout = QHBoxLayout()
+        header_font_layout.addWidget(header_font_button)
+        header_font_layout.addWidget(self.header_font_preview)
+        layout.addRow("Panel Headers:", header_font_layout)
 
-        # Font Preview Label
-        self.font_preview_label = QLabel("Font Preview Text")
-        self.font_preview_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        layout.addWidget(self.font_preview_label)
+        # --- Header Vertical Offset ---
+        self.header_offset_spinbox = QSpinBox()
+        self.header_offset_spinbox.setRange(0, 50)
+        self.header_offset_spinbox.setSuffix(" px")
+        self.header_offset_spinbox.setToolTip("Sets the vertical space between a header and the content below it.")
+        layout.addRow("Header Vertical Offset:", self.header_offset_spinbox)
+
+        # --- Log Font ---
+        log_font_button = QPushButton("Choose Log Font...")
+        log_font_button.clicked.connect(self._choose_log_font)
+        self.log_font_preview = QLabel("Combat Log Preview")
+        log_font_layout = QHBoxLayout()
+        log_font_layout.addWidget(log_font_button)
+        log_font_layout.addWidget(self.log_font_preview)
+        layout.addRow("Combat Log:", log_font_layout)
 
         return group
 
@@ -292,13 +304,21 @@ class CombatSettingsDialog(BaseDialog):
         self.bg_filename_label.setText("Current: None")
         self.settings["background_image"] = None # Clear setting
 
-    def _update_font_preview(self):
-        """Update the font preview label based on current settings."""
-        font_family = self.settings.get("font_family", "Arial")
-        font_size = self.settings.get("font_size", 10)
-        font = QFont(font_family, font_size)
-        self.font_preview_label.setFont(font)
-        self.font_preview_label.setText(f"{font_family}, {font_size}pt - AaBbCc") # Add sample text
+    def _update_font_previews(self):
+        """Update all font preview labels based on current settings."""
+        # Header Preview
+        header_family = self.settings.get("font_family_header", "Garamond")
+        header_size = self.settings.get("font_size_header", 20)
+        header_font = QFont(header_family, header_size)
+        self.header_font_preview.setFont(header_font)
+        self.header_font_preview.setText(f"{header_family}, {header_size}pt")
+
+        # Log Preview
+        log_family = self.settings.get("font_family_log", "Garamond")
+        log_size = self.settings.get("font_size_log", 14)
+        log_font = QFont(log_family, log_size)
+        self.log_font_preview.setFont(log_font)
+        self.log_font_preview.setText(f"{log_family}, {log_size}pt - Sample Text")
 
     def _create_color_button(self, setting_key: str) -> QPushButton:
         """Create a button for selecting a color."""
@@ -333,26 +353,22 @@ class CombatSettingsDialog(BaseDialog):
         """Load the initial settings values into the UI controls."""
         # Background
         current_bg = self.settings.get("background_image")
-        if current_bg and self.available_images: # Check if list is not empty
+        if current_bg and self.available_images:
             try:
                 self.current_image_index = self.available_images.index(current_bg)
             except ValueError:
-                logger.warning(f"Saved background image '{current_bg}' not found in available images. Clearing.")
-                self.current_image_index = -1 # Not found
-                if "background_image" in self.settings: self.settings["background_image"] = None # Clear invalid setting
+                self.current_image_index = -1
         else:
             self.current_image_index = -1
-            if "background_image" in self.settings: self.settings["background_image"] = None # Ensure it's cleared if no images available
         self._update_background_preview()
 
-        # Font
-        self._update_font_preview()
+        # Font Previews and Offset
+        self._update_font_previews()
+        self.header_offset_spinbox.setValue(self.settings.get("header_vertical_offset", 5))
 
         # Colors
         for key, button in self.color_buttons.items():
-            # Provide a default fallback color if key is missing in settings (e.g., new setting added)
-            default_color = "#FFFFFF" if "bg" in key else "#000000" # Simple default logic
-            color_value = self.settings.get(key, default_color)
+            color_value = self.settings.get(key, "#ffffff")
             self._update_color_button_preview(button, color_value)
 
     # --- Slots ---
@@ -438,22 +454,43 @@ class CombatSettingsDialog(BaseDialog):
                 self.settings[setting_key] = hex_name
                 self._update_color_button_preview(sender_button, hex_name)
 
+    @Slot()
+    def _choose_header_font(self):
+        """Open a font dialog to choose the header font."""
+        current_family = self.settings.get("font_family_header", "Garamond")
+        current_size = self.settings.get("font_size_header", 20)
+        current_font = QFont(current_family, current_size)
+
+        ok, font = QFontDialog.getFont(current_font, self, "Select Header Font")
+        if ok:
+            self.settings["font_family_header"] = font.family()
+            self.settings["font_size_header"] = font.pointSize()
+            self._update_font_previews()
+
+    @Slot()
+    def _choose_log_font(self):
+        """Open a font dialog to choose the combat log font."""
+        current_family = self.settings.get("font_family_log", "Garamond")
+        current_size = self.settings.get("font_size_log", 14)
+        current_font = QFont(current_family, current_size)
+
+        ok, font = QFontDialog.getFont(current_font, self, "Select Combat Log Font")
+        if ok:
+            self.settings["font_family_log"] = font.family()
+            self.settings["font_size_log"] = font.pointSize()
+            self._update_font_previews()
 
     # --- Public Method ---
 
     def get_settings(self) -> Dict[str, Any]:
-        """
-        Return the modified settings dictionary.
+        """Return the modified settings dictionary."""
+        # Save the final value from the spinbox
+        self.settings["header_vertical_offset"] = self.header_offset_spinbox.value()
 
-        This should be called after the dialog has been accepted.
-        """
-        # The self.settings dictionary has been updated throughout interaction
-        logger.info("Returning updated settings from dialog.")
-        # Ensure background image is None if index is invalid or no images available
-        if not self.available_images or self.current_image_index < 0 or self.current_image_index >= len(self.available_images):
+        if not self.available_images or self.current_image_index < 0:
             self.settings["background_image"] = None
-        elif self.available_images: # Check again just in case
-             self.settings["background_image"] = self.available_images[self.current_image_index]
+        else:
+            self.settings["background_image"] = self.available_images[self.current_image_index]
 
         return self.settings
 

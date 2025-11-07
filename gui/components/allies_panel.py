@@ -2,10 +2,10 @@
 """
 Allies panel for the combat display.
 """
-import logging
 from typing import Dict, Any, Optional
 
-from PySide6.QtWidgets import QGroupBox, QVBoxLayout
+from core.utils.logging_config import get_logger
+from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QPixmap, QCursor
 from PySide6.QtCore import Qt
 
@@ -14,12 +14,15 @@ from core.utils.logging_config import get_logger
 
 logger = get_logger("GUI")
 
-class AlliesPanel(QGroupBox):
+class AlliesPanel(QWidget): # Changed base class to QWidget
     """A widget to display the player and their allies in combat."""
 
-    def __init__(self, title: str, parent=None):
+    def __init__(self, parent=None): # Removed title from __init__
         """Initialize the AlliesPanel."""
-        super().__init__(title, parent)
+        super().__init__(parent) # Changed super() call
+        # Make this widget transparent so the parent's background shows through
+        self.setStyleSheet("background-color: transparent; border: none;")
+        
         self.entity_widgets: Dict[str, CombatEntityWidget] = {}
         self._setup_cursors()
 
@@ -27,7 +30,7 @@ class AlliesPanel(QGroupBox):
         self.panel_layout = QVBoxLayout(self)
         self.panel_layout.setContentsMargins(5, 10, 5, 5)
         self.panel_layout.setSpacing(5)
-        self.panel_layout.addStretch() # Add initial stretch
+        self.panel_layout.addStretch()
 
     def _setup_cursors(self):
         """Load custom cursors from image files for this component."""

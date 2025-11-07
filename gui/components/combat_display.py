@@ -10,19 +10,18 @@ import json
 import logging
 import os
 import re # Added for stylesheet manipulation
-from typing import Dict, Iterator, List, Any, Optional, Callable, Tuple
+from typing import Dict, Iterator, List, Any, Optional, Tuple
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QGroupBox, QProgressBar, QScrollArea, QFrame, QSizePolicy, QPushButton,
-    QDialog # Added for placeholder dialog
+    QFrame, QPushButton
 )
-from PySide6.QtCore import QSettings, Signal, Slot, QTimer
-from PySide6.QtGui import QColor, QTextCharFormat, QFont, QTextCursor, QFontDatabase
+from PySide6.QtCore import QSettings, Signal, Slot, QTimer, Qt
+from PySide6.QtGui import QColor, QTextCharFormat, QFont, QTextCursor
 from gui.components.allies_panel import AlliesPanel
 from gui.components.enemies_panel import EnemiesPanel
 from core.base.engine import get_game_engine
 from core.interaction.enums import InteractionMode # Added QFontDatabase
-from ..dialogs.combat_settings_dialog import CombatSettingsDialog
+# from ..dialogs.combat_settings_dialog import CombatSettingsDialog
 
 # Assuming core is in the parent directory of gui
 # Adjust if your project structure is different
@@ -48,402 +47,70 @@ from core.stats.stats_manager import get_stats_manager
 # Get the module logger
 logger = get_logger("GUI")
 
-# class CombatEntityWidget(QWidget):
-#     """Widget for displaying a combat entity status."""
-
-#     def __init__(self, entity_id: str, name: str, settings: dict, is_player: bool = False, parent=None):
-#         """Initialize the combat entity widget."""
-#         super().__init__(parent)
-
-#         self.entity_id = entity_id
-#         self.is_player = is_player
-#         self.settings = settings
-
-#         self._bar_animation_timer = QTimer(self)
-#         self._bar_animation_timer.setSingleShot(True)
-#         self._bar_animation_timer.timeout.connect(self._finalize_bar_update)
-#         self._pending_bar_update_data: Optional[Dict[str, Any]] = None
-
-
-#         layout = QVBoxLayout(self)
-#         layout.setContentsMargins(5, 5, 5, 5)
-#         layout.setSpacing(2)
-
-#         self.name_label = QLabel(name)
-#         layout.addWidget(self.name_label)
-
-#         # HP Bar
-#         self.hp_widget_container = QWidget() # Container for HP bar and label
-#         hp_layout = QHBoxLayout(self.hp_widget_container)
-#         hp_layout.setContentsMargins(0, 0, 0, 0); hp_layout.setSpacing(5)
-#         self.hp_bar = QProgressBar()
-#         self.hp_bar.setRange(0, 100); self.hp_bar.setValue(100) 
-#         self.hp_bar.setTextVisible(True); self.hp_bar.setFormat("%v / %m")
-#         self.hp_label = QLabel("HP:")
-#         hp_layout.addWidget(self.hp_label); hp_layout.addWidget(self.hp_bar)
-#         layout.addWidget(self.hp_widget_container) # Add container to main layout
-
-#         # Stamina Bar
-#         self.stamina_widget_container = QWidget() # Container for stamina bar and label
-#         stamina_layout = QHBoxLayout(self.stamina_widget_container)
-#         stamina_layout.setContentsMargins(0, 0, 0, 0); stamina_layout.setSpacing(5)
-#         self.stamina_bar = QProgressBar() 
-#         self.stamina_bar.setRange(0, 100); self.stamina_bar.setValue(100) 
-#         self.stamina_bar.setTextVisible(True); self.stamina_bar.setFormat("%v / %m")
-#         self.stamina_label = QLabel("Stamina:") 
-#         stamina_layout.addWidget(self.stamina_label); stamina_layout.addWidget(self.stamina_bar)
-#         layout.addWidget(self.stamina_widget_container) # Add container to main layout
-
-#         # Mana Bar 
-#         self.mana_widget_container = QWidget() # Container for mana bar and label
-#         mana_layout = QHBoxLayout(self.mana_widget_container) 
-#         mana_layout.setContentsMargins(0, 0, 0, 0); mana_layout.setSpacing(5)
-#         self.mana_bar = QProgressBar()
-#         self.mana_bar.setRange(0, 1); self.mana_bar.setValue(0) # Default to 0/1
-#         self.mana_bar.setTextVisible(True); self.mana_bar.setFormat("%v / %m")
-#         self.mana_label = QLabel("Mana:")
-#         mana_layout.addWidget(self.mana_label); mana_layout.addWidget(self.mana_bar)
-#         layout.addWidget(self.mana_widget_container) # Add container to main layout
-
-#         # Status Effects
-#         self.status_widget_container = QWidget() # Container for status label and text
-#         status_layout = QHBoxLayout(self.status_widget_container)
-#         status_layout.setContentsMargins(0, 0, 0, 0); status_layout.setSpacing(5)
-#         self.status_label_title = QLabel("Status:")
-#         status_layout.addWidget(self.status_label_title)
-#         self.status_text = QLabel("") 
-#         status_layout.addWidget(self.status_text); status_layout.addStretch()
-#         layout.addWidget(self.status_widget_container) # Add container to main layout
-
-#         self.setMinimumHeight(110) 
-#         self.setMinimumWidth(250 if is_player else 200)
-#         self.update_style(self.settings)
-
-#     def update_stats(self, current_hp: int, max_hp: int,
-#                     current_stamina: int, max_stamina: int,
-#                     status_effects: Optional[List[str]] = None,
-#                     current_mana: Optional[int] = None, max_mana: Optional[int] = None):
-#         """Update the entity stats display. This is now the final update (Phase 2)."""
-        
-#         old_hp = self.hp_bar.value()
-#         # Ensure HP bar is always visible if HP stat is relevant
-#         self.hp_widget_container.setVisible(True) # Make container visible
-#         self.hp_bar.setRange(0, max_hp if max_hp > 0 else 1) 
-#         self.hp_bar.setValue(current_hp)
-#         self.hp_bar.setFormat(f"{current_hp} / {max_hp}")
-#         self._update_hp_bar_color(current_hp, max_hp) 
-
-#         if old_hp != current_hp:
-#             logger.debug(f"EntityWidget {self.entity_id} HP directly updated to {current_hp}/{max_hp}")
-
-#         old_stamina = self.stamina_bar.value()
-#         if max_stamina > 0:
-#             self.stamina_widget_container.setVisible(True) # Make container visible
-#             self.stamina_bar.setRange(0, max_stamina)
-#             self.stamina_bar.setValue(current_stamina)
-#             self.stamina_bar.setFormat(f"{current_stamina} / {max_stamina}")
-#         else: 
-#             self.stamina_widget_container.setVisible(False) # Hide whole container
-        
-#         if old_stamina != current_stamina:
-#             logger.debug(f"EntityWidget {self.entity_id} Stamina directly updated to {current_stamina}/{max_stamina}")
-
-#         if current_mana is not None and max_mana is not None:
-#             old_mana = self.mana_bar.value()
-#             if max_mana > 0:
-#                 self.mana_widget_container.setVisible(True) # Make container visible
-#                 self.mana_bar.setRange(0, max_mana)
-#                 self.mana_bar.setValue(current_mana)
-#                 self.mana_bar.setFormat(f"{current_mana} / {max_mana}")
-#             else: 
-#                 self.mana_widget_container.setVisible(False) # Hide whole container
-            
-#             if old_mana != current_mana:
-#                 logger.debug(f"EntityWidget {self.entity_id} Mana directly updated to {current_mana}/{max_mana}")
-#         else: 
-#             self.mana_widget_container.setVisible(False) # Hide container if no mana data
-
-#         if status_effects:
-#             self.status_widget_container.setVisible(True) # Make container visible
-#             self.status_text.setText(", ".join(status_effects))
-#         else:
-#             self.status_widget_container.setVisible(True) # Still show "Status: None"
-#             self.status_text.setText("None")
-
-#     def _update_hp_bar_color(self, current_hp: int, max_hp: int):
-#         """Helper method to update HP bar color based on settings."""
-#         hp_percent = (current_hp / max_hp) * 100 if max_hp > 0 else 0
-#         style_sheet = self.hp_bar.styleSheet() # Get current base style
-#         chunk_style = ""
-
-#         # Use settings for colors
-#         critical_color = self.settings.get("color_hp_bar_chunk_critical", "#990000")
-#         low_color = self.settings.get("color_hp_bar_chunk_low", "#cc0000")
-#         normal_color = self.settings.get("color_hp_bar_chunk_normal", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)")
-
-#         if hp_percent < self.settings.get("hp_threshold_critical", 25): # Make threshold configurable? (Future idea)
-#             chunk_color = critical_color
-#         elif hp_percent < self.settings.get("hp_threshold_low", 50): # Make threshold configurable? (Future idea)
-#             chunk_color = low_color
-#         else:
-#             chunk_color = normal_color
-
-#         chunk_style = f"background-color: {chunk_color};"
-
-#         # Find and replace the chunk part of the stylesheet
-#         # This assumes the base style is set correctly in update_style
-#         new_style_sheet = re.sub(r"(QProgressBar::chunk\s*{)[^}]*(})",
-#                                  r"\1 " + chunk_style + r" \2",
-#                                  style_sheet, count=1, flags=re.IGNORECASE | re.DOTALL)
-
-#         if new_style_sheet != style_sheet: # Apply only if changed
-#             self.hp_bar.setStyleSheet(new_style_sheet)
-
-#     def setFrameStyle(self, active=False):
-#         """Set the frame style based on entity type, active state, and settings."""
-#         if self.is_player:
-#             if active:
-#                 bg_color = self.settings.get("color_entity_player_bg_active", "rgba(200, 220, 255, 80)")
-#                 border_color = self.settings.get("color_entity_player_border_active", "#00aaff")
-#                 border_width = 3
-#             else:
-#                 bg_color = self.settings.get("color_entity_player_bg", "rgba(200, 220, 255, 30)")
-#                 border_color = self.settings.get("color_entity_player_border", "#0077cc")
-#                 border_width = 2
-#         else: # Enemy
-#             if active:
-#                 bg_color = self.settings.get("color_entity_enemy_bg_active", "rgba(255, 200, 200, 80)")
-#                 border_color = self.settings.get("color_entity_enemy_border_active", "#ff5500")
-#                 border_width = 3
-#             else:
-#                 bg_color = self.settings.get("color_entity_enemy_bg", "rgba(255, 200, 200, 30)")
-#                 border_color = self.settings.get("color_entity_enemy_border", "#cc0000")
-#                 border_width = 2
-
-#         explicit_text_color = self.settings.get("color_groupbox_title_text", "#FFFFFF")
-
-#         self.setStyleSheet(f"""
-#             CombatEntityWidget {{
-#                 border: {border_width}px solid {border_color};
-#                 border-radius: 5px;
-#                 background-color: {bg_color};
-#                 /* color: {explicit_text_color}; */ /* Removing this default color for the widget itself */
-#             }}
-#             /* QLabel styling will be handled in update_style or by direct application */
-#         """)
-        
-#         self.name_label.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-#         self.hp_label.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-#         self.stamina_label.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-#         self.status_label_title.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-#         self.status_text.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-
-#     def highlight_active(self, active: bool = True):
-#         """Highlight the entity if it's their turn, using settings."""
-#         self.setFrameStyle(active=active)
-
-#     def update_style(self, settings: dict):
-#         """Update the widget's style based on the provided settings."""
-#         self.settings = settings
-#         # is_active_currently = False # Not needed here, setFrameStyle handles active state
-
-#         base_font_family = self.settings.get("font_family", "Arial")
-#         base_font_size = self.settings.get("font_size", 10)
-
-#         label_text_color = self.settings.get("color_groupbox_title_text", "#FFFFFF")
-
-#         name_font = QFont(base_font_family, base_font_size)
-#         name_font.setBold(True)
-#         if self.is_player: name_font.setPointSize(base_font_size + self.settings.get("font_size_player_name_offset", 1))
-#         self.name_label.setFont(name_font)
-#         self.name_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
-
-#         base_font = QFont(base_font_family, base_font_size)
-#         self.hp_label.setFont(base_font)
-#         self.hp_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
-#         self.stamina_label.setFont(base_font) 
-#         self.stamina_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-        
-#         self.mana_label.setFont(base_font) 
-#         self.mana_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
-#         self.status_label_title.setFont(base_font)
-#         self.status_label_title.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
-#         self.status_text.setFont(base_font)
-#         self.status_text.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
-#         hp_chunk_normal = self.settings.get("color_hp_bar_chunk_normal", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)")
-#         stamina_chunk = self.settings.get("color_stamina_bar_chunk", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66CC33, stop:1 #44AA22)")
-#         mana_chunk = self.settings.get("color_mana_bar_chunk", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3366CC, stop:1 #2244AA)") 
-#         pb_text_color = self.settings.get("color_progressbar_text", "#FFFFFF") 
-#         pb_bg_color = self.settings.get("color_progressbar_bg", "#555555") 
-
-#         pb_base_style = f"""
-#             QProgressBar {{
-#                 border: 1px solid #444; border-radius: 3px; text-align: center;
-#                 height: 18px; color: {pb_text_color}; background-color: {pb_bg_color};
-#             }}
-#         """
-#         self.hp_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background-color: {hp_chunk_normal}; }}")
-#         self.stamina_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background-color: {stamina_chunk}; }}")
-#         self.mana_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background-color: {mana_chunk}; }}") 
-
-#         self.setFrameStyle(active=False) # Apply default inactive frame style
-
-#         current_hp = self.hp_bar.value(); max_hp = self.hp_bar.maximum()
-#         self._update_hp_bar_color(current_hp, max_hp)
-#         self.update()
-        
-#     @Slot(dict)
-#     def animate_ui_bar_update_phase1(self, update_data: Dict[str, Any]):
-#         """
-#         Handles Phase 1 of a bar update: show impending loss.
-#         update_data: { "bar_type": "hp"|"stamina"|"mana", "old_value": X, "new_value_preview": Y, "max_value": M }
-#         """
-#         bar_type = update_data.get("bar_type")
-#         new_value_preview = update_data.get("new_value_preview") 
-#         max_value = update_data.get("max_value")
-
-#         logger.debug(f"EntityWidget {self.entity_id} PHASE 1 ANIM: {bar_type} to preview {new_value_preview}/{max_value}")
-
-#         target_bar = None
-#         original_stylesheet = ""
-#         bleak_color_key_suffix = "_bleak" # e.g. color_hp_bar_chunk_normal_bleak
-
-#         if bar_type == "hp": 
-#             target_bar = self.hp_bar
-#             hp_percent_preview = (new_value_preview / max_value) * 100 if max_value > 0 else 0
-#             if hp_percent_preview < self.settings.get("hp_threshold_critical", 25): bleak_color_key = "color_hp_bar_chunk_critical" + bleak_color_key_suffix
-#             elif hp_percent_preview < self.settings.get("hp_threshold_low", 50): bleak_color_key = "color_hp_bar_chunk_low" + bleak_color_key_suffix
-#             else: bleak_color_key = "color_hp_bar_chunk_normal" + bleak_color_key_suffix
-#         elif bar_type == "stamina": 
-#             target_bar = self.stamina_bar
-#             bleak_color_key = "color_stamina_bar_chunk" + bleak_color_key_suffix
-#         elif bar_type == "mana": # NEW for Mana
-#             target_bar = self.mana_bar
-#             bleak_color_key = "color_mana_bar_chunk" + bleak_color_key_suffix # Assuming similar setting key
-#         else:
-#             logger.warning(f"EntityWidget {self.entity_id}: Unknown bar_type '{bar_type}' for phase 1 animation.")
-#             if hasattr(get_game_engine()._combat_orchestrator, '_handle_visual_display_complete'): # Ensure orchestrator can proceed
-#                 QTimer.singleShot(0, get_game_engine()._combat_orchestrator._handle_visual_display_complete)
-#             return
-
-#         if target_bar and new_value_preview is not None and max_value is not None:
-#             original_stylesheet = target_bar.styleSheet() # Store current full stylesheet
-            
-#             bleak_color = self.settings.get(bleak_color_key, "#777777A0") # Default semi-transparent gray
-
-#             new_chunk_style = f"background-color: {bleak_color};"
-#             # Replace only the background-color of the chunk part
-#             updated_stylesheet = re.sub(r"(QProgressBar::chunk\s*{\s*background-color:\s*)[^;]+(;[^}]*})",
-#                                         rf"\1{bleak_color}\2",
-#                                         original_stylesheet, count=1, flags=re.IGNORECASE | re.DOTALL)
-#             if not re.search(r"QProgressBar::chunk\s*{", updated_stylesheet, re.IGNORECASE): # If no chunk style existed
-#                 base_pb_style = re.match(r"(QProgressBar\s*{[^}]*})", original_stylesheet, re.IGNORECASE | re.DOTALL)
-#                 if base_pb_style:
-#                     updated_stylesheet = base_pb_style.group(1) + f" QProgressBar::chunk {{ {new_chunk_style} }}"
-#                 else: # Fallback: just append
-#                     updated_stylesheet = original_stylesheet + f" QProgressBar::chunk {{ {new_chunk_style} }}"
-
-
-#             target_bar.setStyleSheet(updated_stylesheet)
-#             target_bar.setFormat(f"{new_value_preview} / {max_value} (...)") # Indicate change
-
-#             self._pending_bar_update_data = {
-#                 "bar_type": bar_type,
-#                 "final_value": new_value_preview, # This is preview, Phase2 will get actual final
-#                 "max_value": max_value,
-#                 "original_stylesheet": original_stylesheet 
-#             }
-#         else:
-#             logger.warning(f"Could not animate phase 1 for {self.entity_id}, bar_type: {bar_type}, data: {update_data}")
-
-#         # Visual update is considered complete for Phase 1 after style is set.
-#         if hasattr(get_game_engine()._combat_orchestrator, '_handle_visual_display_complete'):
-#             QTimer.singleShot(0, get_game_engine()._combat_orchestrator._handle_visual_display_complete)
-#     @Slot(dict)
-#     def animate_ui_bar_update_phase2(self, update_data: Dict[str, Any]):
-#         """
-#         Handles Phase 2 of a bar update: finalize the bar to its new value.
-#         update_data: { "bar_type": "hp"|"stamina"|"mana", "final_new_value": Y, "max_value": M }
-#         """
-#         bar_type = update_data.get("bar_type")
-#         final_value = update_data.get("final_new_value")
-#         max_value = update_data.get("max_value")
-        
-#         logger.debug(f"EntityWidget {self.entity_id} PHASE 2 ANIM: {bar_type} to final {final_value}/{max_value}")
-
-#         target_bar = None
-#         if bar_type == "hp": target_bar = self.hp_bar
-#         elif bar_type == "stamina": target_bar = self.stamina_bar
-#         elif bar_type == "mana": target_bar = self.mana_bar # NEW for Mana
-#         else:
-#             logger.warning(f"EntityWidget {self.entity_id}: Unknown bar_type '{bar_type}' for phase 2 animation.")
-#             if hasattr(get_game_engine()._combat_orchestrator, '_handle_visual_display_complete'):
-#                 QTimer.singleShot(0, get_game_engine()._combat_orchestrator._handle_visual_display_complete)
-#             return
-
-#         if target_bar and final_value is not None and max_value is not None:
-#             # Restore original base stylesheet if it was stored and modified for bleak color
-#             if self._pending_bar_update_data and self._pending_bar_update_data.get("bar_type") == bar_type:
-#                 original_style = self._pending_bar_update_data.get("original_stylesheet")
-#                 if original_style:
-#                     target_bar.setStyleSheet(original_style) # Restore base before applying final color logic
-            
-#             # Call update_stats to set value and apply final color logic
-#             # Need to fetch other stats if update_stats requires all of them
-#             # For simplicity, assuming update_stats can handle partial updates or we reconstruct args
-#             if bar_type == "hp":
-#                 self.update_stats(final_value, max_value, self.stamina_bar.value(), self.stamina_bar.maximum(), current_mana=self.mana_bar.value(), max_mana=self.mana_bar.maximum())
-#             elif bar_type == "stamina":
-#                 self.update_stats(self.hp_bar.value(), self.hp_bar.maximum(), final_value, max_value, current_mana=self.mana_bar.value(), max_mana=self.mana_bar.maximum())
-#             elif bar_type == "mana": # NEW for Mana
-#                 self.update_stats(self.hp_bar.value(), self.hp_bar.maximum(), self.stamina_bar.value(), self.stamina_bar.maximum(), current_mana=final_value, max_mana=max_value)
-
-            
-#             target_bar.setFormat(f"{final_value} / {max_value}") # Ensure format is correct
-#             logger.debug(f"EntityWidget {self.entity_id} {bar_type} bar finalized to {final_value}/{max_value}")
-#         else:
-#             logger.warning(f"Could not animate phase 2 for {self.entity_id}, bar_type: {bar_type}, data: {update_data}")
-            
-#         self._pending_bar_update_data = None 
-        
-#         if hasattr(get_game_engine()._combat_orchestrator, '_handle_visual_display_complete'):
-#             QTimer.singleShot(0, get_game_engine()._combat_orchestrator._handle_visual_display_complete)
-
-#     @Slot()
-#     def _finalize_bar_update(self):
-#         """Actually updates the bar value and color after the delay (Old method, for reference if needed)."""
-#         # This method is less used now as Orchestrator controls delays and Phase 2 trigger.
-#         # Kept for potential direct use or if animation needs its own timer.
-#         if self._pending_bar_update_data:
-#             bar_type = self._pending_bar_update_data["bar_type"]
-#             final_value = self._pending_bar_update_data["final_value"]
-#             max_value = self._pending_bar_update_data["max_value"]
-#             # original_stylesheet = self._pending_bar_update_data["original_stylesheet"] # Not used if update_stats handles colors
-
-#             target_bar = None
-#             if bar_type == "hp": target_bar = self.hp_bar
-#             elif bar_type == "stamina": target_bar = self.stamina_bar
-
-#             if target_bar:
-#                 # target_bar.setStyleSheet(original_stylesheet) # Restore base if needed
-#                 target_bar.setValue(final_value)
-#                 target_bar.setFormat(f"{final_value} / {max_value}")
-#                 if bar_type == "hp": self._update_hp_bar_color(final_value, max_value)
-#                 # Add similar for stamina if it has dynamic coloring
-
-#             self._pending_bar_update_data = None
+# ========================================================================================
+# --- COMBAT DISPLAY THEME - TWEAK ALL VALUES HERE ---
+# ========================================================================================
+COMBAT_DISPLAY_THEME = {
+    "backgrounds": {
+        "main_background_image": "background_game_output.png",
+        "panel_background_image": "background_game_output.png",
+    },
+    "fonts": {
+        "header_font_family": "Garamond",
+        "header_font_size": 20,
+        "log_font_family": "Garamond",
+        "log_font_size": 20,
+        "status_font_family": "Garamond",
+        "status_font_size": 12,
+        # Font settings for entity widgets are passed through and handled by them
+        "entity_font_family": "Garamond",
+        "entity_font_size": 12,
+    },
+    "placements": {
+        "header_vertical_offset": 5,  # Pixels to push the header text down from the top edge
+    },
+    "colors": {
+        # Panel Styling
+        "panel_border": "#4a3a30",
+        "panel_title_text": "#5B3A29",
+        # General UI
+        "status_text": "#FFFFFF",
+        "round_text": "#E0E0E0",
+        # Log Text Colors
+        "log_default_text": "#3D2B1F",
+        "log_damage": "#C80000",
+        "log_heal": "#009600",
+        "log_crit": "#FF0000",
+        "log_miss": "#6c5b4b",
+        "log_roll": "#C87800",
+        "log_turn": "#0064C8",
+        "log_round": "#0064FF",
+        "log_dev": "#646464",
+        "log_combat_event": "#000000",
+        "log_system_message": "#00008B",
+        "log_narrative": "#3D2B1F",
+    },
+    "progress_bars": {
+        # These settings are passed to the entity widgets
+        "progressbar_bg": "#a08c6e",
+        "progressbar_text": "#FFFFFF",
+        "hp_bar_chunk_normal": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)",
+        "hp_bar_chunk_low": "#cc0000",
+        "hp_bar_chunk_critical": "#990000",
+        "hp_bar_chunk_normal_bleak": "#AA0000A0",
+        "hp_bar_chunk_low_bleak": "#880000A0",
+        "hp_bar_chunk_critical_bleak": "#600000A0",
+        "stamina_bar_chunk": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66CC33, stop:1 #44AA22)",
+        "stamina_bar_chunk_bleak": "#44AA22A0",
+        "mana_bar_chunk": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3366CC, stop:1 #2244AA)",
+        "mana_bar_chunk_bleak": "#2244AAA0",
+    }
+}
 
 class CombatDisplay(QWidget):
     """Widget for displaying combat status and log."""
 
-    # --- ECFA Change: Add visualDisplayComplete signal ---
     visualDisplayComplete = Signal()
-    # --- End ECFA Change ---
 
     def __init__(self, parent=None):
             """Initialize the combat display widget."""
@@ -455,25 +122,20 @@ class CombatDisplay(QWidget):
             self.stats_manager = get_stats_manager() 
             self.current_settings: Dict[str, Any] = {} 
 
-            self.load_settings()
+            self.load_settings_from_theme()
 
             main_layout = QVBoxLayout(self)
-            main_layout.setContentsMargins(0, 0, 0, 0) 
-            main_layout.setSpacing(0)
+            main_layout.setContentsMargins(0, 0, 0, 0); main_layout.setSpacing(0)
             
             self.content_frame = QFrame()
             self.content_frame.setObjectName("combatContentFrame") 
-            self.content_frame.setFrameShape(QFrame.Shape.StyledPanel) 
-            self.content_frame.setFrameShadow(QFrame.Shadow.Raised) 
             main_layout.addWidget(self.content_frame) 
 
             layout = QVBoxLayout(self.content_frame) 
-            layout.setContentsMargins(10, 10, 10, 10) 
-            layout.setSpacing(10) 
+            layout.setContentsMargins(10, 10, 10, 10); layout.setSpacing(10) 
 
             status_layout = QHBoxLayout()
-            status_layout.setContentsMargins(0, 0, 0, 0)
-            status_layout.setSpacing(10)
+            status_layout.setContentsMargins(0, 0, 0, 0); status_layout.setSpacing(10)
 
             self.status_label = QLabel("Status: Narrative") 
             self.status_label.setObjectName("statusLabel")
@@ -486,17 +148,9 @@ class CombatDisplay(QWidget):
 
             status_layout.addStretch()
 
-            self.settings_button = QPushButton("⚙️")
-            self.settings_button.setToolTip("Combat Display Settings")
-            self.settings_button.setFixedSize(25, 25)
-            self.settings_button.clicked.connect(self.open_settings_dialog)
-            status_layout.addWidget(self.settings_button)
-
-            # Developer controls (hidden unless dev mode enabled)
             self.dev_controls_container = QWidget()
             dev_controls_layout = QHBoxLayout(self.dev_controls_container)
-            dev_controls_layout.setContentsMargins(0, 0, 0, 0)
-            dev_controls_layout.setSpacing(6)
+            dev_controls_layout.setContentsMargins(0, 0, 0, 0); dev_controls_layout.setSpacing(6)
             self.dev_step_mode_btn = QPushButton("Step Mode")
             self.dev_step_mode_btn.setCheckable(True)
             self.dev_next_step_btn = QPushButton("Next Step")
@@ -507,38 +161,88 @@ class CombatDisplay(QWidget):
 
             layout.addLayout(status_layout)
 
-            # --- New Horizontal Layout for Sections ---
             sections_layout = QHBoxLayout()
-            sections_layout.setContentsMargins(0, 0, 0, 0)
-            sections_layout.setSpacing(10)
+            sections_layout.setContentsMargins(0, 0, 0, 0); sections_layout.setSpacing(20)
 
-            # --- Instantiate New Panels ---
-            self.allies_panel = AlliesPanel("Player")
-            self.enemies_panel = EnemiesPanel("Enemies")
+            # --- Allies Panel Structure ---
+            self.allies_panel_container = QWidget()
+            allies_panel_layout = QVBoxLayout(self.allies_panel_container)
+            allies_panel_layout.setContentsMargins(0,0,0,0); allies_panel_layout.setSpacing(0)
+            allies_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+            self.allies_header_label = QLabel("Bard")
+            self.allies_header_label.setObjectName("panelHeaderLabel")
+            self.allies_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.allies_bg_frame = QFrame()
+            self.allies_bg_frame.setObjectName("alliesBGFrame")
+            allies_panel_layout.addWidget(self.allies_header_label)
+            allies_panel_layout.addWidget(self.allies_bg_frame, 1)
+            allies_content_layout = QVBoxLayout(self.allies_bg_frame)
+            self.allies_panel = AlliesPanel()
+            allies_content_layout.addWidget(self.allies_panel)
 
-            # --- Combat Log Group (Middle Section) ---
-            self.log_group = QGroupBox("Combat Log") 
-            self.log_group.setObjectName("logGroup")
-            log_layout = QVBoxLayout(self.log_group)
-            log_layout.setContentsMargins(5, 10, 5, 5) 
-            log_layout.setSpacing(0)
+            # --- Enemies Panel Structure ---
+            self.enemies_panel_container = QWidget()
+            enemies_panel_layout = QVBoxLayout(self.enemies_panel_container)
+            enemies_panel_layout.setContentsMargins(0,0,0,0); enemies_panel_layout.setSpacing(0)
+            enemies_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+            self.enemies_header_label = QLabel("Enemy")
+            self.enemies_header_label.setObjectName("panelHeaderLabel")
+            self.enemies_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.enemies_bg_frame = QFrame()
+            self.enemies_bg_frame.setObjectName("enemiesBGFrame")
+            enemies_panel_layout.addWidget(self.enemies_header_label)
+            enemies_panel_layout.addWidget(self.enemies_bg_frame, 1)
+            enemies_content_layout = QVBoxLayout(self.enemies_bg_frame)
+            self.enemies_panel = EnemiesPanel()
+            enemies_content_layout.addWidget(self.enemies_panel)
+            
+            # --- Center Panel Structure ---
+            self.center_panel_container = QWidget()
+            center_panel_layout = QVBoxLayout(self.center_panel_container)
+            center_panel_layout.setContentsMargins(0,0,0,0); center_panel_layout.setSpacing(0)
+            center_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+            self.center_header_label = QLabel("Turn Order")
+            self.center_header_label.setObjectName("panelHeaderLabel")
+            self.center_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.center_bg_frame = QFrame()
+            self.center_bg_frame.setObjectName("centerBGFrame")
+            center_panel_layout.addWidget(self.center_header_label)
+            center_panel_layout.addWidget(self.center_bg_frame, 1)
+            center_content_layout = QVBoxLayout(self.center_bg_frame)
+            center_content_layout.setContentsMargins(15, 15, 15, 15); center_content_layout.setSpacing(15)
 
+            turn_order_placeholder = QLabel("Turn order portraits will go here.")
+            turn_order_placeholder.setMinimumHeight(80)
+
+            # --- Combat Log Structure ---
+            self.log_container = QWidget()
+            log_layout = QVBoxLayout(self.log_container)
+            log_layout.setContentsMargins(0,0,0,0); log_layout.setSpacing(0)
+            log_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+            self.log_header_label = QLabel("Combat Log")
+            self.log_header_label.setObjectName("panelHeaderLabel")
+            self.log_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.log_bg_frame = QFrame()
+            self.log_bg_frame.setObjectName("logBGFrame")
+            log_layout.addWidget(self.log_header_label)
+            log_layout.addWidget(self.log_bg_frame, 1)
+            log_content_layout = QVBoxLayout(self.log_bg_frame)
+            log_content_layout.setContentsMargins(0,0,0,0); log_content_layout.setSpacing(0)
             self.log_text = QTextEdit()
             self.log_text.setReadOnly(True)
-            self.log_text.setMinimumHeight(150)
             self.log_text.setObjectName("combatLogText")
-            log_layout.addWidget(self.log_text)
+            log_content_layout.addWidget(self.log_text)
 
-            # --- Add Panels and Log to Sections Layout ---
-            sections_layout.addWidget(self.allies_panel, 3)    # 30% stretch
-            sections_layout.addWidget(self.log_group, 4)       # 40% stretch
-            sections_layout.addWidget(self.enemies_panel, 3)   # 30% stretch
+            center_content_layout.addWidget(turn_order_placeholder, 1)
+            center_content_layout.addWidget(self.log_container, 5)
 
-            # Add the combined sections layout to the main vertical layout
+            sections_layout.addWidget(self.allies_panel_container, 3)
+            sections_layout.addWidget(self.center_panel_container, 4)
+            sections_layout.addWidget(self.enemies_panel_container, 3)
+
             layout.addLayout(sections_layout)
 
             self.last_log_index = -1 
-
             self._gradual_log_iterator: Optional[Iterator[str]] = None
             self._gradual_log_format: Optional[QTextCharFormat] = None
             self._gradual_log_timer: Optional[QTimer] = None
@@ -547,12 +251,21 @@ class CombatDisplay(QWidget):
 
             self.apply_settings()
             self.clear_display()
-            
-            # Suppress visualComplete during batched replays
-            self._suppress_visual_complete: bool = False
-
-            # Initialize dev controls visibility from QSettings
+            self._suppress_visual_complete = False
             self._init_dev_controls()
+
+    def load_settings_from_theme(self):
+        """
+        --- SETTINGS UI DISCONNECTED ---
+        Loads all settings directly from the COMBAT_DISPLAY_THEME dictionary.
+        This is now the single source of truth for styling.
+        """
+        logger.info("Loading settings directly from the in-code THEME dictionary.")
+        self.current_settings = {}
+        # Flatten the theme dictionary for compatibility with existing code
+        for category, values in COMBAT_DISPLAY_THEME.items():
+            for key, value in values.items():
+                self.current_settings[key] = value
 
     def load_settings(self):
         """Load settings from JSON file or use defaults."""
@@ -579,64 +292,47 @@ class CombatDisplay(QWidget):
 
     def get_default_settings(self):
         """Return a dictionary of default settings."""
-        default_font = QFontDatabase.systemFont(QFontDatabase.GeneralFont)
         return {
             # Background
-            "background_image": None,
-            # Fonts
-            "font_family": default_font.family(),
-            "font_size": default_font.pointSize() if default_font.pointSize() > 0 else 10,
+            "background_image": "background_game_output.png",
+            "panel_background_image": "background_game_output.png",
+            # Fonts (Updated to match game_output.py)
+            "font_family": "Garamond",
+            "font_size": 14,
             "font_size_player_name_offset": 1,
             "font_size_status_offset": 2,
-            # Log Colors
-            "color_log_damage": "#C80000",
-            "color_log_heal": "#009600",
-            "color_log_crit": "#FF0000", # Brighter red for crits
-            "color_log_miss": "#969696",
-            "color_log_roll": "#C87800",
-            "color_log_turn": "#0064C8",
-            "color_log_round": "#0064FF",
-            "color_log_dev": "#646464",
-            "color_log_header": "#A0A0A0", 
-            "color_log_default": "#E0E0E0", 
-            "color_log_combat_event": "#FFFFFF", 
-            "color_log_system_message": "#FFFF00", # Default Yellow for system messages
-            "color_log_narrative": "#FFD700", # Default Golden for narrative/GM messages
-            "color_log_group_bg": "rgba(40, 40, 40, 0.75)", 
-            "color_log_text_bg": "rgba(25, 25, 25, 0.85)", # Slightly darker text edit bg
-            # General UI Colors
-            "color_status_text": "#FFFFFF", 
-            "color_round_text": "#E0E0E0", 
-            "color_groupbox_title_text": "#FFFFFF", 
-            "color_groupbox_title_bg": "rgba(0, 0, 0, 0.6)", 
-            # Section Background Colors 
-            "color_player_group_bg": "rgba(60, 80, 120, 0.7)", 
-            "color_enemies_group_bg": "rgba(120, 60, 60, 0.7)", 
-            # Entity Colors
-            "color_entity_player_bg": "rgba(200, 220, 255, 0.3)",
-            "color_entity_player_border": "#0077cc",
-            "color_entity_player_bg_active": "rgba(200, 220, 255, 0.8)",
-            "color_entity_player_border_active": "#00aaff",
-            "color_entity_enemy_bg": "rgba(255, 200, 200, 0.3)",
-            "color_entity_enemy_border": "#cc0000",
-            "color_entity_enemy_bg_active": "rgba(255, 200, 200, 0.8)",
-            "color_entity_enemy_border_active": "#ff5500",
+            # Colors (All colors now reference the centralized dictionary)
+            "color_panel_border": COMBAT_DISPLAY_THEME['panel_border'],
+            "color_panel_title_text": COMBAT_DISPLAY_THEME['panel_title_text'],
+            "color_log_default": COMBAT_DISPLAY_THEME['log_default_text'],
+            "color_log_damage": COMBAT_DISPLAY_THEME['log_damage'],
+            "color_log_heal": COMBAT_DISPLAY_THEME['log_heal'],
+            "color_log_crit": COMBAT_DISPLAY_THEME['log_crit'],
+            "color_log_miss": COMBAT_DISPLAY_THEME['log_miss'],
+            "color_log_roll": COMBAT_DISPLAY_THEME['log_roll'],
+            "color_log_turn": COMBAT_DISPLAY_THEME['log_turn'],
+            "color_log_round": COMBAT_DISPLAY_THEME['log_round'],
+            "color_log_dev": COMBAT_DISPLAY_THEME['log_dev'],
+            "color_log_combat_event": COMBAT_DISPLAY_THEME['log_combat_event'],
+            "color_log_system_message": COMBAT_DISPLAY_THEME['log_system_message'],
+            "color_log_narrative": COMBAT_DISPLAY_THEME['log_narrative'],
+            "color_status_text": COMBAT_DISPLAY_THEME['status_text'],
+            "color_round_text": COMBAT_DISPLAY_THEME['round_text'],
             # Progress Bar Colors
-            "color_hp_bar_chunk_normal": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)",
-            "color_hp_bar_chunk_low": "#cc0000",
-            "color_hp_bar_chunk_critical": "#990000",
-            "color_hp_bar_chunk_normal_bleak": "#AA0000A0", 
-            "color_hp_bar_chunk_low_bleak": "#880000A0",   
-            "color_hp_bar_chunk_critical_bleak": "#600000A0",
-            "color_stamina_bar_chunk": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66CC33, stop:1 #44AA22)",
-            "color_stamina_bar_chunk_bleak": "#44AA22A0",
-            "color_mana_bar_chunk": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3366CC, stop:1 #2244AA)", # Added Mana Chunk
-            "color_mana_bar_chunk_bleak": "#2244AAA0",  # Added Mana Bleak
-            "color_resolve_bar_chunk": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9b59b6, stop:1 #8e44ad)",
-            "color_progressbar_text": "#FFFFFF", 
-            "color_progressbar_bg": "#555555",
-
-            "gradual_text_combat_log": True, 
+            "color_hp_bar_chunk_normal": COMBAT_DISPLAY_THEME['hp_bar_chunk_normal'],
+            "color_hp_bar_chunk_low": COMBAT_DISPLAY_THEME['hp_bar_chunk_low'],
+            "color_hp_bar_chunk_critical": COMBAT_DISPLAY_THEME['hp_bar_chunk_critical'],
+            "color_hp_bar_chunk_normal_bleak": COMBAT_DISPLAY_THEME['hp_bar_chunk_normal_bleak'],
+            "color_hp_bar_chunk_low_bleak": COMBAT_DISPLAY_THEME['hp_bar_chunk_low_bleak'],
+            "color_hp_bar_chunk_critical_bleak": COMBAT_DISPLAY_THEME['hp_bar_chunk_critical_bleak'],
+            "color_stamina_bar_chunk": COMBAT_DISPLAY_THEME['stamina_bar_chunk'],
+            "color_stamina_bar_chunk_bleak": COMBAT_DISPLAY_THEME['stamina_bar_chunk_bleak'],
+            "color_mana_bar_chunk": COMBAT_DISPLAY_THEME['mana_bar_chunk'],
+            "color_mana_bar_chunk_bleak": COMBAT_DISPLAY_THEME['mana_bar_chunk_bleak'],
+            "color_progressbar_text": COMBAT_DISPLAY_THEME['progress_bar_text'],
+            "color_progressbar_bg": COMBAT_DISPLAY_THEME['progress_bar_bg'],
+            # Gradual Text
+            "gradual_text_combat_log": True,
             "display_text_speed_delay": 30,
         }
 
@@ -692,128 +388,122 @@ class CombatDisplay(QWidget):
     def apply_settings(self):
         """Apply loaded or default settings to the combat display UI."""
         if not self.current_settings:
-            logger.warning("Attempted to apply settings before loading. Loading defaults.")
-            self.load_settings() # This populates self.current_settings
+            logger.warning("Attempted to apply settings before loading. Loading from theme.")
+            self.load_settings_from_theme()
 
         logger.debug(f"Applying settings to CombatDisplay: {self.current_settings}")
-
-        # --- ECFA Change: Ensure text speed setting is loaded into self.current_settings ---
-        # If load_settings doesn't get specific combat speed, use general one.
-        q_settings = QSettings("RPGGame", "Settings")
-        general_text_speed = q_settings.value("display/text_speed_delay", 30, type=int)
-        self.current_settings.setdefault("display_text_speed_delay_combat", general_text_speed)
-        # --- End ECFA Change ---
-
-        bg_image_relative = self.current_settings.get("background_image")
-        main_widget_style_parts = [] 
-        image_path_for_log = "None" 
+        
+        # 1. --- Main Background ('stone') ---
+        bg_image_relative = self.current_settings.get("main_background_image")
+        main_widget_style = ""
         if bg_image_relative:
             image_path = os.path.join(IMAGE_DIR, bg_image_relative).replace("\\", "/")
-            image_path_for_log = image_path 
             if os.path.exists(image_path):
-                main_widget_style_parts.append(f"border-image: url(\"{image_path}\") 0 0 0 0 stretch stretch;")
-                logger.info(f"Applying background image using border-image: {image_path}")
+                main_widget_style = f"border-image: url(\"{image_path}\") 0 0 0 0 stretch stretch;"
+                logger.info(f"Main background image loaded successfully from: {image_path}")
             else:
-                logger.warning(f"Background image not found: {image_path}")
-                main_widget_style_parts.append("border-image: none;")
-        else:
-             main_widget_style_parts.append("border-image: none;")
-             logger.info("No background image selected, applying 'border-image: none;'")
+                logger.warning(f"Main background image NOT FOUND at: {image_path}")
 
-        try:
-            fallback_bg_color_str = self.current_settings.get("color_fallback_bg", "rgba(30, 30, 30, 0.9)")
-            QColor(fallback_bg_color_str) 
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid fallback background color '{fallback_bg_color_str}'. Using default.")
-            fallback_bg_color_str = "rgba(30, 30, 30, 0.9)"
-        main_widget_style_parts.append(f"background-color: {fallback_bg_color_str};")
+        # 2. --- Individual Parchment Background for panels ---
+        panel_bg_image_relative = self.current_settings.get("panel_background_image")
+        panel_bg_style = ""
+        if panel_bg_image_relative:
+            full_path = os.path.join(IMAGE_DIR, panel_bg_image_relative).replace("\\", "/")
+            if os.path.exists(full_path):
+                # Using stretch stretch ensures the image scales to fully fit the component
+                panel_bg_style = f"border-image: url('{full_path}') 0 0 0 0 stretch stretch;"
+                logger.info(f"Panel background image loaded successfully from: {full_path}")
+            else:
+                logger.warning(f"Panel background image NOT FOUND at: {full_path}.")
 
-        main_widget_style = "\n    ".join(main_widget_style_parts)
+        # 3. --- Color and Font settings from dictionary ---
+        panel_border_color = self.current_settings.get("panel_border", "#4a3a30")
+        panel_title_text_color = self.current_settings.get("panel_title_text", "#5B3A29")
+        log_default_text_color = self.current_settings.get("log_default_text", "#3D2B1F")
+        status_text_color = self.current_settings.get("status_text", "#FFFFFF")
+        round_text_color = self.current_settings.get("round_text", "#E0E0E0")
+        
+        header_font_family = self.current_settings.get("header_font_family", "Garamond")
+        header_font_size = self.current_settings.get("header_font_size", 20)
+        log_font_family = self.current_settings.get("log_font_family", "Garamond")
+        log_font_size = self.current_settings.get("log_font_size", 14)
+        status_font_family = self.current_settings.get("status_font_family", "Garamond")
+        status_font_size = self.current_settings.get("status_font_size", 12)
+        header_v_offset = self.current_settings.get("header_vertical_offset", 5)
 
-        def get_safe_color(key, default):
-            color_str = self.current_settings.get(key, default)
-            try:
-                QColor(color_str); return color_str
-            except (ValueError, TypeError):
-                logger.warning(f"Invalid color value '{color_str}' for key '{key}'. Using default '{default}'.")
-                return default
-
-        player_group_bg = get_safe_color("color_player_group_bg", "rgba(60, 80, 120, 0.7)")
-        enemies_group_bg = get_safe_color("color_enemies_group_bg", "rgba(120, 60, 60, 0.7)")
-        log_group_bg = get_safe_color("color_log_group_bg", "rgba(40, 40, 40, 0.75)")
-        log_default_text_color = get_safe_color("color_log_default", "#E0E0E0")
-        log_text_bg_color = get_safe_color("color_log_text_bg", "rgba(255, 255, 255, 0.05)") # Ensure this is a valid key or provide default
-        groupbox_title_text = get_safe_color("color_groupbox_title_text", "#FFFFFF")
-        groupbox_title_bg = get_safe_color("color_groupbox_title_bg", "rgba(0, 0, 0, 0.6)")
-        status_text_color = get_safe_color("color_status_text", "#FFFFFF")
-        round_text_color = get_safe_color("color_round_text", "#E0E0E0")
-
-
-        # Note: The QGroupBox styles now target the object names of the new panels
+        # 4. --- Assembling the full stylesheet ---
         full_stylesheet = f"""
-            QWidget#{self.objectName()} {{ background-color: transparent; border: none; }}
-            QFrame#combatContentFrame {{ {main_widget_style} background-clip: padding-box; background-origin: border-box; border-radius: 5px; }}
-            QGroupBox#{self.allies_panel.objectName()} {{ background-color: {player_group_bg}; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; margin-top: 15px; padding-top: 5px; }}
-            QGroupBox#{self.enemies_panel.objectName()} {{ background-color: {enemies_group_bg}; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; margin-top: 15px; padding-top: 5px; }}
-            QGroupBox#{self.log_group.objectName()} {{ background-color: {log_group_bg}; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; margin-top: 15px; padding-top: 5px; }}
-            QGroupBox::title {{ color: {groupbox_title_text}; background-color: {groupbox_title_bg}; padding: 3px 8px; border-radius: 3px; subcontrol-origin: margin; subcontrol-position: top left; margin-left: 5px; }}
-            QTextEdit#{self.log_text.objectName()} {{ background-color: {log_text_bg_color}; color: {log_default_text_color}; border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 3px; padding: 2px; }}
-            QLabel#{self.status_label.objectName()} {{ background-color: transparent; color: {status_text_color}; padding: 2px; }}
-            QLabel#{self.round_label.objectName()} {{ background-color: transparent; color: {round_text_color}; padding: 2px; }}
+            /* Main content frame with the stone background */
+            QFrame#combatContentFrame {{ {main_widget_style} padding: 10px; }}
+
+            /* Header labels for all panels */
+            QLabel#panelHeaderLabel {{
+                background-color: transparent;
+                color: {panel_title_text_color};
+                font-family: "{header_font_family}";
+                font-size: {header_font_size}pt;
+                font-weight: bold;
+                padding-top: {header_v_offset}px;
+                margin-bottom: 5px; /* Space between header and panel frame */
+            }}
+
+            /* Frames that hold the parchment background and content */
+            QFrame#alliesBGFrame, QFrame#centerBGFrame, QFrame#enemiesBGFrame, QFrame#logBGFrame {{
+                {panel_bg_style}
+                border: 2px groove {panel_border_color};
+                border-radius: 15px;
+            }}
+
+            /* The text area itself, inside the log group */
+            QTextEdit#combatLogText {{
+                background-color: transparent;
+                border: none;
+                color: {log_default_text_color};
+                font-family: "{log_font_family}";
+                font-size: {log_font_size}pt;
+                padding: 15px; /* Inner padding for the text */
+            }}
+
+            /* General UI elements */
+            QLabel#statusLabel, QLabel#roundLabel {{
+                background-color: transparent;
+                font-family: "{status_font_family}";
+                font-weight: bold;
+            }}
+            QLabel#statusLabel {{ color: {status_text_color}; font-size: {status_font_size + 2}pt; }}
+            QLabel#roundLabel {{ color: {round_text_color}; font-size: {status_font_size}pt; }}
         """
         self.setStyleSheet(full_stylesheet)
-
-        font_family = self.current_settings.get("font_family", "Arial")
-        font_size = self.current_settings.get("font_size", 10)
         
-        status_font_size_offset = self.current_settings.get("font_size_status_offset", 2)
-        status_font = QFont(font_family, font_size + status_font_size_offset)
-        status_font.setBold(True)
-        self.status_label.setFont(status_font)
-
-        round_font = QFont(font_family, font_size)
-        self.round_label.setFont(round_font)
-
-        log_font = QFont(font_family, font_size)
-        self.log_text.setFont(log_font) 
-
-        title_font = QFont(font_family, font_size) 
-        title_font.setBold(True) 
-        self.allies_panel.setFont(title_font)
-        self.enemies_panel.setFont(title_font)
-        self.log_group.setFont(title_font)
-
-        # Delegate settings application to the new panels
+        # Pass the complete, flattened settings dictionary to child panels
+        # This ensures they have access to all theme properties (e.g., progress bar colors)
         self.allies_panel.apply_settings(self.current_settings)
         self.enemies_panel.apply_settings(self.current_settings)
         self.update()
-        logger.info("Combat display settings applied.")
+        logger.info("Combat display settings applied from in-code theme.")
 
     def clear_display(self):
         """Clear the display and set to inactive/narrative state."""
         self.combat_active = False
         self.status_label.setText("Status: Narrative")
         self.round_label.setText("Round: 0")
-        self.round_label.setVisible(False) # Hide round counter
+        self.round_label.setVisible(False)
         self.last_log_index = -1
 
-        # Clear the combat log text content as well
         try:
             self.clear_log()
         except Exception:
             pass
 
-        # Delegate clearing to the new panels
-        if hasattr(self, 'allies_panel'):
+        # Use the new container names and panel instances
+        if hasattr(self, 'allies_panel_container'):
             self.allies_panel.clear_allies()
-            self.allies_panel.setVisible(False)
-        if hasattr(self, 'enemies_panel'):
+            self.allies_panel_container.setVisible(False)
+        if hasattr(self, 'enemies_panel_container'):
             self.enemies_panel.clear_enemies()
-            self.enemies_panel.setVisible(False)
-
-        # Hide the log group
-        if hasattr(self, 'log_group'):
-            self.log_group.setVisible(False)
+            self.enemies_panel_container.setVisible(False)
+        if hasattr(self, 'center_panel_container'):
+            self.center_panel_container.setVisible(False)
 
     @Slot(GameState)
     def update_display(self, game_state: GameState):
@@ -829,23 +519,22 @@ class CombatDisplay(QWidget):
         logger.info(f"CombatDisplay.update_display called. Game Mode: {mode}")
 
         if mode in ["COMBAT", "SOCIAL_CONFLICT"]:
-            # Update dev controls visibility on entering these modes
             try:
                 settings = QSettings("RPGGame", "Settings")
                 dev_enabled = settings.value("dev/enabled", False, type=bool)
                 self.dev_controls_container.setVisible(bool(dev_enabled))
             except Exception:
                 self.dev_controls_container.setVisible(False)
-            self.setVisible(True) # Ensure the CombatDisplay widget itself is visible
+            self.setVisible(True)
             
             if not self.combat_active: 
-                logger.info(f"CombatDisplay: First entry into {mode} view. Setting up UI visibility and styles.")
-                # Make panels visible
-                self.allies_panel.setVisible(True)
-                self.enemies_panel.setVisible(True)
-                self.log_group.setVisible(True)
+                logger.info(f"CombatDisplay: First entry into {mode} view. Setting up UI visibility.")
+                # Use the new container names
+                self.allies_panel_container.setVisible(True)
+                self.enemies_panel_container.setVisible(True)
+                self.center_panel_container.setVisible(True)
                 self.combat_active = True
-                self.apply_settings() # Apply styles
+                self.apply_settings()
             
             combat_manager = getattr(game_state, 'combat_manager', None)
             if not combat_manager:
@@ -875,7 +564,6 @@ class CombatDisplay(QWidget):
 
             current_turn_id = getattr(combat_manager, 'get_current_entity_id', lambda: None)()
             
-            # Prepare data for panels
             allies_data = {}
             enemies_data = {}
             cm_entities = getattr(combat_manager, 'entities', {})
@@ -913,147 +601,13 @@ class CombatDisplay(QWidget):
                     else:
                         enemies_data[entity_id] = entity_dict
             
-            # Delegate updates to the panels
             self.allies_panel.update_allies(allies_data, current_turn_id)
             self.enemies_panel.update_enemies(enemies_data, current_turn_id)
 
         elif self.combat_active: 
             logger.info(f"CombatDisplay: Exiting {mode} view (was active). Clearing display.")
             self.clear_display() 
-            self.setVisible(False) # Hide the CombatDisplay widget when not in combat
-           
-    # def _clear_entity_widgets(self):
-    #     """Clear all entity widgets."""
-    #     layouts_to_clear = [self.player_layout, self.enemies_layout]
-    #     for layout in layouts_to_clear:
-    #         if not layout: continue
-    #         # Remove stretch item first if it exists
-    #         stretch_index = -1
-    #         for i in range(layout.count()):
-    #             item = layout.itemAt(i)
-    #             if item and item.spacerItem():
-    #                 stretch_index = i
-    #                 break
-    #         if stretch_index != -1:
-    #             layout.takeAt(stretch_index) # Remove stretch
-
-    #         # Remove widgets
-    #         while layout.count():
-    #             item = layout.takeAt(0)
-    #             widget = item.widget()
-    #             if widget:
-    #                 widget.deleteLater()
-
-    #     self.entity_widgets.clear()
-
-    # def _update_entity_widgets(self, combatants_data: Dict[str, Dict[str, Any]], current_turn_id: Optional[str], is_combat_mode: bool):
-    #     """Update entity widgets based on combatant data."""
-    #     logger.info(f"CombatDisplay._update_entity_widgets: Received {len(combatants_data)} combatants. Current turn: {current_turn_id}")
-    #     if not combatants_data:
-    #         logger.warning("CombatDisplay._update_entity_widgets: combatants_data is empty. Clearing existing widgets if any.")
-    #         self._clear_entity_widgets() # Clear if no data
-    #         return
-
-    #     existing_ids_in_data = set(combatants_data.keys())
-    #     current_widget_ids = set(self.entity_widgets.keys())
-
-    #     # Remove widgets for entities no longer in combatants_data
-    #     for entity_id_to_remove in current_widget_ids - existing_ids_in_data:
-    #         if entity_id_to_remove in self.entity_widgets:
-    #             widget = self.entity_widgets.pop(entity_id_to_remove)
-    #             parent_layout = widget.parentWidget().layout() if widget.parentWidget() else None
-    #             if parent_layout: parent_layout.removeWidget(widget)
-    #             widget.deleteLater()
-    #             logger.info(f"CombatDisplay: Removed entity widget for no longer present/active entity: {entity_id_to_remove}")
-
-    #     player_widgets_present = False
-    #     enemy_widgets_present = False
-
-    #     for entity_id, entity_data in combatants_data.items():
-    #         is_player = entity_data.get("is_player", False)
-    #         entity_type_str = entity_data.get("entity_type_str", "UNKNOWN") # For logging
-    #         logger.debug(f"CombatDisplay: Processing entity widget for ID {entity_id}, Name: {entity_data.get('combat_name', 'N/A')}, IsPlayer: {is_player}, Type: {entity_type_str}")
-            
-    #         is_active_turn = entity_id == current_turn_id
-    #         display_name = entity_data.get("combat_name", entity_data.get("name", entity_id))
-            
-    #         current_hp = int(entity_data.get("current_hp", 0)) 
-    #         max_hp = int(entity_data.get("max_hp", 1)) 
-    #         current_stamina = int(entity_data.get("current_stamina", 0)) 
-    #         max_stamina = int(entity_data.get("max_stamina", 1))
-    #         current_mana = int(entity_data.get("current_mana", 0))
-    #         max_mana = int(entity_data.get("max_mana", 1))
-    #         status_effects = entity_data.get("status_effects", [])
-
-    #         if entity_id in self.entity_widgets:
-    #             widget = self.entity_widgets[entity_id]
-    #             logger.debug(f"CombatDisplay: Updating existing widget for {display_name}")
-    #             widget.name_label.setText(display_name)
-    #             widget.update_style(self.current_settings)
-    #             # In COMBAT mode, do NOT override current values for existing widgets; only update max ranges and labels
-    #             if is_combat_mode:
-    #                 try:
-    #                     # Update ranges only; keep current values as shown (driven by PHASE events)
-    #                     widget.hp_bar.setRange(0, max_hp if max_hp > 0 else 1)
-    #                     widget.stamina_bar.setRange(0, max_stamina if max_stamina > 0 else 1)
-    #                     widget.mana_bar.setRange(0, max_mana if max_mana > 0 else 1)
-    #                     # Update status effects text
-    #                     if status_effects:
-    #                         widget.status_text.setText(", ".join(status_effects))
-    #                     else:
-    #                         widget.status_text.setText("None")
-    #                 except Exception as e:
-    #                     logger.warning(f"CombatDisplay: Failed to apply COMBAT safe update for {display_name}: {e}")
-    #             else:
-    #                 widget.update_stats(current_hp, max_hp, current_stamina, max_stamina, status_effects, current_mana, max_mana)
-    #             widget.highlight_active(is_active_turn)
-    #         else:
-    #             logger.info(f"CombatDisplay: Creating NEW widget for {display_name} (ID: {entity_id}, IsPlayer: {is_player})")
-    #             widget = CombatEntityWidget(entity_id=entity_id, name=display_name, settings=self.current_settings, is_player=is_player)
-    #             # On first creation, seed values fully
-    #             widget.update_stats(current_hp, max_hp, current_stamina, max_stamina, status_effects, current_mana, max_mana)
-    #             widget.highlight_active(is_active_turn)
-                
-    #             target_layout = self.player_layout if is_player else self.enemies_layout
-    #             if target_layout:
-    #                 # Remove existing stretch if present before adding widget
-    #                 stretch_item = target_layout.takeAt(target_layout.count() -1) if target_layout.count() >0 and target_layout.itemAt(target_layout.count()-1).spacerItem() else None
-
-    #                 target_layout.addWidget(widget) # Add the new widget
-
-    #                 if stretch_item: # Add stretch back if it was removed
-    #                     target_layout.addSpacerItem(stretch_item)
-    #                 else: # Or ensure stretch is there if layout was empty
-    #                     target_layout.addStretch()
-
-    #                 logger.debug(f"CombatDisplay: Added widget for {display_name} to {'player' if is_player else 'enemies'} layout.")
-    #             else:
-    #                 logger.error(f"CombatDisplay: Target layout (player/enemy) not found for {display_name}!")
-    #             self.entity_widgets[entity_id] = widget
-            
-    #         if is_player: player_widgets_present = True
-    #         else: enemy_widgets_present = True
-
-    #     # This ensures layouts with no widgets don't have a lingering stretch
-    #     self._ensure_stretch(self.player_layout, player_widgets_present)
-    #     self._ensure_stretch(self.enemies_layout, enemy_widgets_present)
-    #     logger.info(f"CombatDisplay._update_entity_widgets: Finished. Player widgets: {player_widgets_present}, Enemy widgets: {enemy_widgets_present}. Total widgets in dict: {len(self.entity_widgets)}")
-
-    # def _ensure_stretch(self, layout: Optional[QHBoxLayout], widgets_present: bool):
-    #     """Adds or removes stretch item from a layout as needed."""
-    #     if not layout: return
-
-    #     stretch_index = -1
-    #     for i in range(layout.count()):
-    #         item = layout.itemAt(i)
-    #         if item and item.spacerItem():
-    #             stretch_index = i
-    #             break
-
-    #     if widgets_present and stretch_index == -1:
-    #         layout.addStretch() # Add stretch if needed
-    #     elif not widgets_present and stretch_index != -1:
-    #         layout.takeAt(stretch_index) # Remove stretch if no widgets
+            self.setVisible(False)
 
     def _update_combat_log(self, log_entries: List[str]): # Added type hint
         """Update the combat log incrementally with new entries."""
@@ -1279,28 +833,20 @@ class CombatDisplay(QWidget):
 
 
     def open_settings_dialog(self):
-        """Opens the settings dialog to customize the combat display."""
-        logger.info("Opening Combat Display Settings dialog.")
-
-        if not self.current_settings:
-            logger.error("Cannot open settings dialog: current_settings not loaded.")
-            self.load_settings() # Try loading defaults if missing
-
-        # Pass a copy of current settings to avoid modifying originals unless saved
-        dialog = CombatSettingsDialog(self.current_settings.copy(), IMAGE_DIR, self)
-
-        # Execute the dialog modally
-        if dialog.exec(): # Returns True if accepted (e.g., Save clicked)
-            new_settings = dialog.get_settings()
-            if new_settings != self.current_settings:
-                logger.info("Settings changed. Saving and applying...")
-                self.current_settings = new_settings
-                self.save_settings()
-                self.apply_settings() # Re-apply all settings
-            else:
-                logger.info("Settings dialog closed without changes.")
-        else:
-            logger.info("Settings dialog cancelled.")
+        """
+        --- SETTINGS UI DISCONNECTED ---
+        This function is no longer used. Styling is controlled by the
+        COMBAT_DISPLAY_THEME dictionary in the code.
+        """
+        logger.info("Combat settings dialog is currently disconnected.")
+        # dialog = CombatSettingsDialog(self.current_settings.copy(), IMAGE_DIR, self)
+        # if dialog.exec():
+        #     new_settings = dialog.get_settings()
+        #     if new_settings != self.current_settings:
+        #         logger.info("Settings changed. Saving and applying...")
+        #         self.current_settings = new_settings
+        #         # self.save_settings() # Saving is also disconnected
+        #         self.apply_settings()
 
     def append_buffered_messages(self, messages: List[str], gradual: bool):
         """
