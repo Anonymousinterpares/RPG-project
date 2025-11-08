@@ -1,238 +1,1143 @@
 {
-    "session_id": "358cf3d6-7506-4107-9590-612eab001992",
-    "created_at": 1757594975.3368223,
-    "last_saved_at": 1757624043.379118,
+    "session_id": "bb461a3e-27e8-4d8b-a00f-fa14182add36",
+    "created_at": 1760466725.1631312,
+    "last_saved_at": 1762547952.553698,
     "game_version": "0.1.0",
     "player": {
-        "name": "Lars",
-        "race": "Elf",
-        "path": "Cleric",
-        "background": "Lars, an elf of slender build and unsettlingly piercing grey eyes, carries himself with an air of ancient responsibility that belies his relatively young age for his kind. A network of fine lines, etched by worry and countless hours spent poring over arcane texts, frames his face, highlighting the sharp angles of his cheekbones and the determined set of his jaw. His silver hair, usually meticulously braided with beads of polished obsidian, is slightly disheveled, a testament to the urgency of his mission. Though physically frail, weakened by a constitution ill-suited for the rigors of the world beyond his secluded home, Lars possesses an unwavering will and a sharp intellect, honed by years of study and a deep-seated devotion to protecting his people. He is driven by a profound sense of duty, tempered by a cautious nature and a profound respect for the delicate balance between the mortal realm and the arcane energies that flow through it. His diplomatic credentials, carefully concealed beneath his travel-worn robes, are both a symbol of his authority and a reminder of the weight of his people's expectations. He hopes to find answers, but fears what he might uncover.",
+        "name": "Bard",
+        "race": "Cinderspawn",
+        "path": "Mage",
+        "background": "Bard is a Cinderspawn mage whose very presence seems to shimmer with latent heat, fine ash trailing him like a whispered secret. His skin, a mosaic of charcoal and ember-glow, crackles softly as inner flames periodically surge beneath the surface\u2014a visible testament to his race's regenerative nature. With INT 15 and WIS 15, his piercing amber eyes betray an insatiable curiosity, though his quiet demeanor (CHA 8) suggests a mind more inclined to contemplation than charisma. The Ashen Covenant's teachings resonate deeply with his introspective nature, his WIL 13 reflecting a resolve tempered by the philosophy of impermanence. Though his physical frame is unremarkable (STR 8, CON 10), Bard moves with deliberate precision, as if conserving energy for the mental rigor of spellcraft. His ash-walking abilities remain nascent, but the Covenant elders note an unusual affinity for communing with ember-spirits. Beneath his tattered scholar's robes, faint scars glow intermittently where controlled burns have etched lessons into his flesh\u2014a mage's journey written in both flame and flesh.",
         "sex": "Male",
-        "origin_id": "elven_emissary",
+        "origin_id": "ashen_covenant_recruit",
         "level": 1,
         "experience": 0,
-        "stats_manager_id": "5cb42f0a-c10d-4181-8da2-9864dd51bdbe",
-        "current_location": "Harmonia",
+        "stats_manager_id": "f22adaaf-f832-46be-b555-e01f43aa9129",
+        "current_location": "Ashen Camp",
         "current_district": "",
-        "inventory_id": "34af731b-1bc7-44d0-a692-91133a8eb23e",
+        "inventory_id": "f1c374e1-29d0-4c92-ba84-dc748b1c2015",
         "equipped_items": {},
         "active_quests": [],
         "completed_quests": [],
-        "character_image": "D:\\coding\\RPG project\\latest version\\images\\character_icons\\Elf_Cleric\\2_Elf_Cleric_Male.jpg",
+        "known_spells": [
+            "prismatic_bolt"
+        ],
+        "character_image": "D:\\coding\\RPG project\\latest version\\images\\character_icons\\Cinderspawn_Mage\\1_Cinderspawn_Mage_Male_male_mage.jpg",
         "current_resolve": 0.0,
         "active_social_effects": []
     },
     "world": {
-        "game_time": 1757594975.3368223,
-        "game_date": "Day 1",
+        "game_time": 32640.0,
+        "game_date": "Ancient Age, Year 2442, Awakening, Springtide, Verdance 1 (Firstday)",
+        "calendar": {
+            "era": 1,
+            "cycle": 1,
+            "phase": 1,
+            "tide": 1,
+            "span": 1,
+            "day": 1
+        },
         "weather": "Clear",
         "is_day": true,
         "magical_conditions": {},
         "global_vars": {},
-        "active_events": []
+        "active_events": [],
+        "time_of_day": "morning",
+        "calendar_string": "Ancient Age, Year 2442, Awakening, Springtide, Verdance 1 (Firstday)"
     },
     "conversation_history": [
         {
             "role": "gm",
-            "content": "==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, Lars the Elf Cleric from Lars, an elf of slender build and unsettlingly piercing grey eyes, carries himself with an air of ancient responsibility that belies his relatively young age for his kind. A network of fine lines, etched by worry and countless hours spent poring over arcane texts, frames his face, highlighting the sharp angles of his cheekbones and the determined set of his jaw. His silver hair, usually meticulously braided with beads of polished obsidian, is slightly disheveled, a testament to the urgency of his mission. Though physically frail, weakened by a constitution ill-suited for the rigors of the world beyond his secluded home, Lars possesses an unwavering will and a sharp intellect, honed by years of study and a deep-seated devotion to protecting his people. He is driven by a profound sense of duty, tempered by a cautious nature and a profound respect for the delicate balance between the mortal realm and the arcane energies that flow through it. His diplomatic credentials, carefully concealed beneath his travel-worn robes, are both a symbol of his authority and a reminder of the weight of his people's expectations. He hopes to find answers, but fears what he might uncover.!\n\nYour journey begins now...",
-            "timestamp": 1757594975.4128158
+            "content": "==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, Bard the Cinderspawn Mage from Bard is a Cinderspawn mage whose very presence seems to shimmer with latent heat, fine ash trailing him like a whispered secret. His skin, a mosaic of charcoal and ember-glow, crackles softly as inner flames periodically surge beneath the surface\u2014a visible testament to his race's regenerative nature. With INT 15 and WIS 15, his piercing amber eyes betray an insatiable curiosity, though his quiet demeanor (CHA 8) suggests a mind more inclined to contemplation than charisma. The Ashen Covenant's teachings resonate deeply with his introspective nature, his WIL 13 reflecting a resolve tempered by the philosophy of impermanence. Though his physical frame is unremarkable (STR 8, CON 10), Bard moves with deliberate precision, as if conserving energy for the mental rigor of spellcraft. His ash-walking abilities remain nascent, but the Covenant elders note an unusual affinity for communing with ember-spirits. Beneath his tattered scholar's robes, faint scars glow intermittently where controlled burns have etched lessons into his flesh\u2014a mage's journey written in both flame and flesh.!\n\nYour journey begins now...",
+            "timestamp": 1760466727.2003112
         },
         {
             "role": "gm",
-            "content": "The Seven-Ring Market of Harmonia sprawls before you, a dizzying kaleidoscope of sights, sounds, and smells. Stalls overflowing with exotic wares from a thousand planes jostle for space, their vibrant colours assaulting your eyes. The air hums with a chaotic symphony of barters, boasts, and the strange, ethereal music of planar energies intermingling. You grip the focus crystal at your neck, its cool smoothness a grounding presence amidst the sensory overload. Around you, beings of every imaginable form throng the narrow walkways, their voices rising and falling in a babel of languages. A whiff of spiced xindfruit from Xylos mingles with the metallic tang of forge-fire from Mechanus, creating an olfactory tapestry both fascinating and overwhelming. You stand at the threshold, a lone elf amidst a sea of the unfamiliar, the weight of your mission pressing heavily upon you. To the north, the market appears to ascend towards the higher rings, while to the south, you can make out what looks like a more residential district. East and west are more of the sprawling market. You feel a slight twinge in your legs, and consider the next step.",
-            "timestamp": 1757594983.864212
+            "content": "Welcome back, Bard! You are currently at Ashen Camp.",
+            "timestamp": 1760468622.4697428
         },
         {
             "role": "gm",
-            "content": "Welcome back, Lars! You are currently at Harmonia.",
-            "timestamp": 1757598813.6102304
+            "content": "The morning mist clings to the valley of Ashen Camp like a spectral veil, its tendrils curling around the charred stone pillars that mark the Covenant's sanctuary. You stand at the edge of the central plaza, your boots crunching softly on the layer of fine ash that blankets the ground. The air carries the scent of smoldering cedar and the distant murmur of chanting\u2014Elder Vareth's voice rising in the Ritual of Embers, its cadence syncing with the faint crackle of heat beneath your skin. Your tattered robes, singed at the hem from yesterday's failed pyroclastic experiment, flutter as a warm breeze stirs the mist. To the east, the silhouette of the Obsidian Spire looms, its tip glowing faintly as if sharing a secret with the waking sun. A half-written scroll lies abandoned at your feet, its diagrams of ember-spirit sigils smudged by an accidental spark. The camp's communal firepit smolders nearby, its coals pulsing in rhythm with the slow beat of your own regenerated flesh\u2014a reminder of both your power and your limitations. Somewhere in the mist, a bird's cry echoes, sharp and sudden, snapping you back to the present.",
+            "timestamp": 1760468633.0059395
         },
         {
             "role": "gm",
-            "content": "The midday sun beats down on the Seven-Ring Market of Harmonia, casting long shadows that dance and shift with the movements of the bustling crowds. The air is thick with the aroma of exotic spices and strange energies, a constant hum vibrating through the cobblestone streets. You, Lars, an elf carrying the weight of your people's fate, stand at the intersection of two paths, the sounds of bartering and distant music washing over you. You recall your arrival, the sensory overload nearly overwhelming your senses. The northern path seems to lead upwards towards the higher rings of the market, while the southern path descends into what appears to be a more residential area. To the east and west, the market sprawls endlessly, a labyrinth of stalls and strange faces. You feel the familiar ache in your legs, a constant reminder of your physical limitations. Your hand instinctively goes to the focus crystal at your neck, its smooth surface offering a small measure of comfort.",
-            "timestamp": 1757598820.9377444
+            "content": "Welcome back, Bard! You are currently at Ashen Camp.",
+            "timestamp": 1762547801.232349
+        },
+        {
+            "role": "gm",
+            "content": "As dawn breaks over Ashen Camp, the morning mist weaves through the remnants of last night's ritual, cloaking the charred stones and ash-covered ground in a whispering shroud. You stand at the heart of the camp, where the faint glow of embers from the communal fire still pulses softly, a lingering heartbeat of the camp\u2019s life. The air is cool, carrying the scent of smoldering cedar and burnt earth, mingling with the distant echo of Elder Vareth\u2019s chants from the ritual circle. Your ash-glimmering skin and crackling presence blend seamlessly into this quiet, waking world, your thoughts drifting back to the teachings of the Ashen Covenant and the lessons etched into your flesh by controlled burns. Around you, the camp is awakening\u2014scattered figures move with purpose, some tending to their equipment, others lost in contemplation or prayer. The gentle hum of ember spirits flickering nearby hints at your latent connection with the elemental fire that is both your power and your burden. You\u2019re in a moment of peaceful anticipation, feeling the weight of your journey and the promise of what lies ahead in this place of ash and ember.",
+            "timestamp": 1762547805.7894764
         },
         {
             "role": "player",
-            "content": "is there any person close to me?",
-            "timestamp": 1757598832.6903472
+            "content": "this is dev - i need to test new combat fucntioainlity - start combat with 1 wolf with possibly high initiative",
+            "timestamp": 1762547821.1999507
         },
         {
             "role": "gm",
-            "content": "You pause, closing your eyes for a moment and focusing your senses outwards. The cacophony of the market makes it difficult to discern individuals, but you extend your awareness, reaching for any distinct presence nearby. The press of the crowd is almost tangible, a sea of bodies and energies. As you concentrate, you begin to distinguish a few figures in your immediate vicinity. To your left, a hulking goliath, easily towering over the crowd, examines a rack of weapons with a discerning eye. To your right, a pair of gnomish merchants haggle loudly over the price of some shimmering dust, their voices high-pitched and grating. Directly in front of you, a cloaked figure stands motionless, seemingly oblivious to the chaos around them, their face hidden in shadow.",
-            "timestamp": 1757598839.9706075
+            "content": "You glance around the camp, sensing a sudden shift in the atmosphere. A lone wolf, its fur white as snow and eyes gleaming with predatory intent, steps out from the shadows near the trees. It sniffs the air, muscles tense, as if eager to strike first. Without hesitation, you prepare yourself for the imminent confrontation, the tension thickening in the morning air.",
+            "timestamp": 1762547830.074591
         },
         {
             "role": "player",
-            "content": "I approach the gnomes",
-            "timestamp": 1757598860.2654455
-        },
-        {
-            "role": "gm",
-            "content": "You begin to make your way towards the two gnomish merchants, carefully navigating through the throng of beings that populate the marketplace. The aroma of spiced xindfruit intensifies as you move closer to their stall, a small but vibrant display of various exotic ingredients and alchemical components. The gnomes themselves are a flurry of motion, gesticulating wildly as they continue their spirited negotiation. One, with a pointed hat adorned with several jingling bells, clutches a pouch tightly, while the other, his beard braided with colourful beads, gestures emphatically at a small vial filled with shimmering, iridescent dust. They seem completely engrossed in their transaction, barely registering your approach. As you get closer, you can hear snippets of their conversation, a rapid-fire exchange filled with arcane terms and exaggerated claims.",
-            "timestamp": 1757598868.8508186
-        },
-        {
-            "role": "gm",
-            "content": "Welcome back, Lars! You are currently at Harmonia.",
-            "timestamp": 1757623892.3072548
-        },
-        {
-            "role": "gm",
-            "content": "The midday sun beats down on the Seven-Ring Market of Harmonia, casting long shadows that dance and shift with the movements of the bustling crowds. The air is thick with the aroma of exotic spices and strange energies, a constant hum vibrating through the cobblestone streets.\n\nYou, Lars, an elf carrying the weight of your people's fate, stand near two gnomish merchants, their stall a vibrant display of exotic ingredients and alchemical components. They are currently engrossed in a spirited negotiation over a vial of shimmering dust, their voices high-pitched and animated. You had approached them, drawn by a desire to perhaps glean some information or simply observe the bustling commerce of the market. Before approaching the gnomes you had been scanning the immediate surroundings for other beings, after arriving in the sprawling market of Harmonia. You feel the familiar ache in your legs, a constant reminder of your physical limitations. Your hand instinctively goes to the focus crystal at your neck, its smooth surface offering a small measure of comfort.",
-            "timestamp": 1757623898.8919966
-        },
-        {
-            "role": "player",
-            "content": "i feel an irresistable urge to attack one gnome. i attack him and fight him!",
-            "timestamp": 1757623917.490232
-        },
-        {
-            "role": "gm",
-            "content": "The urge hits you like a tidal wave, an irrational impulse to lash out. Before you can even fully process the feeling, your hand shoots out, your fingers wrapping around the hilt of the small dagger concealed beneath your robes. With a guttural cry that surprises even yourself, you lunge at the gnome with the jingling bells on his hat, the blade flashing in the midday sun as you bring it down towards his unsuspecting form! The market around you seems to fade into a blur as adrenaline surges through your veins. The gnome, startled by your sudden attack, lets out a yelp of surprise, dropping the pouch he was clutching as he stumbles backwards, narrowly avoiding the worst of your blow. The crowd around you gasps, a ripple of shock spreading through the marketplace as the chaotic scene erupts. The other gnome, his eyes wide with disbelief and fear, scrambles away, knocking over several vials in his panic. The scent of exotic herbs and alchemical concoctions fills the air as the fragile containers shatter on the cobblestones.",
-            "timestamp": 1757623926.8248398
-        },
-        {
-            "role": "player",
-            "content": "I attack him!",
-            "timestamp": 1757623948.9287796
+            "content": "i attack",
+            "timestamp": 1762547880.5138125
         }
     ],
-    "last_command": null,
+    "event_log": [
+        {
+            "type": "ItemDelta",
+            "item_id": "ash-treated_clothing",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 0.0
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "covenant_pendant",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 0.0
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "fire_striker",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 0.0
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "ritual_dagger",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 0.0
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "small_pouch_of_ancestral_ash",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 0.0
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "test_apple",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 0.0
+        },
+        {
+            "type": "ItemDelta",
+            "item_id": "wooden_shield",
+            "delta": 1,
+            "source": "inventory_add",
+            "game_time": 0.0
+        }
+    ],
+    "last_command": "//learn_spell prismatic_bolt",
     "current_mode": "COMBAT",
     "current_combatants": [],
     "current_trade_partner_id": null,
     "mode_transition_cooldowns": {},
     "is_transitioning_to_combat": true,
     "combat_narrative_buffer": [],
+    "music_mood": "combat",
+    "music_intensity": 0.7,
+    "game_context": {
+        "location": {
+            "name": "Ashen Camp",
+            "major": "camp",
+            "venue": "fireplace"
+        },
+        "weather": {
+            "type": "clear"
+        },
+        "time_of_day": "morning",
+        "biome": "forest",
+        "region": "Northern Nexus",
+        "interior": false,
+        "underground": false,
+        "crowd_level": "sparse",
+        "danger_level": "calm"
+    },
+    "journal": {
+        "character": "",
+        "quests": {
+            "551cdb35-a4bb-4b23-b6c1-4d2772947efb": {
+                "title": "Whispers of the Ash Plane (Ashen Covenant Recruit)",
+                "description": "The Ashen Elder has tasked you with your first practical Ash Walking ritual. The Covenant needs to find a new, safe migration path, and the Elder believes a long-dead ancestor holds the key within the Ash Plane. You must project your consciousness, seek the ancestral spirit, and glean crucial information to guide your people.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "gather_ritual_ashes",
+                        "description": "Gather specific ritual ashes from the designated area near the Ashen Camp.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false,
+                        "type": "fetch",
+                        "target_id": "ritual_ashes",
+                        "location_id": "ashen_camp",
+                        "completion_criteria": "Collect the required ritual ashes for the Ash Walking ceremony."
+                    },
+                    {
+                        "id": "perform_ash_walking_ritual",
+                        "description": "Perform the guided Ash Walking ritual at the sacred altar within the Ashen Camp.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "ash_walking_altar",
+                        "location_id": "ashen_camp",
+                        "completion_criteria": "Successfully initiate the Ash Walking ritual and project your consciousness."
+                    },
+                    {
+                        "id": "seek_ancestral_guidance",
+                        "description": "Within the Ash Plane, seek out the ancestral spirit and glean information about a safe migration path.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "explore",
+                        "target_id": "ancestral_spirit_echo",
+                        "location_id": "ashen_camp",
+                        "completion_criteria": "Obtain the cryptic message or vision from the ancestral spirit."
+                    },
+                    {
+                        "id": "interpret_ancestral_message",
+                        "description": "Return to your body and consult with the Ashen Elder to interpret the ancestral message.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "deliver",
+                        "target_id": "ashen_elder",
+                        "location_id": "ashen_camp",
+                        "completion_criteria": "Discuss the ancestral message with the Ashen Elder to understand its meaning."
+                    },
+                    {
+                        "id": "scout_new_migration_path",
+                        "description": "Based on the interpreted ancestral guidance, scout the new migration path in Echo Woods.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "explore",
+                        "target_id": "migration_path_entrance",
+                        "location_id": "echo_woods",
+                        "completion_criteria": "Locate and assess the viability of the new migration path as indicated by the ancestor."
+                    }
+                ],
+                "rewards": {
+                    "gold": 50,
+                    "items": [
+                        "ash_walker_talisman"
+                    ],
+                    "xp": 200
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q01": {
+                "title": "Q01 \u2013 Fetch an Apple",
+                "description": "Obtain a test apple.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Obtain 1 test_apple.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "fetch",
+                        "target_id": "test_apple",
+                        "location_id": "",
+                        "completion_criteria": "Have at least 1 test_apple in inventory."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q02": {
+                "title": "Q02 \u2013 Defeat the Test Wolf",
+                "description": "Defeat the wolf",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat a wolf (test).",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "kill",
+                        "target_id": "wolf",
+                        "location_id": "harmonia",
+                        "completion_criteria": "Eliminate the wolf"
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": "[]"
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q03": {
+                "title": "Q03 \u2013 Visit the Test Ruins",
+                "description": "Visit test_ancient_ruins.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_ancient_ruins.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "explore",
+                        "target_id": "test_ancient_ruins",
+                        "location_id": "test_ancient_ruins",
+                        "completion_criteria": "Enter the test_ancient_ruins location."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q04": {
+                "title": "Q04 \u2013 Speak to the Test Elder",
+                "description": "Ensure flag test_spoke_to_elder is true.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Speak with the test_elder.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_elder",
+                        "location_id": "test_area",
+                        "completion_criteria": "Conversation with test_elder completed."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q05": {
+                "title": "Q05 \u2013 Beat the Clock (Before 5m)",
+                "description": "Complete before time < 300.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Finish the timed task before 300s.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_timer_gate",
+                        "location_id": "test_area",
+                        "completion_criteria": "Objective completed in under 300 seconds."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q06": {
+                "title": "Q06 \u2013 After Time Gate (After 10m)",
+                "description": "Complete only after time > 600.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Finish the timed task after 600s.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_timer_gate",
+                        "location_id": "test_area",
+                        "completion_criteria": "Objective completed after 600 seconds have elapsed."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q07": {
+                "title": "Q07 \u2013 All Composite",
+                "description": "Have test_key and defeat test_guardian.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Have test_key and defeat test_guardian.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_guardian_gate",
+                        "location_id": "test_area",
+                        "completion_criteria": "Gate opened with test_key and guardian defeated."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q08": {
+                "title": "Q08 \u2013 Any Composite",
+                "description": "Visit either test_dock or test_harbor.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_dock OR test_harbor.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "explore",
+                        "target_id": "test_dock_or_harbor",
+                        "location_id": "test_coast",
+                        "completion_criteria": "Arrive at either test_dock or test_harbor."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q09": {
+                "title": "Q09 \u2013 None Composite",
+                "description": "Alarm must NOT be triggered.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Ensure alarm remains silent.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_alarm_system",
+                        "location_id": "test_area",
+                        "completion_criteria": "Objective completed with no alarm raised."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q10": {
+                "title": "Q10 \u2013 Mandatory + Optional",
+                "description": "Mandatory item; optional visit.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Obtain test_badge.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "fetch",
+                        "target_id": "test_badge",
+                        "location_id": "",
+                        "completion_criteria": "Acquire the test_badge."
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Optionally visit test_outpost.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false,
+                        "type": "explore",
+                        "target_id": "test_outpost",
+                        "location_id": "test_outpost",
+                        "completion_criteria": "Enter the test_outpost (optional)."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q11": {
+                "title": "Q11 \u2013 Two Mandatory Objectives",
+                "description": "Complete both mandatory objectives.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_bandit_captain.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "kill",
+                        "target_id": "test_bandit_captain",
+                        "location_id": "test_road",
+                        "completion_criteria": "Defeat the test_bandit_captain."
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Collect 3 test_gem.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "fetch",
+                        "target_id": "test_gem",
+                        "location_id": "",
+                        "completion_criteria": "Possess 3 test_gem."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q12": {
+                "title": "Q12 \u2013 Semantic Only (No DSL)",
+                "description": "Objective completion via semantic inference.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Convince the test_mayor to help.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_mayor",
+                        "location_id": "test_town",
+                        "completion_criteria": "Mayor agrees to help."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q13": {
+                "title": "Q13 \u2013 Semantic Mandatory + Optional DSL",
+                "description": "Mandatory semantic objective and optional visit objective.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Broker peace between test_factions.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_faction_council",
+                        "location_id": "test_hall",
+                        "completion_criteria": "Agreement reached between factions."
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Optionally visit test_neutral_ground.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false,
+                        "type": "explore",
+                        "target_id": "test_neutral_ground",
+                        "location_id": "test_neutral_ground",
+                        "completion_criteria": "Enter test_neutral_ground (optional)."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q14": {
+                "title": "Q14 \u2013 Flag Chain",
+                "description": "Require both flags set (speak to guard and acquire pass).",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Speak to guard and acquire pass.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_gate_guard",
+                        "location_id": "test_gate",
+                        "completion_criteria": "Guard spoken to and pass acquired."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q15": {
+                "title": "Q15 \u2013 Inventory Count",
+                "description": "Collect 3 test_herb.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Collect 3 test_herb.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "fetch",
+                        "target_id": "test_herb",
+                        "location_id": "",
+                        "completion_criteria": "Possess 3 test_herb."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q16": {
+                "title": "Q16 \u2013 Any of Three Enemies",
+                "description": "Defeat any one of three test bandits.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat any bandit (1 of 3).",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "kill",
+                        "target_id": "test_bandit_group",
+                        "location_id": "test_road",
+                        "completion_criteria": "Defeat at least one of test_bandit_1/2/3."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q17": {
+                "title": "Q17 \u2013 Visit Two Key Locations",
+                "description": "Visit both test_gate and test_keep.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_gate and test_keep.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "explore",
+                        "target_id": "test_gate_and_keep",
+                        "location_id": "test_realm",
+                        "completion_criteria": "Enter both test_gate and test_keep."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q18": {
+                "title": "Q18 \u2013 Negative Flag (Not Banished)",
+                "description": "Ensure not banished.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Ensure test_banished is false.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_citizenship_check",
+                        "location_id": "test_town",
+                        "completion_criteria": "Status confirms not banished."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q19": {
+                "title": "Q19 \u2013 Mixed All/Any",
+                "description": "Travel to dock or harbor and have a test_ticket.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Visit test_dock or test_harbor and show test_ticket.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_port_entry",
+                        "location_id": "test_coast",
+                        "completion_criteria": "Entry permitted with test_ticket at dock or harbor."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q20": {
+                "title": "Q20 \u2013 Optional Does Not Block",
+                "description": "Optional objective should not block completion.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Deliver test_letter.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "deliver",
+                        "target_id": "test_recipient",
+                        "location_id": "test_town",
+                        "completion_criteria": "Deliver the test_letter to recipient."
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Explore test_garden (optional).",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": false,
+                        "type": "explore",
+                        "target_id": "test_garden",
+                        "location_id": "test_garden",
+                        "completion_criteria": "Enter the test_garden."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q21": {
+                "title": "Q21 \u2013 Narrative-Heavy Objective",
+                "description": "Deliver an inspiring speech to the council.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Deliver an inspiring speech to the test_council about unity and cooperation.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_council",
+                        "location_id": "test_hall",
+                        "completion_criteria": "Speech delivered; council acknowledges."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q22": {
+                "title": "Q22 \u2013 Three Mandatory Objectives",
+                "description": "Complete three distinct tasks.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Defeat test_ogre.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "kill",
+                        "target_id": "test_ogre",
+                        "location_id": "test_ogre_cave",
+                        "completion_criteria": "Ogre defeated."
+                    },
+                    {
+                        "id": "O2",
+                        "description": "Collect 2 test_ogre_tooth.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "fetch",
+                        "target_id": "test_ogre_tooth",
+                        "location_id": "",
+                        "completion_criteria": "Possess 2 test_ogre_tooth."
+                    },
+                    {
+                        "id": "O3",
+                        "description": "Visit test_ogre_cave.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "explore",
+                        "target_id": "test_ogre_cave",
+                        "location_id": "test_ogre_cave",
+                        "completion_criteria": "Enter the ogre cave."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q23": {
+                "title": "Q23 \u2013 Semantic Failure Gating",
+                "description": "Objective completion depends on semantic inference only.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Convince test_skeptic to trust you.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_skeptic",
+                        "location_id": "test_village",
+                        "completion_criteria": "Skeptic indicates trust."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q24": {
+                "title": "Q24 \u2013 Abandon/Fallback Scenario",
+                "description": "Regular quest for abandon/failure flow testing.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Recover the test_relic.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "fetch",
+                        "target_id": "test_relic",
+                        "location_id": "test_ruins",
+                        "completion_criteria": "Obtain the test_relic."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            },
+            "TEST_Q25": {
+                "title": "Q25 \u2013 Complex Mixed Conditions",
+                "description": "Any of two routes, but no alarm and with resource gate.",
+                "status": "active",
+                "objectives": [
+                    {
+                        "id": "O1",
+                        "description": "Route A (visit test_tower AND have test_rope) OR Route B (defeat test_spider_queen) with no alarm.",
+                        "completed": false,
+                        "failed": false,
+                        "mandatory": true,
+                        "type": "interact",
+                        "target_id": "test_tower_or_spider_queen",
+                        "location_id": "test_vale",
+                        "completion_criteria": "No alarm triggered; either tower+rope route or spider queen defeated."
+                    }
+                ],
+                "rewards": {
+                    "xp": 0,
+                    "gold": 0,
+                    "items": []
+                },
+                "prerequisites": [],
+                "tags": []
+            }
+        },
+        "notes": [
+            {
+                "id": "resonance_calendar",
+                "type": "lore",
+                "title": "The Resonance Calendar",
+                "summary": "An overview of the canonical cycles: eras, cycles (years), phases, tides, spans (months), and days.",
+                "content": "The Resonance Calendar divides time into Eras, Cycles (years), Phases, Tides, Spans (months), and Days. Each day is tracked precisely and grouped into spans, tides, and phases to reflect the world's metaphysical rhythms. This entry summarizes the structure used by scholars and navigators across Aetheris.",
+                "pinned": false
+            }
+        ]
+    },
     "combat_manager": {
-        "id": "c2928013-2515-4f74-a4f0-cfc47259e47b",
+        "id": "20b30f2a-be5b-4bee-a46b-d8356d6a0a8b",
         "entities": {
-            "5cb42f0a-c10d-4181-8da2-9864dd51bdbe": {
-                "id": "5cb42f0a-c10d-4181-8da2-9864dd51bdbe",
-                "name": "Lars",
-                "combat_name": "Lars",
+            "f22adaaf-f832-46be-b555-e01f43aa9129": {
+                "id": "f22adaaf-f832-46be-b555-e01f43aa9129",
+                "name": "Bard",
+                "combat_name": "Bard",
                 "entity_type": "PLAYER",
                 "stats": {
                     "STR": 8.0,
-                    "DEX": 8.0,
-                    "CON": 8.0,
-                    "INT": 8.0,
-                    "WIS": 14.0,
-                    "CHA": 15.0,
-                    "WIL": 15.0,
-                    "INS": 10.0,
-                    "Max Health Points": 9.0,
-                    "Max Mana Points": 6.0,
-                    "Max Stamina": 10.0,
-                    "Max Resolve": 12.0,
-                    "Melee Attack": 1.0,
-                    "Ranged Attack": 1.0,
-                    "Magic Attack": 1.0,
-                    "Defense": 8.0,
-                    "Magic Defense": 11.0,
+                    "DEX": 10.0,
+                    "CON": 10.0,
+                    "INT": 15.0,
+                    "WIS": 15.0,
+                    "CHA": 8.0,
+                    "WIL": 13.0,
+                    "INS": 8.0,
+                    "Max Health Points": 10.0,
+                    "Max Mana Points": 9.0,
+                    "Max Stamina": 11.0,
+                    "Max Action Points": 6.0,
+                    "AP Regeneration": 4.0,
+                    "Max Resolve": 10.0,
+                    "Melee Attack": 2.0,
+                    "Ranged Attack": 2.0,
+                    "Magic Attack": 4.0,
+                    "Defense": 13.0,
+                    "Magic Defense": 13.0,
                     "Damage Reduction": 0.0,
-                    "Initiative": 0.0,
+                    "Initiative": 1.0,
                     "Carry Capacity": 90.0,
-                    "Movement": 29.0,
-                    "Health Points": 9.0,
-                    "Resolve": 12.0,
-                    "Mana Points": 6.0,
-                    "Stamina": 10.0
+                    "Movement": 30.0,
+                    "Health Points": 10.0,
+                    "Resolve": 10.0,
+                    "Mana Points": 9.0,
+                    "Stamina": 11.0
                 },
-                "current_hp": 9,
-                "max_hp": 9.0,
-                "current_mp": 6,
-                "max_mp": 6.0,
-                "current_stamina": 4.0,
-                "max_stamina": 10.0,
+                "current_hp": 10.0,
+                "max_hp": 10.0,
+                "current_mp": 9,
+                "max_mp": 9.0,
+                "current_stamina": 7.0,
+                "max_stamina": 11.0,
                 "status_effects": {},
-                "initiative": 5.0,
+                "initiative": 6.0,
                 "position": 0,
                 "is_active_in_combat": true,
-                "description": "Elf Cleric"
+                "description": "Cinderspawn Mage"
             },
-            "f6f35ef1-b32e-48a4-bfc2-3b1944677819": {
-                "id": "f6f35ef1-b32e-48a4-bfc2-3b1944677819",
-                "name": "gnome_1",
-                "combat_name": "gnome_1",
+            "63fd1516-68d6-4244-b84c-aa2b01affdbc": {
+                "id": "63fd1516-68d6-4244-b84c-aa2b01affdbc",
+                "name": "Wolf",
+                "combat_name": "Wolf",
                 "entity_type": "ENEMY",
                 "stats": {
-                    "STR": 9.0,
-                    "DEX": 10.0,
-                    "CON": 13.0,
-                    "INT": 8.0,
-                    "WIS": 12.0,
+                    "STR": 8.0,
+                    "DEX": 18.0,
+                    "CON": 6.0,
+                    "INT": 10.0,
+                    "WIS": 10.0,
                     "CHA": 10.0,
-                    "WIL": 13.0,
+                    "WIL": 10.0,
                     "INS": 10.0,
-                    "Max Health Points": 11.0,
+                    "Max Health Points": 8.0,
                     "Max Mana Points": 5.0,
-                    "Max Stamina": 12.0,
-                    "Max Resolve": 11.0,
+                    "Max Stamina": 9.0,
+                    "Max Action Points": 5.0,
+                    "AP Regeneration": 5.0,
+                    "Max Resolve": 10.0,
                     "Melee Attack": 1.0,
-                    "Ranged Attack": 2.0,
-                    "Magic Attack": 1.0,
-                    "Defense": 11.0,
+                    "Ranged Attack": 6.0,
+                    "Magic Attack": 2.0,
+                    "Defense": 12.0,
                     "Magic Defense": 10.0,
                     "Damage Reduction": 0.0,
-                    "Initiative": 0.0,
-                    "Carry Capacity": 95.0,
-                    "Movement": 30.0,
-                    "Health Points": 11.0,
-                    "Resolve": 11.0,
-                    "Mana Points": 5.0,
-                    "Stamina": 12.0
+                    "Initiative": 4.0,
+                    "Carry Capacity": 90.0,
+                    "Movement": 40.0,
+                    "Health Points": 8.0,
+                    "Resolve": 10.0,
+                    "Mana Points": 0.0,
+                    "Stamina": 9.0
                 },
-                "current_hp": 11,
-                "max_hp": 11.0,
-                "current_mp": 5,
+                "current_hp": 7.0,
+                "max_hp": 8.0,
+                "current_mp": 0.0,
                 "max_mp": 5.0,
-                "current_stamina": 8.0,
-                "max_stamina": 12.0,
+                "current_stamina": 4.0,
+                "max_stamina": 9.0,
                 "status_effects": {},
-                "initiative": 3.0,
+                "initiative": 7.0,
                 "position": 0,
                 "is_active_in_combat": true,
-                "description": "A hostile hostile named gnome_1."
+                "description": "Weak predators or defensive beasts; suitable for low-level skirmishes."
             }
         },
         "turn_order": [
-            "5cb42f0a-c10d-4181-8da2-9864dd51bdbe",
-            "f6f35ef1-b32e-48a4-bfc2-3b1944677819"
+            "63fd1516-68d6-4244-b84c-aa2b01affdbc",
+            "f22adaaf-f832-46be-b555-e01f43aa9129"
         ],
-        "current_turn_index": 0,
+        "current_turn_index": 1,
         "round_number": 1,
         "state": "IN_PROGRESS",
         "current_step": "AWAITING_PLAYER_INPUT",
-        "active_entity_id": "5cb42f0a-c10d-4181-8da2-9864dd51bdbe",
-        "player_entity_id": "5cb42f0a-c10d-4181-8da2-9864dd51bdbe",
+        "active_entity_id": "f22adaaf-f832-46be-b555-e01f43aa9129",
+        "player_entity_id": "f22adaaf-f832-46be-b555-e01f43aa9129",
         "enemy_entity_ids": [
-            "f6f35ef1-b32e-48a4-bfc2-3b1944677819"
+            "63fd1516-68d6-4244-b84c-aa2b01affdbc"
         ],
         "is_surprise_round": false,
-        "surprise_round_entities": [
-            "5cb42f0a-c10d-4181-8da2-9864dd51bdbe"
-        ],
+        "surprise_round_entities": [],
         "combat_log": [
-            "Combat started! Lars vs gnome_1",
-            "Surprise round ends.",
-            "Lars rolls initiative: 5 (Base:0 + Roll:5)",
-            "gnome_1 rolls initiative: 3 (Base:0 + Roll:3)",
-            "Round 1 begins!",
-            "Lars spent 6.0 stamina. Rem: 4.0",
-            "Lars attacks gnome_1 with Unarmed_attack Attack: Roll 3 (Dice:[4] + Bonus:-1) vs Def 11",
-            "  Attack misses.",
-            "  Entity recovers 1 stamina.",
-            "gnome_1's turn.",
-            "gnome_1 spent 4.0 stamina. Rem: 8.0",
-            "gnome_1 attacks Lars with Unarmed_attack Attack: Roll 5 (Dice:[6] + Bonus:-1) vs Def 8",
-            "  Attack misses.",
-            "  Entity recovers 1 stamina.",
-            "Lars's turn."
+            {
+                "role": "system",
+                "content": "Combat started! Bard vs Wolf"
+            },
+            {
+                "role": "system",
+                "content": "Bard rolls initiative: 6 (Base:1 + Roll:5)"
+            },
+            {
+                "role": "system",
+                "content": "Wolf rolls initiative: 7 (Base:4 + Roll:3)"
+            },
+            {
+                "role": "system",
+                "content": "Round 1 begins!"
+            },
+            {
+                "role": "system",
+                "content": "Wolf attacks Wolf with Melee_attack Attack: Roll 14 (Dice:[15] + Bonus:-1) vs Def 12"
+            },
+            {
+                "role": "system",
+                "content": "  Raw Damage: 1 ([2] + -1 mod)"
+            },
+            {
+                "role": "system",
+                "content": "  Mitigation: DR 0. After DR: 1"
+            },
+            {
+                "role": "system",
+                "content": "  Wolf is now Bleeding due to Melee_attack Attack!"
+            },
+            {
+                "role": "system",
+                "content": "  Wolf takes 1 slashing damage! (HP: 7/8)"
+            },
+            "Wolf lunges forward with a precise slashing attack, landing a solid blow that chips away 1 HP from the target. The attack hits successfully, bringing the target's health down from 8 to 7, but leaves them still standing and ready for the next move.",
+            {
+                "role": "system",
+                "content": "  Entity recovers 1 stamina."
+            },
+            {
+                "role": "system",
+                "content": "Bard's turn."
+            },
+            {
+                "role": "system",
+                "content": "Bard attacks Wolf with Melee_attack Attack: Roll 3 (Dice:[4] + Bonus:-1) vs Def 12"
+            },
+            {
+                "role": "system",
+                "content": "  Attack misses."
+            },
+            "The Bard lunged at the Wolf with a slashing attack, but missed entirely as their strike failed to overcome the wolf's defenses. The wolf remains unscathed with its health unchanged at 7 out of 8.",
+            {
+                "role": "system",
+                "content": "  Entity recovers 1 stamina."
+            },
+            {
+                "role": "system",
+                "content": "Wolf's turn."
+            },
+            {
+                "role": "system",
+                "content": "Wolf tries to Melee_attack Attack but lacks stamina (3.0/7.0)"
+            },
+            "Wolf attempts a melee attack but fails to land it due to exhaustion, as they lack enough stamina to complete the strike.",
+            {
+                "role": "system",
+                "content": "  Entity recovers 1 stamina."
+            },
+            {
+                "role": "system",
+                "content": "Status effect 'Bleeding' has worn off Wolf."
+            },
+            {
+                "role": "system",
+                "content": "Status effect 'Bleeding' has worn off Wolf."
+            },
+            {
+                "role": "system",
+                "content": "Bard's turn."
+            }
         ],
-        "combat_log_html": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\np, li { white-space: pre-wrap; }\nhr { height: 1px; border-width: 0; }\nli.unchecked::marker { content: \"\\2610\"; }\nli.checked::marker { content: \"\\2612\"; }\n</style></head><body style=\" font-family:'Segoe UI'; font-size:9pt; font-weight:400; font-style:normal;\">\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700; color:#ececec;\">Combat started! Lars vs gnome_1</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">Round 1 (Surprise Attack!)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">Targets Surprised: gnome_1</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">Lars looks for an opening, but the moment for a surprise attack passes.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">Surprise round ends.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">Lars rolls initiative: 5 (Base:0 + Roll:5)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">gnome_1 rolls initiative: 3 (Base:0 + Roll:3)</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:700; color:#0064ff;\">Round 1 begins!</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">Turn order: Lars, gnome_1</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">Lars, acting with sudden aggression, lunges forward, aiming a fist at the nearest opponent.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">Lars attacks gnome_1 with Unarmed_attack Attack: Roll 3 (Dice:[4] + Bonus:-1) vs Def 11</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-style:italic; color:#969696;\">  Attack misses.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-style:italic; color:#969696;\">Lars lunges at gnome_1, but the attack misses wildly! The gnome remains unscathed.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now gnome_1's turn.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffd700;\">The gnome lunges forward, attempting to strike Lars with a quick, clumsy jab.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ff557f;\">gnome_1 attacks Lars with Unarmed_attack Attack: Roll 5 (Dice:[6] + Bonus:-1) vs Def 8</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-style:italic; color:#969696;\">  Attack misses.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-style:italic; color:#969696;\">gnome_1's furious fists fly, but Lars nimbly evades! The attack misses its mark entirely.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#ffff00;\">  Entity recovers 1 stamina.</span></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" color:#0064c8;\">It is now Lars's turn.</span></p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; color:#0064c8;\"><br /></p></body></html>",
+        "combat_log_html": "",
         "last_action_results": {}
     },
     "character_stats": {
@@ -246,43 +1151,43 @@
             },
             "DEX": {
                 "name": "DEXTERITY",
-                "base_value": 8,
+                "base_value": 10,
                 "category": "PRIMARY",
                 "description": "Agility and reflexes, affects ranged attacks, initiative, and dodge."
             },
             "CON": {
                 "name": "CONSTITUTION",
-                "base_value": 8,
+                "base_value": 10,
                 "category": "PRIMARY",
                 "description": "Physical resilience, affects health, stamina, and resistance to poison/disease."
             },
             "INT": {
                 "name": "INTELLIGENCE",
-                "base_value": 8,
+                "base_value": 15,
                 "category": "PRIMARY",
                 "description": "Mental acuity, affects spell power and learning ability."
             },
             "WIS": {
                 "name": "WISDOM",
-                "base_value": 14,
+                "base_value": 15,
                 "category": "PRIMARY",
                 "description": "Intuition and perception, affects magical resistance and willpower."
             },
             "CHA": {
                 "name": "CHARISMA",
-                "base_value": 15,
+                "base_value": 8,
                 "category": "PRIMARY",
                 "description": "Social influence, affects dialogue, prices, and persuasion."
             },
             "WIL": {
                 "name": "WILLPOWER",
-                "base_value": 15,
+                "base_value": 13,
                 "category": "PRIMARY",
                 "description": "Mental fortitude, resistance to influence and fear."
             },
             "INS": {
                 "name": "INSIGHT",
-                "base_value": 10,
+                "base_value": 8,
                 "category": "PRIMARY",
                 "description": "Understanding situations, detecting lies, and sensing motives."
             }
@@ -290,25 +1195,37 @@
         "derived_stats": {
             "Max Health Points": {
                 "name": "MAX_HEALTH",
-                "base_value": 9.0,
+                "base_value": 10.0,
                 "category": "DERIVED",
                 "description": "Your maximum hit points."
             },
             "Max Mana Points": {
                 "name": "MAX_MANA",
-                "base_value": 6.0,
+                "base_value": 9.0,
                 "category": "DERIVED",
                 "description": "Your maximum magical energy."
             },
             "Max Stamina": {
                 "name": "MAX_STAMINA",
-                "base_value": 10.0,
+                "base_value": 11.0,
                 "category": "DERIVED",
                 "description": "Your maximum physical energy."
             },
+            "Max Action Points": {
+                "name": "MAX_AP",
+                "base_value": 6.0,
+                "category": "DERIVED",
+                "description": "Your maximum action points for use in combat."
+            },
+            "AP Regeneration": {
+                "name": "AP_REGENERATION",
+                "base_value": 4.0,
+                "category": "DERIVED",
+                "description": "The amount of action points you recover at the start of your turn."
+            },
             "Max Resolve": {
                 "name": "MAX_RESOLVE",
-                "base_value": 12.0,
+                "base_value": 10.0,
                 "category": "DERIVED",
                 "description": "Your maximum social/mental composure."
             },
@@ -320,25 +1237,25 @@
             },
             "Ranged Attack": {
                 "name": "RANGED_ATTACK",
-                "base_value": 1.0,
+                "base_value": 2.0,
                 "category": "DERIVED",
                 "description": "Your ability to hit opponents with ranged weapons."
             },
             "Magic Attack": {
                 "name": "MAGIC_ATTACK",
-                "base_value": 1.0,
+                "base_value": 4.0,
                 "category": "DERIVED",
                 "description": "Your ability to hit opponents with magical attacks."
             },
             "Defense": {
                 "name": "DEFENSE",
-                "base_value": 8.0,
+                "base_value": 10.0,
                 "category": "DERIVED",
                 "description": "Your ability to avoid physical damage."
             },
             "Magic Defense": {
                 "name": "MAGIC_DEFENSE",
-                "base_value": 11.0,
+                "base_value": 13.0,
                 "category": "DERIVED",
                 "description": "Your ability to resist magical effects."
             },
@@ -350,7 +1267,7 @@
             },
             "Initiative": {
                 "name": "INITIATIVE",
-                "base_value": 0.0,
+                "base_value": 1.0,
                 "category": "DERIVED",
                 "description": "Determines your turn order in combat."
             },
@@ -362,37 +1279,74 @@
             },
             "Movement": {
                 "name": "MOVEMENT",
-                "base_value": 29.0,
+                "base_value": 30.0,
                 "category": "DERIVED",
                 "description": "How far you can move in combat."
             },
             "Health Points": {
                 "name": "HEALTH",
-                "base_value": 9,
+                "base_value": 10.0,
                 "category": "DERIVED",
                 "description": "Your current hit points. When this reaches zero, you are incapacitated."
             },
             "Resolve": {
                 "name": "RESOLVE",
-                "base_value": 12,
+                "base_value": 10,
                 "category": "DERIVED",
                 "description": "Your current social/mental composure. Reduced by stress or social defeats."
             },
             "Mana Points": {
                 "name": "MANA",
-                "base_value": 6,
+                "base_value": 9,
                 "category": "DERIVED",
                 "description": "Your current magical energy. Required for casting spells."
             },
             "Stamina": {
                 "name": "STAMINA",
-                "base_value": 5.0,
+                "base_value": 7.0,
                 "category": "DERIVED",
                 "description": "Your current physical energy. Required for special physical actions."
             }
         },
         "modifiers": {
-            "modifiers": [],
+            "modifiers": [
+                {
+                    "id": "b69eb23f-23f2-4475-bdd8-2af67217e593",
+                    "stat": "Defense",
+                    "value": 1.0,
+                    "source_type": "EQUIPMENT",
+                    "source_name": "Ash-Treated Clothing",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": "Equipment bonus from Ash-Treated Clothing"
+                },
+                {
+                    "id": "093cd4f3-3558-4622-a5ba-8b8c71ab2b0e",
+                    "stat": "Melee Attack",
+                    "value": 1.0,
+                    "source_type": "EQUIPMENT",
+                    "source_name": "Ritual Dagger",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": "Equipment bonus from Ritual Dagger"
+                },
+                {
+                    "id": "a643f407-e419-44f3-9a03-117768ec197f",
+                    "stat": "Defense",
+                    "value": 2.0,
+                    "source_type": "EQUIPMENT",
+                    "source_name": "Wooden Shield",
+                    "modifier_type": "PERMANENT",
+                    "is_percentage": false,
+                    "duration": null,
+                    "stacks": false,
+                    "description": "Equipment bonus from Wooden Shield"
+                }
+            ],
             "modifier_groups": []
         },
         "status_effects": {
@@ -405,12 +1359,403 @@
         "context_state": {}
     },
     "detailed_inventory": {
-        "items": {},
+        "items": {
+            "0c835d05-eaa2-40b0-a691-58835d4505ba": {
+                "id": "0c835d05-eaa2-40b0-a691-58835d4505ba",
+                "name": "Ash-Treated Clothing",
+                "description": "Simple, durable clothing treated with sacred ashes for resilience and a faint connection to ancestral spirits. Common among the Ashen Covenant.",
+                "item_type": "armor",
+                "rarity": "common",
+                "weight": 2.0,
+                "value": 20,
+                "icon_path": "/images/icons/armor/helmet_1.png",
+                "is_equippable": true,
+                "equip_slots": [
+                    "chest"
+                ],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": null,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": 80,
+                "current_durability": 80,
+                "is_destroyed": false,
+                "tags": [
+                    "clothing",
+                    "armor",
+                    "ashen_covenant",
+                    "treated"
+                ],
+                "template_id": "ash-treated_clothing",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-10-14T20:32:07.157557",
+                "stats": [
+                    {
+                        "name": "defense",
+                        "value": 1,
+                        "display_name": "Armor",
+                        "is_percentage": false
+                    },
+                    {
+                        "name": "fire_resistance",
+                        "value": 5,
+                        "display_name": "Fire Resistance",
+                        "is_percentage": true
+                    }
+                ],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "quantity",
+                    "stats",
+                    "rarity",
+                    "id",
+                    "tags",
+                    "description",
+                    "is_quest_item",
+                    "equip_slots",
+                    "durability",
+                    "is_equippable",
+                    "current_durability",
+                    "icon_path",
+                    "value",
+                    "item_type",
+                    "stat_defense",
+                    "is_stackable",
+                    "weight",
+                    "name"
+                ]
+            },
+            "7fd48bb1-7eb3-4c94-9f14-1f0bf25ec1fc": {
+                "id": "7fd48bb1-7eb3-4c94-9f14-1f0bf25ec1fc",
+                "name": "Covenant Pendant",
+                "description": "A small, carved bone pendant bearing the symbol of the Ashen Covenant. It's said to ward off minor malevolent spirits.",
+                "item_type": "accessory",
+                "rarity": "common",
+                "weight": 0.1,
+                "value": 15,
+                "icon_path": "/images/icons/accessory/amulet_1.png",
+                "is_equippable": true,
+                "equip_slots": [
+                    "neck"
+                ],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": null,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "amulet",
+                    "ashen_covenant",
+                    "spiritual"
+                ],
+                "template_id": "covenant_pendant",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-10-14T20:32:07.172222",
+                "stats": [
+                    {
+                        "name": "willpower",
+                        "value": 1,
+                        "display_name": "Willpower Save Bonus",
+                        "is_percentage": false
+                    }
+                ],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "quantity",
+                    "rarity",
+                    "is_quest_item",
+                    "id",
+                    "tags",
+                    "description",
+                    "equip_slots",
+                    "is_equippable",
+                    "icon_path",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "weight",
+                    "name"
+                ]
+            },
+            "c96f4b25-5bd4-41b1-a5c8-0bb51a0897ac": {
+                "id": "c96f4b25-5bd4-41b1-a5c8-0bb51a0897ac",
+                "name": "Fire Striker",
+                "description": "A reliable flint and steel for starting fires. Essential for survival and Covenant rituals.",
+                "item_type": "tool",
+                "rarity": "common",
+                "weight": 0.3,
+                "value": 5,
+                "icon_path": "/images/icons/tool/hammer_1.png",
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": null,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "tool",
+                    "fire",
+                    "survival"
+                ],
+                "template_id": "fire_striker",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-10-14T20:32:07.176798",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "quantity",
+                    "rarity",
+                    "is_quest_item",
+                    "id",
+                    "tags",
+                    "description",
+                    "icon_path",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "weight",
+                    "name"
+                ]
+            },
+            "187cc6d0-9fa3-4100-9842-c1a1142e6730": {
+                "id": "187cc6d0-9fa3-4100-9842-c1a1142e6730",
+                "name": "Ritual Dagger",
+                "description": "A ceremonial dagger, sharp and well-balanced, used by the Ashen Covenant in their rites. It feels strangely warm to the touch.",
+                "item_type": "weapon",
+                "rarity": "uncommon",
+                "weight": 0.5,
+                "value": 75,
+                "icon_path": "/images/icons/weapon/dagger_1.png",
+                "is_equippable": true,
+                "equip_slots": [
+                    "main_hand",
+                    "off_hand"
+                ],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": null,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": 70,
+                "current_durability": 70,
+                "is_destroyed": false,
+                "tags": [
+                    "weapon",
+                    "dagger",
+                    "ritual",
+                    "ashen_covenant"
+                ],
+                "template_id": "ritual_dagger",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-10-14T20:32:07.180083",
+                "stats": [
+                    {
+                        "name": "melee_attack",
+                        "value": 1,
+                        "display_name": "Attack Bonus",
+                        "is_percentage": false
+                    }
+                ],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "quantity",
+                    "rarity",
+                    "is_quest_item",
+                    "id",
+                    "tags",
+                    "description",
+                    "equip_slots",
+                    "durability",
+                    "is_equippable",
+                    "current_durability",
+                    "icon_path",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "weight",
+                    "name"
+                ]
+            },
+            "732fba3d-6b56-4c99-9ab3-9d75eb92bfdc": {
+                "id": "732fba3d-6b56-4c99-9ab3-9d75eb92bfdc",
+                "name": "Small Pouch of Ancestral Ash",
+                "description": "A leather pouch containing a mixture of sacred ashes from revered ancestors of the Ashen Covenant. Used in rituals and for guidance.",
+                "item_type": "miscellaneous",
+                "rarity": "uncommon",
+                "weight": 0.2,
+                "value": 50,
+                "icon_path": "/images/icons/miscellaneous/generic_1.png",
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": null,
+                "quantity": 1,
+                "is_quest_item": true,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "ritual_component",
+                    "ashen_covenant",
+                    "spiritual",
+                    "ash"
+                ],
+                "template_id": "small_pouch_of_ancestral_ash",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-10-14T20:32:07.184108",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "quantity",
+                    "rarity",
+                    "is_quest_item",
+                    "id",
+                    "tags",
+                    "description",
+                    "icon_path",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "weight",
+                    "name"
+                ]
+            },
+            "27220309-fd37-4df1-8396-ddcc8da63906": {
+                "id": "27220309-fd37-4df1-8396-ddcc8da63906",
+                "name": "Test apple",
+                "description": "A test apple.",
+                "item_type": "miscellaneous",
+                "rarity": "common",
+                "weight": 0.1,
+                "value": 1,
+                "icon_path": "/images/icons/miscellaneous/generic_1.png",
+                "is_equippable": false,
+                "equip_slots": [],
+                "is_consumable": true,
+                "is_stackable": true,
+                "stack_limit": 20,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": null,
+                "current_durability": null,
+                "is_destroyed": false,
+                "tags": [
+                    "miscellaneous",
+                    "consumable",
+                    "food"
+                ],
+                "template_id": "test_apple",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-10-14T20:32:07.186176",
+                "stats": [],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "quantity",
+                    "rarity",
+                    "is_quest_item",
+                    "id",
+                    "tags",
+                    "description",
+                    "icon_path",
+                    "value",
+                    "item_type",
+                    "is_stackable",
+                    "weight",
+                    "name"
+                ]
+            },
+            "213be460-5288-4da2-8dc2-e80420bbba8c": {
+                "id": "213be460-5288-4da2-8dc2-e80420bbba8c",
+                "name": "Wooden Shield",
+                "description": "A simple shield made of wood, providing basic protection.",
+                "item_type": "shield",
+                "rarity": "common",
+                "weight": 3.0,
+                "value": 10,
+                "icon_path": "/images/icons/shield/round_1.png",
+                "is_equippable": true,
+                "equip_slots": [
+                    "off_hand"
+                ],
+                "is_consumable": false,
+                "is_stackable": false,
+                "stack_limit": null,
+                "quantity": 1,
+                "is_quest_item": false,
+                "durability": 40,
+                "current_durability": 40,
+                "is_destroyed": false,
+                "tags": [
+                    "shield",
+                    "wood",
+                    "defense"
+                ],
+                "template_id": "wooden_shield",
+                "is_template": false,
+                "source": "template_copy",
+                "custom_properties": {},
+                "discovered_at": "2025-10-14T20:32:07.186176",
+                "stats": [
+                    {
+                        "name": "defense",
+                        "value": 2,
+                        "display_name": "Armor",
+                        "is_percentage": false
+                    }
+                ],
+                "dice_roll_effects": [],
+                "known_properties": [
+                    "quantity",
+                    "stats",
+                    "rarity",
+                    "id",
+                    "tags",
+                    "description",
+                    "is_quest_item",
+                    "equip_slots",
+                    "durability",
+                    "is_equippable",
+                    "current_durability",
+                    "icon_path",
+                    "value",
+                    "item_type",
+                    "stat_defense",
+                    "is_stackable",
+                    "weight",
+                    "name"
+                ]
+            }
+        },
         "weight_limit_base": 100.0,
         "weight_limit_modifiers": {},
         "slot_limit_base": 20,
         "slot_limit_modifiers": {},
-        "equipment": {},
+        "equipment": {
+            "chest": "0c835d05-eaa2-40b0-a691-58835d4505ba",
+            "main_hand": "187cc6d0-9fa3-4100-9842-c1a1142e6730",
+            "off_hand": "213be460-5288-4da2-8dc2-e80420bbba8c"
+        },
         "currency": {
             "gold": 0,
             "silver": 0,

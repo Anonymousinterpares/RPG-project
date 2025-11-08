@@ -22,6 +22,7 @@ class DisplayEventType(Enum):
     APPLY_ENTITY_RESOURCE_UPDATE = auto()  # New: Apply a resource (hp/mp/stamina) change to an entity's model
     APPLY_ENTITY_STATE_UPDATE = auto()     # New: Apply state flags (e.g., is_active_in_combat)
     AP_UPDATE = auto()                     # New: For AP bar updates
+    COMBAT_LOG_REBUILD = auto()            # New: Rebuild combat log from history
     # Add more event types as needed
     
 class DisplayTarget(Enum):

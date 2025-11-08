@@ -505,6 +505,7 @@ class StateManager:
                    self._current_state.current_mode.name == 'COMBAT' and \
                    getattr(self._current_state, 'combat_manager', None):
                     cm = self._current_state.combat_manager
+                    cm.game_state = self._current_state
                     # Ensure NPC StatsManagers are available/linked by loading NPC system state and prepping NPCs
                     try:
                         npc_system = self.get_npc_system()
@@ -537,35 +538,31 @@ class StateManager:
                     except Exception as e:
                         logger.warning(f"Failed to sync stats from combat entities after load: {e}")
 
-                    # Queue a BUFFER_FLUSH to repopulate the Combat Log from display_log
+                    # --- NEW: Rebuild Combat Log from history ---
                     try:
                         from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
                         from core.base.engine import get_game_engine
                         engine = get_game_engine()
-                        # Bind orchestrator to the loaded CombatManager so resume signals work
-                        try:
-                            if hasattr(engine, '_combat_orchestrator') and cm is not None:
-                                engine._combat_orchestrator.set_combat_manager(cm)
-                                logger.info("Bound loaded CombatManager to CombatOutputOrchestrator.")
-                        except Exception as bind_err:
-                            logger.warning(f"Failed to bind CombatManager to orchestrator after load: {bind_err}")
-                        html_snapshot = getattr(cm, 'display_log_html', "")
-                        if html_snapshot:
-                            set_event = DisplayEvent(
-                                type=DisplayEventType.COMBAT_LOG_SET_HTML,
-                                content=html_snapshot,
-                                role='system',
+
+                        # Bind orchestrator to the loaded CombatManager
+                        if hasattr(engine, '_combat_orchestrator') and cm is not None:
+                            engine._combat_orchestrator.set_combat_manager(cm)
+                            logger.info("Bound loaded CombatManager to CombatOutputOrchestrator.")
+
+                        # Queue a COMBAT_LOG_REBUILD event with the historical log data
+                        historical_log = getattr(cm, 'combat_log', [])
+                        if historical_log:
+                            rebuild_event = DisplayEvent(
+                                type=DisplayEventType.COMBAT_LOG_REBUILD,
+                                content=historical_log,
                                 target_display=DisplayTarget.COMBAT_LOG,
-                                gradual_visual_display=False,
-                                tts_eligible=False,
-                                source_step='REHYDRATE_FROM_SAVE',
-                                metadata={"session_id": self._current_state.session_id if self._current_state else None}
+                                source_step='REHYDRATE_FROM_SAVE'
                             )
-                            # Option A: enqueue synchronously to avoid cross-session leakage/race
-                            try:
-                                engine._combat_orchestrator.add_event_to_queue(set_event)
-                            except Exception as e_enq:
-                                logger.warning(f"Failed to enqueue COMBAT_LOG_SET_HTML synchronously: {e_enq}")
+                            engine._combat_orchestrator.add_event_to_queue(rebuild_event)
+                            logger.info(f"Queued COMBAT_LOG_REBUILD event with {len(historical_log)} entries.")
+
+                        # --- END NEW ---
+
                         # Additionally, sync the player's resource bars (HP/MP/Stamina) via Phase 2 UI events
                         try:
                             from core.stats.stats_base import DerivedStatType
@@ -588,13 +585,8 @@ class StateManager:
                                         target_display=DisplayTarget.COMBAT_LOG,
                                         source_step='REHYDRATE_FROM_SAVE'
                                     )
-                                    # Option A: enqueue synchronously
-                                    try:
-                                        engine._combat_orchestrator.add_event_to_queue(ev_hp)
-                                    except Exception:
-                                        pass
-                                except Exception:
-                                    pass
+                                    engine._combat_orchestrator.add_event_to_queue(ev_hp)
+                                except Exception: pass
                                 try:
                                     stam_cur = sm_local.get_current_stat_value(DerivedStatType.STAMINA)
                                     stam_max = sm_local.get_stat_value(DerivedStatType.MAX_STAMINA)
@@ -605,13 +597,8 @@ class StateManager:
                                         target_display=DisplayTarget.COMBAT_LOG,
                                         source_step='REHYDRATE_FROM_SAVE'
                                     )
-                                    # Option A: enqueue synchronously
-                                    try:
-                                        engine._combat_orchestrator.add_event_to_queue(ev_st)
-                                    except Exception:
-                                        pass
-                                except Exception:
-                                    pass
+                                    engine._combat_orchestrator.add_event_to_queue(ev_st)
+                                except Exception: pass
                                 try:
                                     mana_cur = sm_local.get_current_stat_value(DerivedStatType.MANA)
                                     mana_max = sm_local.get_stat_value(DerivedStatType.MAX_MANA)
@@ -622,13 +609,8 @@ class StateManager:
                                         target_display=DisplayTarget.COMBAT_LOG,
                                         source_step='REHYDRATE_FROM_SAVE'
                                     )
-                                    # Option A: enqueue synchronously
-                                    try:
-                                        engine._combat_orchestrator.add_event_to_queue(ev_mp)
-                                    except Exception:
-                                        pass
-                                except Exception:
-                                    pass
+                                    engine._combat_orchestrator.add_event_to_queue(ev_mp)
+                                except Exception: pass
                         except Exception as e_syncbars:
                             logger.warning(f"Failed to enqueue player resource bar sync events after load: {e_syncbars}")
                     except Exception as e:

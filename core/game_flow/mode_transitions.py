@@ -952,7 +952,59 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
         if game_state.current_mode == InteractionMode.COMBAT: 
             game_state.set_interaction_mode(InteractionMode.NARRATIVE) # This will also clear is_transitioning_to_combat
         return f"System Error: Failed to initiate combat transition: {str(e)}"
-    
+
+def initiate_combat(
+    engine: 'GameEngine',
+    game_state: 'GameState',
+    enemy_entities: List[CombatEntity],
+    surprise: bool = False,
+    initiating_intent: str = "An unexpected encounter!"
+) -> bool:
+    """
+    Transitions the game state from Narrative to Combat mode.
+    """
+    try:
+        logger.info(f"Initiating combat transition. Surprise: {surprise}, Intent: '{initiating_intent}'")
+        
+        # Create and configure the CombatManager
+        cm = CombatManager()
+        
+        # --- FIX: Establish bidirectional link between manager and orchestrator ---
+        if hasattr(engine, '_combat_orchestrator') and engine._combat_orchestrator is not None:
+            cm.set_orchestrator(engine._combat_orchestrator)
+            engine._combat_orchestrator.set_combat_manager(cm)
+        else:
+            logger.critical("Cannot initiate combat: GameEngine is missing the CombatOutputOrchestrator.")
+            raise AttributeError("GameEngine is missing the CombatOutputOrchestrator.")
+        # --- END FIX ---
+
+        # Prepare the combat manager with entities and initial state
+        player_entity = create_player_combat_entity(game_state, game_state.player.name)
+        cm.prepare_for_combat(engine, player_entity, enemy_entities, surprise, initiating_intent)
+        
+        # Assign the new combat manager to the game state
+        game_state.combat_manager = cm
+        game_state.current_mode = InteractionMode.COMBAT
+        
+        # Set transition flags for the UI
+        game_state.is_transitioning_to_combat = True
+        
+        logger.info("Combat transition successful. Mode set to COMBAT.")
+        
+        # Start the combat processing loop
+        cm.process_combat_step(engine)
+        
+        return True
+
+    except Exception as e:
+        logger.exception(f"Failed to initiate combat transition: {e}")
+        # Attempt to send a failure message to the UI
+        try:
+            engine._output("system", f"System Error: Failed to initiate combat transition: {e}")
+        except Exception as e_out:
+            logger.error(f"Additionally failed to send error message to UI: {e_out}")
+        return False
+
 def _attempt_flee_transition(engine: 'GameEngine', game_state: 'GameState', request: Dict[str, Any], effective_actor_id: str) -> str:
     """Handles the attempt to flee from Combat to Narrative mode."""
     logger.info(f"Attempting to flee combat for actor {effective_actor_id}.")

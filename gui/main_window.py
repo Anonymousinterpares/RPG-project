@@ -22,6 +22,7 @@ from PySide6.QtGui import QIcon, QPixmap, QPalette, QBrush, QColor, QMovie, QTex
 from core.inventory import get_inventory_manager
 from core.inventory.item import Item
 from core.inventory.item_enums import EquipmentSlot
+from core.stats.stats_base import DerivedStatType
 from gui.dialogs.game_over_dialog import GameOverDialog
 from core.base.engine import GameEngine, get_game_engine
 from core.combat.enums import CombatState, CombatStep
@@ -1152,25 +1153,34 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             # Save the game with the provided name
             save_name = dialog.save_name_edit.text()
-            # Capture current combat log HTML snapshot if in COMBAT
+
+            # --- FIX: Synchronize combat entity stats BEFORE saving ---
             try:
                 state = self.game_engine.state_manager.current_state
                 if state and state.current_mode.name == 'COMBAT' and state.combat_manager:
-                    # Ensure current Combat Log HTML is stored for save
-                    html_snapshot = ""
-                    if hasattr(self, 'combat_display') and hasattr(self.combat_display, 'log_text'):
-                        html_snapshot = self.combat_display.log_text.toHtml()
-                    state.combat_manager.display_log_html = html_snapshot or state.combat_manager.display_log_html
+                    logger.info("Performing pre-save synchronization of combat entity stats.")
+                    cm = state.combat_manager
+                    for entity_id, entity in cm.entities.items():
+                        stats_manager = cm._get_entity_stats_manager(entity_id, quiet=True)
+                        if stats_manager:
+                            entity.current_hp = stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
+                            entity.current_stamina = stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
+                            entity.current_mp = stats_manager.get_current_stat_value(DerivedStatType.MANA)
+                            # You can add other stats here if they also change during combat
+                    logger.info("Pre-save synchronization complete.")
             except Exception as e:
-                logger.warning(f"Failed to snapshot Combat Log HTML before save: {e}")
+                logger.error(f"Failed to synchronize combat stats before save: {e}", exc_info=True)
+            # --- END FIX ---
+
             saved_path = self.game_engine.save_game(save_name)
             
             if saved_path:
                 QMessageBox.information(
                     self, 
                     "Game Saved", 
-                    f"Game saved successfully to {saved_path}"
+                    f"Game saved successfully to {saved_path}" 
                 )
+
     
     def _show_load_game_dialog(self):
         """Show dialog for loading a saved game."""
@@ -1757,14 +1767,23 @@ class MainWindow(QMainWindow):
             else:
                 target_widget = self.game_output
         
-        if not target_widget and event.type not in [DisplayEventType.TURN_ORDER_UPDATE, DisplayEventType.UI_BAR_UPDATE_PHASE1, DisplayEventType.UI_BAR_UPDATE_PHASE2]: # These might not have a primary text widget
+        if not target_widget and event.type not in [DisplayEventType.TURN_ORDER_UPDATE, DisplayEventType.UI_BAR_UPDATE_PHASE1, DisplayEventType.UI_BAR_UPDATE_PHASE2, DisplayEventType.COMBAT_LOG_REBUILD]: # These might not have a primary text widget
             logger.error(f"No target widget found for orchestrated event: {event} and not a special UI event.")
             if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
                 self.game_engine._combat_orchestrator._handle_visual_display_complete() 
             return
 
         # Handle event types
-        if event.type == DisplayEventType.BUFFER_FLUSH:
+        if event.type == DisplayEventType.COMBAT_LOG_REBUILD:
+            if self.combat_display and isinstance(event.content, list):
+                self.combat_display.rebuild_log_from_history(event.content)
+            else:
+                logger.error(f"Invalid content or target for COMBAT_LOG_REBUILD: {type(event.content)}")
+            # The rebuild is synchronous, so we can signal completion immediately.
+            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
+                QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
+
+        elif event.type == DisplayEventType.BUFFER_FLUSH:
             if isinstance(event.content, list) and target_widget == self.combat_display:
                 # New: perfect fidelity replay with role per line, batched to a single completion
                 try:
@@ -2373,3 +2392,4 @@ class MainWindow(QMainWindow):
             logger.info(f"Drop cancelled for item {item_name} from slot {slot_to_unequip.value}.")
         
         self._update_ui()
+

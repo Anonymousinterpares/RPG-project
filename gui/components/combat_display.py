@@ -59,7 +59,7 @@ COMBAT_DISPLAY_THEME = {
         "header_font_family": "Garamond",
         "header_font_size": 20,
         "log_font_family": "Garamond",
-        "log_font_size": 20,
+        "log_font_size": 14,
         "status_font_family": "Garamond",
         "status_font_size": 12,
         # Font settings for entity widgets are passed through and handled by them
@@ -504,6 +504,29 @@ class CombatDisplay(QWidget):
             self.enemies_panel_container.setVisible(False)
         if hasattr(self, 'center_panel_container'):
             self.center_panel_container.setVisible(False)
+
+    def rebuild_log_from_history(self, history: List[Dict[str, str]]):
+        """
+        Clears the current log and rebuilds it from a list of historical entries,
+        applying current theme settings based on the stored role.
+        """
+        logger.info(f"Rebuilding combat log from a history of {len(history)} entries.")
+        if self._is_gradual_log_active:
+            self.stop_gradual_display()
+        
+        self.log_text.clear()
+        
+        # Process each entry from the history
+        for entry in history:
+            if isinstance(entry, dict):
+                content = entry.get("content", "")
+                role = entry.get("role", "system")
+                if content:
+                    # Use the main rendering function to apply theme-correct formatting
+                    self.append_orchestrated_event_content(content, role, is_gradual=False)
+            else:
+                # Fallback for old save format (plain strings)
+                self.append_orchestrated_event_content(str(entry), "system", is_gradual=False)
 
     @Slot(GameState)
     def update_display(self, game_state: GameState):

@@ -5,9 +5,11 @@ import copy
 from typing import Dict, List, Tuple, Any, Optional, Set, Union, TYPE_CHECKING
 from PySide6.QtCore import QTimer, QThread, QObject, Signal, Slot
 from core.agents.base_agent import AgentContext
+from core.base.state.game_state import GameState
 from core.base.state.state_manager import get_state_manager
 from core.interaction.context_builder import ContextBuilder
 from core.interaction.enums import InteractionMode
+from core.orchestration.combat_orchestrator import CombatOutputOrchestrator
 from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
 from core.stats.combat_effects import StatusEffect, StatusEffectType
 from core.stats.derived_stats import get_modifier_from_stat
@@ -96,6 +98,10 @@ class _LLMResultBridge(QObject):
             if not text:
                 # Extremely defensive fallback
                 text = "A swift surprise attack is launched!"
+            
+            # --- FIX: Append structured dictionary to the persistent log ---
+            self._cm.combat_log.append({"role": "gm", "content": text})
+
             event = DisplayEvent(
                 type=DisplayEventType.NARRATIVE_ATTEMPT,
                 content=text,
@@ -187,6 +193,10 @@ class _LLMResultBridge(QObject):
                             text = f"{performer_name} tries to flee but cannot escape!"
                         else:
                             text = f"{performer_name}'s {action_name_disp} against {target_name} fails utterly."
+
+            # --- FIX: Append structured dictionary to the persistent log ---
+            self._cm.combat_log.append({"role": "gm", "content": text})
+            
             event = DisplayEvent(
                 type=DisplayEventType.NARRATIVE_IMPACT,
                 content=text,
@@ -231,9 +241,11 @@ class CombatManager:
         self.round_number: int = 0
         self.state: CombatState = CombatState.NOT_STARTED 
         self.current_step: CombatStep = CombatStep.NOT_STARTED 
-        self.combat_log: List[str] = [] # Raw chronological log for debugging/internal history
-        self.display_log_html: str = "" # HTML snapshot of Combat Log for instant rehydrate
+        self.combat_log: List[Dict[str, str]] = [] # Now a list of dicts
+        self.display_log_html: str = "" 
         self.last_action_results: Dict[str, Any] = {} 
+        self.game_state: Optional['GameState'] = None # <<< FIX: Initialize the attribute
+        self._orchestrator: Optional['CombatOutputOrchestrator'] = None
 
         self._player_entity_id: Optional[str] = None
         self._enemy_entity_ids: List[str] = []
@@ -268,9 +280,10 @@ class CombatManager:
         except Exception as e:
             logger.error(f"Failed to load AP system config from combat_config.json during CombatManager init: {e}")
             self._ap_config = {}
-        # --- END FIX ---
 
-        # --- End ECFA Change ---
+    def set_orchestrator(self, orchestrator: 'CombatOutputOrchestrator'):
+        """Sets the reference to the combat output orchestrator."""
+        self._orchestrator = orchestrator
 
     def _cleanup_llm_objects(self, thread: QThread, worker: QObject, bridge: QObject) -> None:
         """Remove references to finished LLM thread/worker/bridge objects."""
@@ -731,6 +744,7 @@ class CombatManager:
                 if result.get("target_defeated"): outcome_narrative += f" {target_name} is defeated!"
             else:
                 outcome_narrative = f"Despite the surprise, {performer_name}'s attack on {target_name} misses!"
+            
             event_outcome_narrative = DisplayEvent(type=DisplayEventType.NARRATIVE_IMPACT, content=outcome_narrative, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
             engine._combat_orchestrator.add_event_to_queue(event_outcome_narrative)
             self._last_action_result_detail = None
@@ -924,6 +938,8 @@ class CombatManager:
 
     def prepare_for_combat(self, engine: 'GameEngine', player_entity: CombatEntity, enemy_entities: List[CombatEntity], surprise: bool, initiating_intent: str):
         logger.info(f"Preparing for combat. Surprise: {surprise}. Intent: '{initiating_intent[:50]}...'")
+        
+        self.game_state = engine.state_manager.current_state # <<< FIX: Set the game_state reference
         self.entities = {}
         self.turn_order = []
         self.current_turn_index = 0
@@ -2466,9 +2482,65 @@ class CombatManager:
             if escaped_enemies: self._add_to_log(f"Combat ended: Victory! All active enemies defeated! ({', '.join(escaped_enemies)} escaped)")
             else: self._add_to_log("Combat ended: Victory! All enemies defeated!")
 
-    def _add_to_log(self, message: str) -> None:
-        self.combat_log.append(message)
-        logger.debug(f"Combat log: {message}")
+    def _log_and_dispatch_event(
+        self,
+        content: Union[str, Dict[str, Any], List[str]],
+        event_type: DisplayEventType,
+        role: str = "system",
+        gradual: bool = False,
+        tts: bool = False,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        A centralized method to create, log, and dispatch a DisplayEvent.
+        This now also handles appending the content to the persistent combat_log.
+        """
+        # Ensure metadata has the session_id
+        final_metadata = metadata.copy() if metadata is not None else {}
+        if "session_id" not in final_metadata and self.game_state:
+            final_metadata["session_id"] = self.game_state.session_id
+
+        event = DisplayEvent(
+            type=event_type,
+            content=content,
+            role=role,
+            target_display=DisplayTarget.COMBAT_LOG,
+            gradual_visual_display=gradual,
+            tts_eligible=tts,
+            source_step=self.current_step.name if self.current_step else "UNKNOWN",
+            metadata=final_metadata,
+        )
+
+        # --- FIX: Persist all relevant text events to the combat_log for saving ---
+        PERSISTENT_LOG_EVENTS = {
+            DisplayEventType.SYSTEM_MESSAGE,
+            DisplayEventType.NARRATIVE_ATTEMPT,
+            DisplayEventType.NARRATIVE_IMPACT,
+            DisplayEventType.NARRATIVE_GENERAL,
+        }
+
+        if event.type in PERSISTENT_LOG_EVENTS and isinstance(event.content, str):
+            # Save as a dictionary with role and content for reliable reconstruction
+            self.combat_log.append({"role": role, "content": event.content})
+            logger.debug(f"Appended to persistent combat_log (role: {role}): '{event.content[:50]}...'")
+        # --- END FIX ---
+
+        if self._orchestrator:
+            self._orchestrator.add_event_to_queue(event)
+
+    def _add_to_log(self, message: str, role: str = "system") -> None:
+        """
+        DEPRECATED. Use _log_and_dispatch_event directly.
+        This method is kept for backward compatibility in case it's called from
+        older code, but it now just forwards to the new central method.
+        """
+        self._log_and_dispatch_event(
+            content=message,
+            event_type=DisplayEventType.SYSTEM_MESSAGE,
+            role=role,
+            gradual=False,
+            tts=False
+        )
 
     def get_combat_summary(self) -> Dict[str, Any]:
         current_entity = self.get_current_entity()

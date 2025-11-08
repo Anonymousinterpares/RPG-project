@@ -131,7 +131,7 @@ class GameOutputWidget(QFrame):
 
         # Player format
         user_input_font_family = settings.value("style/user_input_font_family", "Garamond")
-        user_input_font_size = int(settings.value("style/user_input_font_size", 14))
+        user_input_font_size = int(settings.value("style/user_input_font_size", 25))
         self.player_format.setForeground(QColor(COLORS['text_player']))
         player_font = QFont(user_input_font_family, user_input_font_size)
         player_font.setItalic(True)
