@@ -1,7 +1,7 @@
 {
     "session_id": "bb461a3e-27e8-4d8b-a00f-fa14182add36",
     "created_at": 1760466725.1631312,
-    "last_saved_at": 1762639446.414292,
+    "last_saved_at": 1762642544.115366,
     "game_version": "0.1.0",
     "player": {
         "name": "Bard",
@@ -25,7 +25,7 @@
         "character_image": "D:\\coding\\RPG project\\latest version\\images\\character_icons\\Cinderspawn_Mage\\1_Cinderspawn_Mage_Male_male_mage.jpg",
         "current_resolve": 0.0,
         "active_social_effects": [],
-        "background_summary": "Bard, a Cinderspawn mage, carries the latent heat of his volcanic origins in his very presence, his skin a mosaic of charcoal and ember-glow, while his intellect and wisdom burn just as brightly, fueled by the Ashen Covenant's teachings on impermanence."
+        "background_summary": "A contemplative Cinderspawn mage, Bard carries the essence of fire in his veins, his skin shimmering with ash as he walks, guided by an unyielding resolve and an insatiable curiosity for the arcane, marked by the Covenant's teachings and etched in ember-scars."
     },
     "world": {
         "game_time": 32640.0,
@@ -65,27 +65,22 @@
         {
             "role": "gm",
             "content": "Welcome back, Bard! You are currently at Ashen Camp.",
-            "timestamp": 1762639273.7298021
+            "timestamp": 1762642464.5242877
         },
         {
             "role": "gm",
-            "content": "As dawn's first light filters through the lingering mist, the Ashen Camp awakens quietly around you. The air is cool and still, the faint scent of burning cedar and ash drifting on a gentle breeze. The central plaza is quiet, with the smoldering firepit casting dim, pulsing shadows. Your tattered robes are faintly warm from yesterday\u2019s experiments, and the scars on your flesh faintly glow as a reminder of your training in ember magic. Near you, the elders' chanting from the Ritual of Embers echoes softly, blending with the distant cry of a waking bird. Dewdrops cling to the ash-covered stones, shimmering in the morning light, as you stand in contemplative silence, reconnecting with your surroundings and the quiet expectation of the day's path.",
-            "timestamp": 1762639275.8906863
+            "content": "The morning sun filters through a thin veil of mist over Ashen Camp, casting flickering shadows across the cracked stone and charred earth. Birds chirp softly, their calls mingling with the faint crackle of embers still smoldering in the campfire. You stand at the edge of the central plaza, your ash-dusted robes fluttering gently in the breeze. Yesterday\u2019s experiments with ember-spirits linger in your mind, as does the faint glow of scars etched into your flesh\u2014a testament to your journey as a Cinderspawn mage. Elder Vareth\u2019s ritual is ongoing nearby, and the camp is alive with quiet activity: scholars and initiates preparing for the day's tasks, the scent of burnt cedar fills the air. Your surroundings are a mix of solemn ritual and quiet anticipation, a sanctuary where fire and ash intertwine with the pursuit of knowledge. You feel the residual warmth of your own powers, and the sense that your path is unfolding here, amidst the whispers of embers and the promise of discovery.",
+            "timestamp": 1762642466.9253945
         },
         {
             "role": "player",
             "content": "this is dev - i need to test new combat fucntioainlity - start combat with 1 wolf with possibly high initiative",
-            "timestamp": 1762639282.6515625
+            "timestamp": 1762642474.0033753
         },
         {
             "role": "gm",
-            "content": "You scan the surroundings, eyes catching movement in the mist\u2014a lone wolf emerging from the shadows, its piercing gaze fixed on you. The creature's stance suggests it is ready to strike, and it seems to have the upper hand in reflexes. As you prepare yourself for battle, the anticipation of the fight begins to pulse through your veins, readying your instincts for the clash.",
-            "timestamp": 1762639287.835106
-        },
-        {
-            "role": "player",
-            "content": "i attack",
-            "timestamp": 1762639328.1653953
+            "content": "You step forward, signaling the start of a test combat scenario. The air shifts as a nearby wolf, its eyes gleaming with intelligence and a hint of aggression, emerges from the shadows. Its fur is mottled gray, and it moves with a swift, almost unnaturally rapid pace, suggesting a high initiative. The wolf snarls softly, muscles coiled, ready to strike as the camp around you holds its breath in anticipation.",
+            "timestamp": 1762642478.6953542
         }
     ],
     "event_log": [
@@ -943,7 +938,7 @@
         ]
     },
     "combat_manager": {
-        "id": "268e015e-46b4-4034-94d7-5faf2215e057",
+        "id": "b90cbf69-db90-4454-b828-60bd439e08b3",
         "entities": {
             "f22adaaf-f832-46be-b555-e01f43aa9129": {
                 "id": "f22adaaf-f832-46be-b555-e01f43aa9129",
@@ -983,7 +978,7 @@
                 "max_hp": 10.0,
                 "current_mp": 9,
                 "max_mp": 9.0,
-                "current_stamina": 7.0,
+                "current_stamina": 11,
                 "max_stamina": 11.0,
                 "status_effects": {},
                 "initiative": 3.0,
@@ -991,14 +986,14 @@
                 "is_active_in_combat": true,
                 "description": "Cinderspawn Mage"
             },
-            "f053dffa-ab55-4143-b07e-1fac4b2ae78a": {
-                "id": "f053dffa-ab55-4143-b07e-1fac4b2ae78a",
+            "ff5772e0-6f31-438f-a4a9-b695fb079de3": {
+                "id": "ff5772e0-6f31-438f-a4a9-b695fb079de3",
                 "name": "Wolf",
                 "combat_name": "Wolf",
                 "entity_type": "ENEMY",
                 "stats": {
-                    "STR": 10.0,
-                    "DEX": 14.0,
+                    "STR": 12.0,
+                    "DEX": 20.0,
                     "CON": 6.0,
                     "INT": 10.0,
                     "WIS": 10.0,
@@ -1009,17 +1004,17 @@
                     "Max Mana Points": 5.0,
                     "Max Stamina": 10.0,
                     "Max Action Points": 5.0,
-                    "AP Regeneration": 4.0,
+                    "AP Regeneration": 6.0,
                     "Max Resolve": 10.0,
-                    "Melee Attack": 2.0,
-                    "Ranged Attack": 4.0,
+                    "Melee Attack": 3.0,
+                    "Ranged Attack": 7.0,
                     "Magic Attack": 2.0,
-                    "Defense": 10.0,
+                    "Defense": 13.0,
                     "Magic Defense": 10.0,
                     "Damage Reduction": 0.0,
-                    "Initiative": 2.0,
-                    "Carry Capacity": 100.0,
-                    "Movement": 37.0,
+                    "Initiative": 5.0,
+                    "Carry Capacity": 110.0,
+                    "Movement": 41.0,
                     "Health Points": 8.0,
                     "Resolve": 10.0,
                     "Mana Points": 0.0,
@@ -1029,17 +1024,17 @@
                 "max_hp": 8.0,
                 "current_mp": 0.0,
                 "max_mp": 5.0,
-                "current_stamina": 5.0,
+                "current_stamina": 4.0,
                 "max_stamina": 10.0,
                 "status_effects": {},
-                "initiative": 5.0,
+                "initiative": 6.0,
                 "position": 0,
                 "is_active_in_combat": true,
                 "description": "Weak predators or defensive beasts; suitable for low-level skirmishes."
             }
         },
         "turn_order": [
-            "f053dffa-ab55-4143-b07e-1fac4b2ae78a",
+            "ff5772e0-6f31-438f-a4a9-b695fb079de3",
             "f22adaaf-f832-46be-b555-e01f43aa9129"
         ],
         "current_turn_index": 1,
@@ -1049,7 +1044,7 @@
         "active_entity_id": "f22adaaf-f832-46be-b555-e01f43aa9129",
         "player_entity_id": "f22adaaf-f832-46be-b555-e01f43aa9129",
         "enemy_entity_ids": [
-            "f053dffa-ab55-4143-b07e-1fac4b2ae78a"
+            "ff5772e0-6f31-438f-a4a9-b695fb079de3"
         ],
         "is_surprise_round": false,
         "surprise_round_entities": [],
@@ -1064,7 +1059,7 @@
             },
             {
                 "role": "system",
-                "content": "Wolf rolls initiative: 5 (Base:2 + Roll:3)"
+                "content": "Wolf rolls initiative: 6 (Base:5 + Roll:1)"
             },
             {
                 "role": "system",
@@ -1072,51 +1067,31 @@
             },
             {
                 "role": "system",
-                "content": "Wolf attacks Wolf with Melee_attack Attack: Roll 1 (Dice:[1] + Bonus:0) vs Def 10"
+                "content": "Turn order: Wolf, Bard"
             },
             {
                 "role": "system",
-                "content": "  Fumble! Attack misses wildly."
+                "content": "Wolf regenerates 6 AP."
+            },
+            {
+                "role": "system",
+                "content": "It is now Wolf's turn."
             },
             {
                 "role": "gm",
-                "content": "Wolf lunged with a slashing attack, but it wildly missed its target, rolling a natural 1 and fumbleing. The attack failed to connect, leaving the target's HP unchanged at 8."
+                "content": "The wolf snarls, its eyes fixed on you as it prepares to lunge. You brace yourself and decide to strike first, drawing your weapon to attack the beast."
             },
             {
                 "role": "system",
-                "content": "  Entity recovers 1 stamina."
+                "content": "Wolf attacks Wolf with Melee_attack Attack: Roll 12 (Dice:[11] + Bonus:1) vs Def 13"
             },
             {
                 "role": "system",
-                "content": "Bard's turn."
-            },
-            {
-                "role": "system",
-                "content": "Bard attacks Wolf with Melee_attack Attack: Roll 10 (Dice:[11] + Bonus:-1) vs Def 10"
-            },
-            {
-                "role": "system",
-                "content": "  Raw Damage: 0 ([1] + -1 mod)"
-            },
-            {
-                "role": "system",
-                "content": "  Mitigation: DR 0. After DR: 0"
-            },
-            {
-                "role": "system",
-                "content": "  Wolf takes 0 slashing damage! (HP: 8/8)"
+                "content": "  Attack misses."
             },
             {
                 "role": "gm",
-                "content": "The Bard's melee attack hits the Wolf successfully, but it deals no damage. The Wolf remains at full health, unscathed by the strike."
-            },
-            {
-                "role": "system",
-                "content": "  Entity recovers 1 stamina."
-            },
-            {
-                "role": "system",
-                "content": "Wolf's turn."
+                "content": "Wolf lunged forward with a slashing attack, but missed the mark entirely as his strike sailed past the target. No damage was dealt, and the target's health remains unchanged at 8 HP."
             },
             {
                 "role": "system",
@@ -1130,7 +1105,7 @@
         "combat_log_html": "",
         "last_action_results": {}
     },
-    "last_events_summary": "In your most recent adventures, you, Bard the Cinderspawn Mage, have been engrossed in your studies at Ashen Camp, communing with ember-spirits and honing your pyroclastic magic. After a morning of contemplation and reconnecting with your surroundings following a failed experiment, you initiated a combat test with a lone, high-initiative wolf emerging from the mist, demonstrating your readiness to defend yourself with the pulse of anticipation in your veins.",
+    "last_events_summary": "**Last Events:** Bard, the Cinderspawn Mage, has recently returned to Ashen Camp, where he's been engrossed in his studies, experimenting with ember-spirits and leaving behind a half-written scroll and singed robes as evidence. The camp is abuzz with Elder Vareth's ongoing ritual, and Bard feels a sense of anticipation and connection to his surroundings. In a recent test of new combat functionality, Bard initiated a battle with a high-initiative wolf, setting the stage for a potential challenge.",
     "character_stats": {
         "level": 1,
         "stats": {
@@ -1294,7 +1269,7 @@
             },
             "Stamina": {
                 "name": "STAMINA",
-                "base_value": 7.0,
+                "base_value": 11,
                 "category": "DERIVED",
                 "description": "Your current physical energy. Required for special physical actions."
             }
@@ -1302,7 +1277,7 @@
         "modifiers": {
             "modifiers": [
                 {
-                    "id": "e8aee3cb-11a8-4467-b77b-c056a12ddb81",
+                    "id": "9e4b73ef-5335-45af-8302-1579f12366ae",
                     "stat": "Defense",
                     "value": 1.0,
                     "source_type": "EQUIPMENT",
@@ -1314,7 +1289,7 @@
                     "description": "Equipment bonus from Ash-Treated Clothing"
                 },
                 {
-                    "id": "017bc830-be3a-4897-b0cf-701a34dcb49a",
+                    "id": "1f6b5b29-9bf9-4eec-99b8-6a3a48dbc423",
                     "stat": "Melee Attack",
                     "value": 1.0,
                     "source_type": "EQUIPMENT",
@@ -1326,7 +1301,7 @@
                     "description": "Equipment bonus from Ritual Dagger"
                 },
                 {
-                    "id": "5851218f-cb36-4098-b892-a25cc2b7dfe6",
+                    "id": "3352722c-8425-4138-83a2-1e1d9f8f50ae",
                     "stat": "Defense",
                     "value": 2.0,
                     "source_type": "EQUIPMENT",
@@ -1399,24 +1374,24 @@
                 ],
                 "dice_roll_effects": [],
                 "known_properties": [
-                    "rarity",
-                    "equip_slots",
-                    "id",
-                    "quantity",
                     "name",
-                    "is_stackable",
-                    "stats",
-                    "description",
-                    "weight",
-                    "item_type",
-                    "is_quest_item",
-                    "icon_path",
-                    "stat_defense",
-                    "value",
                     "tags",
-                    "current_durability",
+                    "value",
+                    "description",
+                    "rarity",
+                    "is_equippable",
+                    "equip_slots",
+                    "stat_defense",
+                    "item_type",
+                    "icon_path",
+                    "is_quest_item",
+                    "weight",
+                    "quantity",
+                    "stats",
                     "durability",
-                    "is_equippable"
+                    "id",
+                    "is_stackable",
+                    "current_durability"
                 ]
             },
             "7fd48bb1-7eb3-4c94-9f14-1f0bf25ec1fc": {
@@ -1460,20 +1435,20 @@
                 ],
                 "dice_roll_effects": [],
                 "known_properties": [
-                    "rarity",
-                    "equip_slots",
-                    "id",
-                    "quantity",
                     "name",
-                    "is_stackable",
-                    "item_type",
-                    "weight",
-                    "is_quest_item",
-                    "icon_path",
-                    "value",
                     "tags",
+                    "value",
                     "description",
-                    "is_equippable"
+                    "is_equippable",
+                    "equip_slots",
+                    "item_type",
+                    "icon_path",
+                    "is_quest_item",
+                    "weight",
+                    "quantity",
+                    "id",
+                    "is_stackable",
+                    "rarity"
                 ]
             },
             "c96f4b25-5bd4-41b1-a5c8-0bb51a0897ac": {
@@ -1508,18 +1483,18 @@
                 "stats": [],
                 "dice_roll_effects": [],
                 "known_properties": [
-                    "rarity",
-                    "id",
-                    "quantity",
                     "name",
-                    "is_stackable",
-                    "item_type",
-                    "weight",
-                    "is_quest_item",
-                    "icon_path",
-                    "value",
                     "tags",
-                    "description"
+                    "value",
+                    "description",
+                    "item_type",
+                    "icon_path",
+                    "is_quest_item",
+                    "weight",
+                    "quantity",
+                    "id",
+                    "is_stackable",
+                    "rarity"
                 ]
             },
             "187cc6d0-9fa3-4100-9842-c1a1142e6730": {
@@ -1565,22 +1540,22 @@
                 ],
                 "dice_roll_effects": [],
                 "known_properties": [
-                    "rarity",
-                    "equip_slots",
-                    "id",
-                    "quantity",
                     "name",
-                    "is_stackable",
-                    "item_type",
-                    "description",
-                    "weight",
-                    "is_quest_item",
-                    "icon_path",
-                    "value",
                     "tags",
-                    "current_durability",
+                    "value",
+                    "description",
+                    "rarity",
+                    "is_equippable",
+                    "equip_slots",
+                    "item_type",
+                    "icon_path",
+                    "is_quest_item",
+                    "weight",
+                    "quantity",
                     "durability",
-                    "is_equippable"
+                    "id",
+                    "is_stackable",
+                    "current_durability"
                 ]
             },
             "732fba3d-6b56-4c99-9ab3-9d75eb92bfdc": {
@@ -1616,18 +1591,18 @@
                 "stats": [],
                 "dice_roll_effects": [],
                 "known_properties": [
-                    "rarity",
-                    "id",
-                    "quantity",
                     "name",
-                    "is_stackable",
-                    "item_type",
-                    "weight",
-                    "is_quest_item",
-                    "icon_path",
-                    "value",
                     "tags",
-                    "description"
+                    "value",
+                    "description",
+                    "item_type",
+                    "icon_path",
+                    "is_quest_item",
+                    "weight",
+                    "quantity",
+                    "id",
+                    "is_stackable",
+                    "rarity"
                 ]
             },
             "27220309-fd37-4df1-8396-ddcc8da63906": {
@@ -1662,18 +1637,18 @@
                 "stats": [],
                 "dice_roll_effects": [],
                 "known_properties": [
-                    "rarity",
-                    "id",
-                    "quantity",
                     "name",
-                    "is_stackable",
-                    "item_type",
-                    "weight",
-                    "is_quest_item",
-                    "icon_path",
-                    "value",
                     "tags",
-                    "description"
+                    "value",
+                    "description",
+                    "item_type",
+                    "icon_path",
+                    "is_quest_item",
+                    "weight",
+                    "quantity",
+                    "id",
+                    "is_stackable",
+                    "rarity"
                 ]
             },
             "213be460-5288-4da2-8dc2-e80420bbba8c": {
@@ -1717,24 +1692,24 @@
                 ],
                 "dice_roll_effects": [],
                 "known_properties": [
-                    "rarity",
-                    "equip_slots",
-                    "id",
-                    "quantity",
                     "name",
-                    "is_stackable",
-                    "stats",
-                    "description",
-                    "weight",
-                    "item_type",
-                    "is_quest_item",
-                    "icon_path",
-                    "stat_defense",
-                    "value",
                     "tags",
-                    "current_durability",
+                    "value",
+                    "description",
+                    "rarity",
+                    "is_equippable",
+                    "equip_slots",
+                    "stat_defense",
+                    "item_type",
+                    "icon_path",
+                    "is_quest_item",
+                    "weight",
+                    "quantity",
+                    "stats",
                     "durability",
-                    "is_equippable"
+                    "id",
+                    "is_stackable",
+                    "current_durability"
                 ]
             }
         },

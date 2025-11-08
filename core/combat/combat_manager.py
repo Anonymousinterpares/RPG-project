@@ -860,6 +860,7 @@ class CombatManager:
                 
             turn_order_log_msg = "Turn order: " + ", ".join(self.entities[eid].combat_name for eid in self.turn_order if eid in self.entities and self.entities[eid].is_alive() and getattr(self.entities[eid], 'is_active_in_combat', True))
             engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=turn_order_log_msg, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name + "_order_display"))
+            self._add_to_log(turn_order_log_msg)
                 
             first_actor_this_round_id = None
             first_actor_index_this_round = -1
@@ -889,6 +890,7 @@ class CombatManager:
                             entity_name = self.entities[first_actor_this_round_id].combat_name
                             regen_msg = f"{entity_name} regenerates {ap_regen:.0f} AP."
                             engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=regen_msg, target_display=DisplayTarget.COMBAT_LOG))
+                            self._add_to_log(regen_msg)
                             
                             ap_update_event = DisplayEvent(
                                 type=DisplayEventType.AP_UPDATE,
@@ -904,6 +906,7 @@ class CombatManager:
                 # --- FIX: Announce whose turn it is ---
                 turn_announce_msg = f"It is now {self.entities[self._active_entity_id].combat_name}'s turn."
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=turn_announce_msg, target_display=DisplayTarget.COMBAT_LOG))
+                self._add_to_log(turn_announce_msg)
                 # --- END FIX ---
 
                 logger.info(f"Round {self.round_number}. First active entity identified: {self.entities[self._active_entity_id].combat_name}")
@@ -1344,6 +1347,7 @@ class CombatManager:
             else: self._pending_action = None
         else:
             if agent_output["narrative"]:
+                self._add_to_log(agent_output["narrative"], role="gm")
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=agent_output["narrative"], role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name))
             
             self._pending_action = None 
@@ -1881,6 +1885,7 @@ class CombatManager:
             if not validated_requests:
                 # Preserve previous behavior: output the attempt narrative (if any), then the fallback narrative
                 if attempt_narrative_text:
+                    self._add_to_log(attempt_narrative_text, role="gm")
                     engine._combat_orchestrator.add_event_to_queue(
                         DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
                     )
@@ -1896,6 +1901,7 @@ class CombatManager:
                     logger.info(f"Player action interpreted as mode transition: {action_request}")
                     # Show attempt narrative for transitions (preserve previous behavior)
                     if attempt_narrative_text:
+                        self._add_to_log(attempt_narrative_text, role="gm")
                         engine._combat_orchestrator.add_event_to_queue(
                             DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
                         )
@@ -1975,6 +1981,7 @@ class CombatManager:
                         if combat_action_type == ActionType.ATTACK and target_internal_id:
                             # Non-spell: enqueue attempt narrative before creating action (preserve behavior)
                             if attempt_narrative_text:
+                                self._add_to_log(attempt_narrative_text, role="gm")
                                 engine._combat_orchestrator.add_event_to_queue(
                                     DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
                                 )
