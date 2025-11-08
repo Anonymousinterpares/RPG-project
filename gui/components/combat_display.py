@@ -950,23 +950,19 @@ class CombatDisplay(QWidget):
     def append_orchestrated_event_content(self, event_content: str, event_role: str, is_gradual: bool, event_id: Optional[str] = None):
         """
         Appends orchestrated event content to the combat log, using CombatDisplay's
-        own settings for color formatting.
+        own settings for color formatting based on the message role.
         """
-        # Track current event id for logging/diagnostics
         try:
             self._current_text_event_id = event_id
             logger.info(f"CombatDisplay: render string event id={event_id} gradual={bool(is_gradual)} len={len(event_content) if isinstance(event_content, str) else 'N/A'}")
         except Exception:
             pass
         
-        # Hide [DEV] lines unless dev mode is enabled
         try:
             if isinstance(event_content, str) and event_content.strip().startswith("[DEV]"):
                 settings = QSettings("RPGGame", "Settings")
                 if not settings.value("dev/enabled", False, type=bool):
-                    # Consider visual complete so orchestrator does not stall
                     self.visualDisplayComplete.emit()
-                    # Also directly notify orchestrator in case signal path is disrupted
                     try:
                         from core.base.engine import get_game_engine
                         eng = get_game_engine()
@@ -978,52 +974,52 @@ class CombatDisplay(QWidget):
                     return
         except Exception:
             pass
-        # Determine color/format based on event_role, event_content, and self.current_settings
-        color_hex = self.current_settings.get("color_log_default", "#E0E0E0") # Default
+        
+        color_hex = self.current_settings.get("color_log_default", "#3D2B1F")
         is_bold = False
         is_italic = False
 
-        # Standardize role for key lookup
         role_lower = event_role.lower() if event_role else "system"
         content_lower = event_content.lower()
 
-        # Precedence: Specific keywords first, then role-based, then default.
-        if "critical hit" in content_lower or "defeated!" in content_lower or "was defeated" in content_lower:
-            color_hex = self.current_settings.get("color_log_crit", "#FF0000") # Default red for crit
-            is_bold = True
-        elif "healed" in content_lower or ("gains" in content_lower and ("hp" in content_lower or "stamina" in content_lower)):
-            color_hex = self.current_settings.get("color_log_heal", "#009600") # Default green for heal
-        elif "round" in content_lower and "begins" in content_lower:
-            color_hex = self.current_settings.get("color_log_round", "#0064FF") # Default blue for round
-            is_bold = True
-        elif "turn" in content_lower or "'s turn" in content_lower: # General turn info
-            color_hex = self.current_settings.get("color_log_turn", "#0064C8") # Default light blue for turn
-        elif "combat started" in content_lower or "combat ended" in content_lower or "victory!" in content_lower or "defeat!" in content_lower or "fled!" in content_lower or "surrender" in content_lower:
-            color_hex = self.current_settings.get("color_log_combat_event", "#FFFFFF") # Default white for major combat events
-            is_bold = True
-        elif "misses" in content_lower or "fails" in content_lower or "resisted" in content_lower or "escape fails" in content_lower or "fumble" in content_lower:
-            color_hex = self.current_settings.get("color_log_miss", "#969696") # Default gray for miss/fail
-            is_italic = True
-        elif "damage" in content_lower or ("loses" in content_lower and ("hp" in content_lower or "resolve" in content_lower)):
-            color_hex = self.current_settings.get("color_log_damage", "#C80000") # Default dark red for damage
-        elif "roll" in content_lower or "vs" in content_lower: # Dice rolls
-            color_hex = self.current_settings.get("color_log_roll", "#C87800") # Default orange for rolls
+        if role_lower == "gm":
+            color_hex = self.current_settings.get("color_log_narrative", "#3D2B1F")
+        
         elif role_lower == "system":
-            color_hex = self.current_settings.get("color_log_system_message", self.current_settings.get("color_log_default", "#E0E0E0"))
-        elif role_lower == "gm": # Narrative content
-            color_hex = self.current_settings.get("color_log_narrative", self.current_settings.get("color_log_default", "#E0E0E0"))
-        elif event_content.startswith("[DEV]"): # Dev messages
-            color_hex = self.current_settings.get("color_log_dev", "#646464"); is_italic = True;
+            color_hex = self.current_settings.get("color_log_system_message", "#00008B")
+            
+            if "critical hit" in content_lower or "defeated!" in content_lower or "was defeated" in content_lower:
+                color_hex = self.current_settings.get("color_log_crit", "#FF0000")
+                is_bold = True
+            elif "healed" in content_lower or ("gains" in content_lower and ("hp" in content_lower or "stamina" in content_lower)):
+                color_hex = self.current_settings.get("color_log_heal", "#009600")
+            elif "round" in content_lower and "begins" in content_lower:
+                color_hex = self.current_settings.get("color_log_round", "#0064FF")
+                is_bold = True
+            elif "turn order:" in content_lower or "'s turn" in content_lower:
+                color_hex = self.current_settings.get("color_log_turn", "#0064C8")
+            elif "combat started" in content_lower or "combat ended" in content_lower or "victory!" in content_lower or "defeat!" in content_lower or "fled!" in content_lower or "surrender" in content_lower:
+                color_hex = self.current_settings.get("color_log_combat_event", "#000000")
+                is_bold = True
+            elif "misses" in content_lower or "fails" in content_lower or "resisted" in content_lower or "escape fails" in content_lower or "fumble" in content_lower:
+                color_hex = self.current_settings.get("color_log_miss", "#6c5b4b")
+                is_italic = True
+            elif "damage" in content_lower or ("loses" in content_lower and ("hp" in content_lower or "resolve" in content_lower)):
+                color_hex = self.current_settings.get("color_log_damage", "#C80000")
+            elif "roll" in content_lower or "vs" in content_lower:
+                color_hex = self.current_settings.get("color_log_roll", "#C87800")
+            elif event_content.startswith("[DEV]"):
+                color_hex = self.current_settings.get("color_log_dev", "#646464")
+                is_italic = True
 
         text_format = QTextCharFormat()
         try:
             text_format.setForeground(QColor(color_hex))
-        except ValueError: # Fallback if color_hex is invalid
+        except ValueError:
             logger.warning(f"Invalid color hex '{color_hex}' for combat log. Using default.")
-            text_format.setForeground(QColor(self.current_settings.get("color_log_default", "#E0E0E0")))
+            text_format.setForeground(QColor(self.current_settings.get("color_log_default", "#3D2B1F")))
 
         if is_bold: text_format.setFontWeight(QFont.Weight.Bold)
         if is_italic: text_format.setFontItalic(True)
         
-        # Use the existing method to append with the determined format
         self._append_formatted_text(event_content, text_format, gradual=is_gradual)
