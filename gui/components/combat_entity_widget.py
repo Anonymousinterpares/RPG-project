@@ -18,13 +18,13 @@ logger = get_logger("GUI")
 class CombatEntityWidget(QWidget):
     """Widget for displaying a combat entity status."""
 
-    def __init__(self, entity_id: str, name: str, settings: dict, is_player: bool = False, parent=None):
+    def __init__(self, entity_id: str, name: str, settings: Optional[dict] = None, is_player: bool = False, parent=None):
         """Initialize the combat entity widget."""
         super().__init__(parent)
 
         self.entity_id = entity_id
         self.is_player = is_player
-        self.settings = settings
+        self.palette = settings or {} # Store palette, even if initially empty
 
         self._bar_animation_timer = QTimer(self)
         self._bar_animation_timer.setSingleShot(True)
@@ -84,7 +84,7 @@ class CombatEntityWidget(QWidget):
 
         self.setMinimumHeight(110) 
         self.setMinimumWidth(250 if is_player else 200)
-        self.update_style(self.settings)
+        self.update_style(self.palette)
 
     def update_stats(self, current_hp: int, max_hp: int,
                     current_stamina: int, max_stamina: int,

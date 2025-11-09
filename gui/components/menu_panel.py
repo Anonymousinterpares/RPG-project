@@ -14,19 +14,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QSize, QEasingCurve, Property
 from PySide6.QtGui import QIcon, QPixmap
 
+from gui.styles.stylesheet_factory import create_image_button_style
+from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
-
-COLORS = {
-    'background_med_transparent': 'rgba(45, 37, 32, 0.5)', # rgba version of #2d2520
-    'border_light': '#5a4a40',
-    'text_ivory': '#fff5cc',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'hover': '#4a3a30',
-    'pressed': '#1a1410',
-    'negative_text': '#D94A38',
-}
-# --- END STYLING COLORS ---
 
 class MenuPanelWidget(QFrame):
     """Collapsible left menu panel for the RPG game GUI."""
@@ -43,17 +33,21 @@ class MenuPanelWidget(QFrame):
         """Initialize the menu panel widget."""
         super().__init__(parent)
         
-        # Set frame properties using rgba for background
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+
+        # Set frame properties
         self.setFrameShape(QFrame.StyledPanel)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        self.setStyleSheet(f"""
-            MenuPanelWidget {{
-                background-color: {COLORS['background_med_transparent']}; 
-                border: 1px solid {COLORS['border_light']}; 
-                border-radius: 5px;
-            }}
-        """)
         
+        # Create the new root layout that will hold the content and spacer
+        self._root_layout = QVBoxLayout(self)
+        self._root_layout.setContentsMargins(0, 0, 0, 0)
+        self._root_layout.setSpacing(0)
+
         # Get resource manager
         self.resource_manager = get_resource_manager()
         
@@ -66,10 +60,16 @@ class MenuPanelWidget(QFrame):
         # Set up the UI
         self._setup_ui()
 
+        # Apply initial theme
+        self._update_theme()
+
     def _setup_ui(self):
         """Set up the user interface."""
-        # Create the main layout
-        self.main_layout = QVBoxLayout(self)
+        # This frame will contain the buttons and have the background image
+        self.content_container = QFrame()
+        
+        # This is the original layout, now placed inside the content_container
+        self.main_layout = QVBoxLayout(self.content_container)
         self.main_layout.setContentsMargins(5, 5, 10, 5)
         self.main_layout.setSpacing(10)
         
@@ -77,20 +77,6 @@ class MenuPanelWidget(QFrame):
         self.toggle_button = QToolButton()
         self.toggle_button.setIcon(self.resource_manager.get_icon("toggle_button_left"))
         self.toggle_button.setIconSize(QSize(16, 16))
-        self.toggle_button.setStyleSheet(f"""
-            QToolButton {{
-                background-color: {COLORS['background_light']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 3px;
-                padding: 3px;
-            }}
-            QToolButton:hover {{
-                background-color: {COLORS['hover']};
-            }}
-            QToolButton:pressed {{
-                background-color: {COLORS['pressed']};
-            }}
-        """)
         self.toggle_button.clicked.connect(self.toggle_expanded)
         
         # Create menu buttons
@@ -103,7 +89,6 @@ class MenuPanelWidget(QFrame):
         self.load_button = self._create_menu_button("Load", "load_game")
         self.load_button.clicked.connect(self.load_game_requested.emit)
         
-        # Settings button
         self.settings_button = self._create_menu_button("Settings", "settings")
         self.settings_button.clicked.connect(self.settings_requested.emit)
         
@@ -113,7 +98,7 @@ class MenuPanelWidget(QFrame):
         self.exit_button = self._create_menu_button("Exit", "exit")
         self.exit_button.clicked.connect(self.exit_requested.emit)
         
-        # Add buttons to layout
+        # Add buttons to the content_container's layout
         self.main_layout.addWidget(self.toggle_button, 0, Qt.AlignRight)
         self.main_layout.addSpacing(50)
         self.main_layout.addWidget(self.new_game_button)
@@ -125,7 +110,15 @@ class MenuPanelWidget(QFrame):
         self.main_layout.addWidget(self.exit_button)
         self.main_layout.addStretch(1)  
         
-        # Set initial width
+        # This is the transparent spacer at the bottom
+        self.bottom_spacer = QFrame()
+        self.bottom_spacer.setFixedHeight(50) # Default height, will be updated by MainWindow
+
+        # Add the two main components to the root layout
+        self._root_layout.addWidget(self.content_container, 1) # Content stretches
+        self._root_layout.addWidget(self.bottom_spacer, 0)   # Spacer has fixed height
+
+        # Set initial width of the entire panel
         self.setFixedWidth(self._expanded_width)
 
         # Wire UI sounds for left menu clicks (generic)
@@ -148,35 +141,60 @@ class MenuPanelWidget(QFrame):
         button = QPushButton(text)
         button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         
-        # Use generic button backgrounds instead of specific ones
-        button.setStyleSheet(f"""
-            QPushButton {{
-                background-image: url('images/gui/button_normal.png');
-                background-position: center;
-                background-repeat: no-repeat;
-                background-color: transparent;
-                color: {COLORS['text_ivory']};
-                border: none;
-                padding: 8px;
-                text-align: center;
-                min-width: 100px;
-                max-width: 110px;
-                min-height: 35px;
-                border-radius: 5px;
-                margin-left: 5px;
-                margin-right: 10px;
-            }}
-            QPushButton:hover {{
-                background-image: url('images/gui/button_hover.png');
-            }}
-            QPushButton:pressed {{
-                background-image: url('images/gui/button_pressed.png');
-                color: {COLORS['negative_text']};
-                font-weight: bold;
-            }}
-        """)
+        # Use the centralized stylesheet factory
+        button.setStyleSheet(create_image_button_style(self.palette))
         
         return button
+    
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        paths = self.palette['paths']
+
+        # The main MenuPanelWidget is now just a transparent container
+        self.setStyleSheet("MenuPanelWidget { background-color: transparent; border: none; }")
+
+        # Apply the background image to the content_container
+        background_path = paths.get('menu_panel_background', '').replace("\\", "/")
+        self.content_container.setStyleSheet(f"""
+            QFrame {{
+                background-color: transparent; /* Make base transparent for image */
+                border-image: url('{background_path}') 0 0 0 0 stretch stretch;
+                border: 1px solid {colors['border_light']}; 
+                border-radius: 5px;
+            }}
+        """)
+
+        # The bottom spacer should be fully transparent
+        self.bottom_spacer.setStyleSheet("background-color: transparent; border: none;")
+
+        self.toggle_button.setStyleSheet(f"""
+            QToolButton {{
+                background-color: {colors['bg_light']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 3px;
+                padding: 3px;
+            }}
+            QToolButton:hover {{
+                background-color: {colors['state_hover']};
+            }}
+            QToolButton:pressed {{
+                background-color: {colors['state_pressed']};
+            }}
+        """)
+
+        # Re-apply styles to all menu buttons
+        for button in [self.new_game_button, self.save_button, self.load_button,
+                       self.settings_button, self.llm_settings_button, self.exit_button]:
+            button.setStyleSheet(create_image_button_style(self.palette))
+
+    def setBottomSpacerHeight(self, height: int):
+        """Sets the fixed height of the transparent spacer at the bottom."""
+        self.bottom_spacer.setFixedHeight(height)
     
     def toggle_expanded(self):
         """Toggle the expanded/collapsed state of the panel."""

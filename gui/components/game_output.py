@@ -8,12 +8,13 @@ This module provides a widget for displaying game output.
 import logging
 from typing import List, Optional, Dict, Any, Iterator, Tuple
 
-from PySide6.QtWidgets import QTextEdit, QWidget, QVBoxLayout, QStackedLayout, QHBoxLayout, QFrame, QColorDialog
-from PySide6.QtGui import QTextCursor, QColor, QTextCharFormat, QFont, QPalette, QPixmap, QBrush
-from PySide6.QtCore import Qt, QTimer, Signal, QSettings, QDir  
+from PySide6.QtWidgets import QTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QFrame
+from PySide6.QtGui import QTextCursor, QColor, QTextCharFormat, QFont
+from PySide6.QtCore import Qt, QTimer, Signal, QSettings, QDir, Slot
 
 from core.utils.logging_config import get_logger
 from gui.components.skill_check_display import SkillCheckDisplay
+from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
 from core.stats.skill_check import SkillCheckResult
 import os
@@ -22,19 +23,6 @@ print(os.getcwd())
 background_path = os.path.join(QDir.currentPath(), "images/gui/background_game_output.png").replace("\\", "/")
 
 logger = get_logger("GUI")
-
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'border_dark': '#4a3a30',
-    'text_main': '#3b2f1e',         # Dark brown for main text
-    'text_system': '#a03628',        # Dark red for system messages
-    'text_player': '#0b5a8e',        # Dark blue for player input
-    'text_narrator': '#3b2f1e',      # Same as main text
-    'text_secondary': '#8b7a65'
-}
-# --- END STYLING COLORS ---
-
 
 class GameOutputWidget(QFrame):
     """Widget for displaying game output."""
@@ -50,6 +38,12 @@ class GameOutputWidget(QFrame):
         self.setFrameShape(QFrame.NoFrame) # Make the outer frame invisible
         self.setContentsMargins(0, 0, 0, 0)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+
         self.resource_manager = get_resource_manager()
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)
@@ -57,35 +51,11 @@ class GameOutputWidget(QFrame):
 
         self.settings = QSettings("RPGGame", "Settings") 
 
-        # --- UPDATE TEXT FORMATS TO USE THEME ---
-        font_family = self.settings.value("style/font_family", "Garamond")
-        font_size = int(self.settings.value("style/font_size", 14))
-
+        # Initialize format attributes
         self.system_format = QTextCharFormat()
-        self.system_format.setForeground(QColor(COLORS['text_system']))
-        self.system_format.setFontWeight(QFont.Bold)
-
         self.gm_format = QTextCharFormat()
-        self.gm_format.setForeground(QColor(COLORS['text_narrator']))
-        gm_font = QFont(font_family, font_size)
-        self.gm_format.setFont(gm_font)
-
-        user_input_font_family = self.settings.value("style/user_input_font_family", "Garamond")
-        user_input_font_size = int(self.settings.value("style/user_input_font_size", 14))
-        
         self.player_format = QTextCharFormat()
-        self.player_format.setForeground(QColor(COLORS['text_player']))
-        player_font = QFont(user_input_font_family, user_input_font_size)
-        player_font.setItalic(True)  
-        self.player_format.setFont(player_font)
-
         self.default_format = QTextCharFormat()
-        self.default_format.setForeground(QColor(COLORS['text_main']))  
-        default_font = QFont(font_family, font_size)
-        self.default_format.setFont(default_font)
-        # --- END UPDATE TEXT FORMATS ---
-
-        self._setup_background()
 
         self.skill_check_display = SkillCheckDisplay()
         self.skill_check_display.setVisible(False)
@@ -115,49 +85,63 @@ class GameOutputWidget(QFrame):
         self._is_gradual_display_active: bool = False
         self._pending_immediate_messages: List[Tuple[str, QTextCharFormat]] = []
 
-    def _update_formats(self):
-        """Update text formats based on current settings."""
-        settings = self.settings
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[Dict[str, Any]] = None):
+        """Update all styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        self._update_formats()
+        self._setup_background()
 
-        font_family = settings.value("style/font_family", "Garamond")
-        font_size = int(settings.value("style/font_size", 14))
+    def _update_formats(self):
+        """Update text formats based on the current theme palette."""
+        colors = self.palette.get('colors', {})
+        fonts = self.palette.get('fonts', {})
+        
+        # Get font settings from QSettings (user configurable)
+        settings = self.settings
+        font_family = settings.value("style/font_family", fonts.get('family_main', "Garamond"))
+        font_size = int(settings.value("style/font_size", fonts.get('size_main_output', 14)))
+        user_input_font_family = settings.value("style/user_input_font_family", fonts.get('family_user_input', "Garamond"))
+        user_input_font_size = int(settings.value("style/user_input_font_size", fonts.get('size_user_input', 14)))
 
         # System message format
-        self.system_format.setForeground(QColor(COLORS['text_system']))
+        self.system_format.setForeground(QColor(colors.get('output_text_system', '#a03628')))
+        self.system_format.setFontWeight(QFont.Bold)
 
         # GM/narrator format
-        self.gm_format.setForeground(QColor(COLORS['text_narrator']))
+        self.gm_format.setForeground(QColor(colors.get('output_text_main', '#3b2f1e')))
         self.gm_format.setFont(QFont(font_family, font_size))
 
         # Player format
-        user_input_font_family = settings.value("style/user_input_font_family", "Garamond")
-        user_input_font_size = int(settings.value("style/user_input_font_size", 25))
-        self.player_format.setForeground(QColor(COLORS['text_player']))
+        self.player_format.setForeground(QColor(colors.get('output_text_player', '#0b5a8e')))
         player_font = QFont(user_input_font_family, user_input_font_size)
-        player_font.setItalic(True)
+        player_font.setItalic(True)  
         self.player_format.setFont(player_font)
 
         # Default format
-        self.default_format.setForeground(QColor(COLORS['text_main']))
+        self.default_format.setForeground(QColor(colors.get('output_text_main', '#3b2f1e')))  
         self.default_format.setFont(QFont(font_family, font_size))
 
     def _setup_background(self):
-        """Set up the styled background for the game output."""
-        # This method is now simplified as styling is consolidated.
-        settings = self.settings
-
-        font_family = settings.value("style/font_family", "Garamond")
-        font_size = int(settings.value("style/font_size", 14))
+        """Set up the styled background for the game output from the theme."""
+        colors = self.palette.get('colors', {})
+        fonts = self.palette.get('fonts', {})
+        paths = self.palette.get('paths', {})
         
-        # This path needs to be correct relative to the execution directory
-        background_image_path = "images/gui/background_game_output.png"
+        # Get font settings from QSettings
+        settings = self.settings
+        font_family = settings.value("style/font_family", fonts.get('family_main', "Garamond"))
+        font_size = int(settings.value("style/font_size", fonts.get('size_main_output', 14)))
+        
+        background_image_path = paths.get('background_main_output', "images/gui/background_game_output.png")
 
         self.text_edit.setStyleSheet(f"""
             QTextEdit {{
                 background-image: url('{background_image_path}');
                 background-attachment: fixed;
-                color: {COLORS['text_main']};
-                border: 2px solid {COLORS['border_dark']};
+                color: {colors.get('output_text_main', '#3b2f1e')};
+                border: 2px solid {colors.get('border_dark', '#4a3a30')};
                 border-radius: 15px;
                 font-family: '{font_family}';
                 font-size: {font_size}pt;
@@ -170,7 +154,7 @@ class GameOutputWidget(QFrame):
                 margin: 15px 0 15px 0;
             }}
             QScrollBar::handle:vertical {{
-                background-color: {COLORS['text_secondary']};
+                background-color: {colors.get('text_secondary', '#8b7a65')};
                 min-height: 30px;
                 border-radius: 7px;
             }}
@@ -307,9 +291,8 @@ class GameOutputWidget(QFrame):
             cursor.insertText(char)
             self.text_edit.ensureCursorVisible()
 
-            # --- ECFA Change: Use unified settings key ---
+            # Use QSettings for user-configurable speed
             char_delay = self.settings.value("display/text_speed_delay", 30, type=int) 
-            # --- End ECFA Change ---
             char_delay = max(5, char_delay)
             
             if self._gradual_timer: 
@@ -344,7 +327,7 @@ class GameOutputWidget(QFrame):
                  self._gradual_timer.stop()
              self.visualDisplayComplete.emit() 
              self._pending_immediate_messages.clear()
-             self._process_pending_immediate_messages() 
+             self._process_pending_immediate_messages()
              
     def _insert_text(self, text: str, format: Optional[QTextCharFormat] = None):
         """Helper method to insert text directly with a format."""

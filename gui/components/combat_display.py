@@ -7,9 +7,7 @@ with customizable appearance settings.
 """
 
 import json
-import logging
 import os
-import re # Added for stylesheet manipulation
 from typing import Dict, Iterator, List, Any, Optional, Tuple
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
@@ -20,11 +18,10 @@ from PySide6.QtGui import QColor, QTextCharFormat, QFont, QTextCursor
 from gui.components.allies_panel import AlliesPanel
 from gui.components.enemies_panel import EnemiesPanel
 from core.base.engine import get_game_engine
-from core.interaction.enums import InteractionMode # Added QFontDatabase
-# from ..dialogs.combat_settings_dialog import CombatSettingsDialog
+from core.interaction.enums import InteractionMode
+from gui.styles.stylesheet_factory import create_combat_display_style
+from gui.styles.theme_manager import get_theme_manager
 
-# Assuming core is in the parent directory of gui
-# Adjust if your project structure is different
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Configuration Constants - Adjusted paths based on project structure
@@ -47,66 +44,6 @@ from core.stats.stats_manager import get_stats_manager
 # Get the module logger
 logger = get_logger("GUI")
 
-# ========================================================================================
-# --- COMBAT DISPLAY THEME - TWEAK ALL VALUES HERE ---
-# ========================================================================================
-COMBAT_DISPLAY_THEME = {
-    "backgrounds": {
-        "main_background_image": "background_game_output.png",
-        "panel_background_image": "background_game_output.png",
-    },
-    "fonts": {
-        "header_font_family": "Garamond",
-        "header_font_size": 20,
-        "log_font_family": "Garamond",
-        "log_font_size": 14,
-        "status_font_family": "Garamond",
-        "status_font_size": 12,
-        # Font settings for entity widgets are passed through and handled by them
-        "entity_font_family": "Garamond",
-        "entity_font_size": 12,
-    },
-    "placements": {
-        "header_vertical_offset": 5,  # Pixels to push the header text down from the top edge
-    },
-    "colors": {
-        # Panel Styling
-        "panel_border": "#4a3a30",
-        "panel_title_text": "#5B3A29",
-        # General UI
-        "status_text": "#FFFFFF",
-        "round_text": "#E0E0E0",
-        # Log Text Colors
-        "log_default_text": "#3D2B1F",
-        "log_damage": "#C80000",
-        "log_heal": "#009600",
-        "log_crit": "#FF0000",
-        "log_miss": "#6c5b4b",
-        "log_roll": "#C87800",
-        "log_turn": "#0064C8",
-        "log_round": "#0064FF",
-        "log_dev": "#646464",
-        "log_combat_event": "#000000",
-        "log_system_message": "#00008B",
-        "log_narrative": "#3D2B1F",
-    },
-    "progress_bars": {
-        # These settings are passed to the entity widgets
-        "progressbar_bg": "#a08c6e",
-        "progressbar_text": "#FFFFFF",
-        "hp_bar_chunk_normal": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)",
-        "hp_bar_chunk_low": "#cc0000",
-        "hp_bar_chunk_critical": "#990000",
-        "hp_bar_chunk_normal_bleak": "#AA0000A0",
-        "hp_bar_chunk_low_bleak": "#880000A0",
-        "hp_bar_chunk_critical_bleak": "#600000A0",
-        "stamina_bar_chunk": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66CC33, stop:1 #44AA22)",
-        "stamina_bar_chunk_bleak": "#44AA22A0",
-        "mana_bar_chunk": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3366CC, stop:1 #2244AA)",
-        "mana_bar_chunk_bleak": "#2244AAA0",
-    }
-}
-
 class CombatDisplay(QWidget):
     """Widget for displaying combat status and log."""
 
@@ -118,11 +55,14 @@ class CombatDisplay(QWidget):
 
             self.setObjectName("combatDisplayWidget")
 
+            # --- THEME MANAGEMENT ---
+            self.theme_manager = get_theme_manager()
+            self.palette = self.theme_manager.get_current_palette()
+            self.theme_manager.theme_changed.connect(self.apply_theme)
+            # --- END THEME MANAGEMENT ---
+
             self.combat_active = False 
             self.stats_manager = get_stats_manager() 
-            self.current_settings: Dict[str, Any] = {} 
-
-            self.load_settings_from_theme()
 
             main_layout = QVBoxLayout(self)
             main_layout.setContentsMargins(0, 0, 0, 0); main_layout.setSpacing(0)
@@ -249,92 +189,11 @@ class CombatDisplay(QWidget):
             self._is_gradual_log_active: bool = False
             self._pending_log_messages: List[Tuple[str, QTextCharFormat, bool]] = [] 
 
-            self.apply_settings()
+            self.apply_theme()
             self.clear_display()
             self._suppress_visual_complete = False
             self._init_dev_controls()
 
-    def load_settings_from_theme(self):
-        """
-        --- SETTINGS UI DISCONNECTED ---
-        Loads all settings directly from the COMBAT_DISPLAY_THEME dictionary.
-        This is now the single source of truth for styling.
-        """
-        logger.info("Loading settings directly from the in-code THEME dictionary.")
-        self.current_settings = {}
-        # Flatten the theme dictionary for compatibility with existing code
-        for category, values in COMBAT_DISPLAY_THEME.items():
-            for key, value in values.items():
-                self.current_settings[key] = value
-
-    def load_settings(self):
-        """Load settings from JSON file or use defaults."""
-        self.current_settings = self.get_default_settings() # Start with defaults
-        logger.info(f"Loading combat display settings from: {SETTINGS_FILE}")
-        try:
-            if os.path.exists(SETTINGS_FILE):
-                with open(SETTINGS_FILE, 'r') as f:
-                    loaded_settings = json.load(f)
-                    logger.debug(f"Loaded settings: {loaded_settings}")
-                    # Merge loaded settings carefully, only overwriting defaults
-                    for key, value in loaded_settings.items():
-                         # Check if key exists in defaults OR if it's a known pattern (future-proofing slightly)
-                         if key in self.current_settings or key.startswith("color_") or key.startswith("font_"):
-                             self.current_settings[key] = value
-                         else:
-                             logger.warning(f"Ignoring unknown setting '{key}' from file.")
-            else:
-                logger.info("Settings file not found. Using default settings.")
-        except (IOError, json.JSONDecodeError) as e:
-            logger.error(f"Error loading combat display settings: {e}. Using defaults.")
-        logger.info(f"Final settings after load: {self.current_settings}")
-
-
-    def get_default_settings(self):
-        """Return a dictionary of default settings."""
-        return {
-            # Background
-            "background_image": "background_game_output.png",
-            "panel_background_image": "background_game_output.png",
-            # Fonts (Updated to match game_output.py)
-            "font_family": "Garamond",
-            "font_size": 14,
-            "font_size_player_name_offset": 1,
-            "font_size_status_offset": 2,
-            # Colors (All colors now reference the centralized dictionary)
-            "color_panel_border": COMBAT_DISPLAY_THEME['panel_border'],
-            "color_panel_title_text": COMBAT_DISPLAY_THEME['panel_title_text'],
-            "color_log_default": COMBAT_DISPLAY_THEME['log_default_text'],
-            "color_log_damage": COMBAT_DISPLAY_THEME['log_damage'],
-            "color_log_heal": COMBAT_DISPLAY_THEME['log_heal'],
-            "color_log_crit": COMBAT_DISPLAY_THEME['log_crit'],
-            "color_log_miss": COMBAT_DISPLAY_THEME['log_miss'],
-            "color_log_roll": COMBAT_DISPLAY_THEME['log_roll'],
-            "color_log_turn": COMBAT_DISPLAY_THEME['log_turn'],
-            "color_log_round": COMBAT_DISPLAY_THEME['log_round'],
-            "color_log_dev": COMBAT_DISPLAY_THEME['log_dev'],
-            "color_log_combat_event": COMBAT_DISPLAY_THEME['log_combat_event'],
-            "color_log_system_message": COMBAT_DISPLAY_THEME['log_system_message'],
-            "color_log_narrative": COMBAT_DISPLAY_THEME['log_narrative'],
-            "color_status_text": COMBAT_DISPLAY_THEME['status_text'],
-            "color_round_text": COMBAT_DISPLAY_THEME['round_text'],
-            # Progress Bar Colors
-            "color_hp_bar_chunk_normal": COMBAT_DISPLAY_THEME['hp_bar_chunk_normal'],
-            "color_hp_bar_chunk_low": COMBAT_DISPLAY_THEME['hp_bar_chunk_low'],
-            "color_hp_bar_chunk_critical": COMBAT_DISPLAY_THEME['hp_bar_chunk_critical'],
-            "color_hp_bar_chunk_normal_bleak": COMBAT_DISPLAY_THEME['hp_bar_chunk_normal_bleak'],
-            "color_hp_bar_chunk_low_bleak": COMBAT_DISPLAY_THEME['hp_bar_chunk_low_bleak'],
-            "color_hp_bar_chunk_critical_bleak": COMBAT_DISPLAY_THEME['hp_bar_chunk_critical_bleak'],
-            "color_stamina_bar_chunk": COMBAT_DISPLAY_THEME['stamina_bar_chunk'],
-            "color_stamina_bar_chunk_bleak": COMBAT_DISPLAY_THEME['stamina_bar_chunk_bleak'],
-            "color_mana_bar_chunk": COMBAT_DISPLAY_THEME['mana_bar_chunk'],
-            "color_mana_bar_chunk_bleak": COMBAT_DISPLAY_THEME['mana_bar_chunk_bleak'],
-            "color_progressbar_text": COMBAT_DISPLAY_THEME['progress_bar_text'],
-            "color_progressbar_bg": COMBAT_DISPLAY_THEME['progress_bar_bg'],
-            # Gradual Text
-            "gradual_text_combat_log": True,
-            "display_text_speed_delay": 30,
-        }
 
     def save_settings(self):
         """Save current settings to JSON file."""
@@ -381,107 +240,6 @@ class CombatDisplay(QWidget):
         except Exception as e:
             logger.warning(f"Failed initializing dev controls: {e}")
 
-    @Slot(bool)
-    def _on_orchestrator_dev_waiting_changed(self, waiting: bool):
-        self.dev_next_step_btn.setEnabled(bool(waiting))
-
-    def apply_settings(self):
-        """Apply loaded or default settings to the combat display UI."""
-        if not self.current_settings:
-            logger.warning("Attempted to apply settings before loading. Loading from theme.")
-            self.load_settings_from_theme()
-
-        logger.debug(f"Applying settings to CombatDisplay: {self.current_settings}")
-        
-        # 1. --- Main Background ('stone') ---
-        bg_image_relative = self.current_settings.get("main_background_image")
-        main_widget_style = ""
-        if bg_image_relative:
-            image_path = os.path.join(IMAGE_DIR, bg_image_relative).replace("\\", "/")
-            if os.path.exists(image_path):
-                main_widget_style = f"border-image: url(\"{image_path}\") 0 0 0 0 stretch stretch;"
-                logger.info(f"Main background image loaded successfully from: {image_path}")
-            else:
-                logger.warning(f"Main background image NOT FOUND at: {image_path}")
-
-        # 2. --- Individual Parchment Background for panels ---
-        panel_bg_image_relative = self.current_settings.get("panel_background_image")
-        panel_bg_style = ""
-        if panel_bg_image_relative:
-            full_path = os.path.join(IMAGE_DIR, panel_bg_image_relative).replace("\\", "/")
-            if os.path.exists(full_path):
-                # Using stretch stretch ensures the image scales to fully fit the component
-                panel_bg_style = f"border-image: url('{full_path}') 0 0 0 0 stretch stretch;"
-                logger.info(f"Panel background image loaded successfully from: {full_path}")
-            else:
-                logger.warning(f"Panel background image NOT FOUND at: {full_path}.")
-
-        # 3. --- Color and Font settings from dictionary ---
-        panel_border_color = self.current_settings.get("panel_border", "#4a3a30")
-        panel_title_text_color = self.current_settings.get("panel_title_text", "#5B3A29")
-        log_default_text_color = self.current_settings.get("log_default_text", "#3D2B1F")
-        status_text_color = self.current_settings.get("status_text", "#FFFFFF")
-        round_text_color = self.current_settings.get("round_text", "#E0E0E0")
-        
-        header_font_family = self.current_settings.get("header_font_family", "Garamond")
-        header_font_size = self.current_settings.get("header_font_size", 20)
-        log_font_family = self.current_settings.get("log_font_family", "Garamond")
-        log_font_size = self.current_settings.get("log_font_size", 14)
-        status_font_family = self.current_settings.get("status_font_family", "Garamond")
-        status_font_size = self.current_settings.get("status_font_size", 12)
-        header_v_offset = self.current_settings.get("header_vertical_offset", 5)
-
-        # 4. --- Assembling the full stylesheet ---
-        full_stylesheet = f"""
-            /* Main content frame with the stone background */
-            QFrame#combatContentFrame {{ {main_widget_style} padding: 10px; }}
-
-            /* Header labels for all panels */
-            QLabel#panelHeaderLabel {{
-                background-color: transparent;
-                color: {panel_title_text_color};
-                font-family: "{header_font_family}";
-                font-size: {header_font_size}pt;
-                font-weight: bold;
-                padding-top: {header_v_offset}px;
-                margin-bottom: 5px; /* Space between header and panel frame */
-            }}
-
-            /* Frames that hold the parchment background and content */
-            QFrame#alliesBGFrame, QFrame#centerBGFrame, QFrame#enemiesBGFrame, QFrame#logBGFrame {{
-                {panel_bg_style}
-                border: 2px groove {panel_border_color};
-                border-radius: 15px;
-            }}
-
-            /* The text area itself, inside the log group */
-            QTextEdit#combatLogText {{
-                background-color: transparent;
-                border: none;
-                color: {log_default_text_color};
-                font-family: "{log_font_family}";
-                font-size: {log_font_size}pt;
-                padding: 15px; /* Inner padding for the text */
-            }}
-
-            /* General UI elements */
-            QLabel#statusLabel, QLabel#roundLabel {{
-                background-color: transparent;
-                font-family: "{status_font_family}";
-                font-weight: bold;
-            }}
-            QLabel#statusLabel {{ color: {status_text_color}; font-size: {status_font_size + 2}pt; }}
-            QLabel#roundLabel {{ color: {round_text_color}; font-size: {status_font_size}pt; }}
-        """
-        self.setStyleSheet(full_stylesheet)
-        
-        # Pass the complete, flattened settings dictionary to child panels
-        # This ensures they have access to all theme properties (e.g., progress bar colors)
-        self.allies_panel.apply_settings(self.current_settings)
-        self.enemies_panel.apply_settings(self.current_settings)
-        self.update()
-        logger.info("Combat display settings applied from in-code theme.")
-
     def clear_display(self):
         """Clear the display and set to inactive/narrative state."""
         self.combat_active = False
@@ -527,6 +285,398 @@ class CombatDisplay(QWidget):
             else:
                 # Fallback for old save format (plain strings)
                 self.append_orchestrated_event_content(str(entry), "system", is_gradual=False)
+
+    def _update_combat_log(self, log_entries: List[str]): # Added type hint
+        """Update the combat log incrementally with new entries."""
+        if not log_entries:
+            return
+        # Gate [DEV] lines if dev mode is disabled
+        try:
+            settings = QSettings("RPGGame", "Settings")
+            dev_enabled = settings.value("dev/enabled", False, type=bool)
+            if not dev_enabled:
+                log_entries = [e for e in log_entries if not (isinstance(e, str) and e.strip().startswith("[DEV]"))]
+                if not log_entries:
+                    return
+        except Exception:
+            pass
+
+        scrollbar = self.log_text.verticalScrollBar()
+        at_bottom = scrollbar.value() >= scrollbar.maximum() - 10 # Is the user scrolled near the bottom?
+
+        start_index = self.last_log_index + 1
+        if start_index >= len(log_entries):
+            return
+
+        new_entries_to_process = log_entries[start_index:]
+        logger.debug(f"Processing {len(new_entries_to_process)} new log entries (from index {start_index})")
+
+        new_entries_added = False
+        for entry_index, entry in enumerate(new_entries_to_process):
+            # Determine color/format based on entry content and settings
+            color_hex = self.current_settings.get("color_log_default", "#E0E0E0")
+            is_bold = False
+            is_italic = False
+            is_narrative = True # Assume GM/Narrative by default
+
+            entry_lower = entry.lower()
+
+            # Simplified system message check (more robust checks might be needed)
+            if entry.startswith("[SYSTEM]") or \
+            "roll" in entry_lower and "vs" in entry_lower or \
+            "takes" in entry_lower and "damage" in entry_lower or \
+            "misses" in entry_lower or \
+            "defeated" in entry_lower or \
+            "fumble" in entry_lower or \
+            "critical hit" in entry_lower or \
+            "status expire" in entry_lower or \
+            "turn." in entry_lower or \
+            "round" in entry_lower and "begins" in entry_lower or \
+            entry.startswith("Turn order:") or \
+            "Stamina Cost:" in entry: # Check for stamina cost message
+                is_narrative = False # Mark as system message
+
+            # --- Color/Style Logic (using settings) ---
+            # (Keep existing color logic)
+            if entry.startswith("[DEV]"): color_hex = self.current_settings.get("color_log_dev", "#888888"); is_italic = True; is_narrative = False
+            elif "critical hit" in entry_lower or "defeated!" in entry_lower or "was defeated" in entry_lower: color_hex = self.current_settings.get("color_log_crit", "#FF4444"); is_bold = True; is_narrative = False
+            elif "healed" in entry_lower or "gains" in entry_lower and ("hp" in entry_lower or "stamina" in entry_lower): color_hex = self.current_settings.get("color_log_heal", "#44FF44"); is_narrative = False # Healing is often systemic
+            elif "round" in entry_lower and "begins" in entry_lower: color_hex = self.current_settings.get("color_log_round", "#66AAFF"); is_bold = True; is_narrative = False
+            elif "turn" in entry_lower or "'s turn" in entry_lower: color_hex = self.current_settings.get("color_log_turn", "#88CCFF"); is_narrative = False
+            elif "combat started" in entry_lower or "combat ended" in entry_lower or "victory!" in entry_lower or "defeat!" in entry_lower or "fled!" in entry_lower or "surrender" in entry_lower: color_hex = self.current_settings.get("color_log_combat_event", "#FFFFFF"); is_bold = True; is_narrative = False
+            elif "misses" in entry_lower or "fails" in entry_lower or "resisted" in entry_lower or "escape fails" in entry_lower: color_hex = self.current_settings.get("color_log_miss", "#AAAAAA"); is_italic = True; is_narrative = False
+            elif "damage" in entry_lower or "loses" in entry_lower and ("hp" in entry_lower or "resolve" in entry_lower): color_hex = self.current_settings.get("color_log_damage", "#FF8888"); is_narrative = False
+            elif "roll" in entry_lower or "vs" in entry_lower: color_hex = self.current_settings.get("color_log_roll", "#FFCC66"); is_narrative = False
+
+            # Append with determined format and gradual flag
+            text_format = QTextCharFormat()
+            try:
+                text_format.setForeground(QColor(color_hex))
+            except ValueError:
+                logger.warning(f"Invalid color hex '{color_hex}' for log entry. Using default.")
+                text_format.setForeground(QColor(self.current_settings.get("color_log_default", "#E0E0E0")))
+
+            if is_bold: text_format.setFontWeight(QFont.Weight.Bold)
+            if is_italic: text_format.setFontItalic(True)
+
+            # Use gradual display ONLY for narrative messages
+            self._append_formatted_text(entry, text_format, gradual=is_narrative) # Pass gradual flag
+            new_entries_added = True
+
+            # Update last processed index
+            self.last_log_index = start_index + entry_index
+
+    def _append_formatted_text(self, text: str, text_format: QTextCharFormat, gradual: bool = False):
+        """Appends text to the log, either immediately or gradually."""
+        settings = QSettings("RPGGame", "Settings")
+        use_gradual = gradual and settings.value("display/gradual_text_combat_log", True, type=bool) # Check setting
+
+        if not text.strip(): # Don't append empty or whitespace-only lines
+            logger.debug("Skipping append of empty/whitespace log message.")
+            self.visualDisplayComplete.emit() # Emit completion even for skipped empty text
+            return
+
+        if not text.endswith('\n'):
+            text += '\n'
+
+        if self._is_gradual_log_active:
+            logger.debug(f"Queueing log message (Gradual: {use_gradual}): '{text[:50]}...'")
+            self._pending_log_messages.append((text, text_format, use_gradual))
+            return
+
+        if not use_gradual:
+            logger.debug(f"Appending immediate log message: '{text[:50]}...'")
+            cursor = self.log_text.textCursor()
+            cursor.movePosition(QTextCursor.MoveOperation.End)
+            cursor.insertText(text, text_format)
+            self.log_text.setTextCursor(cursor) 
+            self.log_text.ensureCursorVisible()
+            if not getattr(self, '_suppress_visual_complete', False):
+                logger.info(f"CombatDisplay: immediate display complete; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
+                self.visualDisplayComplete.emit() # --- ECFA Change: Emit signal ---
+                # Event-based direct notify to orchestrator as well
+                try:
+                    eng = get_game_engine()
+                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                        logger.debug(f"CombatDisplay: immediate direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
+                        eng._combat_orchestrator._handle_visual_display_complete()
+                except Exception:
+                    pass
+            self._process_next_pending_log_message()
+            return
+
+        logger.debug(f"Starting gradual log display: '{text[:50]}...'")
+        self._is_gradual_log_active = True
+        self._gradual_log_iterator = iter(text)
+        self._gradual_log_format = text_format
+
+        cursor = self.log_text.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self.log_text.setTextCursor(cursor)
+
+        if not self._gradual_log_timer:
+            self._gradual_log_timer = QTimer(self)
+            self._gradual_log_timer.setSingleShot(True)
+            self._gradual_log_timer.timeout.connect(self._display_next_log_char)
+
+        QTimer.singleShot(1, self._display_next_log_char)
+
+    @Slot()
+    def _display_next_log_char(self):
+        """Displays the next character for the combat log gradual display."""
+        if not self._is_gradual_log_active or not self._gradual_log_iterator:
+            if self._is_gradual_log_active: 
+                self._is_gradual_log_active = False
+                if not getattr(self, '_suppress_visual_complete', False):
+                    self.visualDisplayComplete.emit() 
+                self._process_next_pending_log_message()
+            return
+
+        try:
+            char = next(self._gradual_log_iterator)
+            cursor = self.log_text.textCursor()
+            cursor.movePosition(QTextCursor.MoveOperation.End)
+            if self._gradual_log_format:
+                cursor.insertText(char, self._gradual_log_format)
+            else:
+                cursor.insertText(char) 
+            self.log_text.setTextCursor(cursor) 
+            self.log_text.ensureCursorVisible() 
+
+            settings = QSettings("RPGGame", "Settings")
+            char_delay = settings.value("display/text_speed_delay", 30, type=int) 
+            char_delay = max(5, int(char_delay)) 
+            if self._gradual_log_timer: 
+                self._gradual_log_timer.start(char_delay)
+
+        except StopIteration:
+            self._is_gradual_log_active = False
+            self._gradual_log_iterator = None
+            self._gradual_log_format = None
+            logger.info(f"CombatDisplay: gradual display finished; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
+            if not getattr(self, '_suppress_visual_complete', False):
+                self.visualDisplayComplete.emit() 
+                # Event-based direct notify to orchestrator as well
+                try:
+                    eng = get_game_engine()
+                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                        logger.debug(f"CombatDisplay: gradual direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
+                        eng._combat_orchestrator._handle_visual_display_complete()
+                except Exception:
+                    pass
+            self._process_next_pending_log_message()
+
+        except Exception as e:
+            logger.error(f"Error during gradual log display: {e}", exc_info=True)
+            self._is_gradual_log_active = False
+            self._gradual_log_iterator = None
+            self._gradual_log_format = None
+            if self._gradual_log_timer and self._gradual_log_timer.isActive():
+                self._gradual_log_timer.stop()
+            if not getattr(self, '_suppress_visual_complete', False):
+                logger.info(f"CombatDisplay: gradual error path; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
+                self.visualDisplayComplete.emit() 
+                # Event-based direct notify to orchestrator as well
+                try:
+                    eng = get_game_engine()
+                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                        logger.debug(f"CombatDisplay: error direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
+                        eng._combat_orchestrator._handle_visual_display_complete()
+                except Exception:
+                    pass
+            self._pending_log_messages.clear() 
+            self._process_next_pending_log_message() # Process queue even on error
+
+    def _process_next_pending_log_message(self):
+        """Processes the next message in the pending queue."""
+        if not self._is_gradual_log_active and self._pending_log_messages:
+            text, text_format, is_gradual = self._pending_log_messages.pop(0)
+            logger.debug(f"Processing pending log message (Gradual: {is_gradual}): '{text[:50]}...'")
+            # Call _append_formatted_text again - it will handle starting gradual or immediate append
+            self._append_formatted_text(text, text_format, gradual=is_gradual)
+
+    def clear_log(self):
+        """Clear the combat log."""
+        self.log_text.clear()
+        logger.info("Combat log cleared.")
+        # Add header back immediately after clearing?
+        # header_format = QTextCharFormat()
+        # header_format.setFontWeight(QFont.Bold)
+        # header_format.setForeground(QColor(self.current_settings.get("color_log_header", "#A0A0A0")))
+        # self._append_formatted_text("===== COMBAT LOG =====", header_format)
+
+
+    def open_settings_dialog(self):
+        """
+        --- SETTINGS UI DISCONNECTED ---
+        This function is no longer used. Styling is controlled by the
+        COMBAT_DISPLAY_THEME dictionary in the code.
+        """
+        logger.info("Combat settings dialog is currently disconnected.")
+        # dialog = CombatSettingsDialog(self.current_settings.copy(), IMAGE_DIR, self)
+        # if dialog.exec():
+        #     new_settings = dialog.get_settings()
+        #     if new_settings != self.current_settings:
+        #         logger.info("Settings changed. Saving and applying...")
+        #         self.current_settings = new_settings
+        #         # self.save_settings() # Saving is also disconnected
+        #         self.apply_settings()
+
+    def append_buffered_messages(self, messages: List[str], gradual: bool):
+        """
+        Appends a list of messages, typically from the combat_narrative_buffer.
+        The visualDisplayComplete signal will be emitted after the *last* message in the list
+        has finished displaying.
+        """
+        if not messages:
+            self.visualDisplayComplete.emit() # Emit if buffer is empty
+            return
+
+        logger.debug(f"Appending {len(messages)} buffered messages. Gradual: {gradual}")
+        
+        # Use default GM format for buffered messages (usually narrative)
+        # This format should be configurable or passed with the event in a richer system
+        gm_format = QTextCharFormat()
+        gm_format.setForeground(QColor(self.current_settings.get("color_log_default", "#E0E0E0"))) # Example color
+        # font_family = self.current_settings.get("font_family", "Arial")
+        # font_size = self.current_settings.get("font_size", 10)
+        # gm_format.setFont(QFont(font_family, font_size))
+
+
+        for i, message_content in enumerate(messages):
+            is_last_message = (i == len(messages) - 1)
+            
+            # If it's the last message, its completion will trigger the main visualDisplayComplete.
+            # For other messages, we don't want them to trigger the orchestrator's main logic.
+            # This requires _append_formatted_text to know if it's part of a batch.
+            # Simpler for now: _append_formatted_text always emits. Orchestrator ignores intermediate ones
+            # if it knows it's processing a BUFFER_FLUSH event with multiple items.
+            # This detail depends on how Orchestrator handles BUFFER_FLUSH DisplayEvents.
+
+            # For now, let's assume _append_formatted_text handles queuing and will eventually
+            # emit visualDisplayComplete after the *entire sequence* of buffered messages.
+            # This means _append_formatted_text needs to be smarter or we need a different approach.
+
+            # Refined approach: _append_formatted_text queues. The final visualDisplayComplete
+            # will be emitted when the *last* character of the *last* message is displayed.
+            self._append_formatted_text(message_content, gm_format, gradual)
+
+    def stop_gradual_display(self):
+        """Immediately stops any ongoing gradual text display and processes pending messages quickly."""
+        logger.info("Stopping current gradual display and flushing pending messages.")
+        if self._gradual_log_timer and self._gradual_log_timer.isActive():
+            self._gradual_log_timer.stop()
+        
+        # If an iterator was active, display remaining text immediately
+        if self._gradual_log_iterator:
+            remaining_text = "".join(list(self._gradual_log_iterator))
+            if remaining_text:
+                cursor = self.log_text.textCursor()
+                cursor.movePosition(QTextCursor.MoveOperation.End)
+                if self._gradual_log_format:
+                    cursor.insertText(remaining_text, self._gradual_log_format)
+                else:
+                    cursor.insertText(remaining_text)
+                self.log_text.setTextCursor(cursor)
+                self.log_text.ensureCursorVisible()
+            self._gradual_log_iterator = None
+            self._gradual_log_format = None
+
+        self._is_gradual_log_active = False # Mark as not active
+        
+        # Process all pending messages immediately (non-gradual)
+        while self._pending_log_messages:
+            text, text_format, _ = self._pending_log_messages.pop(0) # Ignore original gradual flag
+            logger.debug(f"Flushing pending message immediately: '{text[:50]}...'")
+            if not text.endswith('\n'): text += '\n'
+            cursor = self.log_text.textCursor()
+            cursor.movePosition(QTextCursor.MoveOperation.End)
+            cursor.insertText(text, text_format)
+            self.log_text.setTextCursor(cursor)
+            self.log_text.ensureCursorVisible()
+            
+        self.visualDisplayComplete.emit()
+
+    def append_orchestrated_event_content(self, event_content: str, event_role: str, is_gradual: bool, event_id: Optional[str] = None):
+        """
+        Appends orchestrated event content to the combat log, using the theme palette
+        for color formatting based on the message role.
+        """
+        try:
+            self._current_text_event_id = event_id
+            logger.info(f"CombatDisplay: render string event id={event_id} gradual={bool(is_gradual)} len={len(event_content) if isinstance(event_content, str) else 'N/A'}")
+        except Exception:
+            pass
+        
+        try:
+            if isinstance(event_content, str) and event_content.strip().startswith("[DEV]"):
+                settings = QSettings("RPGGame", "Settings")
+                if not settings.value("dev/enabled", False, type=bool):
+                    self.visualDisplayComplete.emit()
+                    try:
+                        eng = get_game_engine()
+                        if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
+                            logger.debug(f"CombatDisplay: Direct notify orchestrator complete for DEV-suppressed id={event_id}")
+                            eng._combat_orchestrator._handle_visual_display_complete()
+                    except Exception:
+                        pass
+                    return
+        except Exception:
+            pass
+        
+        colors = self.palette.get('colors', {})
+        color_hex = colors.get("log_narrative", "#3D2B1F")
+        is_bold = False
+        is_italic = False
+
+        role_lower = event_role.lower() if event_role else "system"
+        content_lower = event_content.lower()
+
+        if role_lower == "gm":
+            color_hex = colors.get("log_narrative", "#3D2B1F")
+        
+        elif role_lower == "system":
+            color_hex = colors.get("log_system_message", "#00008B")
+            
+            if "critical hit" in content_lower or "defeated!" in content_lower or "was defeated" in content_lower:
+                color_hex = colors.get("log_crit", "#FF0000")
+                is_bold = True
+            elif "healed" in content_lower or ("gains" in content_lower and ("hp" in content_lower or "stamina" in content_lower)):
+                color_hex = colors.get("log_heal", "#009600")
+            elif "round" in content_lower and "begins" in content_lower:
+                color_hex = colors.get("log_round", "#0064FF")
+                is_bold = True
+            elif "turn order:" in content_lower or "'s turn" in content_lower:
+                color_hex = colors.get("log_turn", "#0064C8")
+            elif "combat started" in content_lower or "combat ended" in content_lower or "victory!" in content_lower or "defeat!" in content_lower or "fled!" in content_lower or "surrender" in content_lower:
+                color_hex = colors.get("log_combat_event", "#000000")
+                is_bold = True
+            elif "misses" in content_lower or "fails" in content_lower or "resisted" in content_lower or "escape fails" in content_lower or "fumble" in content_lower:
+                color_hex = colors.get("log_miss", "#6c5b4b")
+                is_italic = True
+            elif "damage" in content_lower or ("loses" in content_lower and ("hp" in content_lower or "resolve" in content_lower)):
+                color_hex = colors.get("log_damage", "#C80000")
+            elif "roll" in content_lower or "vs" in content_lower:
+                color_hex = colors.get("log_roll", "#C87800")
+            elif event_content.startswith("[DEV]"):
+                color_hex = colors.get("log_dev", "#646464")
+                is_italic = True
+
+        text_format = QTextCharFormat()
+        try:
+            text_format.setForeground(QColor(color_hex))
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid color hex '{color_hex}' for combat log. Using default.")
+            text_format.setForeground(QColor(colors.get("log_narrative", "#3D2B1F")))
+
+        if is_bold: text_format.setFontWeight(QFont.Weight.Bold)
+        if is_italic: text_format.setFontItalic(True)
+        
+        self._append_formatted_text(event_content, text_format, gradual=is_gradual)
+
+    @Slot(bool)
+    def _on_orchestrator_dev_waiting_changed(self, waiting: bool):
+        self.dev_next_step_btn.setEnabled(bool(waiting))
 
     @Slot(GameState)
     def update_display(self, game_state: GameState):
@@ -632,394 +782,21 @@ class CombatDisplay(QWidget):
             self.clear_display() 
             self.setVisible(False)
 
-    def _update_combat_log(self, log_entries: List[str]): # Added type hint
-        """Update the combat log incrementally with new entries."""
-        if not log_entries:
-            return
-        # Gate [DEV] lines if dev mode is disabled
-        try:
-            settings = QSettings("RPGGame", "Settings")
-            dev_enabled = settings.value("dev/enabled", False, type=bool)
-            if not dev_enabled:
-                log_entries = [e for e in log_entries if not (isinstance(e, str) and e.strip().startswith("[DEV]"))]
-                if not log_entries:
-                    return
-        except Exception:
-            pass
-
-        scrollbar = self.log_text.verticalScrollBar()
-        at_bottom = scrollbar.value() >= scrollbar.maximum() - 10 # Is the user scrolled near the bottom?
-
-        start_index = self.last_log_index + 1
-        if start_index >= len(log_entries):
-            return
-
-        new_entries_to_process = log_entries[start_index:]
-        logger.debug(f"Processing {len(new_entries_to_process)} new log entries (from index {start_index})")
-
-        new_entries_added = False
-        for entry_index, entry in enumerate(new_entries_to_process):
-            # Determine color/format based on entry content and settings
-            color_hex = self.current_settings.get("color_log_default", "#E0E0E0")
-            is_bold = False
-            is_italic = False
-            is_narrative = True # Assume GM/Narrative by default
-
-            entry_lower = entry.lower()
-
-            # Simplified system message check (more robust checks might be needed)
-            if entry.startswith("[SYSTEM]") or \
-            "roll" in entry_lower and "vs" in entry_lower or \
-            "takes" in entry_lower and "damage" in entry_lower or \
-            "misses" in entry_lower or \
-            "defeated" in entry_lower or \
-            "fumble" in entry_lower or \
-            "critical hit" in entry_lower or \
-            "status expire" in entry_lower or \
-            "turn." in entry_lower or \
-            "round" in entry_lower and "begins" in entry_lower or \
-            entry.startswith("Turn order:") or \
-            "Stamina Cost:" in entry: # Check for stamina cost message
-                is_narrative = False # Mark as system message
-
-            # --- Color/Style Logic (using settings) ---
-            # (Keep existing color logic)
-            if entry.startswith("[DEV]"): color_hex = self.current_settings.get("color_log_dev", "#888888"); is_italic = True; is_narrative = False
-            elif "critical hit" in entry_lower or "defeated!" in entry_lower or "was defeated" in entry_lower: color_hex = self.current_settings.get("color_log_crit", "#FF4444"); is_bold = True; is_narrative = False
-            elif "healed" in entry_lower or "gains" in entry_lower and ("hp" in entry_lower or "stamina" in entry_lower): color_hex = self.current_settings.get("color_log_heal", "#44FF44"); is_narrative = False # Healing is often systemic
-            elif "round" in entry_lower and "begins" in entry_lower: color_hex = self.current_settings.get("color_log_round", "#66AAFF"); is_bold = True; is_narrative = False
-            elif "turn" in entry_lower or "'s turn" in entry_lower: color_hex = self.current_settings.get("color_log_turn", "#88CCFF"); is_narrative = False
-            elif "combat started" in entry_lower or "combat ended" in entry_lower or "victory!" in entry_lower or "defeat!" in entry_lower or "fled!" in entry_lower or "surrender" in entry_lower: color_hex = self.current_settings.get("color_log_combat_event", "#FFFFFF"); is_bold = True; is_narrative = False
-            elif "misses" in entry_lower or "fails" in entry_lower or "resisted" in entry_lower or "escape fails" in entry_lower: color_hex = self.current_settings.get("color_log_miss", "#AAAAAA"); is_italic = True; is_narrative = False
-            elif "damage" in entry_lower or "loses" in entry_lower and ("hp" in entry_lower or "resolve" in entry_lower): color_hex = self.current_settings.get("color_log_damage", "#FF8888"); is_narrative = False
-            elif "roll" in entry_lower or "vs" in entry_lower: color_hex = self.current_settings.get("color_log_roll", "#FFCC66"); is_narrative = False
-
-            # Append with determined format and gradual flag
-            text_format = QTextCharFormat()
-            try:
-                text_format.setForeground(QColor(color_hex))
-            except ValueError:
-                logger.warning(f"Invalid color hex '{color_hex}' for log entry. Using default.")
-                text_format.setForeground(QColor(self.current_settings.get("color_log_default", "#E0E0E0")))
-
-            if is_bold: text_format.setFontWeight(QFont.Weight.Bold)
-            if is_italic: text_format.setFontItalic(True)
-
-            # Use gradual display ONLY for narrative messages
-            self._append_formatted_text(entry, text_format, gradual=is_narrative) # Pass gradual flag
-            new_entries_added = True
-
-            # Update last processed index
-            self.last_log_index = start_index + entry_index
-
-    def _append_formatted_text(self, text: str, text_format: QTextCharFormat, gradual: bool = False):
-        """Appends text to the log, either immediately or gradually."""
-        use_gradual = gradual and self.current_settings.get("gradual_text_combat_log", True) # Check setting
-
-        if not text.strip(): # Don't append empty or whitespace-only lines
-            logger.debug("Skipping append of empty/whitespace log message.")
-            self.visualDisplayComplete.emit() # Emit completion even for skipped empty text
-            return
-
-        if not text.endswith('\n'):
-            text += '\n'
-
-        if self._is_gradual_log_active:
-            logger.debug(f"Queueing log message (Gradual: {use_gradual}): '{text[:50]}...'")
-            self._pending_log_messages.append((text, text_format, use_gradual))
-            return
-
-        if not use_gradual:
-            logger.debug(f"Appending immediate log message: '{text[:50]}...'")
-            cursor = self.log_text.textCursor()
-            cursor.movePosition(QTextCursor.MoveOperation.End)
-            cursor.insertText(text, text_format)
-            self.log_text.setTextCursor(cursor) 
-            self.log_text.ensureCursorVisible()
-            if not getattr(self, '_suppress_visual_complete', False):
-                logger.info(f"CombatDisplay: immediate display complete; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
-                self.visualDisplayComplete.emit() # --- ECFA Change: Emit signal ---
-                # Event-based direct notify to orchestrator as well
-                try:
-                    from core.base.engine import get_game_engine
-                    eng = get_game_engine()
-                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
-                        logger.debug(f"CombatDisplay: immediate direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
-                        eng._combat_orchestrator._handle_visual_display_complete()
-                except Exception:
-                    pass
-            self._process_next_pending_log_message()
-            return
-
-        logger.debug(f"Starting gradual log display: '{text[:50]}...'")
-        self._is_gradual_log_active = True
-        self._gradual_log_iterator = iter(text)
-        self._gradual_log_format = text_format
-
-        cursor = self.log_text.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.End)
-        self.log_text.setTextCursor(cursor)
-
-        if not self._gradual_log_timer:
-            self._gradual_log_timer = QTimer(self)
-            self._gradual_log_timer.setSingleShot(True)
-            self._gradual_log_timer.timeout.connect(self._display_next_log_char)
-
-        QTimer.singleShot(1, self._display_next_log_char)
-
-    @Slot()
-    def _display_next_log_char(self):
-        """Displays the next character for the combat log gradual display."""
-        if not self._is_gradual_log_active or not self._gradual_log_iterator:
-            if self._is_gradual_log_active: 
-                self._is_gradual_log_active = False
-                if not getattr(self, '_suppress_visual_complete', False):
-                    self.visualDisplayComplete.emit() 
-                self._process_next_pending_log_message()
-            return
-
-        try:
-            char = next(self._gradual_log_iterator)
-            cursor = self.log_text.textCursor()
-            cursor.movePosition(QTextCursor.MoveOperation.End)
-            if self._gradual_log_format:
-                cursor.insertText(char, self._gradual_log_format)
-            else:
-                cursor.insertText(char) 
-            self.log_text.setTextCursor(cursor) 
-            self.log_text.ensureCursorVisible() 
-
-            # --- ECFA Change: Use unified settings key from self.current_settings ---
-            char_delay = self.current_settings.get("display_text_speed_delay", 30) 
-            # --- End ECFA Change ---
-            char_delay = max(5, int(char_delay)) 
-            if self._gradual_log_timer: 
-                self._gradual_log_timer.start(char_delay)
-
-        except StopIteration:
-            self._is_gradual_log_active = False
-            self._gradual_log_iterator = None
-            self._gradual_log_format = None
-            logger.info(f"CombatDisplay: gradual display finished; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
-            if not getattr(self, '_suppress_visual_complete', False):
-                self.visualDisplayComplete.emit() 
-                # Event-based direct notify to orchestrator as well
-                try:
-                    from core.base.engine import get_game_engine
-                    eng = get_game_engine()
-                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
-                        logger.debug(f"CombatDisplay: gradual direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
-                        eng._combat_orchestrator._handle_visual_display_complete()
-                except Exception:
-                    pass
-            self._process_next_pending_log_message()
-
-        except Exception as e:
-            logger.error(f"Error during gradual log display: {e}", exc_info=True)
-            self._is_gradual_log_active = False
-            self._gradual_log_iterator = None
-            self._gradual_log_format = None
-            if self._gradual_log_timer and self._gradual_log_timer.isActive():
-                self._gradual_log_timer.stop()
-            if not getattr(self, '_suppress_visual_complete', False):
-                logger.info(f"CombatDisplay: gradual error path; emitting visualDisplayComplete for id={getattr(self, '_current_text_event_id', None)}")
-                self.visualDisplayComplete.emit() 
-                # Event-based direct notify to orchestrator as well
-                try:
-                    from core.base.engine import get_game_engine
-                    eng = get_game_engine()
-                    if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
-                        logger.debug(f"CombatDisplay: error direct orchestrator complete for id={getattr(self, '_current_text_event_id', None)}")
-                        eng._combat_orchestrator._handle_visual_display_complete()
-                except Exception:
-                    pass
-            self._pending_log_messages.clear() 
-            self._process_next_pending_log_message() # Process queue even on error
-
-    def _process_next_pending_log_message(self):
-        """Processes the next message in the pending queue."""
-        if not self._is_gradual_log_active and self._pending_log_messages:
-            text, text_format, is_gradual = self._pending_log_messages.pop(0)
-            logger.debug(f"Processing pending log message (Gradual: {is_gradual}): '{text[:50]}...'")
-            # Call _append_formatted_text again - it will handle starting gradual or immediate append
-            self._append_formatted_text(text, text_format, gradual=is_gradual)
-
-    def clear_log(self):
-        """Clear the combat log."""
-        self.log_text.clear()
-        logger.info("Combat log cleared.")
-        # Add header back immediately after clearing?
-        # header_format = QTextCharFormat()
-        # header_format.setFontWeight(QFont.Bold)
-        # header_format.setForeground(QColor(self.current_settings.get("color_log_header", "#A0A0A0")))
-        # self._append_formatted_text("===== COMBAT LOG =====", header_format)
-
-
-    def open_settings_dialog(self):
-        """
-        --- SETTINGS UI DISCONNECTED ---
-        This function is no longer used. Styling is controlled by the
-        COMBAT_DISPLAY_THEME dictionary in the code.
-        """
-        logger.info("Combat settings dialog is currently disconnected.")
-        # dialog = CombatSettingsDialog(self.current_settings.copy(), IMAGE_DIR, self)
-        # if dialog.exec():
-        #     new_settings = dialog.get_settings()
-        #     if new_settings != self.current_settings:
-        #         logger.info("Settings changed. Saving and applying...")
-        #         self.current_settings = new_settings
-        #         # self.save_settings() # Saving is also disconnected
-        #         self.apply_settings()
-
-    def append_buffered_messages(self, messages: List[str], gradual: bool):
-        """
-        Appends a list of messages, typically from the combat_narrative_buffer.
-        The visualDisplayComplete signal will be emitted after the *last* message in the list
-        has finished displaying.
-        """
-        if not messages:
-            self.visualDisplayComplete.emit() # Emit if buffer is empty
-            return
-
-        logger.debug(f"Appending {len(messages)} buffered messages. Gradual: {gradual}")
+    @Slot(dict)
+    def apply_theme(self, palette: Optional[Dict[str, Any]] = None):
+        """Apply the current theme palette to the combat display UI."""
+        if palette:
+            self.palette = palette
+        else:
+            self.palette = self.theme_manager.get_current_palette()
         
-        # Use default GM format for buffered messages (usually narrative)
-        # This format should be configurable or passed with the event in a richer system
-        from PySide6.QtGui import QFont, QColor # Local import for safety
-        gm_format = QTextCharFormat()
-        gm_format.setForeground(QColor(self.current_settings.get("color_log_default", "#E0E0E0"))) # Example color
-        # font_family = self.current_settings.get("font_family", "Arial")
-        # font_size = self.current_settings.get("font_size", 10)
-        # gm_format.setFont(QFont(font_family, font_size))
-
-
-        for i, message_content in enumerate(messages):
-            is_last_message = (i == len(messages) - 1)
-            
-            # If it's the last message, its completion will trigger the main visualDisplayComplete.
-            # For other messages, we don't want them to trigger the orchestrator's main logic.
-            # This requires _append_formatted_text to know if it's part of a batch.
-            # Simpler for now: _append_formatted_text always emits. Orchestrator ignores intermediate ones
-            # if it knows it's processing a BUFFER_FLUSH event with multiple items.
-            # This detail depends on how Orchestrator handles BUFFER_FLUSH DisplayEvents.
-
-            # For now, let's assume _append_formatted_text handles queuing and will eventually
-            # emit visualDisplayComplete after the *entire sequence* of buffered messages.
-            # This means _append_formatted_text needs to be smarter or we need a different approach.
-
-            # Refined approach: _append_formatted_text queues. The final visualDisplayComplete
-            # will be emitted when the *last* character of the *last* message is displayed.
-            self._append_formatted_text(message_content, gm_format, gradual)
-
-    def stop_gradual_display(self):
-        """Immediately stops any ongoing gradual text display and processes pending messages quickly."""
-        logger.info("Stopping current gradual display and flushing pending messages.")
-        if self._gradual_log_timer and self._gradual_log_timer.isActive():
-            self._gradual_log_timer.stop()
+        full_stylesheet = create_combat_display_style(self.palette)
+        self.setStyleSheet(full_stylesheet)
         
-        # If an iterator was active, display remaining text immediately
-        if self._gradual_log_iterator:
-            remaining_text = "".join(list(self._gradual_log_iterator))
-            if remaining_text:
-                cursor = self.log_text.textCursor()
-                cursor.movePosition(QTextCursor.MoveOperation.End)
-                if self._gradual_log_format:
-                    cursor.insertText(remaining_text, self._gradual_log_format)
-                else:
-                    cursor.insertText(remaining_text)
-                self.log_text.setTextCursor(cursor)
-                self.log_text.ensureCursorVisible()
-            self._gradual_log_iterator = None
-            self._gradual_log_format = None
-
-        self._is_gradual_log_active = False # Mark as not active
+        # Pass the complete theme palette to child panels
+        self.allies_panel.apply_settings(self.palette)
+        self.enemies_panel.apply_settings(self.palette)
         
-        # Process all pending messages immediately (non-gradual)
-        while self._pending_log_messages:
-            text, text_format, _ = self._pending_log_messages.pop(0) # Ignore original gradual flag
-            logger.debug(f"Flushing pending message immediately: '{text[:50]}...'")
-            if not text.endswith('\n'): text += '\n'
-            cursor = self.log_text.textCursor()
-            cursor.movePosition(QTextCursor.MoveOperation.End)
-            cursor.insertText(text, text_format)
-            self.log_text.setTextCursor(cursor)
-            self.log_text.ensureCursorVisible()
-            
-        self.visualDisplayComplete.emit()
+        self.update()
+        logger.info("Combat display theme updated.")
 
-    def append_orchestrated_event_content(self, event_content: str, event_role: str, is_gradual: bool, event_id: Optional[str] = None):
-        """
-        Appends orchestrated event content to the combat log, using CombatDisplay's
-        own settings for color formatting based on the message role.
-        """
-        try:
-            self._current_text_event_id = event_id
-            logger.info(f"CombatDisplay: render string event id={event_id} gradual={bool(is_gradual)} len={len(event_content) if isinstance(event_content, str) else 'N/A'}")
-        except Exception:
-            pass
-        
-        try:
-            if isinstance(event_content, str) and event_content.strip().startswith("[DEV]"):
-                settings = QSettings("RPGGame", "Settings")
-                if not settings.value("dev/enabled", False, type=bool):
-                    self.visualDisplayComplete.emit()
-                    try:
-                        from core.base.engine import get_game_engine
-                        eng = get_game_engine()
-                        if eng and hasattr(eng, '_combat_orchestrator') and eng._combat_orchestrator.is_waiting_for_visual:
-                            logger.debug(f"CombatDisplay: Direct notify orchestrator complete for DEV-suppressed id={event_id}")
-                            eng._combat_orchestrator._handle_visual_display_complete()
-                    except Exception:
-                        pass
-                    return
-        except Exception:
-            pass
-        
-        color_hex = self.current_settings.get("color_log_default", "#3D2B1F")
-        is_bold = False
-        is_italic = False
-
-        role_lower = event_role.lower() if event_role else "system"
-        content_lower = event_content.lower()
-
-        if role_lower == "gm":
-            color_hex = self.current_settings.get("color_log_narrative", "#3D2B1F")
-        
-        elif role_lower == "system":
-            color_hex = self.current_settings.get("color_log_system_message", "#00008B")
-            
-            if "critical hit" in content_lower or "defeated!" in content_lower or "was defeated" in content_lower:
-                color_hex = self.current_settings.get("color_log_crit", "#FF0000")
-                is_bold = True
-            elif "healed" in content_lower or ("gains" in content_lower and ("hp" in content_lower or "stamina" in content_lower)):
-                color_hex = self.current_settings.get("color_log_heal", "#009600")
-            elif "round" in content_lower and "begins" in content_lower:
-                color_hex = self.current_settings.get("color_log_round", "#0064FF")
-                is_bold = True
-            elif "turn order:" in content_lower or "'s turn" in content_lower:
-                color_hex = self.current_settings.get("color_log_turn", "#0064C8")
-            elif "combat started" in content_lower or "combat ended" in content_lower or "victory!" in content_lower or "defeat!" in content_lower or "fled!" in content_lower or "surrender" in content_lower:
-                color_hex = self.current_settings.get("color_log_combat_event", "#000000")
-                is_bold = True
-            elif "misses" in content_lower or "fails" in content_lower or "resisted" in content_lower or "escape fails" in content_lower or "fumble" in content_lower:
-                color_hex = self.current_settings.get("color_log_miss", "#6c5b4b")
-                is_italic = True
-            elif "damage" in content_lower or ("loses" in content_lower and ("hp" in content_lower or "resolve" in content_lower)):
-                color_hex = self.current_settings.get("color_log_damage", "#C80000")
-            elif "roll" in content_lower or "vs" in content_lower:
-                color_hex = self.current_settings.get("color_log_roll", "#C87800")
-            elif event_content.startswith("[DEV]"):
-                color_hex = self.current_settings.get("color_log_dev", "#646464")
-                is_italic = True
-
-        text_format = QTextCharFormat()
-        try:
-            text_format.setForeground(QColor(color_hex))
-        except ValueError:
-            logger.warning(f"Invalid color hex '{color_hex}' for combat log. Using default.")
-            text_format.setForeground(QColor(self.current_settings.get("color_log_default", "#3D2B1F")))
-
-        if is_bold: text_format.setFontWeight(QFont.Weight.Bold)
-        if is_italic: text_format.setFontItalic(True)
-        
-        self._append_formatted_text(event_content, text_format, gradual=is_gradual)

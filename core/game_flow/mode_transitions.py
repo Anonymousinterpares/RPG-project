@@ -9,7 +9,6 @@ import json
 from typing import Dict, List, Optional, Any, TYPE_CHECKING, Tuple
 
 from core.interaction.enums import InteractionMode
-from core.combat.combat_manager import CombatManager
 from core.combat.enums import CombatState
 from core.character.npc_system import NPCSystem
 from core.base.state import get_state_manager, GameState # Import GameState for type hinting
@@ -888,7 +887,7 @@ def _initiate_combat_transition(engine: 'GameEngine', game_state: 'GameState', r
             logger.error(f"Failed to create player combat entity: {e}", exc_info=True)
             # game_state.is_transitioning_to_combat = False # Handled by caller
             return "System Error: Failed to prepare player for combat."
-
+        from core.combat.combat_manager import CombatManager
         combat_manager = CombatManager()
         game_state.combat_manager = combat_manager 
         if hasattr(engine, '_combat_orchestrator'): 
@@ -965,7 +964,7 @@ def initiate_combat(
     """
     try:
         logger.info(f"Initiating combat transition. Surprise: {surprise}, Intent: '{initiating_intent}'")
-        
+        from core.combat.combat_manager import CombatManager
         # Create and configure the CombatManager
         cm = CombatManager()
         

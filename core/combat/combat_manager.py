@@ -2,7 +2,7 @@ import random
 import logging
 import uuid
 import copy
-from typing import Dict, List, Tuple, Any, Optional, Set, Union, TYPE_CHECKING
+from typing import Dict, List, Tuple, Any, Optional, Union, TYPE_CHECKING
 from PySide6.QtCore import QTimer, QThread, QObject, Signal, Slot
 from core.agents.base_agent import AgentContext
 from core.base.state.game_state import GameState
@@ -12,10 +12,8 @@ from core.interaction.enums import InteractionMode
 from core.orchestration.combat_orchestrator import CombatOutputOrchestrator
 from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
 from core.stats.combat_effects import StatusEffect, StatusEffectType
-from core.stats.derived_stats import get_modifier_from_stat
 from core.stats.modifier import ModifierSource
 from core.stats.stats_base import StatType, DerivedStatType
-from core.utils.dice import roll_dice_notation, check_success, roll_critical
 from core.combat.combat_entity import CombatEntity, EntityType
 from core.combat.combat_action import AttackAction, CombatAction, ActionType, DefendAction, FleeAction, SpellAction
 from core.stats.stats_manager import StatsManager, get_stats_manager 

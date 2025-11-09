@@ -4,24 +4,18 @@ Command input widget for the RPG game GUI.
 This module provides a widget for entering commands.
 """
 
-import logging
 from typing import Optional, List
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QLineEdit, QPushButton, 
-    QCompleter, QVBoxLayout, QListWidget, QFrame
+    QFrame
 )
-from PySide6.QtCore import Qt, Signal, Slot, QSize
-from PySide6.QtGui import QIcon, QPalette, QBrush, QPixmap
+from PySide6.QtCore import Qt, Signal, Slot, QSettings, QSize
+from PySide6.QtGui import QColor, QIcon
 
+from gui.styles.stylesheet_factory import create_round_image_button_style
+from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
-
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'border_dark': '#4a3a30',
-    'text_primary': '#c9a875',
-}
 
 class CommandInputWidget(QFrame):
     """Widget for entering commands."""
@@ -33,6 +27,12 @@ class CommandInputWidget(QFrame):
         """Initialize the command input widget."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+
         # Set frame properties
         self.setFrameShape(QFrame.StyledPanel)
         self.setContentsMargins(0, 0, 0, 0)
@@ -49,6 +49,9 @@ class CommandInputWidget(QFrame):
         
         # Connect signals
         self._connect_signals()
+
+        # Apply initial theme
+        self._update_theme()
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -56,62 +59,16 @@ class CommandInputWidget(QFrame):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         
-        # Set frame background to transparent
-        self.setStyleSheet("""
-            CommandInputWidget {
-                background-color: transparent;
-                border: none;
-            }
-        """)
-        
-        # Create the command line edit with fantasy theme
+        # Create the command line edit
         self.command_edit = QLineEdit()
         self.command_edit.setPlaceholderText("Enter a command or type 'help'...")
-        self.command_edit.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_primary']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 8px;
-                font-family: 'Garamond', serif;
-                font-size: 14pt;
-                margin-left: 5px;
-                margin-right: 5px;
-            }}
-            QLineEdit:focus {{
-                border-color: {COLORS['text_primary']};
-            }}
-        """)
         
-        # Create the submit button with the original image-based styling
-        self.submit_button = QPushButton("Enter")
-        self.submit_button.setStyleSheet("""
-            QPushButton {
-                background-image: url('images/gui/button_normal.png');
-                background-position: center;
-                background-repeat: no-repeat;
-                background-color: transparent;
-                color: #2e2e2e;
-                border: none;
-                padding: 8px 15px;
-                font-weight: bold;
-                font-family: 'Times New Roman', serif;
-                min-width: 80px;
-                min-height: 30px;
-                max-width: 100px;
-                margin-right: 5px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-image: url('images/gui/button_hover.png');
-            }
-            QPushButton:pressed {
-                background-image: url('images/gui/button_pressed.png');
-                color: #FF0000;
-                font-weight: bold;
-            }
-        """)
+        # Create the submit button without text and with a fixed size
+        self.submit_button = QPushButton("")
+        self.submit_button.setFixedSize(40, 40) # Set a fixed size for the round button
+        # Set the size for the icon that will be placed on the button
+        self.submit_button.setIconSize(QSize(38, 38)) # Slightly smaller for padding
+        
         # Add widgets to the layout
         layout.addWidget(self.command_edit, 1)
         layout.addWidget(self.submit_button)
@@ -192,3 +149,60 @@ class CommandInputWidget(QFrame):
     def clear(self):
         """Clear the command input."""
         self.command_edit.clear()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        fonts = self.palette['fonts']
+        paths = self.palette['paths']
+
+        # Get opacity from QSettings
+        settings = QSettings("RPGGame", "Settings")
+        input_opacity = int(settings.value("style/input_opacity", 100)) / 100.0
+        
+        # Extract RGBA components for the background
+        try:
+            color = QColor(colors['bg_dark_transparent'])
+            r, g, b = color.red(), color.green(), color.blue()
+        except Exception:
+            r, g, b = 26, 20, 16 # Fallback
+            
+        # Style the main widget background HERE
+        self.setStyleSheet(f"""
+            CommandInputWidget {{
+                background-color: rgba({r}, {g}, {b}, {input_opacity});
+                border-radius: 10px;
+                padding: 5px;
+                border: 2px solid {colors['border_dark']};
+            }}
+        """)
+        
+        # Style for the command line edit
+        self.command_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {colors['input_background']};
+                color: {colors['input_text']};
+                border: 1px solid {colors['input_border']};
+                border-radius: 4px;
+                padding: 8px;
+                font-family: '{fonts['family_user_input']}';
+                font-size: {fonts['size_user_input']}pt;
+                margin-left: 5px;
+                margin-right: 5px;
+            }}
+            QLineEdit:focus {{
+                border-color: {colors['text_primary']};
+            }}
+        """)
+        
+        # Load the icon from the theme path and set it on the button
+        icon_path = paths.get('send_button_icon', '')
+        if icon_path:
+            self.submit_button.setIcon(QIcon(icon_path))
+        
+        # Apply the transparent, round stylesheet from the factory
+        self.submit_button.setStyleSheet(create_round_image_button_style(self.palette, 40))

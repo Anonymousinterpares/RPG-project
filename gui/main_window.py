@@ -8,90 +8,85 @@ import logging
 import os
 import weakref
 from typing import Optional, List, Dict, Any, Tuple
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QStackedWidget, QDialog, QLabel, QPushButton, 
-    QApplication, QToolButton, QGraphicsOpacityEffect, QMessageBox, QSizePolicy,
+    QToolButton, QGraphicsOpacityEffect, QMessageBox, QSizePolicy,
     QMenu, QSlider, QWidgetAction, QLineEdit, QTextEdit, QPlainTextEdit, QTabBar
 )
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, Signal, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QIcon, QPixmap, QPalette, QBrush, QColor, QMovie, QTextCursor, QCursor
+from PySide6.QtGui import QPixmap, QTextCursor, QCursor
 from core.inventory import get_inventory_manager
 from core.inventory.item import Item
 from core.inventory.item_enums import EquipmentSlot
 from core.stats.stats_base import DerivedStatType
 from gui.dialogs.game_over_dialog import GameOverDialog
-from core.base.engine import GameEngine, get_game_engine
+from core.base.engine import get_game_engine
 from core.combat.enums import CombatState, CombatStep
-from core.interaction.enums import InteractionMode # Added import
-from core.base.state import GameState, get_state_manager # Added imports
+from core.interaction.enums import InteractionMode
 from core.utils.logging_config import get_logger
 from gui.components.game_output import GameOutputWidget
 from gui.components.command_input import CommandInputWidget
 from gui.components.menu_panel import MenuPanelWidget
 from gui.components.right_panel import CollapsibleRightPanel
 from gui.components.status_bar import GameStatusBar
-from gui.components.combat_display import CombatDisplay # Added import
+from gui.components.combat_display import CombatDisplay
 from gui.utils.resource_manager import get_resource_manager
 from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
+from gui.styles.theme_manager import ThemeManager, get_theme_manager
 
 logger = get_logger("GUI")
 
-# --- STYLING COLORS (for main_window specific styles) ---
-COLORS = {
-    'background_dark_transparent': 'rgba(26, 20, 16, 0.85)',
-    'border_dark': '#4a3a30',
-    'input_background': 'rgba(255, 255, 255, 0.7)',
-    'input_border': '#c4b59d',
-    'input_text': '#0d47a1', # This was the original user input color, can be themed if needed
-}
 class MainWindow(QMainWindow):
     """Main window for the RPG game GUI."""
     
     def __init__(self):
-            super().__init__()
-            
-            # --- CURSOR SETUP ---
-            self._setup_cursors()
-            self.setCursor(self.normal_cursor)
-            # --- END CURSOR SETUP ---
-            
-            self._previous_mode = None # Track previous mode for transitions
-            
-            # Get resource manager
-            self.resource_manager = get_resource_manager()
-            
-            # Get game engine
-            self.game_engine = get_game_engine()
+        super().__init__()
+        
+        # --- CURSOR SETUP ---
+        self._setup_cursors()
+        self.setCursor(self.normal_cursor)
+        # --- END CURSOR SETUP ---
+        
+        self._previous_mode = None # Track previous mode for transitions
+        
+        # Get resource manager
+        self.resource_manager = get_resource_manager()
+        
+        # Get game engine
+        self.game_engine = get_game_engine()
 
-            # Register this MainWindow with the engine so orchestrator/engine can nudge UI updates
-            try:
-                self.game_engine.main_window_ref = weakref.ref(self)
-            except Exception:
-                pass
+        # Register this MainWindow with the engine so orchestrator/engine can nudge UI updates
+        try:
+            self.game_engine.main_window_ref = weakref.ref(self)
+        except Exception:
+            pass
 
-            # Set minimum size based on reasonable content size hint
-            self.setMinimumSize(1024, 700) # Set a sensible minimum size
+        # Set minimum size based on reasonable content size hint
+        self.setMinimumSize(1024, 700) # Set a sensible minimum size
 
-            # Store character data temporarily during animation
-            self._character_data_for_new_game: Optional[Dict[str, Any]] = None
+        # Store character data temporarily during animation
+        self._character_data_for_new_game: Optional[Dict[str, Any]] = None
 
-            # Set up the UI
-            self._setup_ui()
-            
-            self._apply_link_cursor_to_buttons()
-            self._apply_text_cursor_to_text_widgets()
+        # Set up the UI
+        self._setup_ui()
+        
+        self._apply_link_cursor_to_buttons()
+        self._apply_text_cursor_to_text_widgets()
 
-            # Connect signals and slots
-            self._connect_signals()
-            
-            # Apply initial styling
-            self._update_styling()
+       # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
 
-            self._last_submitted_command = None
+        # Connect signals and slots
+        self._connect_signals()
+
+        # Apply initial styling from the theme
+        self._update_theme()
+
+        self._last_submitted_command = None
 
     def _setup_cursors(self):
         """Load custom cursors from image files."""
@@ -643,25 +638,6 @@ class MainWindow(QMainWindow):
              logger.info("Connected orchestrator's resume_combat_manager to engine's handler for post-closing-narrative.")
         else:
              logger.error("Could not connect orchestrator's resume signal to engine.")
-             
-    @Slot(dict)
-    def _handle_stats_update(self, stats_data: dict):
-        """Handle updates received directly from StatsManager."""
-        logger.debug("Received stats update signal in MainWindow")
-        state = self.game_engine.state_manager.current_state
-        if state:
-            # Update Character Sheet (Right Panel)
-            # This ensures character sheet gets all data including combat status
-            if self.right_panel and hasattr(self.right_panel, 'update_character'):
-                self.right_panel.update_character(state.player) # Pass player state for full context
-                logger.debug("Updated CharacterSheet (RightPanel) from stats signal.")
-
-            # Update Combat Display if in Combat Mode
-            if state.current_mode == InteractionMode.COMBAT:
-                logger.debug("Updating CombatDisplay from stats signal")
-                self.combat_display.update_display(state) 
-            
-            # Any other UI elements that need to react to general stats changes can be updated here.
 
     def _setup_stats_refresh(self):
         """Set up player command tracking and direct signal connections instead of timer-based refresh."""
@@ -1353,7 +1329,7 @@ class MainWindow(QMainWindow):
                      self.resize(resolution[0], resolution[1]) # Use tuple values
 
             # Update styling (includes non-background styles)
-            self._update_styling()
+            self._update_theme()
 
             # Explicitly apply the *saved* background setting after dialog closes
             q_settings = QSettings("RPGGame", "Settings")
@@ -1363,10 +1339,6 @@ class MainWindow(QMainWindow):
                  self.update_background(saved_filename)
             else:
                  logger.warning("Could not read saved background filename after settings dialog closed.")
-
-            # Update UI based on new settings (e.g., status bar, panels)
-            # self._update_ui() # Update UI can be complex, might re-trigger things, maybe call specific updates?
-            # Let's rely on the window state change and styling update for now.
 
             # Reload autosave settings (turn-based) in the engine
             try:
@@ -1493,51 +1465,6 @@ class MainWindow(QMainWindow):
              # update_background will handle the fallback color if name is None
 
         self.update_background(final_filename) # Pass None if no background is available
-
-    def _update_styling(self):
-        """Update UI styling based on saved settings."""
-        # Update game output styling and formats
-        self.game_output._update_formats()
-        self.game_output._setup_background()
-        
-        # Get settings for command input styling
-        settings = QSettings("RPGGame", "Settings")
-        
-        # Update command input styling
-        user_input_font_family = settings.value("style/user_input_font_family", "Garamond")
-        user_input_font_size = int(settings.value("style/user_input_font_size", 14))
-        
-        # Get transparency setting
-        input_opacity = int(settings.value("style/input_opacity", 100))
-        opacity_percent = input_opacity / 100.0
-        
-        # Calculate RGB values for the background
-        bg_color_obj = QColor(COLORS['background_dark_transparent'])
-        r, g, b = bg_color_obj.red(), bg_color_obj.green(), bg_color_obj.blue()
-        
-        # --- SCOPED STYLING ---
-        # Apply specific styles to the command inputs using their object names
-        # This prevents the QLineEdit style from leaking to other dialogs.
-        self.setStyleSheet(f"""
-            CommandInputWidget#NarrativeCommandInput, CommandInputWidget#CombatCommandInput {{
-                background-color: rgba({r}, {g}, {b}, {opacity_percent});
-                border-radius: 10px;
-                padding: 5px;
-                border: 2px solid {COLORS['border_dark']};
-            }}
-            CommandInputWidget#NarrativeCommandInput QLineEdit, CommandInputWidget#CombatCommandInput QLineEdit {{
-                background-color: {COLORS['input_background']};
-                color: {COLORS['input_text']};
-                border: 1px solid {COLORS['input_border']};
-                border-radius: 4px;
-                padding: 8px;
-                font-family: '{user_input_font_family}';
-                font-size: {user_input_font_size}pt;
-                margin-left: 5px;
-                margin-right: 5px;
-            }}
-        """)
-        # --- END SCOPED STYLING ---
     
     def _show_llm_settings_dialog(self):
         """Show dialog for LLM settings."""
@@ -2393,3 +2320,36 @@ class MainWindow(QMainWindow):
         
         self._update_ui()
 
+    @Slot(dict)
+    def _handle_stats_update(self, stats_data: dict):
+        """Handle updates received directly from StatsManager."""
+        logger.debug("Received stats update signal in MainWindow")
+        state = self.game_engine.state_manager.current_state
+        if state:
+            # Update Character Sheet (Right Panel)
+            # This ensures character sheet gets all data including combat status
+            if self.right_panel and hasattr(self.right_panel, 'update_character'):
+                self.right_panel.update_character(state.player) # Pass player state for full context
+                logger.debug("Updated CharacterSheet (RightPanel) from stats signal.")
+
+            # Update Combat Display if in Combat Mode
+            if state.current_mode == InteractionMode.COMBAT:
+                logger.debug("Updating CombatDisplay from stats signal")
+                self.combat_display.update_display(state) 
+            
+            # Any other UI elements that need to react to general stats changes can be updated here.
+
+    @Slot()
+    def _update_theme(self):
+        """Update UI styling based on the current theme palette."""
+        self.palette = self.theme_manager.get_current_palette()
+        
+        # Update game output styling and formats which depend on the theme
+        if hasattr(self, 'game_output'):
+            self.game_output._update_formats()
+            self.game_output._setup_background()
+        
+        # CommandInputWidget now handles its own theme updates via a signal,
+        # so no need to apply its stylesheet from here.
+        
+        logger.info("Main window theme updated.")
