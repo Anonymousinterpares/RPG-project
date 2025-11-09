@@ -35,6 +35,7 @@ from gui.components.combat_display import CombatDisplay
 from gui.utils.resource_manager import get_resource_manager
 from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
 from gui.styles.theme_manager import ThemeManager, get_theme_manager
+from gui.dialogs.settings.settings_dialog import SettingsDialog
 
 logger = get_logger("GUI")
 
@@ -327,12 +328,13 @@ class MainWindow(QMainWindow):
             logger.info("Connected GameOutputWidget.visualDisplayComplete to Orchestrator.")
         else:
             logger.error("Failed to connect GameOutputWidget.visualDisplayComplete: Attribute or slot missing.")
-        self.narrative_layout.addWidget(self.game_output, 1)
         
         self.narrative_command_input = CommandInputWidget()
-        # Set object name for specific styling
         self.narrative_command_input.setObjectName("NarrativeCommandInput")
-        self.narrative_layout.addWidget(self.narrative_command_input, 0)
+        
+        # Place the command input inside the game output widget
+        self.game_output.set_command_input_widget(self.narrative_command_input)
+        self.narrative_layout.addWidget(self.game_output, 1)
         
         self.combat_display = CombatDisplay()
         self.combat_display.log_text.setCursor(self.normal_cursor) # Force normal cursor
@@ -343,11 +345,13 @@ class MainWindow(QMainWindow):
             logger.info("Connected CombatDisplay.visualDisplayComplete to Orchestrator.")
         else:
             logger.error("Failed to connect CombatDisplay.visualDisplayComplete: Attribute or slot missing.")
-        self.combat_layout.addWidget(self.combat_display, 1)
-        
+
         self.combat_command_input = CommandInputWidget()
-        # Set object name for specific styling
         self.combat_command_input.setObjectName("CombatCommandInput")
+        
+        # Placeholder: CombatDisplay will need a method similar to set_command_input_widget
+        # For now, we add it to the layout, but this will be changed.
+        self.combat_layout.addWidget(self.combat_display, 1)
         self.combat_layout.addWidget(self.combat_command_input, 0)
         
         self.mode_stacked_widget.addWidget(self.narrative_view)
@@ -377,8 +381,6 @@ class MainWindow(QMainWindow):
 
         self._initialize_panel_effects() 
         
-        # Initial state: center, right, and status bar are part of the layout but fully transparent and disabled.
-        # setVisible(True) is important for them to be considered by the layout manager from the start.
         self.center_widget.setVisible(True) 
         self.center_widget.setEnabled(False)
         if hasattr(self, 'center_opacity_effect'):
@@ -1248,7 +1250,6 @@ class MainWindow(QMainWindow):
     def _show_settings_dialog(self):
         """Show dialog for game settings."""
         logger.info("Attempting to show SettingsDialog...") # Log entry
-        from gui.dialogs.settings.settings_dialog import SettingsDialog
         logger.info("Imported SettingsDialog.") # Log import success
 
         try:

@@ -8,12 +8,12 @@ from typing import Optional, List
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QLineEdit, QPushButton, 
-    QFrame
+    QFrame, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal, Slot, QSettings, QSize
-from PySide6.QtGui import QColor, QIcon
+from PySide6.QtCore import Qt, Signal, Slot, QSize
+from PySide6.QtGui import QIcon, QPixmap
 
-from gui.styles.stylesheet_factory import create_round_image_button_style
+from gui.styles.stylesheet_factory import create_overlay_command_input_style, create_round_image_button_style
 from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
 
@@ -57,21 +57,21 @@ class CommandInputWidget(QFrame):
         """Set up the user interface."""
         # Create the main layout
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(10, 5, 10, 5) # Adjusted vertical margins for a tighter fit
         
         # Create the command line edit
         self.command_edit = QLineEdit()
         self.command_edit.setPlaceholderText("Enter a command or type 'help'...")
         
-        # Create the submit button without text and with a fixed size
+        # Create the submit button
         self.submit_button = QPushButton("")
-        self.submit_button.setFixedSize(40, 40) # Set a fixed size for the round button
-        # Set the size for the icon that will be placed on the button
-        self.submit_button.setIconSize(QSize(38, 38)) # Slightly smaller for padding
+        self.submit_button.setFixedSize(40, 40)
+        self.submit_button.setIconSize(QSize(38, 38))
+        self.submit_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed) # Explicitly set size policy
         
         # Add widgets to the layout
-        layout.addWidget(self.command_edit, 1)
-        layout.addWidget(self.submit_button)
+        layout.addWidget(self.command_edit, 1) # Line edit will stretch
+        layout.addWidget(self.submit_button, 0) # Button will not stretch
     
     def _connect_signals(self):
         """Connect signals to slots."""
@@ -156,53 +156,21 @@ class CommandInputWidget(QFrame):
         if palette:
             self.palette = palette
         
-        colors = self.palette['colors']
-        fonts = self.palette['fonts']
-        paths = self.palette['paths']
-
-        # Get opacity from QSettings
-        settings = QSettings("RPGGame", "Settings")
-        input_opacity = int(settings.value("style/input_opacity", 100)) / 100.0
-        
-        # Extract RGBA components for the background
-        try:
-            color = QColor(colors['bg_dark_transparent'])
-            r, g, b = color.red(), color.green(), color.blue()
-        except Exception:
-            r, g, b = 26, 20, 16 # Fallback
-            
-        # Style the main widget background HERE
-        self.setStyleSheet(f"""
-            CommandInputWidget {{
-                background-color: rgba({r}, {g}, {b}, {input_opacity});
-                border-radius: 10px;
-                padding: 5px;
-                border: 2px solid {colors['border_dark']};
-            }}
+        # Make the main widget frame completely transparent
+        self.setStyleSheet("""
+            CommandInputWidget {
+                background-color: transparent;
+                border: none;
+            }
         """)
         
-        # Style for the command line edit
-        self.command_edit.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {colors['input_background']};
-                color: {colors['input_text']};
-                border: 1px solid {colors['input_border']};
-                border-radius: 4px;
-                padding: 8px;
-                font-family: '{fonts['family_user_input']}';
-                font-size: {fonts['size_user_input']}pt;
-                margin-left: 5px;
-                margin-right: 5px;
-            }}
-            QLineEdit:focus {{
-                border-color: {colors['text_primary']};
-            }}
-        """)
+        # Style for the command line edit (transparent background with border)
+        self.command_edit.setStyleSheet(create_overlay_command_input_style(self.palette))
         
-        # Load the icon from the theme path and set it on the button
-        icon_path = paths.get('send_button_icon', '')
-        if icon_path:
-            self.submit_button.setIcon(QIcon(icon_path))
+        # The button's icon is now fully managed by the stylesheet.
+        # We no longer need to set it here in the Python code.
+        self.submit_button.setIcon(QIcon()) # Clear any previously set icon
         
-        # Apply the transparent, round stylesheet from the factory
+        # Apply the stylesheet from the factory, which now handles both normal and pressed states
         self.submit_button.setStyleSheet(create_round_image_button_style(self.palette, 40))
+

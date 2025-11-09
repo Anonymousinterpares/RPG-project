@@ -54,6 +54,7 @@ THEME = {
         'input_background': 'rgba(255, 255, 255, 0.7)',
         'input_border': '#c4b59d',
         'input_text': '#0d47a1',
+        'input_overlay_border': '#4a3a30', # New key for the overlay input border
         
         'output_text_main': '#3b2f1e',
         'output_text_system': '#a03628',
@@ -102,6 +103,7 @@ THEME = {
         'button_hover': 'images/gui/button_hover.png',
         'button_pressed': 'images/gui/button_pressed.png',
         'send_button_icon': 'images/gui/send_button_red_stamp.png',
+        'send_button_icon_clicked': 'images/gui/send_button_red_stamp_clicked.png',
         'combat_display_main': 'images/gui/combat_display/background_game_output.png',
         'combat_display_panel': 'images/gui/combat_display/background_game_output.png',
     },

@@ -8,7 +8,7 @@ This module provides a widget for displaying game output.
 import logging
 from typing import List, Optional, Dict, Any, Iterator, Tuple
 
-from PySide6.QtWidgets import QTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QFrame
+from PySide6.QtWidgets import QTextEdit, QWidget, QHBoxLayout, QFrame, QStackedLayout, QVBoxLayout
 from PySide6.QtGui import QTextCursor, QColor, QTextCharFormat, QFont
 from PySide6.QtCore import Qt, QTimer, Signal, QSettings, QDir, Slot
 
@@ -56,28 +56,24 @@ class GameOutputWidget(QFrame):
         self.gm_format = QTextCharFormat()
         self.player_format = QTextCharFormat()
         self.default_format = QTextCharFormat()
+        
+        # This will hold the reference to the command input overlay
+        self.command_input_widget: Optional[QWidget] = None
+
+        self._update_theme() # Apply theme on init
 
         self.skill_check_display = SkillCheckDisplay()
         self.skill_check_display.setVisible(False)
         self.skill_check_display.display_finished.connect(self._on_skill_check_finished)
 
+        # Use a simple QVBoxLayout containing only the text edit
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 0, 0, 0) # No margins on the outer frame
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
-
-        # The content_widget is no longer necessary, we can add QTextEdit directly
         self.main_layout.addWidget(self.text_edit)
 
-        # Skill check will now overlay on top, which is fine
-        skill_check_container = QWidget(self.text_edit)
-        skill_check_layout = QHBoxLayout(skill_check_container)
-        skill_check_layout.setContentsMargins(0,0,0,0)
-        skill_check_layout.addStretch()
-        skill_check_layout.addWidget(self.skill_check_display)
-        skill_check_layout.addStretch()
-        # This makes the container transparent and allows it to resize with the text_edit
-        skill_check_container.setAttribute(Qt.WA_TranslucentBackground)
-        skill_check_container.resize(self.text_edit.size())
+        # The skill check display will be a direct child for overlaying
+        self.skill_check_display.setParent(self)
 
         self._gradual_text_iterator: Optional[Iterator[str]] = None
         self._gradual_text_format: Optional[QTextCharFormat] = None
@@ -124,28 +120,39 @@ class GameOutputWidget(QFrame):
         self.default_format.setFont(QFont(font_family, font_size))
 
     def _setup_background(self):
-        """Set up the styled background for the game output from the theme."""
+        """Set up the styled background for the game output."""
         colors = self.palette.get('colors', {})
         fonts = self.palette.get('fonts', {})
         paths = self.palette.get('paths', {})
         
-        # Get font settings from QSettings
         settings = self.settings
         font_family = settings.value("style/font_family", fonts.get('family_main', "Garamond"))
         font_size = int(settings.value("style/font_size", fonts.get('size_main_output', 14)))
         
         background_image_path = paths.get('background_main_output', "images/gui/background_game_output.png")
 
-        self.text_edit.setStyleSheet(f"""
-            QTextEdit {{
+        # Set the background on the parent frame (GameOutputWidget itself)
+        self.setStyleSheet(f"""
+            GameOutputWidget {{
                 background-image: url('{background_image_path}');
                 background-attachment: fixed;
-                color: {colors.get('output_text_main', '#3b2f1e')};
                 border: 2px solid {colors.get('border_dark', '#4a3a30')};
                 border-radius: 15px;
+            }}
+        """)
+
+        # Make the QTextEdit transparent and add bottom padding for the command input
+        self.text_edit.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: transparent;
+                color: {colors.get('output_text_main', '#3b2f1e')};
+                border: none;
                 font-family: '{font_family}';
                 font-size: {font_size}pt;
-                padding: 20px;
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 20px;
+                padding-bottom: 70px; /* Creates space for the command input */
             }}
             QScrollBar:vertical {{
                 border: none;
@@ -158,16 +165,38 @@ class GameOutputWidget(QFrame):
                 min-height: 30px;
                 border-radius: 7px;
             }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
-                background: none;
-            }}
         """)
 
-        # This is the crucial part to remove the black frame artifact.
         self.text_edit.viewport().setAutoFillBackground(False)
+
+    def set_command_input_widget(self, command_widget: QWidget):
+        """Stores a reference to the command input widget and sets its parent."""
+        self.command_input_widget = command_widget
+        self.command_input_widget.setParent(self)
+        self.command_input_widget.show()
+
+    def resizeEvent(self, event):
+        """Handle resize events to manually position overlay widgets."""
+        super().resizeEvent(event)
+        
+        # Position the command input widget at the bottom
+        if self.command_input_widget:
+            # Use a small margin from the edges
+            margin = 10
+            widget_height = self.command_input_widget.sizeHint().height()
+            
+            # Calculate geometry
+            x = margin
+            y = self.height() - widget_height - margin
+            width = self.width() - (2 * margin)
+            
+            self.command_input_widget.setGeometry(x, y, width, widget_height)
+
+        # Position the skill check display in the center
+        if self.skill_check_display and self.skill_check_display.isVisible():
+            x = (self.width() - self.skill_check_display.width()) / 2
+            y = (self.height() - self.skill_check_display.height()) / 2
+            self.skill_check_display.move(int(x), int(y))
 
     def append_text(self, text: str, format: Optional[QTextCharFormat] = None, gradual: bool = True):
         """Append text to the output with the specified format.

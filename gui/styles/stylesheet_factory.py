@@ -67,23 +67,28 @@ def create_image_button_style(palette: Dict[str, Any]) -> str:
     """
 
 def create_round_image_button_style(palette: Dict[str, Any], size: int) -> str:
-    """Creates a style for a transparent, round button meant to hold an icon."""
+    """Creates a style for a round button with a normal and pressed icon state."""
+    paths = palette.get('paths', {})
+    icon_normal_path = paths.get('send_button_icon', '').replace("\\", "/")
+    icon_clicked_path = paths.get('send_button_icon_clicked', '').replace("\\", "/")
     radius = size // 2
     
     return f"""
         QPushButton {{
+            image: url('{icon_normal_path}');
             background-color: transparent;
             border: none;
             width: {size}px;
             height: {size}px;
             border-radius: {radius}px;
-            padding: 0px; /* Important for icon positioning */
+            padding: 0px;
         }}
         QPushButton:hover {{
-            /* Optional: Add a subtle glow effect here if desired */
+            /* Optional: Add a subtle glow or overlay */
         }}
         QPushButton:pressed {{
-            /* Move the icon slightly down and to the right to simulate a press */
+            image: url('{icon_clicked_path}');
+            /* Optional: Add a small padding shift to enhance the "press" feel */
             padding-top: 2px;
             padding-left: 1px;
         }}
@@ -196,5 +201,24 @@ def create_combat_display_style(palette: Dict[str, Any]) -> str:
         QLabel#roundLabel {{
             color: {colors['combat_round_text']};
             font-size: {fonts['size_status']}pt;
+        }}
+    """
+
+def create_overlay_command_input_style(palette: Dict[str, Any]) -> str:
+    """Creates the style for the transparent, bordered QLineEdit used as an overlay."""
+    colors = palette['colors']
+    fonts = palette['fonts']
+    return f"""
+        QLineEdit {{
+            background-color: transparent;
+            color: {colors['input_text']};
+            border: 2px solid {colors['input_overlay_border']};
+            border-radius: 4px;
+            padding: 8px;
+            font-family: '{fonts['family_user_input']}';
+            font-size: {fonts['size_user_input']}pt;
+        }}
+        QLineEdit:focus {{
+            border-color: {colors['text_primary']};
         }}
     """
