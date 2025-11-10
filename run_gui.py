@@ -22,7 +22,7 @@ def run_gui():
     logger.info("Initializing GUI application")
     
     try:
-        # Initialize game engine early to start background tasks (like audio)
+        # Initialize game engine early for non-GUI tasks
         engine = get_game_engine()
 
         # Initialize all game modules
@@ -31,6 +31,9 @@ def run_gui():
         # Create Qt Application
         app = QApplication(sys.argv)
         app.setApplicationName("RPG Game")
+        
+        # Initialize audio backend now that QApplication exists
+        engine.init_audio_backend()
         
         # Initialize default settings
         init_default_settings()

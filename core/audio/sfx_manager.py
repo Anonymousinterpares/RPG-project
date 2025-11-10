@@ -242,44 +242,42 @@ class SFXManager:
     def _pick_variant_path(self, file_rel: Any) -> Optional[str]:
         """Given a mapping entry that may be a string path or list of paths,
         resolve to an absolute file path and, if multiple variants are available,
-        return a random choice. A variant is detected if sibling files share the
-        same stem prefix (e.g., *_01, *_02) or if a list is provided.
+        return a random choice. This method is extension-agnostic; it will match
+        any supported audio file with the same base name.
         """
         try:
             import random as _rnd
             candidates: List[str] = []
-            # List form in mapping
-            if isinstance(file_rel, list):
-                for rel in file_rel:
-                    full = self._abs_path(str(rel))
-                    if full:
-                        candidates.append(full)
-            elif isinstance(file_rel, str):
-                full = self._abs_path(file_rel)
-                if full:
-                    candidates.append(full)
-                # Expand sibling variants with the same prefix
-                try:
-                    p = Path(self._project_root / "sound" / file_rel)
-                    parent = p.parent.resolve()
-                    stem = p.stem.lower()
-                    # derive prefix by stripping trailing _NN digits if present
-                    import re as _re
-                    m = _re.match(r"^(.*?)(?:_?\d+)?$", stem)
-                    prefix = m.group(1) if m else stem
-                    exts = {".mp3", ".ogg", ".wav", ".flac"}
+            
+            # Normalize the input to a list of strings
+            rel_paths = file_rel if isinstance(file_rel, list) else [file_rel]
+            
+            exts = {".mp3", ".ogg", ".wav", ".flac"}
+
+            for rel_path in rel_paths:
+                if not isinstance(rel_path, str):
+                    continue
+
+                # Get the full path and strip the extension to get a base name
+                p = Path(self._project_root / "sound" / rel_path)
+                parent = p.parent.resolve()
+                
+                # Remove known extension to get the base stem for searching
+                stem_base = p.stem
+                for ext in exts:
+                    if stem_base.endswith(ext):
+                        stem_base = stem_base[:-len(ext)]
+                        break # Assumes only one extension suffix
+
+                # Find all files in the directory that match the base name + any supported extension
+                if parent.exists():
                     for sibling in parent.iterdir():
-                        try:
-                            if sibling.is_file() and sibling.suffix.lower() in exts:
-                                s_stem = sibling.stem.lower()
-                                if s_stem.startswith(prefix):
-                                    abs_s = str(sibling.resolve())
-                                    if abs_s not in candidates:
-                                        candidates.append(abs_s)
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
+                        if sibling.is_file() and sibling.suffix.lower() in exts:
+                            if sibling.stem.lower().startswith(stem_base.lower()):
+                                abs_s = str(sibling.resolve())
+                                if abs_s not in candidates:
+                                    candidates.append(abs_s)
+
             # Unique and choose
             candidates = list(dict.fromkeys(candidates))
             if not candidates:
