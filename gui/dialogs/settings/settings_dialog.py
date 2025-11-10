@@ -258,6 +258,15 @@ class SettingsDialog(BaseDialog):
         # Add sound tab to tab widget
         self.tab_widget.addTab(sound_tab, "Sound")
 
+    @Slot(bool)
+    def _update_dev_options_state(self, checked):
+        """Update the state of developer-only checkboxes."""
+        self.stats_logs_checkbox.setEnabled(checked)
+        self.startup_trace_checkbox.setEnabled(checked)
+        if not checked:
+            self.stats_logs_checkbox.setChecked(False)
+            self.startup_trace_checkbox.setChecked(False)
+
     def _setup_gameplay_tab(self):
         """Set up the gameplay settings tab."""
         # Create gameplay tab
@@ -273,9 +282,13 @@ class SettingsDialog(BaseDialog):
         # Stats Manager logs visibility (shown only when Dev Mode is enabled)
         self.stats_logs_checkbox = QCheckBox("Show stats_manager logs")
         dev_layout.addWidget(self.stats_logs_checkbox)
+
+        # Startup Trace visibility (shown only when Dev Mode is enabled)
+        self.startup_trace_checkbox = QCheckBox("Enable Startup Trace")
+        dev_layout.addWidget(self.startup_trace_checkbox)
         
-        # Enable/disable stats logs checkbox based on developer mode
-        self.dev_mode_checkbox.toggled.connect(self.stats_logs_checkbox.setEnabled)
+        # Enable/disable dev-only checkboxes based on developer mode
+        self.dev_mode_checkbox.toggled.connect(self._update_dev_options_state)
         gameplay_layout.addWidget(dev_group)
 
         # Create form layout for settings
@@ -444,6 +457,14 @@ class SettingsDialog(BaseDialog):
         # Enable only when dev mode is enabled
         self.stats_logs_checkbox.setEnabled(bool(dev_enabled))
 
+        # Load startup trace enabled (default to False)
+        startup_trace_enabled = self.settings.value("dev/startup_trace_enabled", False)
+        if isinstance(startup_trace_enabled, str):
+            startup_trace_enabled = startup_trace_enabled.lower() == "true"
+        self.startup_trace_checkbox.setChecked(bool(startup_trace_enabled))
+        # Enable only when dev mode is enabled
+        self.startup_trace_checkbox.setEnabled(bool(dev_enabled))
+
         # Load style settings
         if hasattr(self, 'style_tab'):
             self.style_tab._load_settings() 
@@ -546,6 +567,8 @@ class SettingsDialog(BaseDialog):
         self.settings.setValue("dev/enabled", self.dev_mode_checkbox.isChecked())
         # Save stats_manager logs visibility
         self.settings.setValue("dev/show_stats_manager_logs", self.stats_logs_checkbox.isChecked())
+        # Save startup trace enabled
+        self.settings.setValue("dev/startup_trace_enabled", self.startup_trace_checkbox.isChecked())
 
         # Save style settings (unchanged)
         if hasattr(self, 'style_tab'):

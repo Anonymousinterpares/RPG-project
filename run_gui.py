@@ -31,6 +31,19 @@ def run_gui():
         
         # Initialize default settings
         init_default_settings()
+
+        # Conditionally activate startup tracer
+        try:
+            from PySide6.QtCore import QSettings
+            settings = QSettings("RPGGame", "Settings")
+            dev_mode = settings.value("dev/enabled", False, type=bool)
+            trace_enabled = settings.value("dev/startup_trace_enabled", False, type=bool)
+            if dev_mode and trace_enabled:
+                import core.utils.startup_trace
+                core.utils.startup_trace.activate()
+                logger.info("Startup tracer activated.")
+        except Exception as e:
+            logger.error(f"Failed to check or activate startup tracer: {e}")
         
         # Apply stats_manager logging visibility based on settings
         try:
