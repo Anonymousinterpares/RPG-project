@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QSize, QEasingCurve, Property, QSettings
 from PySide6.QtGui import QIcon, QPixmap, QCursor
 
+from gui.styles.stylesheet_factory import create_main_tab_widget_style
+from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
 from gui.components.character_sheet import CharacterSheetWidget
 from gui.components.inventory_panel import InventoryPanelWidget
@@ -50,29 +52,15 @@ class CollapsibleRightPanel(QFrame):
         """Initialize the right panel widget."""
         super().__init__(parent)
         
-        # Set the desired opacity (0 = fully transparent, 100 = fully opaque)
-        right_panel_opacity_percent = 50
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
         
-        # Convert percentage to alpha value (0.0 to 1.0)
-        alpha_value = right_panel_opacity_percent / 100.0
-
-        # Define the base background color RGB values (from #333333)
-        base_r, base_g, base_b = 51, 51, 51
-        
-        # Set frame properties using rgba for background
+        # Set frame properties
         self.setFrameShape(QFrame.StyledPanel)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
-        self.setStyleSheet(f"""
-            CollapsibleRightPanel {{
-                /* Use rgba for background color with transparency */
-                background-color: rgba({base_r}, {base_g}, {base_b}, {alpha_value}); 
-                
-                /* Keep other styles */
-                border: 1px solid #555555; 
-                border-radius: 5px;
-            }}
-            /* Child widgets like QTabWidget will have their own styles set below */
-        """)
         
         # Get resource manager
         self.resource_manager = get_resource_manager()
@@ -85,12 +73,15 @@ class CollapsibleRightPanel(QFrame):
         
         # Set up the UI
         self._setup_ui()
+        
+        # Apply initial theme
+        self._update_theme()
     
     def _setup_ui(self):
         """Set up the user interface."""
         # Create the main layout
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setContentsMargins(0, 10, 0, 0) # Align with game_output top
         self.main_layout.setSpacing(0)
         
         # Create tab widget with custom tab bar
@@ -100,57 +91,6 @@ class CollapsibleRightPanel(QFrame):
         
         # Connect custom tab bar signal
         self.custom_tab_bar.tab_clicked_twice.connect(self.toggle_expanded)
-        
-        # Style the tab widget
-        self.tab_widget.setStyleSheet("""
-            QTabWidget,
-            QTabWidget QWidget, /* Target widgets directly inside QTabWidget */
-            QTabWidget QScrollArea,
-            QTabWidget QScrollArea > QWidget > QFrame, /* Target frames within scroll areas */
-            QTabWidget QScrollArea > QWidget { /* Target viewport widget */
-                background-color: transparent; /* Make immediate children transparent */
-                color: #E0E0E0;
-                border: none;
-            }
-            QTabWidget::pane { /* The area behind the tabs' content */
-                background-color: #2E2E2E; /* Opaque dark color - slightly different from panel bg */
-                border: 1px solid #444444;
-                border-top: none; /* Remove top border as it's covered by tabs */
-                border-radius: 0px; /* Pane doesn't need radius if panel has it */
-                padding: 5px; /* Add some padding for content */
-                margin: 0px;
-            }
-            QTabBar::tab { /* Individual tabs */
-                background-color: #444444; /* Opaque tab background */
-                color: #BBBBBB;
-                border: 1px solid #555555;
-                border-bottom: none;
-                border-top-left-radius: 5px;
-                border-top-right-radius: 5px;
-                padding: 8px 12px;
-                margin-right: 2px;
-            }
-            QTabBar::tab:selected { /* Selected tab */
-                background-color: #2E2E2E; /* Match the pane background */
-                color: #E0E0E0;
-                border-bottom: 1px solid #2E2E2E; /* Make it look connected */
-            }
-            QTabBar::tab:hover:!selected { /* Hovered non-selected tab */
-                background-color: #505050;
-            }
-            /* Ensure specific content widgets (like CharacterSheetWidget) have transparent backgrounds */
-            /* if you want the pane background (#2E2E2E) to show through */
-            CharacterSheetWidget, InventoryPanelWidget, JournalPanelWidget {
-                 background-color: transparent;
-            }
-            /* Inputs across right panel */
-            QTabWidget QLineEdit, QTabWidget QComboBox {
-                background-color: #2E2E2E;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                padding: 4px;
-            }
-        """)
         
         # Create tabs
         self.character_sheet = CharacterSheetWidget()
@@ -173,46 +113,9 @@ class CollapsibleRightPanel(QFrame):
         except Exception:
             pass
         
-        # Create toggle button (only visible when collapsed)
-        self.toggle_button = QToolButton()
-        self.toggle_button.setIcon(self.resource_manager.get_icon("toggle_button_right")) # This icon might need to change based on state
-        self.toggle_button.setIconSize(QSize(16, 16))
-        self.toggle_button.setStyleSheet("""
-            QToolButton {
-                background-color: #444444;
-                border: 1px solid #555555;
-                border-radius: 3px;
-                padding: 3px;
-            }
-            QToolButton:hover {
-                background-color: #555555;
-            }
-            QToolButton:pressed {
-                background-color: #333333;
-            }
-        """)
-        self.toggle_button.clicked.connect(self.toggle_expanded)
-        
-        # Always show the toggle button
-        self.toggle_button.setVisible(True)
-        
         # Create stacked widget to switch between tab widget and collapsed view
         self.stacked_widget = QStackedWidget()
         self.stacked_widget.addWidget(self.tab_widget)  # Index 0: Expanded view with tabs
-        
-        # We don't use a separate collapsed view anymore
-        # Instead, just modify the width of the panel while keeping tabs visible
-        # This way, users can always see tab headers and expand the panel by clicking on them
-        
-        # Add toggle button directly to the main layout
-        toggle_container = QWidget()
-        toggle_layout = QHBoxLayout(toggle_container) # Changed to QHBoxLayout for horizontal alignment
-        toggle_layout.setContentsMargins(0, 5, 5, 0) # Add right margin
-        toggle_layout.addStretch() # Push button to the right
-        toggle_layout.addWidget(self.toggle_button) # No alignment needed if stretch is used
-        
-        # Add toggle container to top of main layout
-        self.main_layout.addWidget(toggle_container) # Add the container
         
         # Add stacked widget to main layout
         self.main_layout.addWidget(self.stacked_widget)
@@ -268,14 +171,6 @@ class CollapsibleRightPanel(QFrame):
         self._animation.setEndValue(target_width)
         self._animation.setEasingCurve(QEasingCurve.InOutCubic)
         self._animation.start()
-
-        # Update toggle button icon
-        if self._expanded:
-            self.toggle_button.setIcon(self.resource_manager.get_icon("toggle_button_right"))
-            self.toggle_button.setToolTip("Collapse Panel")
-        else:
-            self.toggle_button.setIcon(self.resource_manager.get_icon("toggle_button_left"))
-            self.toggle_button.setToolTip("Expand Panel")
     
     def set_dev_context_tab_enabled(self, enabled: bool):
         """Add or remove the Context tab based on 'enabled'."""
@@ -384,3 +279,34 @@ class CollapsibleRightPanel(QFrame):
                 self.grimoire_panel.refresh({}, None, 0.0, 0.0)
             except Exception:
                 pass
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        paths = self.palette['paths']
+
+        self.setStyleSheet(f"""
+            CollapsibleRightPanel {{
+                background-color: transparent;
+                border: none;
+            }}
+            QTabWidget, QTabWidget QWidget, QTabWidget QScrollArea,
+            QTabWidget QScrollArea > QWidget,
+            QTabWidget QScrollArea > QWidget > QWidget {{
+                background-color: transparent;
+                border: none;
+            }}
+        """)
+        
+        self.tab_widget.setStyleSheet(create_main_tab_widget_style(self.palette))
+        
+        # Propagate theme update to child panels
+        for panel in [self.character_sheet, self.inventory_panel, self.journal_panel, self.grimoire_panel]:
+            if hasattr(panel, '_update_theme'):
+                panel._update_theme(self.palette)
+        if hasattr(self, 'context_panel') and hasattr(self.context_panel, '_update_theme'):
+            self.context_panel._update_theme(self.palette)

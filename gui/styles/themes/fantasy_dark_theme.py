@@ -104,6 +104,7 @@ THEME = {
     'paths': {
         'background_main_output': 'images/gui/background_game_output.png',
         'menu_panel_background': 'images/gui/menu_panel_metal.PNG',
+        'right_panel_background': 'images/gui/right_menu_panel_metal.PNG',
         'button_normal': 'images/gui/button_normal.png',
         'button_hover': 'images/gui/button_hover.png',
         'button_pressed': 'images/gui/button_pressed.png',

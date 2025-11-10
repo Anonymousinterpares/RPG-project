@@ -6,6 +6,169 @@ This centralizes the construction of styles, ensuring consistency.
 from typing import Dict, Any
 from PySide6.QtGui import QColor
 
+def create_main_tab_widget_style(palette: Dict[str, Any]) -> str:
+    """Creates the style for a primary QTabWidget."""
+    colors = palette['colors']
+    return f"""
+        QTabWidget {{
+            background-color: {colors['bg_medium']};
+            border: 1px solid {colors['border_dark']};
+            border-radius: 5px;
+        }}
+        QTabWidget::pane {{
+            background-color: {colors['bg_medium']};
+            border: 1px solid {colors['border_dark']};
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }}
+        QTabBar::tab {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {colors['bg_light']}, stop:1 {colors['bg_medium']});
+            color: {colors['text_primary']};
+            border: 1px solid {colors['border_dark']};
+            border-bottom: none;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+            padding: 8px 12px;
+            margin-right: 2px;
+            font-weight: 600;
+        }}
+        QTabBar::tab:selected {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {colors['bg_medium']}, stop:1 {colors['bg_dark']});
+            color: {colors['text_bright']};
+            border-bottom: none;
+        }}
+        QTabBar::tab:hover:!selected {{
+            background: {colors['state_hover']};
+            color: {colors['accent_positive']};
+        }}
+    """
+
+def create_secondary_tab_widget_style(palette: Dict[str, Any]) -> str:
+    """Creates the style for a nested/secondary QTabWidget."""
+    colors = palette['colors']
+    return f"""
+        QTabBar::tab {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {colors['bg_light']}, stop:1 {colors['bg_medium']});
+            color: {colors['text_primary']};
+            border: 1px solid {colors['border_dark']};
+            border-bottom: none;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+            padding: 5px 10px;
+            margin-right: 2px;
+        }}
+        QTabBar::tab:selected {{
+            background: {colors['bg_dark']};
+            color: {colors['text_bright']};
+            border-bottom: none;
+        }}
+        QTabBar::tab:hover:!selected {{
+            background: {colors['state_hover']};
+            color: {colors['accent_positive']};
+        }}
+    """
+
+def create_list_widget_style(palette: Dict[str, Any]) -> str:
+    """Creates a standard style for QListWidget."""
+    colors = palette['colors']
+    return f"""
+        QListWidget {{
+            background-color: {colors['bg_dark']};
+            color: {colors['text_bright']};
+            border: 1px solid {colors['border_dark']};
+            border-radius: 3px;
+            alternate-background-color: {colors['bg_medium']};
+        }}
+        QListWidget::item {{
+            padding: 8px;
+            border-bottom: 1px solid {colors['border_dark']};
+        }}
+        QListWidget::item:selected {{
+            background-color: {colors['bg_light']};
+            color: {colors['text_primary']};
+        }}
+        QListWidget::item:hover {{
+            background-color: {colors['state_hover']};
+            color: {colors['accent_positive']};
+        }}
+    """
+
+def create_text_edit_style(palette: Dict[str, Any], read_only: bool = False) -> str:
+    """Creates a standard style for QTextEdit."""
+    colors = palette['colors']
+    selection_bg = colors['state_selected'] if not read_only else 'transparent'
+    return f"""
+        QTextEdit {{
+            background-color: {colors['bg_dark']};
+            color: {colors['text_bright']};
+            border: 1px solid {colors['border_dark']};
+            border-radius: 3px;
+            padding: 8px;
+            selection-background-color: {selection_bg};
+        }}
+    """
+
+def create_styled_button_style(palette: Dict[str, Any]) -> str:
+    """Creates the style for prominent, gradient-based buttons."""
+    colors = palette['colors']
+    return f"""
+        QPushButton {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {colors['bg_light']}, stop:1 {colors['bg_medium']});
+            color: {colors['text_primary']};
+            border: 1px solid {colors['border_dark']};
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-weight: 600;
+        }}
+        QPushButton:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {colors['state_hover']}, stop:1 {colors['bg_light']});
+            border-color: {colors['accent_positive']};
+            color: {colors['accent_positive']};
+        }}
+        QPushButton:pressed {{
+            background: {colors['bg_dark']};
+            border-color: {colors['accent_positive']};
+        }}
+        QPushButton:disabled {{
+            background-color: {colors['bg_dark']};
+            color: {colors['border_dark']};
+            border-color: {colors['bg_medium']};
+        }}
+    """
+
+def create_context_menu_style(palette: Dict[str, Any]) -> str:
+    """Creates a standard style for QMenu."""
+    colors = palette['colors']
+    return f"""
+        QMenu {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {colors['bg_medium']}, stop:1 {colors['bg_dark']});
+            color: {colors['text_bright']};
+            border: 2px solid {colors['border_dark']};
+            border-radius: 4px;
+            padding: 4px;
+        }}
+        QMenu::item {{
+            background-color: transparent;
+            padding: 6px 20px 6px 12px;
+            border-radius: 2px;
+        }}
+        QMenu::item:selected {{
+            background-color: {colors['bg_light']};
+            color: {colors['text_primary']};
+        }}
+        QMenu::separator {{
+            height: 2px;
+            background: {colors['border_dark']};
+            margin: 4px 6px;
+        }}
+    """
+
 def create_image_button_style(palette: Dict[str, Any]) -> str:
     """Creates the style for buttons that use background images."""
     paths = palette['paths']
@@ -126,63 +289,6 @@ def create_dialog_style(palette: Dict[str, Any]) -> str:
         QPushButton:disabled {{
             background-color: {colors['bg_dark']};
             color: {colors['text_disabled']};
-        }}
-    """
-
-def create_combat_display_style(palette: Dict[str, Any]) -> str:
-    """Creates the complex stylesheet for the CombatDisplay widget."""
-    colors = palette['colors']
-    fonts = palette['fonts']
-    paths = palette['paths']
-    dims = palette['dimensions']
-
-    return f"""
-        QFrame#combatContentFrame {{
-            border-image: url("{paths['combat_display_main']}") 0 0 0 0 stretch stretch;
-            padding: 10px;
-        }}
-        QLabel#panelHeaderLabel {{
-            background-color: transparent;
-            color: {colors['combat_panel_title']};
-            font-family: "{fonts['family_header']}";
-            font-size: {fonts['size_header']}pt;
-            font-weight: bold;
-            padding-top: {dims['header_vertical_offset']}px;
-            margin-bottom: 5px;
-        }}
-        /* Background image frames (no border) */
-        QFrame#alliesBGFrame, QFrame#centerBGFrame, QFrame#enemiesBGFrame, QFrame#logBGFrame {{
-            border-image: url('{paths['combat_display_panel']}') 0 0 0 0 stretch stretch;
-            border: none; /* The border is now on the inner frame */
-            border-radius: 15px;
-        }}
-        /* Inner frames that ONLY draw the border */
-        QFrame#panelBorderFrame {{
-            background-color: transparent;
-            border: 2px solid {colors['border_dark']};
-            border-radius: 15px;
-        }}
-        QTextEdit#combatLogText {{
-            background-color: transparent;
-            border: none;
-            color: {colors['log_default_text']};
-            font-family: "{fonts['family_main']}";
-            font-size: {fonts['size_combat_log']}pt;
-            padding: 15px;
-            padding-bottom: 70px; /* Creates space for the command input overlay */
-        }}
-        QLabel#statusLabel, QLabel#roundLabel {{
-            background-color: transparent;
-            font-family: "{fonts['family_main']}";
-            font-weight: bold;
-        }}
-        QLabel#statusLabel {{
-            color: {colors['combat_status_text']};
-            font-size: {fonts['size_status'] + 2}pt;
-        }}
-        QLabel#roundLabel {{
-            color: {colors['combat_round_text']};
-            font-size: {fonts['size_status']}pt;
         }}
     """
 
