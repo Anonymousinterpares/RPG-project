@@ -4,16 +4,16 @@ Skill check display widget for the RPG game GUI.
 This module provides a widget for displaying skill check results in a visual way.
 """
 
-import logging
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, 
-    QProgressBar, QGroupBox, QGraphicsOpacityEffect
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QGraphicsOpacityEffect
 )
-from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QTimer, QSize, Property
+from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QTimer, Property
 from PySide6.QtGui import QFont, QColor, QPainter, QPen, QBrush
 
 from core.stats.skill_check import SkillCheckResult
+from gui.styles.theme_manager import get_theme_manager
 
 
 class DiceWidget(QWidget):
@@ -32,7 +32,19 @@ class DiceWidget(QWidget):
         
         # Set the background to be transparent
         self.setAttribute(Qt.WA_TranslucentBackground)
+        
+        # Theme
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self.update_theme)
     
+    @Slot(dict)
+    def update_theme(self, palette: Optional[dict] = None):
+        """Update colors from the theme palette."""
+        if palette:
+            self.palette = palette
+        self.update() # Trigger repaint with new colors
+
     def get_value(self) -> int:
         """Get the current dice value."""
         return self._value
@@ -75,26 +87,28 @@ class DiceWidget(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
-        # Define the dice colors based on the value
+        colors = self.palette['colors']
+        
+        # Define the dice colors based on the value and theme
         if self._value == 20:
             # Critical success - gold
-            bg_color = QColor(255, 215, 0)
-            text_color = QColor(0, 0, 0)
+            bg_color = QColor(colors.get('text_primary', '#c9a875'))
+            text_color = QColor(colors.get('bg_dark', '#1a1410'))
         elif self._value == 1:
             # Critical failure - red
-            bg_color = QColor(200, 0, 0)
-            text_color = QColor(255, 255, 255)
+            bg_color = QColor(colors.get('accent_negative', '#D94A38'))
+            text_color = QColor(colors.get('text_bright', '#e8d4b8'))
         else:
-            # Normal roll - white
-            bg_color = QColor(240, 240, 240)
-            text_color = QColor(0, 0, 0)
+            # Normal roll - white/bright text color
+            bg_color = QColor(colors.get('text_bright', '#e8d4b8'))
+            text_color = QColor(colors.get('bg_dark', '#1a1410'))
         
-        # Draw the dice (d20 is icosahedron, but we'll draw a simplified pentagon)
+        # Draw the dice
         rect = self.rect().adjusted(2, 2, -2, -2)
         
         # Draw the background
         painter.setBrush(QBrush(bg_color))
-        painter.setPen(QPen(QColor(20, 20, 20), 2))
+        painter.setPen(QPen(QColor(colors.get('bg_dark', '#1a1410')), 2))
         
         # Draw a circle as the dice
         painter.drawEllipse(rect)
@@ -116,8 +130,17 @@ class SkillCheckDisplay(QWidget):
         """Initialize the skill check display widget."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Set up the UI
         self._setup_ui()
+        
+        # Apply initial theme
+        self._update_theme()
         
         # Hide the widget by default
         self.setVisible(False)
@@ -131,29 +154,13 @@ class SkillCheckDisplay(QWidget):
         
         # Create the title label
         self.title_label = QLabel("Skill Check")
-        self.title_label.setStyleSheet("""
-            font-size: 18px;
-            font-weight: bold;
-            color: #E0E0E0;
-        """)
         self.title_label.setAlignment(Qt.AlignCenter)
         
         # Create the stat and difficulty display
         self.stat_layout = QHBoxLayout()
         
         self.stat_label = QLabel("Stat: STR")
-        self.stat_label.setStyleSheet("""
-            font-size: 14px;
-            font-weight: bold;
-            color: #BBBBBB;
-        """)
-        
         self.difficulty_label = QLabel("Difficulty: 15")
-        self.difficulty_label.setStyleSheet("""
-            font-size: 14px;
-            font-weight: bold;
-            color: #BBBBBB;
-        """)
         
         self.stat_layout.addWidget(self.stat_label)
         self.stat_layout.addStretch(1)
@@ -171,24 +178,8 @@ class SkillCheckDisplay(QWidget):
         self.result_layout = QHBoxLayout()
         
         self.mod_label = QLabel("Modifier: +0")
-        self.mod_label.setStyleSheet("""
-            font-size: 14px;
-            color: #BBBBBB;
-        """)
-        
         self.total_label = QLabel("Total: 10")
-        self.total_label.setStyleSheet("""
-            font-size: 14px;
-            font-weight: bold;
-            color: #E0E0E0;
-        """)
-        
         self.success_label = QLabel("SUCCESS")
-        self.success_label.setStyleSheet("""
-            font-size: 16px;
-            font-weight: bold;
-            color: #66CC33;
-        """)
         self.success_label.setAlignment(Qt.AlignCenter)
         
         self.result_layout.addWidget(self.mod_label)
@@ -197,11 +188,6 @@ class SkillCheckDisplay(QWidget):
         
         # Create the context display
         self.context_label = QLabel("Attempting to climb the steep cliff")
-        self.context_label.setStyleSheet("""
-            font-size: 14px;
-            font-style: italic;
-            color: #CCCCCC;
-        """)
         self.context_label.setAlignment(Qt.AlignCenter)
         self.context_label.setWordWrap(True)
         
@@ -213,15 +199,70 @@ class SkillCheckDisplay(QWidget):
         self.main_layout.addWidget(self.success_label)
         self.main_layout.addWidget(self.context_label)
         
-        # Set the widget styling
-        self.setStyleSheet("""
-            background-color: #333333;
-            border: 2px solid #555555;
-            border-radius: 8px;
-        """)
-        
         # Set a fixed size for the widget
         self.setFixedSize(300, 250)
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+            
+        colors = self.palette['colors']
+        
+        self.setStyleSheet(f"""
+            SkillCheckDisplay {{
+                background-color: {colors['bg_medium']};
+                border: 2px solid {colors['border_dark']};
+                border-radius: 8px;
+            }}
+        """)
+        
+        self.title_label.setStyleSheet(f"""
+            font-size: 18px;
+            font-weight: bold;
+            color: {colors['text_primary']};
+        """)
+        
+        stat_style = f"""
+            font-size: 14px;
+            font-weight: bold;
+            color: {colors['text_secondary']};
+        """
+        self.stat_label.setStyleSheet(stat_style)
+        self.difficulty_label.setStyleSheet(stat_style)
+        
+        self.mod_label.setStyleSheet(f"""
+            font-size: 14px;
+            color: {colors['text_secondary']};
+        """)
+        
+        self.total_label.setStyleSheet(f"""
+            font-size: 14px;
+            font-weight: bold;
+            color: {colors['text_bright']};
+        """)
+        
+        self.context_label.setStyleSheet(f"""
+            font-size: 14px;
+            font-style: italic;
+            color: {colors['text_secondary']};
+        """)
+        
+        # Re-apply success/fail color based on current text
+        text = self.success_label.text()
+        if "CRITICAL SUCCESS" in text:
+            color = colors.get('text_primary', '#c9a875')
+        elif "SUCCESS" in text:
+            color = colors.get('accent_positive', '#5a9068')
+        else: # Failure
+            color = colors.get('accent_negative', '#D94A38')
+            
+        self.success_label.setStyleSheet(f"""
+            font-size: 16px;
+            font-weight: bold;
+            color: {color};
+        """)
     
     def show_check_result(self, result: SkillCheckResult, context: str = "", duration_ms: int = 3000) -> None:
         """
@@ -232,6 +273,8 @@ class SkillCheckDisplay(QWidget):
             context: Optional context description for the check
             duration_ms: How long to display the result (in milliseconds)
         """
+        colors = self.palette['colors']
+        
         # Update the labels with the check information
         self.title_label.setText(f"Skill Check: {result.stat_type}")
         self.stat_label.setText(f"Stat: {result.stat_type} ({int(result.stat_value)})")
@@ -243,33 +286,28 @@ class SkillCheckDisplay(QWidget):
         if result.success:
             if result.roll == 20:
                 self.success_label.setText("CRITICAL SUCCESS!")
-                self.success_label.setStyleSheet("""
+                self.success_label.setStyleSheet(f"""
                     font-size: 16px;
                     font-weight: bold;
-                    color: #FFD700;  /* Gold */
+                    color: {colors.get('text_primary', '#c9a875')};
                 """)
             else:
                 self.success_label.setText("SUCCESS")
-                self.success_label.setStyleSheet("""
+                self.success_label.setStyleSheet(f"""
                     font-size: 16px;
                     font-weight: bold;
-                    color: #66CC33;  /* Green */
+                    color: {colors.get('accent_positive', '#5a9068')};
                 """)
         else:
             if result.roll == 1:
                 self.success_label.setText("CRITICAL FAILURE!")
-                self.success_label.setStyleSheet("""
-                    font-size: 16px;
-                    font-weight: bold;
-                    color: #CC3333;  /* Red */
-                """)
             else:
                 self.success_label.setText("FAILURE")
-                self.success_label.setStyleSheet("""
-                    font-size: 16px;
-                    font-weight: bold;
-                    color: #CC3333;  /* Red */
-                """)
+            self.success_label.setStyleSheet(f"""
+                font-size: 16px;
+                font-weight: bold;
+                color: {colors.get('accent_negative', '#D94A38')};
+            """)
         
         # Set the context text
         self.context_label.setText(context)
@@ -293,23 +331,6 @@ class SkillCheckDisplay(QWidget):
         
         # Create a timer to hide the widget after duration_ms
         QTimer.singleShot(duration_ms, self._fade_out)
-    
-    def _fade_out(self) -> None:
-        """Create and start a fade-out animation."""
-        self.fade_out = QPropertyAnimation(self.fade_in_effect, b"opacity")
-        self.fade_out.setDuration(500)
-        self.fade_out.setStartValue(1)
-        self.fade_out.setEndValue(0)
-        self.fade_out.start()
-        
-        # Hide the widget after the animation finishes
-        self.fade_out.finished.connect(self._hide_widget)
-    
-    def _hide_widget(self) -> None:
-        """Hide the widget and emit the finished signal."""
-        self.setVisible(False)
-        self.display_finished.emit()
-
 
 # For testing purposes
 if __name__ == "__main__":

@@ -4,14 +4,13 @@ Status bar for the RPG game GUI.
 This module provides a status bar widget for displaying game status information.
 """
 
-import logging
 from typing import Optional
 from enum import Enum
 
-from PySide6.QtWidgets import QStatusBar, QLabel, QWidget, QHBoxLayout, QFrame
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QStatusBar, QLabel, QWidget
+from PySide6.QtCore import Slot
 
+from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
 
 class GameMode(Enum):
@@ -27,25 +26,14 @@ class GameStatusBar(QStatusBar):
         """Initialize the status bar."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Get resource manager
         self.resource_manager = get_resource_manager()
-        
-        # Apply styling
-        self.setStyleSheet("""
-            QStatusBar {
-                background-color: #333333;
-                color: #E0E0E0;
-                border-top: 1px solid #555555;
-            }
-            QStatusBar::item {
-                border: none;
-            }
-            QLabel {
-                color: #E0E0E0;
-                padding: 2px 10px;
-                font-family: 'Times New Roman', serif;
-            }
-        """)
         
         # Current game mode
         self.current_mode = GameMode.NORMAL
@@ -63,6 +51,34 @@ class GameStatusBar(QStatusBar):
         self.addPermanentWidget(self.calendar_label)
         self.addPermanentWidget(self.mode_label)
         self.addPermanentWidget(self.context_label)
+        
+        # Apply initial theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        fonts = self.palette['fonts']
+
+        self.setStyleSheet(f"""
+            QStatusBar {{
+                background-color: {colors['bg_dark']};
+                color: {colors['text_bright']};
+                border-top: 1px solid {colors['border_dark']};
+            }}
+            QStatusBar::item {{
+                border: none;
+            }}
+            QLabel {{
+                color: {colors['text_bright']};
+                padding: 2px 10px;
+                font-family: {fonts['family_fantasy']};
+            }}
+        """)
     
     def update_status(self, location: str = "", game_time: str = "", calendar: str = "", mode: str = ""):
         """Update the status bar with the provided information.

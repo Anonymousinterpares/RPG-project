@@ -17,21 +17,9 @@ from PySide6.QtCore import Qt, Signal, Slot, QSize
 from PySide6.QtGui import QFont, QTextCharFormat, QColor
 
 from core.base.state import get_state_manager
+from gui.styles.stylesheet_factory import create_context_menu_style, create_list_widget_style, create_main_tab_widget_style, create_secondary_tab_widget_style, create_styled_button_style, create_text_edit_style
+from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
-
-# Fantasy RPG Color Palette
-COLOR_BG_DARK = "#1a1410"           # Dark background
-COLOR_BG_MEDIUM = "#2a2420"         # Medium background
-COLOR_BG_LIGHT = "#3a302a"          # Light background
-COLOR_BORDER = "#4a3a30"            # Border color
-COLOR_TEXT_PRIMARY = "#c9a875"      # Golden/amber text
-COLOR_TEXT_SECONDARY = "#e0d4c0"    # Light parchment text
-COLOR_ACCENT_GREEN = "#5a9068"      # Green accent
-COLOR_ACCENT_GREEN_LIGHT = "#6ac46a" # Light green
-COLOR_ACCENT_RED = "#8a5050"        # Red accent
-COLOR_ACCENT_RED_LIGHT = "#ff6b6b"  # Light red
-COLOR_HOVER = "#3a3028"             # Hover state
-COLOR_SELECTED = "#4a5040"          # Selected state
 
 class JournalSectionType(Enum):
     """Types of journal sections."""
@@ -50,15 +38,15 @@ class JournalPanelWidget(QScrollArea):
         """Initialize the journal panel widget."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Set up the scroll area
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.setStyleSheet("""
-            QScrollArea {
-                background-color: #2D2D30;
-                border: none;
-            }
-        """)
         
         # Create the main widget
         self.journal_widget = QWidget()
@@ -80,7 +68,10 @@ class JournalPanelWidget(QScrollArea):
         # Set up the UI
         self._setup_ui()
 
-        # --- FIX: APPLY CURSORS AFTER UI IS BUILT ---
+        # Apply initial theme
+        self._update_theme()
+
+        # --- APPLY CURSORS AFTER UI IS BUILT ---
         main_win = self.window()
         if hasattr(main_win, 'link_cursor'):
             # Apply to tab bars
@@ -91,8 +82,38 @@ class JournalPanelWidget(QScrollArea):
             # Apply to editable text widgets
             self.character_info_editor.viewport().setCursor(main_win.text_cursor)
             self.note_editor.viewport().setCursor(main_win.text_cursor)
-        # --- END FIX ---
-    
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        self.setStyleSheet("""
+            QScrollArea {
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        
+        self.tab_widget.setStyleSheet(create_main_tab_widget_style(self.palette))
+        self.character_info_editor.setStyleSheet(create_text_edit_style(self.palette))
+        
+        self.quest_status_tabs.setStyleSheet(create_secondary_tab_widget_style(self.palette))
+        list_style = create_list_widget_style(self.palette)
+        self.active_quests_list.setStyleSheet(list_style)
+        self.completed_quests_list.setStyleSheet(list_style)
+        self.failed_quests_list.setStyleSheet(list_style)
+        self.quest_details.setStyleSheet(create_text_edit_style(self.palette, read_only=True))
+        
+        self.notes_list.setStyleSheet(list_style)
+        self.note_editor.setStyleSheet(create_text_edit_style(self.palette))
+        
+        button_style = create_styled_button_style(self.palette)
+        self.new_note_button.setStyleSheet(button_style)
+        self.delete_note_button.setStyleSheet(button_style)
+        self.save_note_button.setStyleSheet(button_style)
+
     def _setup_ui(self):
         """Set up the user interface."""
         # Create the main layout
@@ -102,41 +123,6 @@ class JournalPanelWidget(QScrollArea):
         
         # Create tab widget for sections
         self.tab_widget = QTabWidget()
-        self.tab_widget.setStyleSheet(f"""
-            QTabWidget {{
-                background-color: {COLOR_BG_MEDIUM};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 5px;
-            }}
-            QTabWidget::pane {{
-                background-color: {COLOR_BG_MEDIUM};
-                border: 1px solid {COLOR_BORDER};
-                border-top: none;
-                border-radius: 0 0 5px 5px;
-            }}
-            QTabBar::tab {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLOR_BG_LIGHT}, stop:1 {COLOR_BG_MEDIUM});
-                color: {COLOR_TEXT_PRIMARY};
-                border: 1px solid {COLOR_BORDER};
-                border-bottom: none;
-                border-top-left-radius: 5px;
-                border-top-right-radius: 5px;
-                padding: 8px 12px;
-                margin-right: 2px;
-                font-weight: 600;
-            }}
-            QTabBar::tab:selected {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLOR_BG_MEDIUM}, stop:1 {COLOR_BG_DARK});
-                color: {COLOR_TEXT_SECONDARY};
-                border-bottom: none;
-            }}
-            QTabBar::tab:hover:!selected {{
-                background: {COLOR_HOVER};
-                color: {COLOR_ACCENT_GREEN};
-            }}
-        """)
         
         # Add tabs for each section
         self._setup_character_tab()
@@ -155,16 +141,6 @@ class JournalPanelWidget(QScrollArea):
         # Create character info editor
         self.character_info_editor = QTextEdit()
         self.character_info_editor.setPlaceholderText("Character bio and information will appear here...")
-        self.character_info_editor.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {COLOR_BG_DARK};
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 3px;
-                padding: 8px;
-                selection-background-color: {COLOR_SELECTED};
-            }}
-        """)
         self.character_info_editor.textChanged.connect(self._on_character_info_changed)
         
         # Add editor to layout
@@ -181,68 +157,21 @@ class JournalPanelWidget(QScrollArea):
         
         # Create quest status tabs
         self.quest_status_tabs = QTabWidget()
-        self.quest_status_tabs.setStyleSheet(f"""
-            QTabBar::tab {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLOR_BG_LIGHT}, stop:1 {COLOR_BG_MEDIUM});
-                color: {COLOR_TEXT_PRIMARY};
-                border: 1px solid {COLOR_BORDER};
-                border-bottom: none;
-                border-top-left-radius: 3px;
-                border-top-right-radius: 3px;
-                padding: 5px 10px;
-                margin-right: 2px;
-            }}
-            QTabBar::tab:selected {{
-                background: {COLOR_BG_DARK};
-                color: {COLOR_TEXT_SECONDARY};
-                border-bottom: none;
-            }}
-            QTabBar::tab:hover:!selected {{
-                background: {COLOR_HOVER};
-                color: {COLOR_ACCENT_GREEN};
-            }}
-        """)
         
         # Create lists for active, completed, and failed quests
-        list_style = f"""
-            QListWidget {{
-                background-color: {COLOR_BG_DARK};
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 3px;
-                alternate-background-color: {COLOR_BG_MEDIUM};
-            }}
-            QListWidget::item {{
-                padding: 8px;
-                border-bottom: 1px solid {COLOR_BORDER};
-            }}
-            QListWidget::item:selected {{
-                background-color: {COLOR_SELECTED};
-                color: {COLOR_TEXT_SECONDARY};
-            }}
-            QListWidget::item:hover {{
-                background-color: {COLOR_HOVER};
-                color: {COLOR_ACCENT_GREEN};
-            }}
-        """
-        
         self.active_quests_list = QListWidget()
-        self.active_quests_list.setStyleSheet(list_style)
         self.active_quests_list.setAlternatingRowColors(True)
         self.active_quests_list.itemClicked.connect(self._on_quest_selected)
         self.active_quests_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.active_quests_list.customContextMenuRequested.connect(self._show_active_context_menu)
         
         self.completed_quests_list = QListWidget()
-        self.completed_quests_list.setStyleSheet(list_style)
         self.completed_quests_list.setAlternatingRowColors(True)
         self.completed_quests_list.itemClicked.connect(self._on_quest_selected)
         self.completed_quests_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.completed_quests_list.customContextMenuRequested.connect(lambda pos: self._show_notes_only_context_menu(self.completed_quests_list, pos))
         
         self.failed_quests_list = QListWidget()
-        self.failed_quests_list.setStyleSheet(list_style)
         self.failed_quests_list.setAlternatingRowColors(True)
         self.failed_quests_list.itemClicked.connect(self._on_quest_selected)
         self.failed_quests_list.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -257,15 +186,6 @@ class JournalPanelWidget(QScrollArea):
         self.quest_details = QTextEdit()
         self.quest_details.setReadOnly(True)
         self.quest_details.setPlaceholderText("Select a quest to view details...")
-        self.quest_details.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {COLOR_BG_DARK};
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 3px;
-                padding: 8px;
-            }}
-        """)
         
         # Create splitter for quest list and details
         quests_splitter = QSplitter(Qt.Vertical)
@@ -287,88 +207,26 @@ class JournalPanelWidget(QScrollArea):
         
         # Create notes list
         self.notes_list = QListWidget()
-        self.notes_list.setStyleSheet(f"""
-            QListWidget {{
-                background-color: {COLOR_BG_DARK};
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 3px;
-                alternate-background-color: {COLOR_BG_MEDIUM};
-            }}
-            QListWidget::item {{
-                padding: 8px;
-                border-bottom: 1px solid {COLOR_BORDER};
-            }}
-            QListWidget::item:selected {{
-                background-color: {COLOR_SELECTED};
-                color: {COLOR_TEXT_SECONDARY};
-            }}
-            QListWidget::item:hover {{
-                background-color: {COLOR_HOVER};
-                color: {COLOR_ACCENT_GREEN};
-            }}
-        """)
         self.notes_list.setAlternatingRowColors(True)
         self.notes_list.itemClicked.connect(self._on_note_selected)
         
         # Create note editor
         self.note_editor = QTextEdit()
         self.note_editor.setPlaceholderText("Select a note to edit or create a new one...")
-        self.note_editor.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {COLOR_BG_DARK};
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 3px;
-                padding: 8px;
-                selection-background-color: {COLOR_SELECTED};
-            }}
-        """)
         self.note_editor.textChanged.connect(self._on_note_text_changed)
         
         # Create buttons for note management
         button_layout = QHBoxLayout()
         
-        # Style for buttons - enhanced with gradients
-        button_style = f"""
-            QPushButton {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLOR_BG_LIGHT}, stop:1 {COLOR_BG_MEDIUM});
-                color: {COLOR_TEXT_PRIMARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLOR_HOVER}, stop:1 {COLOR_BG_LIGHT});
-                border-color: {COLOR_ACCENT_GREEN};
-                color: {COLOR_ACCENT_GREEN};
-            }}
-            QPushButton:pressed {{
-                background: {COLOR_BG_DARK};
-                border-color: {COLOR_ACCENT_GREEN};
-            }}
-            QPushButton:disabled {{
-                background-color: {COLOR_BG_DARK};
-                color: {COLOR_BORDER};
-                border-color: {COLOR_BG_MEDIUM};
-            }}
-        """
-        
         # Create buttons
         self.new_note_button = QPushButton("New Note")
-        self.new_note_button.setStyleSheet(button_style)
         self.new_note_button.clicked.connect(self._on_new_note_clicked)
         
         self.delete_note_button = QPushButton("Delete Note")
-        self.delete_note_button.setStyleSheet(button_style)
         self.delete_note_button.clicked.connect(self._on_delete_note_clicked)
         self.delete_note_button.setEnabled(False)
         
         self.save_note_button = QPushButton("Save Note")
-        self.save_note_button.setStyleSheet(button_style)
         self.save_note_button.clicked.connect(self._on_save_note_clicked)
         self.save_note_button.setEnabled(False)
         
@@ -419,21 +277,24 @@ class JournalPanelWidget(QScrollArea):
             # Update quest details
             self.quest_details.clear()
             
-            # Enhanced inline CSS with fantasy colors
+            # Get colors from the theme palette
+            colors = self.palette['colors']
+            
+            # Enhanced inline CSS with fantasy colors from theme
             style = f"""
                 <style>
-                    body {{ color: {COLOR_TEXT_SECONDARY}; }}
-                    h2 {{ color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 5px; }}
-                    h3 {{ color: {COLOR_TEXT_PRIMARY}; margin-top: 15px; }}
-                    .obj-done {{ color: {COLOR_ACCENT_GREEN_LIGHT}; }}
-                    .obj-failed {{ color: {COLOR_ACCENT_RED_LIGHT}; }}
-                    .obj-pending {{ color: {COLOR_TEXT_SECONDARY}; }}
-                    .obj-mandatory {{ color: {COLOR_TEXT_PRIMARY}; font-style: italic; margin-left: 6px; font-size: 0.9em; }}
+                    body {{ color: {colors['text_bright']}; }}
+                    h2 {{ color: {colors['text_primary']}; border-bottom: 2px solid {colors['border_dark']}; padding-bottom: 5px; }}
+                    h3 {{ color: {colors['text_primary']}; margin-top: 15px; }}
+                    .obj-done {{ color: {colors['accent_positive_light']}; }}
+                    .obj-failed {{ color: {colors['accent_negative_light']}; }}
+                    .obj-pending {{ color: {colors['text_bright']}; }}
+                    .obj-mandatory {{ color: {colors['text_primary']}; font-style: italic; margin-left: 6px; font-size: 0.9em; }}
                 </style>
             """
             # Format the quest details
             html = style + f"<h2>{quest_data['title']}</h2>"
-            html += f"<p><b style='color: {COLOR_TEXT_PRIMARY};'>Status:</b> {quest_status.title()}</p>"
+            html += f"<p><b style='color: {colors['text_primary']};'>Status:</b> {quest_status.title()}</p>"
             
             if "description" in quest_data:
                 html += f"<p>{quest_data['description']}</p>"
@@ -465,7 +326,7 @@ class JournalPanelWidget(QScrollArea):
                 html += "<h3>Rewards:</h3>"
                 html += "<ul>"
                 for reward in quest_data["rewards"]:
-                    html += f"<li style='color: {COLOR_ACCENT_GREEN};'>{reward}</li>"
+                    html += f"<li style='color: {colors['accent_positive']};'>{reward}</li>"
                 html += "</ul>"
             
             if "notes" in quest_data and quest_data["notes"]:
@@ -722,30 +583,8 @@ class JournalPanelWidget(QScrollArea):
         if hasattr(main_win, 'link_cursor'):
             menu.setCursor(main_win.link_cursor)
 
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLOR_BG_MEDIUM}, stop:1 {COLOR_BG_DARK});
-                color: {COLOR_TEXT_SECONDARY};
-                border: 2px solid {COLOR_BORDER};
-                border-radius: 4px;
-                padding: 4px;
-            }}
-            QMenu::item {{
-                background-color: transparent;
-                padding: 6px 20px 6px 12px;
-                border-radius: 2px;
-            }}
-            QMenu::item:selected {{
-                background-color: {COLOR_SELECTED};
-                color: {COLOR_TEXT_SECONDARY};
-            }}
-            QMenu::separator {{
-                height: 2px;
-                background: {COLOR_BORDER};
-                margin: 4px 6px;
-            }}
-        """)
+        menu.setStyleSheet(create_context_menu_style(self.palette))
+        
         complete_sub = menu.addMenu("Mark Objective as Completed")
         fail_sub = menu.addMenu("Mark Objective as Failed")
         notes_sub = menu.addMenu("See Notes for Objective")
@@ -856,28 +695,8 @@ class JournalPanelWidget(QScrollArea):
             return
         from PySide6.QtWidgets import QMenu
         menu = QMenu(self)
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLOR_BG_MEDIUM}, stop:1 {COLOR_BG_DARK});
-                color: {COLOR_TEXT_SECONDARY};
-                border: 2px solid {COLOR_BORDER};
-                border-radius: 4px;
-                padding: 4px;
-            }}
-            QMenu::item {{
-                padding: 6px 20px 6px 12px;
-                border-radius: 2px;
-            }}
-            QMenu::item:selected {{
-                background-color: {COLOR_SELECTED};
-            }}
-            QMenu::separator {{
-                height: 2px;
-                background: {COLOR_BORDER};
-                margin: 4px 6px;
-            }}
-        """)
+        menu.setStyleSheet(create_context_menu_style(self.palette))
+        
         notes_sub = menu.addMenu("See Notes for Objective")
         existing_obj_notes = set()
         try:
