@@ -11,7 +11,7 @@ import os
 from typing import Dict, Iterator, List, Any, Optional, Tuple
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QFrame, QPushButton
+    QFrame, QPushButton, QGridLayout
 )
 from PySide6.QtCore import QSettings, Signal, Slot, QTimer, Qt
 from PySide6.QtGui import QColor, QTextCharFormat, QFont, QTextCursor
@@ -50,150 +50,211 @@ class CombatDisplay(QWidget):
     visualDisplayComplete = Signal()
 
     def __init__(self, parent=None):
-            """Initialize the combat display widget."""
-            super().__init__(parent)
+        """Initialize the combat display widget."""
+        super().__init__(parent)
 
-            self.setObjectName("combatDisplayWidget")
+        self.setObjectName("combatDisplayWidget")
 
-            # --- THEME MANAGEMENT ---
-            self.theme_manager = get_theme_manager()
-            self.palette = self.theme_manager.get_current_palette()
-            self.theme_manager.theme_changed.connect(self.apply_theme)
-            # --- END THEME MANAGEMENT ---
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self.apply_theme)
+        # --- END THEME MANAGEMENT ---
 
-            self.combat_active = False 
-            self.stats_manager = get_stats_manager() 
+        self.combat_active = False 
+        self.stats_manager = get_stats_manager() 
+        
+        self.command_input_widget: Optional[QWidget] = None
 
-            main_layout = QVBoxLayout(self)
-            main_layout.setContentsMargins(0, 0, 0, 0); main_layout.setSpacing(0)
+        # This is the root layout of the entire CombatDisplay widget
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0); root_layout.setSpacing(0)
+        
+        # This frame will hold the main stone background image
+        self.background_frame = QFrame()
+        self.background_frame.setObjectName("combatBackgroundFrame")
+        root_layout.addWidget(self.background_frame)
+
+        # This layout will contain the border frame
+        background_layout = QVBoxLayout(self.background_frame)
+        background_layout.setContentsMargins(0,0,0,0)
+
+        # This new inner frame will hold the border and the actual content grid
+        self.border_frame = QFrame()
+        self.border_frame.setObjectName("combatBorderFrame")
+        background_layout.addWidget(self.border_frame)
+
+        # The grid layout now goes inside the border_frame
+        grid_layout = QGridLayout(self.border_frame)
+        grid_layout.setContentsMargins(10, 10, 10, 10)
+        grid_layout.setSpacing(10)
+
+        status_layout = QHBoxLayout()
+        status_layout.setContentsMargins(0, 0, 0, 0); status_layout.setSpacing(10)
+
+        self.status_label = QLabel("Status: Narrative") 
+        self.status_label.setObjectName("statusLabel")
+        status_layout.addWidget(self.status_label)
+
+        self.round_label = QLabel("Round: 0")
+        self.round_label.setVisible(False) 
+        self.round_label.setObjectName("roundLabel")
+        status_layout.addWidget(self.round_label)
+
+        status_layout.addStretch()
+
+        self.dev_controls_container = QWidget()
+        dev_controls_layout = QHBoxLayout(self.dev_controls_container)
+        dev_controls_layout.setContentsMargins(0, 0, 0, 0); dev_controls_layout.setSpacing(6)
+        self.dev_step_mode_btn = QPushButton("Step Mode")
+        self.dev_step_mode_btn.setCheckable(True)
+        self.dev_next_step_btn = QPushButton("Next Step")
+        self.dev_next_step_btn.setEnabled(False)
+        dev_controls_layout.addWidget(self.dev_step_mode_btn)
+        dev_controls_layout.addWidget(self.dev_next_step_btn)
+        status_layout.addWidget(self.dev_controls_container)
+
+        sections_layout = QHBoxLayout()
+        sections_layout.setContentsMargins(0, 0, 0, 0); sections_layout.setSpacing(20)
+
+        # --- Allies Panel Structure (with nested border frame) ---
+        self.allies_panel_container = QWidget()
+        allies_panel_layout = QVBoxLayout(self.allies_panel_container)
+        allies_panel_layout.setContentsMargins(0,0,0,0); allies_panel_layout.setSpacing(0)
+        allies_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.allies_header_label = QLabel("Bard")
+        self.allies_header_label.setObjectName("panelHeaderLabel")
+        self.allies_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.allies_bg_frame = QFrame()
+        self.allies_bg_frame.setObjectName("alliesBGFrame")
+        allies_bg_layout = QVBoxLayout(self.allies_bg_frame) 
+        allies_bg_layout.setContentsMargins(0,0,0,0)
+        self.allies_border_frame = QFrame() 
+        self.allies_border_frame.setObjectName("panelBorderFrame")
+        allies_bg_layout.addWidget(self.allies_border_frame)
+        allies_panel_layout.addWidget(self.allies_header_label)
+        allies_panel_layout.addWidget(self.allies_bg_frame, 1)
+        allies_content_layout = QVBoxLayout(self.allies_border_frame) 
+        self.allies_panel = AlliesPanel()
+        allies_content_layout.addWidget(self.allies_panel)
+
+        # --- Enemies Panel Structure (with nested border frame) ---
+        self.enemies_panel_container = QWidget()
+        enemies_panel_layout = QVBoxLayout(self.enemies_panel_container)
+        enemies_panel_layout.setContentsMargins(0,0,0,0); enemies_panel_layout.setSpacing(0)
+        enemies_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.enemies_header_label = QLabel("Enemy")
+        self.enemies_header_label.setObjectName("panelHeaderLabel")
+        self.enemies_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.enemies_bg_frame = QFrame()
+        self.enemies_bg_frame.setObjectName("enemiesBGFrame")
+        enemies_bg_layout = QVBoxLayout(self.enemies_bg_frame)
+        enemies_bg_layout.setContentsMargins(0,0,0,0)
+        self.enemies_border_frame = QFrame() 
+        self.enemies_border_frame.setObjectName("panelBorderFrame")
+        enemies_bg_layout.addWidget(self.enemies_border_frame)
+        enemies_panel_layout.addWidget(self.enemies_header_label)
+        enemies_panel_layout.addWidget(self.enemies_bg_frame, 1)
+        enemies_content_layout = QVBoxLayout(self.enemies_border_frame) 
+        self.enemies_panel = EnemiesPanel()
+        enemies_content_layout.addWidget(self.enemies_panel)
+        
+        # --- Center Panel Structure (with nested border frame) ---
+        self.center_panel_container = QWidget()
+        center_panel_layout = QVBoxLayout(self.center_panel_container)
+        center_panel_layout.setContentsMargins(0,0,0,0); center_panel_layout.setSpacing(0)
+        center_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.center_header_label = QLabel("Turn Order")
+        self.center_header_label.setObjectName("panelHeaderLabel")
+        self.center_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.center_bg_frame = QFrame()
+        self.center_bg_frame.setObjectName("centerBGFrame")
+        center_bg_layout = QVBoxLayout(self.center_bg_frame)
+        center_bg_layout.setContentsMargins(0,0,0,0)
+        self.center_border_frame = QFrame() 
+        self.center_border_frame.setObjectName("panelBorderFrame")
+        center_bg_layout.addWidget(self.center_border_frame)
+        center_panel_layout.addWidget(self.center_header_label)
+        center_panel_layout.addWidget(self.center_bg_frame, 1)
+        center_content_layout = QVBoxLayout(self.center_border_frame) 
+        center_content_layout.setContentsMargins(15, 15, 15, 15); center_content_layout.setSpacing(15)
+
+        turn_order_placeholder = QLabel("Turn order portraits will go here.")
+        turn_order_placeholder.setMinimumHeight(80)
+
+        # --- Combat Log Structure (with nested border frame) ---
+        self.log_container = QWidget()
+        log_layout = QVBoxLayout(self.log_container)
+        log_layout.setContentsMargins(0,0,0,0); log_layout.setSpacing(0)
+        log_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.log_header_label = QLabel("Combat Log")
+        self.log_header_label.setObjectName("panelHeaderLabel")
+        self.log_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.log_bg_frame = QFrame()
+        self.log_bg_frame.setObjectName("logBGFrame")
+        log_bg_layout = QVBoxLayout(self.log_bg_frame)
+        log_bg_layout.setContentsMargins(0,0,0,0)
+        self.log_border_frame = QFrame() 
+        self.log_border_frame.setObjectName("panelBorderFrame")
+        log_bg_layout.addWidget(self.log_border_frame)
+        log_layout.addWidget(self.log_header_label)
+        log_layout.addWidget(self.log_bg_frame, 1)
+        log_content_layout = QVBoxLayout(self.log_border_frame) 
+        log_content_layout.setContentsMargins(0,0,0,0); log_content_layout.setSpacing(0)
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setObjectName("combatLogText")
+        log_content_layout.addWidget(self.log_text)
+
+        center_content_layout.addWidget(turn_order_placeholder, 1)
+        center_content_layout.addWidget(self.log_container, 5)
+
+        sections_layout.addWidget(self.allies_panel_container, 3)
+        sections_layout.addWidget(self.center_panel_container, 4)
+        sections_layout.addWidget(self.enemies_panel_container, 3)
+
+        grid_layout.addLayout(status_layout, 0, 0)
+        grid_layout.addLayout(sections_layout, 1, 0)
+        
+        grid_layout.setRowMinimumHeight(2, 70) 
+        
+        grid_layout.setRowStretch(1, 1)
+
+        self.last_log_index = -1 
+        self._gradual_log_iterator: Optional[Iterator[str]] = None
+        self._gradual_log_format: Optional[QTextCharFormat] = None
+        self._gradual_log_timer: Optional[QTimer] = None
+        self._is_gradual_log_active: bool = False
+        self._pending_log_messages: List[Tuple[str, QTextCharFormat, bool]] = [] 
+
+        self.apply_theme()
+        self.clear_display()
+        self._suppress_visual_complete = False
+        self._init_dev_controls()
+
+    def set_command_input_widget(self, command_widget: QWidget):
+        """Stores a reference to the command input widget and sets its parent."""
+        self.command_input_widget = command_widget
+        self.command_input_widget.setParent(self)
+        self.command_input_widget.show()
+
+    def resizeEvent(self, event):
+        """Handle resize events to manually position the command input overlay."""
+        super().resizeEvent(event)
+        
+        if self.command_input_widget:
+            # Position the command input widget at the very bottom of the CombatDisplay
+            margin = 10
+            # Use a fixed height hint for the command input
+            widget_height = self.command_input_widget.sizeHint().height()
             
-            self.content_frame = QFrame()
-            self.content_frame.setObjectName("combatContentFrame") 
-            main_layout.addWidget(self.content_frame) 
-
-            layout = QVBoxLayout(self.content_frame) 
-            layout.setContentsMargins(10, 10, 10, 10); layout.setSpacing(10) 
-
-            status_layout = QHBoxLayout()
-            status_layout.setContentsMargins(0, 0, 0, 0); status_layout.setSpacing(10)
-
-            self.status_label = QLabel("Status: Narrative") 
-            self.status_label.setObjectName("statusLabel")
-            status_layout.addWidget(self.status_label)
-
-            self.round_label = QLabel("Round: 0")
-            self.round_label.setVisible(False) 
-            self.round_label.setObjectName("roundLabel")
-            status_layout.addWidget(self.round_label)
-
-            status_layout.addStretch()
-
-            self.dev_controls_container = QWidget()
-            dev_controls_layout = QHBoxLayout(self.dev_controls_container)
-            dev_controls_layout.setContentsMargins(0, 0, 0, 0); dev_controls_layout.setSpacing(6)
-            self.dev_step_mode_btn = QPushButton("Step Mode")
-            self.dev_step_mode_btn.setCheckable(True)
-            self.dev_next_step_btn = QPushButton("Next Step")
-            self.dev_next_step_btn.setEnabled(False)
-            dev_controls_layout.addWidget(self.dev_step_mode_btn)
-            dev_controls_layout.addWidget(self.dev_next_step_btn)
-            status_layout.addWidget(self.dev_controls_container)
-
-            layout.addLayout(status_layout)
-
-            sections_layout = QHBoxLayout()
-            sections_layout.setContentsMargins(0, 0, 0, 0); sections_layout.setSpacing(20)
-
-            # --- Allies Panel Structure ---
-            self.allies_panel_container = QWidget()
-            allies_panel_layout = QVBoxLayout(self.allies_panel_container)
-            allies_panel_layout.setContentsMargins(0,0,0,0); allies_panel_layout.setSpacing(0)
-            allies_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-            self.allies_header_label = QLabel("Bard")
-            self.allies_header_label.setObjectName("panelHeaderLabel")
-            self.allies_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.allies_bg_frame = QFrame()
-            self.allies_bg_frame.setObjectName("alliesBGFrame")
-            allies_panel_layout.addWidget(self.allies_header_label)
-            allies_panel_layout.addWidget(self.allies_bg_frame, 1)
-            allies_content_layout = QVBoxLayout(self.allies_bg_frame)
-            self.allies_panel = AlliesPanel()
-            allies_content_layout.addWidget(self.allies_panel)
-
-            # --- Enemies Panel Structure ---
-            self.enemies_panel_container = QWidget()
-            enemies_panel_layout = QVBoxLayout(self.enemies_panel_container)
-            enemies_panel_layout.setContentsMargins(0,0,0,0); enemies_panel_layout.setSpacing(0)
-            enemies_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-            self.enemies_header_label = QLabel("Enemy")
-            self.enemies_header_label.setObjectName("panelHeaderLabel")
-            self.enemies_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.enemies_bg_frame = QFrame()
-            self.enemies_bg_frame.setObjectName("enemiesBGFrame")
-            enemies_panel_layout.addWidget(self.enemies_header_label)
-            enemies_panel_layout.addWidget(self.enemies_bg_frame, 1)
-            enemies_content_layout = QVBoxLayout(self.enemies_bg_frame)
-            self.enemies_panel = EnemiesPanel()
-            enemies_content_layout.addWidget(self.enemies_panel)
+            # Calculate geometry relative to the CombatDisplay widget itself
+            x = margin
+            # Position it in the reserved space at the bottom
+            y = self.height() - widget_height - margin
+            width = self.width() - (2 * margin)
             
-            # --- Center Panel Structure ---
-            self.center_panel_container = QWidget()
-            center_panel_layout = QVBoxLayout(self.center_panel_container)
-            center_panel_layout.setContentsMargins(0,0,0,0); center_panel_layout.setSpacing(0)
-            center_panel_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-            self.center_header_label = QLabel("Turn Order")
-            self.center_header_label.setObjectName("panelHeaderLabel")
-            self.center_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.center_bg_frame = QFrame()
-            self.center_bg_frame.setObjectName("centerBGFrame")
-            center_panel_layout.addWidget(self.center_header_label)
-            center_panel_layout.addWidget(self.center_bg_frame, 1)
-            center_content_layout = QVBoxLayout(self.center_bg_frame)
-            center_content_layout.setContentsMargins(15, 15, 15, 15); center_content_layout.setSpacing(15)
-
-            turn_order_placeholder = QLabel("Turn order portraits will go here.")
-            turn_order_placeholder.setMinimumHeight(80)
-
-            # --- Combat Log Structure ---
-            self.log_container = QWidget()
-            log_layout = QVBoxLayout(self.log_container)
-            log_layout.setContentsMargins(0,0,0,0); log_layout.setSpacing(0)
-            log_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-            self.log_header_label = QLabel("Combat Log")
-            self.log_header_label.setObjectName("panelHeaderLabel")
-            self.log_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.log_bg_frame = QFrame()
-            self.log_bg_frame.setObjectName("logBGFrame")
-            log_layout.addWidget(self.log_header_label)
-            log_layout.addWidget(self.log_bg_frame, 1)
-            log_content_layout = QVBoxLayout(self.log_bg_frame)
-            log_content_layout.setContentsMargins(0,0,0,0); log_content_layout.setSpacing(0)
-            self.log_text = QTextEdit()
-            self.log_text.setReadOnly(True)
-            self.log_text.setObjectName("combatLogText")
-            log_content_layout.addWidget(self.log_text)
-
-            center_content_layout.addWidget(turn_order_placeholder, 1)
-            center_content_layout.addWidget(self.log_container, 5)
-
-            sections_layout.addWidget(self.allies_panel_container, 3)
-            sections_layout.addWidget(self.center_panel_container, 4)
-            sections_layout.addWidget(self.enemies_panel_container, 3)
-
-            layout.addLayout(sections_layout)
-
-            self.last_log_index = -1 
-            self._gradual_log_iterator: Optional[Iterator[str]] = None
-            self._gradual_log_format: Optional[QTextCharFormat] = None
-            self._gradual_log_timer: Optional[QTimer] = None
-            self._is_gradual_log_active: bool = False
-            self._pending_log_messages: List[Tuple[str, QTextCharFormat, bool]] = [] 
-
-            self.apply_theme()
-            self.clear_display()
-            self._suppress_visual_complete = False
-            self._init_dev_controls()
-
+            self.command_input_widget.setGeometry(x, y, width, widget_height)
 
     def save_settings(self):
         """Save current settings to JSON file."""

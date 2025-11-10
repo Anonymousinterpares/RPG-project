@@ -349,10 +349,9 @@ class MainWindow(QMainWindow):
         self.combat_command_input = CommandInputWidget()
         self.combat_command_input.setObjectName("CombatCommandInput")
         
-        # Placeholder: CombatDisplay will need a method similar to set_command_input_widget
-        # For now, we add it to the layout, but this will be changed.
+        # Place the combat command input inside the combat display widget as an overlay
+        self.combat_display.set_command_input_widget(self.combat_command_input)
         self.combat_layout.addWidget(self.combat_display, 1)
-        self.combat_layout.addWidget(self.combat_command_input, 0)
         
         self.mode_stacked_widget.addWidget(self.narrative_view)
         self.mode_stacked_widget.addWidget(self.combat_view)

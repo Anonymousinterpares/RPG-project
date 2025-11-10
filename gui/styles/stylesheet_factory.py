@@ -6,33 +6,6 @@ This centralizes the construction of styles, ensuring consistency.
 from typing import Dict, Any
 from PySide6.QtGui import QColor
 
-# def create_main_window_style(palette: Dict[str, Any], object_name: str, opacity: float) -> str:
-#     """Creates the scoped stylesheet for the main window's command inputs."""
-#     colors = palette['colors']
-#     fonts = palette['fonts']
-    
-#     r, g, b = QColor(colors['bg_dark_transparent']).red(), QColor(colors['bg_dark_transparent']).green(), QColor(colors['bg_dark_transparent']).blue()
-
-#     return f"""
-#         QWidget#{object_name} {{
-#             background-color: rgba({r}, {g}, {b}, {opacity});
-#             border-radius: 10px;
-#             padding: 5px;
-#             border: 2px solid {colors['border_dark']};
-#         }}
-#         QWidget#{object_name} QLineEdit {{
-#             background-color: {colors['input_background']};
-#             color: {colors['input_text']};
-#             border: 1px solid {colors['input_border']};
-#             border-radius: 4px;
-#             padding: 8px;
-#             font-family: '{fonts['family_user_input']}';
-#             font-size: {fonts['size_user_input']}pt;
-#             margin-left: 5px;
-#             margin-right: 5px;
-#         }}
-#     """
-
 def create_image_button_style(palette: Dict[str, Any]) -> str:
     """Creates the style for buttons that use background images."""
     paths = palette['paths']
@@ -52,9 +25,10 @@ def create_image_button_style(palette: Dict[str, Any]) -> str:
             max-width: 110px;
             min-height: 35px;
             border-radius: 5px;
-            margin-left: 5px;
-            margin-right: 10px;
-            font-family: {fonts['family_fantasy']};
+            margin-left: 9px;
+            margin-right: 5px;
+            font-family: {fonts['family_main']};
+            font-size: {fonts['size_menu_button']}pt;
         }}
         QPushButton:hover {{
             background-image: url('{paths['button_hover']}');
@@ -176,9 +150,16 @@ def create_combat_display_style(palette: Dict[str, Any]) -> str:
             padding-top: {dims['header_vertical_offset']}px;
             margin-bottom: 5px;
         }}
+        /* Background image frames (no border) */
         QFrame#alliesBGFrame, QFrame#centerBGFrame, QFrame#enemiesBGFrame, QFrame#logBGFrame {{
             border-image: url('{paths['combat_display_panel']}') 0 0 0 0 stretch stretch;
-            border: 2px groove {colors['border_dark']};
+            border: none; /* The border is now on the inner frame */
+            border-radius: 15px;
+        }}
+        /* Inner frames that ONLY draw the border */
+        QFrame#panelBorderFrame {{
+            background-color: transparent;
+            border: 2px solid {colors['border_dark']};
             border-radius: 15px;
         }}
         QTextEdit#combatLogText {{
@@ -188,6 +169,74 @@ def create_combat_display_style(palette: Dict[str, Any]) -> str:
             font-family: "{fonts['family_main']}";
             font-size: {fonts['size_combat_log']}pt;
             padding: 15px;
+            padding-bottom: 70px; /* Creates space for the command input overlay */
+        }}
+        QLabel#statusLabel, QLabel#roundLabel {{
+            background-color: transparent;
+            font-family: "{fonts['family_main']}";
+            font-weight: bold;
+        }}
+        QLabel#statusLabel {{
+            color: {colors['combat_status_text']};
+            font-size: {fonts['size_status'] + 2}pt;
+        }}
+        QLabel#roundLabel {{
+            color: {colors['combat_round_text']};
+            font-size: {fonts['size_status']}pt;
+        }}
+    """
+
+def create_combat_display_style(palette: Dict[str, Any]) -> str:
+    """Creates the complex stylesheet for the CombatDisplay widget."""
+    colors = palette['colors']
+    fonts = palette['fonts']
+    paths = palette['paths']
+    dims = palette['dimensions']
+
+    return f"""
+        /* The main outer frame holding the stone background image */
+        QFrame#combatBackgroundFrame {{
+            border-image: url("{paths['combat_display_main']}") 0 0 0 0 stretch stretch;
+            border-radius: 15px;
+        }}
+        /* The new inner frame that draws the border on top of the background */
+        QFrame#combatBorderFrame {{
+            background-color: transparent;
+            border: 2px solid {colors['border_dark']};
+            border-radius: 13px; /* Slightly smaller for inset effect */
+            margin: 2px;
+        }}
+        QLabel#panelHeaderLabel {{
+            background-color: transparent;
+            color: {colors['combat_panel_title']};
+            font-family: "{fonts['family_header']}";
+            font-size: {fonts['size_header']}pt;
+            font-weight: bold;
+            padding-top: {dims['header_vertical_offset']}px;
+            margin-bottom: 5px;
+        }}
+        /* Background image frames for inner panels (no border) */
+        QFrame#alliesBGFrame, QFrame#centerBGFrame, QFrame#enemiesBGFrame, QFrame#logBGFrame {{
+            border-image: url('{paths['combat_display_panel']}') 0 0 0 0 stretch stretch;
+            border: none;
+            border-radius: 15px;
+        }}
+        /* Inner frames for panels that ONLY draw the border */
+        QFrame#panelBorderFrame {{
+            background-color: transparent;
+            border: 2px solid {colors['border_dark']};
+            border-image: none; /* Explicitly disable border-image inheritance */
+            border-radius: 13px; /* Slightly smaller than parent (15px) for proper nesting */
+            margin: 2px; /* Creates space between background and border */
+        }}
+        QTextEdit#combatLogText {{
+            background-color: transparent;
+            border: none;
+            color: {colors['log_default_text']};
+            font-family: "{fonts['family_main']}";
+            font-size: {fonts['size_combat_log']}pt;
+            padding: 15px;
+            padding-bottom: 70px; /* Creates space for the command input overlay */
         }}
         QLabel#statusLabel, QLabel#roundLabel {{
             background-color: transparent;
@@ -208,17 +257,29 @@ def create_overlay_command_input_style(palette: Dict[str, Any]) -> str:
     """Creates the style for the transparent, bordered QLineEdit used as an overlay."""
     colors = palette['colors']
     fonts = palette['fonts']
+    opacities = palette.get('opacities', {})
+
+    # Get the background color and opacity from the theme
+    bg_color_hex = colors.get('input_overlay_bg_color', '#5a4a40')
+    bg_opacity = opacities.get('input_overlay_bg_opacity', 0.3)
+    
+    # Convert hex to RGB to use with rgba()
+    q_color = QColor(bg_color_hex)
+    r, g, b = q_color.red(), q_color.green(), q_color.blue()
+
+    border_color = colors.get('input_overlay_border', '#4a3a30')
+
     return f"""
         QLineEdit {{
-            background-color: transparent;
+            background-color: rgba({r}, {g}, {b}, {bg_opacity});
             color: {colors['input_text']};
-            border: 2px solid {colors['input_overlay_border']};
+            border: 2px solid {border_color};
             border-radius: 4px;
             padding: 8px;
             font-family: '{fonts['family_user_input']}';
             font-size: {fonts['size_user_input']}pt;
         }}
         QLineEdit:focus {{
-            border-color: {colors['text_primary']};
+            border-color: {border_color}; /* Keep the border color the same on focus */
         }}
     """

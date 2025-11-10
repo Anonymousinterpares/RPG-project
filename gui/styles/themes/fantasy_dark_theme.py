@@ -7,6 +7,9 @@ from PySide6.QtGui import QColor
 
 THEME = {
     'name': 'Fantasy Dark',
+    'opacities': {
+        'input_overlay_bg_opacity': 0.3, # 30% opaque. Tweak this value (0.0 to 1.0).
+    },
     'colors': {
         # == Core Palette ==
         'bg_dark': '#1a1410',
@@ -54,7 +57,8 @@ THEME = {
         'input_background': 'rgba(255, 255, 255, 0.7)',
         'input_border': '#c4b59d',
         'input_text': '#0d47a1',
-        'input_overlay_border': '#4a3a30', # New key for the overlay input border
+        'input_overlay_border': '#4a3a30',
+        'input_overlay_bg_color': '#5a4a40', # New background color for the input field
         
         'output_text_main': '#3b2f1e',
         'output_text_system': '#a03628',
@@ -88,13 +92,14 @@ THEME = {
         'family_fantasy': "'Times New Roman', serif",
 
         'size_main_output': 14,
-        'size_user_input': 14,
+        'size_user_input': 17,
         'size_header': 20,
         'size_status': 12,
         'size_combat_log': 14,
         'size_combat_entity': 12,
         'size_ap_display': 13,
         'size_grimoire_spell': 11,
+        'size_menu_button': 17,
     },
     'paths': {
         'background_main_output': 'images/gui/background_game_output.png',
