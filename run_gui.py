@@ -22,6 +22,9 @@ def run_gui():
     logger.info("Initializing GUI application")
     
     try:
+        # Initialize game engine early to start background tasks (like audio)
+        engine = get_game_engine()
+
         # Initialize all game modules
         init_modules()
         
@@ -59,9 +62,6 @@ def run_gui():
         except Exception:
             # Never fail GUI startup due to settings/logging application
             pass
-        
-        # Initialize game engine
-        engine = get_game_engine()
         
         # Create main window
         win = MainWindow()
