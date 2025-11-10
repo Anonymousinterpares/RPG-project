@@ -1,26 +1,13 @@
-import logging
-from typing import Optional, Dict, Any
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout, QSizePolicy
-from PySide6.QtCore import Qt, QSize, QPointF, QRectF
-from PySide6.QtGui import (QPainter, QPolygonF, QColor, QPen, QBrush, 
-                           QLinearGradient, QRadialGradient, QPainterPath)
+from typing import Optional
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy
+from PySide6.QtCore import Qt, QSize, QPointF, Slot
+from PySide6.QtGui import (QPainter, QColor, QPen, QBrush, 
+                           QLinearGradient, QPainterPath)
 
-logger = logging.getLogger(__name__)
+from core.utils.logging_config import get_logger
+from gui.styles.theme_manager import get_theme_manager
 
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'text_primary': '#c9a875',
-    'ap_pip_active_light': '#4a7c59',
-    'ap_pip_active_dark': '#2d5a3a',
-    'ap_pip_border_active': '#5a9068',
-    'ap_pip_glow_active': 'rgba(90, 144, 104, 30)',
-    'overflow_text': '#5a9068',
-}
-# --- END STYLING COLORS ---
-
+logger = get_logger("RIGHT_PANEL")
 
 class APDisplayWidget(QWidget):
     """
@@ -30,6 +17,13 @@ class APDisplayWidget(QWidget):
     """
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         self.current_ap = 0
         self.max_ap = 0
         self.pip_count = 5  # Max individual pips to show
@@ -41,6 +35,7 @@ class APDisplayWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
         self._setup_ui()
+        self._update_theme()
 
     def _setup_ui(self):
         self.main_layout = QHBoxLayout(self)
@@ -49,11 +44,6 @@ class APDisplayWidget(QWidget):
         self.main_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         self.ap_label = QLabel("Action Points")
-        self.ap_label.setStyleSheet(f"""
-            color: {COLORS['text_primary']};
-            font-weight: 600;
-            font-size: 13px;
-        """)
         self.main_layout.addWidget(self.ap_label)
 
         # This widget will handle drawing the pips and overflow text
@@ -67,14 +57,30 @@ class APDisplayWidget(QWidget):
         self.main_layout.addWidget(self.pip_drawing_widget)
 
         self.overflow_label = QLabel("")
-        self.overflow_label.setStyleSheet(f"""
-            color: {COLORS['overflow_text']};
-            font-weight: bold;
-            font-size: 14px;
-        """)
         self.main_layout.addWidget(self.overflow_label)
 
         self.main_layout.addStretch(1)  # Push everything to the left
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        fonts = self.palette['fonts']
+
+        self.ap_label.setStyleSheet(f"""
+            color: {colors['text_primary']};
+            font-weight: 600;
+            font-size: {fonts['size_ap_display']}px;
+        """)
+        
+        self.overflow_label.setStyleSheet(f"""
+            color: {colors['accent_positive']};
+            font-weight: bold;
+            font-size: {fonts['size_ap_display'] + 1}px;
+        """)
 
     def update_ap(self, current_ap: float, max_ap: float):
         """
@@ -93,12 +99,20 @@ class APDisplayWidget(QWidget):
             self.overflow_label.show()
         else:
             self.overflow_label.hide()
+            
 class _APDrawingWidget(QWidget):
     """Internal widget to draw the hexagonal AP pips with enhanced visual effects."""
     
     def __init__(self, pip_count: int, pip_size: int, pip_spacing: int, 
                  overflow_threshold: int, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self.update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         self.pip_count = pip_count
         self.pip_size = pip_size  # This is the width of the hexagon
         self.pip_spacing = pip_spacing
@@ -110,6 +124,13 @@ class _APDrawingWidget(QWidget):
         hex_height = int(self.pip_size * 0.866)  # height of flat-top hexagon
         total_width = self.pip_count * (self.pip_size + self.pip_spacing) - self.pip_spacing
         self.setFixedSize(QSize(total_width, hex_height + 4))  # Extra padding for shadow
+
+    @Slot(dict)
+    def update_theme(self, palette: Optional[dict] = None):
+        """Update colors from the theme palette and trigger a repaint."""
+        if palette:
+            self.palette = palette
+        self.update()
 
     def update_ap(self, current_ap: float, max_ap: float):
         self.current_ap = current_ap
@@ -143,14 +164,16 @@ class _APDrawingWidget(QWidget):
             y_center + radius * 0.7
         )
         
+        colors = self.palette['colors']
+        
         if is_active:
             # Active gradient: green tones matching game's stamina bar
-            gradient.setColorAt(0, QColor(COLORS['ap_pip_active_light']))
-            gradient.setColorAt(1, QColor(COLORS['ap_pip_active_dark']))
+            gradient.setColorAt(0, QColor(colors['res_ap_active_light']))
+            gradient.setColorAt(1, QColor(colors['res_ap_active_dark']))
         else:
             # Inactive gradient: dark brown/gray
-            gradient.setColorAt(0, QColor(COLORS['background_light']))
-            gradient.setColorAt(1, QColor(COLORS['background_dark']))
+            gradient.setColorAt(0, QColor(colors['bg_light']))
+            gradient.setColorAt(1, QColor(colors['bg_dark']))
         
         return gradient
 
@@ -159,6 +182,7 @@ class _APDrawingWidget(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
 
+        colors = self.palette['colors']
         radius = self.pip_size / 2
         y_center = self.height() / 2
 
@@ -188,10 +212,10 @@ class _APDrawingWidget(QWidget):
             
             # Border color
             if is_active:
-                border_color = QColor(COLORS['ap_pip_border_active'])
+                border_color = QColor(colors['res_ap_border_active'])
                 border_width = 2
             else:
-                border_color = QColor(COLORS['border_dark'])
+                border_color = QColor(colors['border_dark'])
                 border_width = 1
             
             painter.setPen(QPen(border_color, border_width))
@@ -218,7 +242,7 @@ class _APDrawingWidget(QWidget):
             if is_active:
                 glow_radius = radius + 1
                 glow_path = self._create_hexagon_path(x_center, y_center, glow_radius)
-                painter.setPen(QPen(QColor(COLORS['ap_pip_glow_active']), 2))
+                painter.setPen(QPen(QColor(colors['res_ap_glow_active']), 2))
                 painter.setBrush(Qt.NoBrush)
                 painter.drawPath(glow_path)
 

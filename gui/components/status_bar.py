@@ -4,7 +4,7 @@ Status bar for the RPG game GUI.
 This module provides a status bar widget for displaying game status information.
 """
 
-from typing import Optional
+from typing import Any, Dict, Optional
 from enum import Enum
 
 from PySide6.QtWidgets import QStatusBar, QLabel, QWidget
@@ -56,7 +56,7 @@ class GameStatusBar(QStatusBar):
         self._update_theme()
 
     @Slot(dict)
-    def _update_theme(self, palette: Optional[dict] = None):
+    def _update_theme(self, palette: Optional[Dict[str, Any]] = None):
         """Update styles from the theme palette."""
         if palette:
             self.palette = palette

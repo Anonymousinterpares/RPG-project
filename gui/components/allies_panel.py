@@ -6,13 +6,16 @@ from typing import Dict, Any, Optional
 
 from core.utils.logging_config import get_logger
 from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtGui import QPixmap, QCursor
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Slot
 
 from gui.components.combat_entity_widget import CombatEntityWidget
 from core.utils.logging_config import get_logger
+from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("GUI")
+
+class AlliesPanel(QWidget): # Changed base class to QWidget
+    """A widget to display the player and their allies in combat."""
 
 class AlliesPanel(QWidget): # Changed base class to QWidget
     """A widget to display the player and their allies in combat."""
@@ -20,11 +23,16 @@ class AlliesPanel(QWidget): # Changed base class to QWidget
     def __init__(self, parent=None): # Removed title from __init__
         """Initialize the AlliesPanel."""
         super().__init__(parent) # Changed super() call
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.theme_manager.theme_changed.connect(self.apply_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Make this widget transparent so the parent's background shows through
         self.setStyleSheet("background-color: transparent; border: none;")
         
         self.entity_widgets: Dict[str, CombatEntityWidget] = {}
-        self._setup_cursors()
 
         # Main layout for this panel
         self.panel_layout = QVBoxLayout(self)
@@ -32,35 +40,15 @@ class AlliesPanel(QWidget): # Changed base class to QWidget
         self.panel_layout.setSpacing(5)
         self.panel_layout.addStretch()
 
-    def _setup_cursors(self):
-        """Load custom cursors from image files for this component."""
-        try:
-            normal_pixmap = QPixmap("images/gui/cursors/NORMAL.cur")
-            link_pixmap = QPixmap("images/gui/cursors/LINK-SELECT.cur")
-            text_pixmap = QPixmap("images/gui/cursors/TEXT.cur")
-
-            if normal_pixmap.isNull():
-                self.normal_cursor = QCursor(Qt.ArrowCursor)
-            else:
-                self.normal_cursor = QCursor(normal_pixmap, 0, 0)
-
-            if link_pixmap.isNull():
-                self.link_cursor = QCursor(Qt.PointingHandCursor)
-            else:
-                self.link_cursor = QCursor(link_pixmap, 0, 0)
-
-            if text_pixmap.isNull():
-                self.text_cursor = QCursor(Qt.IBeamCursor)
-            else:
-                self.text_cursor = QCursor(text_pixmap, int(text_pixmap.width() / 2), int(text_pixmap.height() / 2))
-
-        except Exception as e:
-            logger.error(f"AlliesPanel: Error setting up custom cursors: {e}")
-            self.normal_cursor = QCursor(Qt.ArrowCursor)
-            self.link_cursor = QCursor(Qt.PointingHandCursor)
-            self.text_cursor = QCursor(Qt.IBeamCursor)
+    @Slot(dict)
+    def apply_theme(self, palette: Optional[Dict[str, Any]] = None):
+        """Apply theme palette to the panel and its children."""
+        if not palette:
+            palette = self.theme_manager.get_current_palette()
         
-        self.setCursor(self.normal_cursor)
+        # Pass the full palette down to child widgets
+        for widget in self.entity_widgets.values():
+            widget.update_style(palette)
 
     def apply_settings(self, settings: Dict[str, Any]):
         """Apply style settings to the panel and its children."""
@@ -106,7 +94,8 @@ class AlliesPanel(QWidget): # Changed base class to QWidget
                 widget.highlight_active(is_active_turn)
             else:
                 logger.info(f"AlliesPanel: Creating new widget for {display_name}")
-                widget = CombatEntityWidget(entity_id=entity_id, name=display_name, settings={}, is_player=True)
+                # Pass the current theme palette on creation
+                widget = CombatEntityWidget(entity_id=entity_id, name=display_name, settings=self.theme_manager.get_current_palette(), is_player=True)
                 widget.update_stats(current_hp, max_hp, current_stamina, max_stamina, status_effects, current_mana, max_mana)
                 widget.highlight_active(is_active_turn)
                 
