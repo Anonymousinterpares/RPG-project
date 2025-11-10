@@ -66,10 +66,11 @@ class MusicDirector:
         self._last_context_change_ts: float = 0.0
         self._min_context_change_interval_s: float = 0.2
         # Scan once on init
+        self._full_scan_done = False
         try:
-            self._scan_tracks()
+            self._initial_scan()
         except Exception as e:
-            logger.warning(f"Music scan failed: {e}")
+            logger.warning(f"Initial music scan failed: {e}")
         # Link back-reference for SFX manager (for post-SFX reassert)
         try:
             from core.audio.sfx_manager import SFXManager
@@ -148,6 +149,8 @@ class MusicDirector:
     def hard_set(self, mood: str, intensity: Optional[float] = None, reason: str = "") -> None:
         with self._lock:
             self._mood = (mood or "ambient").lower()
+            if self._mood != "ambient" and not self._full_scan_done:
+                self._scan_tracks()
             if intensity is not None:
                 self._intensity = float(max(0.0, min(1.0, intensity)))
             track = self._select_next_track_locked(self._mood)
@@ -171,6 +174,8 @@ class MusicDirector:
             if mood:
                 try:
                     mood_l = str(mood).lower()
+                    if mood_l != "ambient" and not self._full_scan_done:
+                        self._scan_tracks()
                 except Exception:
                     mood_l = self._mood
                 # Accept only if confidence and cooldown satisfied
@@ -217,6 +222,8 @@ class MusicDirector:
     def list_moods(self) -> List[str]:
         """Return available mood names discovered from folders (sorted)."""
         try:
+            if not self._full_scan_done:
+                self._scan_tracks()
             return sorted(list(self._rotation.keys()))
         except Exception:
             return []
@@ -282,6 +289,22 @@ class MusicDirector:
             }
 
     # --- Internals ---
+    def _initial_scan(self) -> None:
+        base = (self._project_root / "sound" / "music" / "ambient")
+        if not base.exists():
+            logger.info(f"No sound/music/ambient directory at {base}")
+            return
+        mood = "ambient"
+        files: List[str] = []
+        for p in base.iterdir():
+            if p.is_file() and p.suffix.lower() in ALLOWED_EXTS:
+                files.append(str(p.resolve()))
+        files.sort()
+        self._rotation[mood] = files
+        self._played[mood] = set()
+        self._track_meta[mood] = self._load_manifest_for_mood(base) or {}
+        logger.info("MusicDirector initial scan complete for 'ambient'.")
+
     def _scan_tracks(self) -> None:
         base = (self._project_root / "sound" / "music")
         if not base.exists():
@@ -291,6 +314,8 @@ class MusicDirector:
             if not mood_dir.is_dir():
                 continue
             mood = mood_dir.name.lower()
+            if mood in self._rotation: # Avoid re-scanning ambient
+                continue
             files: List[str] = []
             for p in mood_dir.iterdir():
                 if p.is_file() and p.suffix.lower() in ALLOWED_EXTS:
@@ -300,9 +325,12 @@ class MusicDirector:
             self._played[mood] = set()
             # Try to load manifest metadata for weighting/tags
             self._track_meta[mood] = self._load_manifest_for_mood(mood_dir) or {}
-        logger.info(f"MusicDirector scanned moods: {list(self._rotation.keys())}")
+        self._full_scan_done = True
+        logger.info(f"MusicDirector full scan complete. Moods: {list(self._rotation.keys())}")
 
     def _select_next_track_locked(self, mood: str, force_unplayed: bool = False) -> Optional[str]:
+        if mood != "ambient" and not self._full_scan_done:
+            self._scan_tracks()
         pool = self._rotation.get(mood) or []
         if not pool:
             # no tracks for this mood; keep current
