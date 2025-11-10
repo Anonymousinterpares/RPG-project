@@ -13,7 +13,6 @@ import os
 
 try:
     import vlc  # type: ignore
-    instance = vlc.Instance('--quiet --no-video-title-show')
 except Exception:  # pragma: no cover - environment may lack VLC
     vlc = None
 
@@ -59,7 +58,7 @@ class VLCBackend:
 
         if self._enabled:
             try:
-                self._vlc_instance = vlc.Instance()
+                self._vlc_instance = vlc.Instance('--quiet --no-video-title-show')
                 self._player_a = self._vlc_instance.media_player_new()
                 self._player_b = self._vlc_instance.media_player_new()
                 self._use_a = True  # which player is active
@@ -546,4 +545,27 @@ class VLCBackend:
                 cb()
         except Exception:
             pass
+
+class DummyBackend:
+    """A no-op backend that stands in while the real VLCBackend initializes."""
+    def set_volumes(self, master: int, music: int, effects: int, muted: bool) -> None:
+        pass
+
+    def set_intensity(self, intensity: float, ramp_ms: int = 250) -> None:
+        pass
+
+    def apply_state(self, mood: str, intensity: float, track_path: Optional[str], transition: Dict) -> None:
+        pass
+
+    def play_sfx(self, file_path: str, category: str) -> None:
+        pass
+
+    def play_sfx_loop(self, file_path: str, channel: str = "environment") -> None:
+        pass
+
+    def stop_sfx_loop(self, channel: str = "environment") -> None:
+        pass
+
+    def set_track_end_callback(self, callback) -> None:
+        pass
 

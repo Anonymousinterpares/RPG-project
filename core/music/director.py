@@ -87,6 +87,9 @@ class MusicDirector:
             # ensure current volumes/mute are applied
             if self._backend:
                 self._backend.set_volumes(self._master, self._music, self._effects, self._muted)
+                # If a track is already selected, apply it to the new backend to sync state.
+                if self._current_track:
+                    self._apply_locked(self._current_track, reason="backend_swap")
                 # Register auto-advance callback if backend supports it
                 try:
                     if hasattr(self._backend, 'set_track_end_callback'):

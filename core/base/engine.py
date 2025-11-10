@@ -51,9 +51,9 @@ class GameEngine(QObject):
     context_updated = Signal(object)
     # Emitted when music/SFX playback state changes (list of display strings)
     playback_updated = Signal(object)
-    # Emitted with full MusicDirector state (dict) when music changes
+                # Emitted with full MusicDirector state (dict) when music changes
     music_state_updated = Signal(object)
-
+    
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern."""
         if cls._instance is None:
@@ -156,6 +156,7 @@ class GameEngine(QObject):
         # Initialize Music Director and backend
         try:
             import os as _os
+            import threading
             from core.music.director import get_music_director
             from core.audio.sfx_manager import SFXManager
             self._music_director = get_music_director(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
@@ -166,25 +167,17 @@ class GameEngine(QObject):
 
             web_mode = str(_os.environ.get("RPG_WEB_MODE", "0")) == "1"
             if not web_mode:
-                # Desktop/GUI: use VLC backend
                 from PySide6.QtCore import QSettings
-                from core.music.backend_vlc import VLCBackend
-                self._music_backend = VLCBackend()
+                from core.music.backend_vlc import VLCBackend, DummyBackend
+                
+                # Start with a dummy backend
+                self._music_backend = DummyBackend()
                 self._music_director.set_backend(self._music_backend)
-                # Reuse same backend for SFX
-                try:
-                    self._sfx_manager.set_backend(self._music_backend)
-                except Exception:
-                    pass
-                # Subscribe to playback updates
-                try:
-                    self._music_director.add_state_listener(self._on_music_state)
-                except Exception:
-                    pass
-                try:
-                    self._sfx_manager.add_listener(self._on_sfx_update)
-                except Exception:
-                    pass
+                self._sfx_manager.set_backend(self._music_backend)
+
+                # Initialize real backend in a background thread
+                threading.Thread(target=self._initialize_vlc_backend, daemon=True).start()
+
                 # Apply QSettings sound immediately
                 s = QSettings("RPGGame", "Settings")
                 master = int(s.value("sound/master_volume", 100))
@@ -194,10 +187,7 @@ class GameEngine(QObject):
                 muted = not bool(enabled)
                 self._music_director.set_volumes(master, music, effects)
                 self._music_director.set_muted(muted)
-                logger.info(f"Music/SFX system initialized (desktop backend, enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
-                # Ensure UI/SFX trims are obvious to edit:
-                # core/music/backend_vlc.py: set self.UI_TRIM_DB / self.SFX_TRIM_DB in __init__
-                # Expose quick SFX helpers for UI/logic
+                logger.info(f"Music/SFX system initialized with dummy backend, VLC loading in background.")
                 self.sfx_play = getattr(self._sfx_manager, 'play_one_shot', None)
             else:
                 # Web/server mode: no desktop audio backend; state is emitted to clients for WebAudio playback
@@ -207,6 +197,32 @@ class GameEngine(QObject):
 
         self._initialized = True
         logger.info("GameEngine initialized")
+
+    def _initialize_vlc_backend(self):
+        """Worker function to initialize the VLC backend and swap it in."""
+        from core.music.backend_vlc import VLCBackend
+        from PySide6.QtCore import QSettings
+
+        logger.info("VLC backend initialization started in background thread.")
+        real_backend = VLCBackend()
+        
+        # Once initialized, set it on the director and sfx_manager
+        self._music_backend = real_backend
+        self._music_director.set_backend(self._music_backend)
+        self._sfx_manager.set_backend(self._music_backend)
+        
+        # Re-apply initial volume settings to the real backend
+        s = QSettings("RPGGame", "Settings")
+        master = int(s.value("sound/master_volume", 100))
+        music  = int(s.value("sound/music_volume", 100))
+        effects= int(s.value("sound/effects_volume", 100))
+        enabled= s.value("sound/enabled", True, type=bool)
+        muted = not bool(enabled)
+        self._music_director.set_volumes(master, music, effects)
+        self._music_director.set_muted(muted)
+        
+        logger.info("VLC backend has been initialized and is now active.")
+
     
     # Compatibility properties and methods for web server integration
     @property
