@@ -12,19 +12,26 @@ from PySide6.QtGui import QFont, QColor
 
 from core.base.engine import get_game_engine
 from core.utils.logging_config import get_logger
+from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("GUI")
 
 class CombatEntityWidget(QWidget):
     """Widget for displaying a combat entity status."""
 
-    def __init__(self, entity_id: str, name: str, settings: Optional[dict] = None, is_player: bool = False, parent=None):
+    def __init__(self, entity_id: str, name: str, settings: dict, is_player: bool = False, parent=None):
         """Initialize the combat entity widget."""
         super().__init__(parent)
 
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self.update_style)
+        # --- END THEME MANAGEMENT ---
+
         self.entity_id = entity_id
         self.is_player = is_player
-        self.palette = settings or {} # Store palette, even if initially empty
+        self.settings = settings # This will be the theme palette
 
         self._bar_animation_timer = QTimer(self)
         self._bar_animation_timer.setSingleShot(True)
@@ -84,7 +91,7 @@ class CombatEntityWidget(QWidget):
 
         self.setMinimumHeight(110) 
         self.setMinimumWidth(250 if is_player else 200)
-        self.update_style(self.palette)
+        self.update_style(self.settings)
 
     def update_stats(self, current_hp: int, max_hp: int,
                     current_stamina: int, max_stamina: int,
@@ -138,129 +145,136 @@ class CombatEntityWidget(QWidget):
             self.status_text.setText("None")
 
     def _update_hp_bar_color(self, current_hp: int, max_hp: int):
-        """Helper method to update HP bar color based on settings."""
+        """Helper method to update HP bar color based on theme settings."""
         hp_percent = (current_hp / max_hp) * 100 if max_hp > 0 else 0
-        style_sheet = self.hp_bar.styleSheet() # Get current base style
+        style_sheet = self.hp_bar.styleSheet()
         chunk_style = ""
 
-        # Use settings for colors
-        critical_color = self.settings.get("color_hp_bar_chunk_critical", "#990000")
-        low_color = self.settings.get("color_hp_bar_chunk_low", "#cc0000")
-        normal_color = self.settings.get("color_hp_bar_chunk_normal", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)")
-
-        if hp_percent < self.settings.get("hp_threshold_critical", 25): # Make threshold configurable? (Future idea)
-            chunk_color = critical_color
-        elif hp_percent < self.settings.get("hp_threshold_low", 50): # Make threshold configurable? (Future idea)
-            chunk_color = low_color
+        pb_styles = self.palette.get('progress_bars', {})
+        
+        # Thresholds can be added to the theme later if needed
+        if hp_percent < 25:
+            chunk_color = pb_styles.get("hp_critical", "#990000")
+        elif hp_percent < 50:
+            chunk_color = pb_styles.get("hp_low", "#cc0000")
         else:
-            chunk_color = normal_color
+            chunk_color = pb_styles.get("hp_normal", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)")
 
-        chunk_style = f"background-color: {chunk_color};"
+        chunk_style = f"background: {chunk_color};"
 
-        # Find and replace the chunk part of the stylesheet
-        # This assumes the base style is set correctly in update_style
         new_style_sheet = re.sub(r"(QProgressBar::chunk\s*{)[^}]*(})",
                                  r"\1 " + chunk_style + r" \2",
                                  style_sheet, count=1, flags=re.IGNORECASE | re.DOTALL)
 
-        if new_style_sheet != style_sheet: # Apply only if changed
+        if new_style_sheet != style_sheet:
             self.hp_bar.setStyleSheet(new_style_sheet)
 
     def setFrameStyle(self, active=False):
-        """Set the frame style based on entity type, active state, and settings."""
+        """Set the frame style based on entity type, active state, and theme palette."""
+        colors = self.palette.get('colors', {})
+        
         if self.is_player:
             if active:
-                bg_color = self.settings.get("color_entity_player_bg_active", "rgba(200, 220, 255, 80)")
-                border_color = self.settings.get("color_entity_player_border_active", "#00aaff")
+                bg_color = colors.get("entity_player_bg_active", "rgba(200, 220, 255, 80)")
+                border_color = colors.get("entity_player_border_active", "#00aaff")
                 border_width = 3
             else:
-                bg_color = self.settings.get("color_entity_player_bg", "rgba(200, 220, 255, 30)")
-                border_color = self.settings.get("color_entity_player_border", "#0077cc")
+                bg_color = colors.get("entity_player_bg", "rgba(200, 220, 255, 30)")
+                border_color = colors.get("entity_player_border", "#0077cc")
                 border_width = 2
         else: # Enemy
             if active:
-                bg_color = self.settings.get("color_entity_enemy_bg_active", "rgba(255, 200, 200, 80)")
-                border_color = self.settings.get("color_entity_enemy_border_active", "#ff5500")
+                bg_color = colors.get("entity_enemy_bg_active", "rgba(255, 200, 200, 80)")
+                border_color = colors.get("entity_enemy_border_active", "#ff5500")
                 border_width = 3
             else:
-                bg_color = self.settings.get("color_entity_enemy_bg", "rgba(255, 200, 200, 30)")
-                border_color = self.settings.get("color_entity_enemy_border", "#cc0000")
+                bg_color = colors.get("entity_enemy_bg", "rgba(255, 200, 200, 30)")
+                border_color = colors.get("entity_enemy_border", "#cc0000")
                 border_width = 2
 
-        explicit_text_color = self.settings.get("color_groupbox_title_text", "#FFFFFF")
+        explicit_text_color = colors.get("combat_panel_title", "#FFFFFF")
 
         self.setStyleSheet(f"""
             CombatEntityWidget {{
                 border: {border_width}px solid {border_color};
                 border-radius: 5px;
                 background-color: {bg_color};
-                /* color: {explicit_text_color}; */ /* Removing this default color for the widget itself */
             }}
-            /* QLabel styling will be handled in update_style or by direct application */
         """)
         
-        self.name_label.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-        self.hp_label.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-        self.stamina_label.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-        self.status_label_title.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
-        self.status_text.setStyleSheet(f"color: {explicit_text_color}; background-color: transparent;")
+        label_style = f"color: {explicit_text_color}; background-color: transparent;"
+        self.name_label.setStyleSheet(label_style)
+        self.hp_label.setStyleSheet(label_style)
+        self.stamina_label.setStyleSheet(label_style)
+        self.mana_label.setStyleSheet(label_style)
+        self.status_label_title.setStyleSheet(label_style)
+        self.status_text.setStyleSheet(label_style)
 
     def highlight_active(self, active: bool = True):
         """Highlight the entity if it's their turn, using settings."""
         self.setFrameStyle(active=active)
 
-    def update_style(self, settings: dict):
-        """Update the widget's style based on the provided settings."""
-        self.settings = settings
-        # is_active_currently = False # Not needed here, setFrameStyle handles active state
+    @Slot(dict)
+    def update_style(self, palette: Optional[Dict[str, Any]] = None):
+        """Update the widget's style based on the provided theme palette."""
+        if palette:
+            self.palette = palette
+        
+        self.settings = self.palette # settings is an alias for palette now
+        
+        fonts = self.palette.get('fonts', {})
+        colors = self.palette.get('colors', {})
+        pb_styles = self.palette.get('progress_bars', {})
+        
+        base_font_family = fonts.get("family_combat_entity", "Garamond")
+        base_font_size = fonts.get("size_combat_entity", 12)
 
-        base_font_family = self.settings.get("font_family", "Arial")
-        base_font_size = self.settings.get("font_size", 10)
-
-        label_text_color = self.settings.get("color_groupbox_title_text", "#FFFFFF")
+        label_text_color = colors.get("combat_panel_title", "#FFFFFF")
+        label_style = f"color: {label_text_color}; background-color: transparent;"
 
         name_font = QFont(base_font_family, base_font_size)
         name_font.setBold(True)
-        if self.is_player: name_font.setPointSize(base_font_size + self.settings.get("font_size_player_name_offset", 1))
+        if self.is_player:
+            name_font.setPointSize(base_font_size + fonts.get("font_size_player_name_offset", 1))
         self.name_label.setFont(name_font)
-        self.name_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
+        self.name_label.setStyleSheet(label_style)
 
         base_font = QFont(base_font_family, base_font_size)
         self.hp_label.setFont(base_font)
-        self.hp_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
+        self.hp_label.setStyleSheet(label_style)
         self.stamina_label.setFont(base_font) 
-        self.stamina_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-        
+        self.stamina_label.setStyleSheet(label_style)
         self.mana_label.setFont(base_font) 
-        self.mana_label.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
+        self.mana_label.setStyleSheet(label_style)
         self.status_label_title.setFont(base_font)
-        self.status_label_title.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
-
+        self.status_label_title.setStyleSheet(label_style)
         self.status_text.setFont(base_font)
-        self.status_text.setStyleSheet(f"color: {label_text_color}; background-color: transparent;")
+        self.status_text.setStyleSheet(label_style)
 
-        hp_chunk_normal = self.settings.get("color_hp_bar_chunk_normal", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)")
-        stamina_chunk = self.settings.get("color_stamina_bar_chunk", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66CC33, stop:1 #44AA22)")
-        mana_chunk = self.settings.get("color_mana_bar_chunk", "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3366CC, stop:1 #2244AA)") 
-        pb_text_color = self.settings.get("color_progressbar_text", "#FFFFFF") 
-        pb_bg_color = self.settings.get("color_progressbar_bg", "#555555") 
+        pb_text_color = pb_styles.get("text", "#FFFFFF") 
+        pb_bg_color = pb_styles.get("bg", "#555555") 
+        hp_chunk = pb_styles.get("hp_normal", "red")
+        stamina_chunk = pb_styles.get("stamina", "green")
+        mana_chunk = pb_styles.get("mana", "blue")
 
         pb_base_style = f"""
             QProgressBar {{
-                border: 1px solid #444; border-radius: 3px; text-align: center;
-                height: 18px; color: {pb_text_color}; background-color: {pb_bg_color};
+                border: 1px solid {colors.get('border_dark', '#444')};
+                border-radius: 3px;
+                text-align: center;
+                height: 18px;
+                color: {pb_text_color};
+                background-color: {pb_bg_color};
             }}
         """
-        self.hp_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background-color: {hp_chunk_normal}; }}")
-        self.stamina_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background-color: {stamina_chunk}; }}")
-        self.mana_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background-color: {mana_chunk}; }}") 
+        self.hp_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background: {hp_chunk}; border-radius: 2px; }}")
+        self.stamina_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background: {stamina_chunk}; border-radius: 2px; }}")
+        self.mana_bar.setStyleSheet(f"{pb_base_style} QProgressBar::chunk {{ background: {mana_chunk}; border-radius: 2px; }}") 
 
-        self.setFrameStyle(active=False) # Apply default inactive frame style
+        self.setFrameStyle(active=False)
 
-        current_hp = self.hp_bar.value(); max_hp = self.hp_bar.maximum()
+        current_hp = self.hp_bar.value()
+        max_hp = self.hp_bar.maximum()
         self._update_hp_bar_color(current_hp, max_hp)
         self.update()
         
@@ -268,7 +282,6 @@ class CombatEntityWidget(QWidget):
     def animate_ui_bar_update_phase1(self, update_data: Dict[str, Any]):
         """
         Handles Phase 1 of a bar update: show impending loss.
-        update_data: { "bar_type": "hp"|"stamina"|"mana", "old_value": X, "new_value_preview": Y, "max_value": M }
         """
         bar_type = update_data.get("bar_type")
         new_value_preview = update_data.get("new_value_preview") 
@@ -277,58 +290,46 @@ class CombatEntityWidget(QWidget):
         logger.debug(f"EntityWidget {self.entity_id} PHASE 1 ANIM: {bar_type} to preview {new_value_preview}/{max_value}")
 
         target_bar = None
-        original_stylesheet = ""
-        bleak_color_key_suffix = "_bleak" # e.g. color_hp_bar_chunk_normal_bleak
+        bleak_color = "#777777A0" # Default fallback
+        pb_styles = self.palette.get('progress_bars', {})
 
         if bar_type == "hp": 
             target_bar = self.hp_bar
             hp_percent_preview = (new_value_preview / max_value) * 100 if max_value > 0 else 0
-            if hp_percent_preview < self.settings.get("hp_threshold_critical", 25): bleak_color_key = "color_hp_bar_chunk_critical" + bleak_color_key_suffix
-            elif hp_percent_preview < self.settings.get("hp_threshold_low", 50): bleak_color_key = "color_hp_bar_chunk_low" + bleak_color_key_suffix
-            else: bleak_color_key = "color_hp_bar_chunk_normal" + bleak_color_key_suffix
+            if hp_percent_preview < 25: bleak_color = pb_styles.get("hp_bleak_critical", bleak_color)
+            elif hp_percent_preview < 50: bleak_color = pb_styles.get("hp_bleak_low", bleak_color)
+            else: bleak_color = pb_styles.get("hp_bleak_normal", bleak_color)
         elif bar_type == "stamina": 
             target_bar = self.stamina_bar
-            bleak_color_key = "color_stamina_bar_chunk" + bleak_color_key_suffix
-        elif bar_type == "mana": # NEW for Mana
+            bleak_color = pb_styles.get("stamina_bleak", bleak_color)
+        elif bar_type == "mana":
             target_bar = self.mana_bar
-            bleak_color_key = "color_mana_bar_chunk" + bleak_color_key_suffix # Assuming similar setting key
+            bleak_color = pb_styles.get("mana_bleak", bleak_color)
         else:
             logger.warning(f"EntityWidget {self.entity_id}: Unknown bar_type '{bar_type}' for phase 1 animation.")
-            if hasattr(get_game_engine()._combat_orchestrator, '_handle_visual_display_complete'): # Ensure orchestrator can proceed
+            if hasattr(get_game_engine()._combat_orchestrator, '_handle_visual_display_complete'):
                 QTimer.singleShot(0, get_game_engine()._combat_orchestrator._handle_visual_display_complete)
             return
 
         if target_bar and new_value_preview is not None and max_value is not None:
-            original_stylesheet = target_bar.styleSheet() # Store current full stylesheet
+            original_stylesheet = target_bar.styleSheet()
             
-            bleak_color = self.settings.get(bleak_color_key, "#777777A0") # Default semi-transparent gray
-
-            new_chunk_style = f"background-color: {bleak_color};"
-            # Replace only the background-color of the chunk part
-            updated_stylesheet = re.sub(r"(QProgressBar::chunk\s*{\s*background-color:\s*)[^;]+(;[^}]*})",
-                                        rf"\1{bleak_color}\2",
+            updated_stylesheet = re.sub(r"(QProgressBar::chunk\s*{)[^}]*(})",
+                                        rf"\1 background: {bleak_color}; border-radius: 2px; \2",
                                         original_stylesheet, count=1, flags=re.IGNORECASE | re.DOTALL)
-            if not re.search(r"QProgressBar::chunk\s*{", updated_stylesheet, re.IGNORECASE): # If no chunk style existed
-                base_pb_style = re.match(r"(QProgressBar\s*{[^}]*})", original_stylesheet, re.IGNORECASE | re.DOTALL)
-                if base_pb_style:
-                    updated_stylesheet = base_pb_style.group(1) + f" QProgressBar::chunk {{ {new_chunk_style} }}"
-                else: # Fallback: just append
-                    updated_stylesheet = original_stylesheet + f" QProgressBar::chunk {{ {new_chunk_style} }}"
-
 
             target_bar.setStyleSheet(updated_stylesheet)
-            target_bar.setFormat(f"{new_value_preview} / {max_value} (...)") # Indicate change
+            target_bar.setFormat(f"{new_value_preview} / {max_value} (...)")
 
             self._pending_bar_update_data = {
                 "bar_type": bar_type,
-                "final_value": new_value_preview, # This is preview, Phase2 will get actual final
+                "final_value": new_value_preview,
                 "max_value": max_value,
                 "original_stylesheet": original_stylesheet 
             }
         else:
             logger.warning(f"Could not animate phase 1 for {self.entity_id}, bar_type: {bar_type}, data: {update_data}")
 
-        # Visual update is considered complete for Phase 1 after style is set.
         if hasattr(get_game_engine()._combat_orchestrator, '_handle_visual_display_complete'):
             QTimer.singleShot(0, get_game_engine()._combat_orchestrator._handle_visual_display_complete)
             

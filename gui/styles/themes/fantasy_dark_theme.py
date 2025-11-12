@@ -118,17 +118,17 @@ THEME = {
         'header_vertical_offset': 5,
     },
     'progress_bars': {
-        'bg': '#a08c6e',
+        'bg': '#1a1410',  # Correct dark background
         'text': '#FFFFFF',
-        'hp_normal': 'qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff0000, stop:1 #aa0000)',
+        'hp_normal': '#D94A38',  # Solid Red
         'hp_low': '#cc0000',
         'hp_critical': '#990000',
         'hp_bleak_normal': '#AA0000A0',
         'hp_bleak_low': '#880000A0',
         'hp_bleak_critical': '#600000A0',
-        'stamina': 'qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66CC33, stop:1 #44AA22)',
+        'stamina': '#5a9068',  # Solid Green
         'stamina_bleak': '#44AA22A0',
-        'mana': 'qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3366CC, stop:1 #2244AA)',
+        'mana': '#1178BB',  # Solid Blue
         'mana_bleak': '#2244AAA0',
     }
 }
