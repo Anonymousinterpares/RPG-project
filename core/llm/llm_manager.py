@@ -7,6 +7,7 @@ interactions, including prompt formatting, completion retrieval,
 and error handling.
 """
 
+import os
 import time
 import json
 import asyncio
@@ -14,6 +15,7 @@ import datetime
 from typing import Dict, List, Optional, Any, Union, Tuple, Callable
 import logging
 from enum import Enum
+import threading
 
 from core.utils.logging_config import get_logger
 from core.base.config import get_config
@@ -97,12 +99,15 @@ class LLMManager:
     
     # Singleton instance
     _instance = None
+    _lock = threading.Lock()
     
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern."""
         if cls._instance is None:
-            cls._instance = super(LLMManager, cls).__new__(cls)
-            cls._instance._initialized = False
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(LLMManager, cls).__new__(cls)
+                    cls._instance._initialized = False
         return cls._instance
     
     def __init__(self):
@@ -121,6 +126,9 @@ class LLMManager:
         # Load LLM settings
         self._llm_settings = self._load_llm_settings()
         
+        # Proactively initialize configured providers
+        self._initialize_configured_providers()
+
         # Previously: optionally run diagnostics on startup based on settings.
         # Now: diagnostics are initiated from the GUI/CLI on-demand. Startup should not test providers.
         self._run_diagnostics = self._llm_settings.get("run_diagnostics_on_start", False)
@@ -128,7 +136,58 @@ class LLMManager:
         
         self._initialized = True
         logger.info("LLMManager initialized")
-    
+        
+    def _initialize_configured_providers(self):
+        """Scan configs and initialize all providers that are actually in use."""
+        logger.info("Scanning configurations to initialize required LLM providers...")
+        required_providers = set()
+
+        # 1. Get the default provider
+        default_provider_str = self._llm_settings.get("default_provider_type")
+        if default_provider_str:
+            try:
+                required_providers.add(ProviderType[default_provider_str])
+            except (KeyError, ValueError):
+                logger.warning(f"Invalid default provider type '{default_provider_str}' in base config.")
+
+        # 2. Scan all agent configurations
+        agents_config_dir = os.path.join("config", "llm", "agents")
+        if os.path.isdir(agents_config_dir):
+            for filename in os.listdir(agents_config_dir):
+                if filename.endswith(".json"):
+                    try:
+                        with open(os.path.join(agents_config_dir, filename), 'r', encoding='utf-8') as f:
+                            agent_config = json.load(f)
+                            agent_provider_str = agent_config.get("provider_type")
+                            if agent_provider_str:
+                                try:
+                                    required_providers.add(ProviderType[agent_provider_str])
+                                except (KeyError, ValueError):
+                                    logger.warning(f"Invalid provider type '{agent_provider_str}' in agent config '{filename}'.")
+                    except Exception as e:
+                        logger.error(f"Error reading agent config file {filename}: {e}")
+
+        # 3. Initialize the unique set of required providers
+        if not required_providers:
+            logger.warning("No providers found in configurations. LLM functionality may be limited.")
+            return
+            
+        logger.info(f"Found {len(required_providers)} required providers: {[p.name for p in required_providers]}")
+        for provider_type in required_providers:
+            if self._provider_manager.is_provider_available(provider_type):
+                self._provider_manager.initialize_provider(provider_type)
+            else:
+                logger.warning(f"Configured provider {provider_type.name} is not available (check library installation, settings, and API key).")
+            
+    def reload_settings(self):
+        """Reload LLM and provider settings from configuration files."""
+        logger.info("Reloading LLMManager settings...")
+        self._llm_settings = self._load_llm_settings()
+        self._provider_manager.reload_settings()
+        # After reloading, re-initialize the configured providers
+        self._initialize_configured_providers()
+        logger.info("LLMManager settings reloaded.")   
+         
     def _load_llm_settings(self) -> Dict[str, Any]:
         """
         Load LLM settings from configuration.
@@ -203,6 +262,12 @@ class LLMManager:
         
         # Get provider client and settings
         client = self._provider_manager.get_client(provider_type)
+        
+        # Add a check to ensure the client was initialized successfully
+        if client is None:
+            logger.error(f"Failed to get a valid client for provider {provider_type.name}. Check API keys and settings.")
+            return None
+            
         provider_settings = self._provider_manager.get_provider_settings(provider_type)
         
         # Determine model

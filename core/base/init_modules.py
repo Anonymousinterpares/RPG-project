@@ -10,8 +10,15 @@ from core.utils.logging_config import get_logger
 # Get the module logger
 logger = get_logger("SYSTEM")
 
+_initialized = False
+
 def init_modules():
     """Initialize all necessary modules."""
+    global _initialized
+    if _initialized:
+        logger.debug("Modules already initialized. Skipping.")
+        return True
+        
     logger.info("Initializing game modules...")
     
     # Import core modules
@@ -27,6 +34,7 @@ def init_modules():
         # Add other modules as needed
         
         logger.info("All modules initialized successfully")
+        _initialized = True
         return True
     except Exception as e:
         logger.error(f"Error initializing modules: {e}", exc_info=True)

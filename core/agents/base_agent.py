@@ -418,11 +418,23 @@ class BaseAgent(ABC):
         
         This should be called when LLM settings are updated in the UI.
         """
+        # Get the old provider type before reloading
+        old_provider_type = self._provider_type
+        
         self._settings = self._load_agent_settings()
         self._provider_type = self._get_provider_type()
         self._model = self._settings.get("model", None)
         self._temperature = self._settings.get("temperature", 0.7)
         
+        # If the provider type has changed, or even if it's the same but settings
+        # like API keys might have changed, we should clear the old client.
+        if old_provider_type:
+            self._llm_manager._provider_manager.clear_client(old_provider_type)
+        
+        # Also clear the new provider type's client in case its settings were updated
+        if self._provider_type:
+            self._llm_manager._provider_manager.clear_client(self._provider_type)
+            
         logger.info(f"Reloaded settings for {self.agent_name} agent")
     
     @abstractmethod

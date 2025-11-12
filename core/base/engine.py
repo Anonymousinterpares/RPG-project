@@ -73,25 +73,40 @@ class GameEngine(QObject):
         self._state_manager = StateManager()
         self._command_processor = CommandProcessor()
         self._game_loop = GameLoop()
+        
+        # Parallel initialization of managers
+        import concurrent.futures
+        from core.character.npc_system import NPCSystem
+        from core.music.director import get_music_director
+        from core.audio.sfx_manager import SFXManager
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_npc_system = executor.submit(NPCSystem)
+            future_agent_manager = executor.submit(get_agent_manager)
+            future_entity_manager = executor.submit(get_entity_manager)
+            future_item_manager = executor.submit(get_item_manager)
+            future_stats_manager = executor.submit(get_stats_manager)
+            future_combat_narrator = executor.submit(get_combat_narrator_agent)
+            future_music_director = executor.submit(get_music_director, project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
+            future_sfx_manager = executor.submit(SFXManager, project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
+
+            self._npc_system = future_npc_system.result()
+            self._agent_manager = future_agent_manager.result()
+            self._entity_manager = future_entity_manager.result()
+            self._item_manager = future_item_manager.result()
+            self._stats_manager = future_stats_manager.result()
+            self._combat_narrator_agent = future_combat_narrator.result()
+            self._music_director = future_music_director.result()
+            self._sfx_manager = future_sfx_manager.result()
+
+        self._state_manager.set_npc_system(self._npc_system)
+        logger.info("All managers initialized and ready.")
+
         # Phase 1: One-time log: GameLoop time advancement is disabled.
         try:
             logger.info("PHASE 1: GameLoop time advancement is DISABLED. World time advances only via LLM time_passage and post-combat increments.")
         except Exception:
             pass
-
-        try:
-            from core.character.npc_system import NPCSystem
-            self._npc_system = NPCSystem() 
-            self._state_manager.set_npc_system(self._npc_system) 
-            logger.info("NPCSystem initialized and set in StateManager.")
-        except Exception as e:
-            logger.error(f"Failed to initialize or set NPCSystem in StateManager: {e}", exc_info=True)
-            self._npc_system = None 
-
-        self._agent_manager = get_agent_manager()
-        self._entity_manager = get_entity_manager() 
-        self._item_manager = get_item_manager() 
-        self._stats_manager = get_stats_manager() 
         
         self._rule_checker = RuleCheckerAgent(
             entity_manager=self._entity_manager,
@@ -102,7 +117,6 @@ class GameEngine(QObject):
         self._running = False
         self._auto_save_timer = 0
 
-        self._combat_narrator_agent = get_combat_narrator_agent()
         logger.info(f"Combat narrator agent initialized: {self._combat_narrator_agent is not None}")
         logger.info(f"Combat narrator has narrate_outcome: {hasattr(self._combat_narrator_agent, 'narrate_outcome')}")
 
@@ -153,18 +167,11 @@ class GameEngine(QObject):
         # Initialize extended GameContext (engine-authoritative)
         self._game_context: GameContext = GameContext()
         
-        # Initialize Music Director and SFX Manager (backend set later)
-        try:
-            from core.music.director import get_music_director
-            from core.audio.sfx_manager import SFXManager
-            self._music_director = get_music_director(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
-            self._sfx_manager = SFXManager(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
-            self._playing_snapshot: list[str] = []
-            self._last_music_item: Optional[str] = None
-            self._last_sfx_items: list[str] = []
-            self.sfx_play = None # Will be set in init_audio_backend
-        except Exception as e:
-            logger.warning(f"Failed to initialize music/SFX managers: {e}")
+        # Music Director and SFX Manager are now initialized above in parallel
+        self._playing_snapshot: list[str] = []
+        self._last_music_item: Optional[str] = None
+        self._last_sfx_items: list[str] = []
+        self.sfx_play = None # Will be set in init_audio_backend
 
         self._initialized = True
         logger.info("GameEngine initialized")
@@ -1068,6 +1075,16 @@ class GameEngine(QObject):
         Reload LLM-related agent settings at runtime so provider/model changes
         take effect immediately (including during ongoing combat).
         """
+        # Reload LLMManager and ProviderManager first to get the latest provider configs
+        try:
+            from core.llm.llm_manager import get_llm_manager
+            llm_manager = get_llm_manager()
+            if hasattr(llm_manager, 'reload_settings'):
+                llm_manager.reload_settings()
+                logger.info("LLMManager and ProviderManager settings reloaded.")
+        except Exception as e:
+            logger.warning(f"Error reloading LLMManager/ProviderManager settings: {e}")
+
         # Reload AgentManager-managed agents
         try:
             if hasattr(self, '_agent_manager') and self._agent_manager is not None:

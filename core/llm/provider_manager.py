@@ -11,9 +11,11 @@ import json
 from typing import Dict, List, Optional, Any, Union
 import logging
 from enum import Enum, auto
+import threading
 
 from core.utils.logging_config import get_logger
 from core.base.config import get_config
+
 
 # Load environment variables from .env if present (applies to GUI and web server contexts)
 try:
@@ -62,12 +64,15 @@ class ProviderManager:
     
     # Singleton instance
     _instance = None
+    _lock = threading.Lock()
     
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern."""
         if cls._instance is None:
-            cls._instance = super(ProviderManager, cls).__new__(cls)
-            cls._instance._initialized = False
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(ProviderManager, cls).__new__(cls)
+                    cls._instance._initialized = False
         return cls._instance
     
     def __init__(self):
@@ -94,11 +99,36 @@ class ProviderManager:
             ProviderType.OPENROUTER: OPENAI_AVAILABLE,  # OpenRouter uses OpenAI's API
         }
         
-        # Initialize the providers
-        self._initialize_providers()
+        # On-demand initialization; do not initialize all providers on startup
+        # self._initialize_providers()
         
         self._initialized = True
         logger.info("ProviderManager initialized")
+
+    def initialize_provider(self, provider_type: ProviderType) -> bool:
+        """Initialize a specific LLM provider client."""
+        if provider_type in self._clients:
+            return True # Already initialized
+        
+        if provider_type == ProviderType.OPENAI:
+            return self._initialize_openai()
+        elif provider_type == ProviderType.ANTHROPIC:
+            return self._initialize_anthropic()
+        elif provider_type == ProviderType.GOOGLE:
+            return self._initialize_google()
+        elif provider_type == ProviderType.OPENROUTER:
+            return self._initialize_openrouter()
+        
+        logger.warning(f"Attempted to initialize an unknown provider type: {provider_type.name}")
+        return False
+
+    def reload_settings(self):
+        """Reload provider settings from the configuration file."""
+        logger.info("Reloading ProviderManager settings...")
+        self._provider_settings = self._load_provider_settings()
+        # Clear all clients to force re-initialization with new settings
+        self._clients = {}
+        logger.info("ProviderManager settings reloaded and all clients cleared.")
     
     def _load_provider_settings(self) -> Dict[str, Any]:
         """
@@ -204,21 +234,21 @@ class ProviderManager:
         self._initialize_google()
         self._initialize_openrouter()
     
-    def _initialize_openai(self) -> None:
+    def _initialize_openai(self) -> bool:
         """Initialize OpenAI client."""
         if not self._provider_availability[ProviderType.OPENAI]:
             logger.warning("OpenAI library not available")
-            return
+            return False
         
         settings = self._provider_settings.get("openai", {})
         if not settings.get("enabled", True):
             logger.info("OpenAI provider disabled in settings")
-            return
+            return False
         
         api_key = settings.get("api_key", "")
         if not api_key:
             logger.warning("OpenAI API key not configured")
-            return
+            return False
         
         try:
             # Initialize the client
@@ -235,24 +265,26 @@ class ProviderManager:
             }
             
             logger.info("OpenAI client initialized")
+            return True
         except Exception as e:
             logger.error(f"Error initializing OpenAI client: {e}")
+            return False
     
-    def _initialize_anthropic(self) -> None:
+    def _initialize_anthropic(self) -> bool:
         """Initialize Anthropic client."""
         if not self._provider_availability[ProviderType.ANTHROPIC]:
             logger.warning("Anthropic library not available")
-            return
+            return False
         
         settings = self._provider_settings.get("anthropic", {})
         if not settings.get("enabled", True):
             logger.info("Anthropic provider disabled in settings")
-            return
+            return False
         
         api_key = settings.get("api_key", "")
         if not api_key:
             logger.warning("Anthropic API key not configured")
-            return
+            return False
         
         try:
             # Initialize the client
@@ -267,24 +299,26 @@ class ProviderManager:
             }
             
             logger.info("Anthropic client initialized")
+            return True
         except Exception as e:
             logger.error(f"Error initializing Anthropic client: {e}")
+            return False
     
-    def _initialize_google(self) -> None:
+    def _initialize_google(self) -> bool:
         """Initialize Google client."""
         if not self._provider_availability[ProviderType.GOOGLE]:
             logger.warning("Google library not available")
-            return
+            return False
         
         settings = self._provider_settings.get("google", {})
         if not settings.get("enabled", True):
             logger.info("Google provider disabled in settings")
-            return
+            return False
         
         api_key = settings.get("api_key", "")
         if not api_key:
             logger.warning("Google API key not configured")
-            return
+            return False
         
         try:
             # Initialize the client
@@ -297,24 +331,26 @@ class ProviderManager:
             }
             
             logger.info("Google client initialized")
+            return True
         except Exception as e:
             logger.error(f"Error initializing Google client: {e}")
+            return False
     
-    def _initialize_openrouter(self) -> None:
+    def _initialize_openrouter(self) -> bool:
         """Initialize OpenRouter client."""
         if not self._provider_availability[ProviderType.OPENROUTER]:
             logger.warning("OpenRouter requires OpenAI library which is not available")
-            return
+            return False
         
         settings = self._provider_settings.get("openrouter", {})
         if not settings.get("enabled", True):
             logger.info("OpenRouter provider disabled in settings")
-            return
+            return False
         
         api_key = settings.get("api_key", "")
         if not api_key:
             logger.warning("OpenRouter API key not configured")
-            return
+            return False
         
         try:
             # Initialize the client
@@ -330,8 +366,10 @@ class ProviderManager:
             }
             
             logger.info("OpenRouter client initialized")
+            return True
         except Exception as e:
             logger.error(f"Error initializing OpenRouter client: {e}")
+            return False
     
     def get_client(self, provider_type: ProviderType) -> Optional[Any]:
         """
@@ -348,6 +386,17 @@ class ProviderManager:
             return None
         
         return self._clients[provider_type]["client"]
+
+    def clear_client(self, provider_type: ProviderType):
+        """
+        Clear a cached client, forcing re-initialization on next use.
+        
+        Args:
+            provider_type: The type of provider client to clear.
+        """
+        if provider_type in self._clients:
+            del self._clients[provider_type]
+            logger.info(f"Cleared cached client for {provider_type.name}. It will be re-initialized on next use.")
     
     def get_provider_settings(self, provider_type: ProviderType) -> Dict[str, Any]:
         """
@@ -371,7 +420,7 @@ class ProviderManager:
     
     def is_provider_available(self, provider_type: ProviderType) -> bool:
         """
-        Check if a provider is available.
+        Check if a provider is available for use (library installed, enabled, and configured).
         
         Args:
             provider_type: The type of provider.
@@ -379,12 +428,33 @@ class ProviderManager:
         Returns:
             True if the provider is available, False otherwise.
         """
-        # Check library availability
+        # 1. Check library availability
         if not self._provider_availability.get(provider_type, False):
             return False
         
-        # Check if provider is enabled and initialized
-        return provider_type in self._clients
+        # 2. Get provider settings
+        provider_map = {
+            ProviderType.OPENAI: "openai",
+            ProviderType.ANTHROPIC: "anthropic",
+            ProviderType.GOOGLE: "google",
+            ProviderType.OPENROUTER: "openrouter"
+        }
+        provider_name = provider_map.get(provider_type)
+        if not provider_name:
+            return False
+            
+        settings = self._provider_settings.get(provider_name, {})
+        
+        # 3. Check if enabled in settings
+        if not settings.get("enabled", True):
+            return False
+            
+        # 4. Check for API key
+        api_key = settings.get("api_key", "")
+        if not api_key:
+            return False
+            
+        return True
     
     def get_available_providers(self) -> List[ProviderType]:
         """
@@ -400,7 +470,7 @@ class ProviderManager:
     
     def verify_client(self, provider_type: ProviderType) -> bool:
         """
-        Verify that a provider client is working.
+        Verify that a provider client is working by initializing it if needed and making a test call.
         
         Args:
             provider_type: The type of provider to verify.
@@ -408,13 +478,20 @@ class ProviderManager:
         Returns:
             True if the client is working, False otherwise.
         """
+        # First, check if the provider is configured to be available (libs, settings, key)
         if not self.is_provider_available(provider_type):
-            logger.warning(f"Provider not available: {provider_type.name}")
+            logger.warning(f"Cannot verify {provider_type.name}: provider is not available or configured.")
             return False
         
+        # Attempt to initialize the provider
+        if not self.initialize_provider(provider_type):
+            logger.warning(f"Failed to initialize provider {provider_type.name} during verification.")
+            return False
+
         # Get the client
         client = self.get_client(provider_type)
         if not client:
+            logger.warning(f"Failed to get client for {provider_type.name} after initialization.")
             return False
         
         # Test prompt
@@ -489,7 +566,7 @@ class ProviderManager:
     def update_provider_settings(self, provider_type: ProviderType, 
                                 settings: Dict[str, Any]) -> bool:
         """
-        Update settings for a provider.
+        Update settings for a provider and clear the client to force re-initialization.
         
         Args:
             provider_type: The type of provider.
@@ -521,17 +598,10 @@ class ProviderManager:
             with open(providers_file, 'w', encoding='utf-8') as f:
                 json.dump(self._provider_settings, f, indent=4)
             
-            # Reinitialize the provider
-            if provider_type == ProviderType.OPENAI:
-                self._initialize_openai()
-            elif provider_type == ProviderType.ANTHROPIC:
-                self._initialize_anthropic()
-            elif provider_type == ProviderType.GOOGLE:
-                self._initialize_google()
-            elif provider_type == ProviderType.OPENROUTER:
-                self._initialize_openrouter()
+            # Clear the client to force re-initialization with new settings on next use
+            self.clear_client(provider_type)
             
-            logger.info(f"Updated settings for provider: {provider_name}")
+            logger.info(f"Updated settings for provider: {provider_name}. Client will be re-initialized on next use.")
             return True
         
         except Exception as e:

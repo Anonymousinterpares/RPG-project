@@ -1248,17 +1248,16 @@ class MainWindow(QMainWindow):
     
     def _show_settings_dialog(self):
         """Show dialog for game settings."""
+        if not hasattr(self, '_settings_dialog'):
+            from gui.dialogs.settings.settings_dialog import SettingsDialog
+            self._settings_dialog = SettingsDialog(parent=self)
+            logger.info("SettingsDialog instance created on-demand.")
+
+        dialog = self._settings_dialog
+        
         logger.info("Attempting to show SettingsDialog...") # Log entry
         logger.info("Imported SettingsDialog.") # Log import success
-
-        try:
-            dialog = SettingsDialog(parent=self)
-            logger.info("SettingsDialog instance created.") # Log instance creation
-        except Exception as e:
-            logger.error(f"Error INSTANTIATING SettingsDialog: {e}", exc_info=True)
-            QMessageBox.critical(self, "Error", f"Failed to create settings dialog:\n{e}")
-            return
-
+        
         # Connect the background preview signal from the BackgroundTab within the SettingsDialog
         connected = False
         if hasattr(dialog, 'background_tab') and hasattr(dialog.background_tab, 'preview_background_changed'):
@@ -1468,9 +1467,13 @@ class MainWindow(QMainWindow):
     
     def _show_llm_settings_dialog(self):
         """Show dialog for LLM settings."""
-        dialog = LLMSettingsDialog(parent=self)
-        dialog.settings_saved.connect(self._on_llm_settings_saved)
-        dialog.exec()
+        if not hasattr(self, '_llm_settings_dialog'):
+            from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
+            self._llm_settings_dialog = LLMSettingsDialog(parent=self)
+            self._llm_settings_dialog.settings_saved.connect(self._on_llm_settings_saved)
+            logger.info("LLMSettingsDialog instance created on-demand.")
+        
+        self._llm_settings_dialog.exec()
     
     def _on_llm_settings_saved(self):
         """Handle LLM settings saved event."""
