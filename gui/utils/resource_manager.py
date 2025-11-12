@@ -222,6 +222,26 @@ class ResourceManager:
             logging.error(f"Error loading background movie {full_path}: {e}")
             return QMovie()
 
+    def get_gif_path(self, name: str) -> str:
+        """
+        Get the full path to a GIF resource.
+
+        Args:
+            name: The resource name (without path or extension)
+
+        Returns:
+            The full path to the GIF file, or an empty string if not found.
+        """
+        # Construct the full path
+        full_path = os.path.join(self.gui_path, f"{name}.gif")
+        
+        # Check if the file exists
+        if os.path.exists(full_path):
+            return full_path
+        else:
+            logging.warning(f"GIF resource not found: {full_path}")
+            return ""
+
     def clear_cache(self):
         """Clear the resource cache."""
         self._pixmap_cache.clear()

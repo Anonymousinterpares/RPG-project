@@ -16,7 +16,10 @@ from PySide6.QtWidgets import (
     QMenu, QSlider, QWidgetAction, QLineEdit, QTextEdit, QPlainTextEdit, QTabBar
 )
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, Signal, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QPixmap, QTextCursor, QCursor
+from PySide6.QtGui import QPixmap, QTextCursor, QCursor, QMovie
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PySide6.QtMultimediaWidgets import QVideoWidget
+
 from core.inventory import get_inventory_manager
 from core.inventory.item import Item
 from core.inventory.item_enums import EquipmentSlot
@@ -36,6 +39,8 @@ from gui.utils.resource_manager import get_resource_manager
 from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
 from gui.styles.theme_manager import ThemeManager, get_theme_manager
 from gui.dialogs.settings.settings_dialog import SettingsDialog
+from gui.workers import SaveGameWorker, LoadGameWorker, NewGameWorker
+from gui.components.loading_bar import LoadingProgressBar
 
 logger = get_logger("GUI")
 
@@ -245,6 +250,17 @@ class MainWindow(QMainWindow):
         else:
             event.ignore()
 
+    def resizeEvent(self, event):
+        """Handle window resize event to keep background and content sized correctly."""
+        super().resizeEvent(event)
+        # Keep background label and content widget filling the container
+        if hasattr(self, 'background_label'): # Check if widgets exist yet
+             self.background_label.setGeometry(0, 0, event.size().width(), event.size().height())
+        if hasattr(self, 'main_content_widget'):
+             self.main_content_widget.setGeometry(0, 0, event.size().width(), event.size().height())
+        if hasattr(self, 'loading_overlay'):
+            self.loading_overlay.setGeometry(self.rect())
+
     def _apply_saved_resolution(self):
         """Apply saved resolution from settings."""
         settings = QSettings("RPGGame", "Settings")
@@ -394,6 +410,43 @@ class MainWindow(QMainWindow):
         self.status_bar.setEnabled(False)
         if hasattr(self, 'status_bar_opacity_effect'):
              self.status_bar_opacity_effect.setOpacity(0.0)
+
+        self.loading_overlay = QWidget(self.centralWidget())
+        self.loading_overlay.setObjectName("loadingOverlay")
+        self.loading_overlay.setGeometry(self.rect())
+        self.loading_overlay.setStyleSheet("background-color: rgba(0, 0, 0, 0.85);")
+        
+        loading_layout = QVBoxLayout(self.loading_overlay)
+        loading_layout.setAlignment(Qt.AlignCenter)
+        loading_layout.setSpacing(20)
+
+        # Video Player Setup
+        self.video_widget = QVideoWidget(self.loading_overlay)
+        self.video_widget.setFixedSize(720, 720)
+        self.player = QMediaPlayer()
+        self.audio_output = QAudioOutput()
+        self.player.setAudioOutput(self.audio_output)
+        self.player.setVideoOutput(self.video_widget)
+        self.player.setLoops(QMediaPlayer.Loops.Infinite)
+        self.audio_output.setVolume(0) # Muted by default
+
+        # Fallback Progress Bar
+        self.fallback_loading_bar = LoadingProgressBar(self.loading_overlay)
+        self.fallback_loading_bar.setFixedSize(720, 20)
+
+        # Loading Text Label
+        self.loading_label = QLabel("Loading...", self.loading_overlay)
+        self.loading_label.setStyleSheet("color: white; font-size: 24px; background-color: transparent;")
+        self.loading_label.setAlignment(Qt.AlignCenter)
+
+        loading_layout.addWidget(self.video_widget, 0, Qt.AlignCenter)
+        loading_layout.addWidget(self.fallback_loading_bar, 0, Qt.AlignCenter)
+        self.loading_overlay.hide()
+
+        # Opacity effect for fade animations
+        self.loading_opacity_effect = QGraphicsOpacityEffect(self.loading_overlay)
+        self.loading_overlay.setGraphicsEffect(self.loading_opacity_effect)
+        self.loading_opacity_effect.setOpacity(0.0)
 
     def _create_music_controls(self):
         """Create music control widgets."""
@@ -1076,6 +1129,162 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
+    def _show_new_game_dialog(self):
+        """Show dialog for creating a new game."""
+        from gui.dialogs.character_creation_dialog import CharacterCreationDialog
+        dialog = CharacterCreationDialog(parent=self)
+        if dialog.exec():
+            character_data = dialog.get_character_data()
+            if not character_data: 
+                logger.warning("New game character creation cancelled or failed validation in dialog.")
+                return
+
+            logger.info(f"Character data received from dialog. Preparing to start panel animations.")
+            self._start_panel_animations(character_data)
+        else:
+            logger.info("New game dialog cancelled by user.")
+
+    def _start_panel_animations(self, character_data: dict):
+        """Fade in the main game panels after character creation."""
+        self._initialize_panel_effects()
+        
+        self.center_widget.setVisible(True)
+        self.right_panel.setVisible(True)
+        self.status_bar.setVisible(True)
+
+        self.anim_group = QParallelAnimationGroup(self)
+        
+        # Center widget animation
+        anim_center = QPropertyAnimation(self.center_opacity_effect, b"opacity")
+        anim_center.setDuration(1500)
+        anim_center.setStartValue(0.0)
+        anim_center.setEndValue(1.0)
+        anim_center.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.anim_group.addAnimation(anim_center)
+        
+        # Right panel animation
+        anim_right = QPropertyAnimation(self.right_panel_opacity_effect, b"opacity")
+        anim_right.setDuration(1500)
+        anim_right.setStartValue(0.0)
+        anim_right.setEndValue(1.0)
+        anim_right.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.anim_group.addAnimation(anim_right)
+
+        # Status bar animation
+        anim_status = QPropertyAnimation(self.status_bar_opacity_effect, b"opacity")
+        anim_status.setDuration(1000) # Faster
+        anim_status.setStartValue(0.0)
+        anim_status.setEndValue(1.0)
+        self.anim_group.addAnimation(anim_status)
+
+        # Connect the finished signal to the next step in the game flow
+        self.anim_group.finished.connect(lambda: self._on_panel_animations_finished(character_data))
+        self.anim_group.start()
+
+    def _on_panel_animations_finished(self, character_data: dict):
+        """Callback for when the initial panel animations are finished."""
+        self.center_widget.setEnabled(True)
+        self.right_panel.setEnabled(True)
+        self.status_bar.setEnabled(True)
+        logger.info("Center widget and Right panel enabled after fade-in.")
+        logger.info("Status bar enabled after fade-in.")
+        
+        self.start_new_game(character_data)
+
+    def start_new_game(self, character_data: dict):
+        """Initiates the new game process in a worker thread."""
+        logger.info("All panel animations complete. Starting game engine flow.")
+        self.game_output.clear()
+        
+        # Create a copy of the data to avoid modifying the original dict
+        worker_character_data = character_data.copy()
+
+        # Extract character stats from the StatAllocation instance and put the resulting dict in the worker data
+        stats_instance = worker_character_data.get("stats")
+        if hasattr(stats_instance, 'get_base_stats'):
+            character_stats = stats_instance.get_base_stats()
+            worker_character_data['stats'] = character_stats
+            logger.debug(f"Character stats for worker: {character_stats}")
+        elif isinstance(stats_instance, dict):
+             # If it's already a dict, just use it
+             logger.debug(f"Character stats for worker (already a dict): {stats_instance}")
+        else:
+            logger.error("Could not find valid stats in character data!")
+            QMessageBox.critical(self, "Error", "Could not find character stats to start the game.")
+            return
+            
+        logger.info(f"Character data received for new game: {worker_character_data['name']}")
+        self._show_loading_overlay("Starting new game...", origin_id=worker_character_data.get('origin_id'))
+
+        self.new_game_thread = QThread()
+        self.new_game_worker = NewGameWorker(self.game_engine, worker_character_data)
+        self.new_game_worker.moveToThread(self.new_game_thread)
+        self.new_game_thread.started.connect(self.new_game_worker.run)
+        self.new_game_worker.finished.connect(self._on_new_game_finished)
+        self.new_game_worker.error.connect(self._on_new_game_error)
+        self.new_game_worker.finished.connect(self.new_game_thread.quit)
+        self.new_game_worker.finished.connect(self.new_game_worker.deleteLater)
+        self.new_game_thread.finished.connect(self.new_game_thread.deleteLater)
+        self.new_game_thread.start()
+
+    def _show_save_game_dialog(self):
+        """Show dialog for saving the game."""
+        from gui.dialogs.save_game_dialog import SaveGameDialog
+        dialog = SaveGameDialog(parent=self)
+        if dialog.exec():
+            save_name = dialog.save_name_edit.text()
+            
+            origin_id = None
+            try:
+                if self.game_engine.state_manager.current_state and self.game_engine.state_manager.current_state.player:
+                    origin_id = self.game_engine.state_manager.current_state.player.origin
+            except Exception as e:
+                logger.warning(f"Could not determine origin_id for save loading screen: {e}")
+
+            self._show_loading_overlay(f"Saving game: {save_name}...", origin_id=origin_id)
+
+            self.save_thread = QThread()
+            self.save_worker = SaveGameWorker(self.game_engine, save_name)
+            self.save_worker.moveToThread(self.save_thread)
+            self.save_thread.started.connect(self.save_worker.run)
+            self.save_worker.finished.connect(self._on_save_finished)
+            self.save_worker.error.connect(self._on_worker_error)
+            self.save_worker.finished.connect(self.save_thread.quit)
+            self.save_worker.finished.connect(self.save_worker.deleteLater)
+            self.save_thread.finished.connect(self.save_thread.deleteLater)
+            self.save_thread.start()
+
+    def _on_save_finished(self, saved_path):
+        self._hide_loading_overlay()
+        QMessageBox.information(self, "Game Saved", f"Game saved successfully to {saved_path}")
+
+    def _show_load_game_dialog(self):
+        """Show dialog for loading a saved game."""
+        from gui.dialogs.load_game_dialog import LoadGameDialog
+        dialog = LoadGameDialog(parent=self)
+        if dialog.exec():
+            save_filename = dialog.selected_save
+            if save_filename:
+                self.game_output.clear()
+                self._show_loading_overlay(f"Loading game: {save_filename}...")
+
+                self.load_thread = QThread()
+                self.load_worker = LoadGameWorker(self.game_engine, save_filename)
+                self.load_worker.moveToThread(self.load_thread)
+                self.load_thread.started.connect(self.load_worker.run)
+                self.load_worker.finished.connect(self._on_load_finished)
+                self.load_worker.error.connect(self._on_worker_error)
+                self.load_worker.finished.connect(self.load_thread.quit)
+                self.load_worker.finished.connect(self.load_worker.deleteLater)
+                self.load_thread.finished.connect(self.load_thread.deleteLater)
+                self.load_thread.start()
+
+    def _on_load_finished(self):
+        self._hide_loading_overlay()
+        self._show_game_panels_for_loaded_game()
+        self._update_ui()
+        QMessageBox.information(self, "Game Loaded", "Game loaded successfully.")
+
     def _show_game_panels_for_loaded_game(self):
         """Make game panels visible and enabled when loading a saved game."""
         self._initialize_panel_effects()
@@ -1103,149 +1312,185 @@ class MainWindow(QMainWindow):
         
         logger.info("Game panels made visible and enabled for loaded game")
 
-    def _show_new_game_dialog(self):
-        """Show dialog for creating a new game."""
-        from gui.dialogs.character_creation_dialog import CharacterCreationDialog
-        dialog = CharacterCreationDialog(parent=self)
-        if dialog.exec():
-            character_data = dialog.get_character_data()
-            if not character_data: 
-                logger.warning("New game character creation cancelled or failed validation in dialog.")
-                return
+    def _load_and_apply_initial_background(self):
+        """Load the saved background filename from settings and apply it.
+        If no valid setting is found, use the first available background alphabetically.
+        """
+        settings = QSettings("RPGGame", "Settings")
+        # Read the full filename setting
+        saved_filename = settings.value("style/background_filename", None)
 
-            logger.info(f"Character data received from dialog. Preparing to start panel animations.")
-            
-            # Start panel animations, passing character_data to be used after animation
-            # This will eventually call _start_game_flow_after_animation
-            self._start_panel_animations(character_data)
-            
-            # DO NOT start game engine here. It will be started by _start_game_flow_after_animation.
+        available_backgrounds = self.resource_manager.list_background_names() # Gets list of (name, ext)
+        final_filename = None
+
+        # Check if saved filename exists in the available list
+        if saved_filename:
+            found = False
+            for name, ext in available_backgrounds:
+                if f"{name}{ext}" == saved_filename:
+                    final_filename = saved_filename
+                    found = True
+                    break
+            if found:
+                logger.info(f"Using saved background: {final_filename}")
+            else:
+                logger.warning(f"Saved background '{saved_filename}' not found in available list.")
+                saved_filename = None # Treat as not found
+
+        # If no valid saved name, use the first available background
+        if not final_filename and available_backgrounds:
+            first_name, first_ext = available_backgrounds[0] # Use first alphabetically
+            final_filename = f"{first_name}{first_ext}"
+            logger.info(f"No valid saved background found. Using first available: {final_filename}")
+        elif not final_filename:
+             logger.warning("No saved background setting found and no backgrounds available in images/gui/background/. Applying fallback color.")
+             # update_background will handle the fallback color if name is None
+
+        self.update_background(final_filename) # Pass None if no background is available
+
+    def update_background(self, filename: Optional[str]):
+        """Load and apply a new background image or GIF to the main window."""
+        logger.info(f"Attempting to update background to: {filename}")
+
+        # Stop and clear any existing movie/pixmap
+        current_movie = self.background_label.movie()
+        if current_movie:
+            current_movie.stop()
+            self.background_label.setMovie(None)
+        self.background_label.setPixmap(QPixmap())
+        # Reset palette to default in case previous was PNG
+        self.background_container.setAutoFillBackground(False) # Important! Don't let palette fill container
+        self.background_label.setProperty("current_background", None) # Store current bg filename
+
+        if not filename:
+            logger.warning("No background filename provided, clearing background.")
+            # Optionally set a default color on the label if needed
+            self.background_label.setStyleSheet("background-color: #1E1E1E;")
+            return
+
+        name, ext = os.path.splitext(filename)
+        ext_lower = ext.lower()
+
+        if ext_lower == ".png":
+            pixmap = self.resource_manager.get_background_pixmap(name)
+            if not pixmap.isNull():
+                self.background_label.setPixmap(pixmap) # Label scales content
+                self.background_label.setStyleSheet("") # Clear any fallback color
+                self.background_label.setProperty("current_background", filename)
+                logger.info(f"Successfully applied PNG background: {filename}")
+            else:
+                logger.warning(f"Failed to load PNG background '{filename}', applying fallback color.")
+                self.background_label.setStyleSheet("background-color: #1E1E1E;")
+
+        elif ext_lower == ".gif":
+            movie = self.resource_manager.get_background_movie(name)
+            if movie.isValid():
+                self.background_label.setMovie(movie)
+                movie.start()
+                self.background_label.setStyleSheet("") # Clear any fallback color
+                self.background_label.setProperty("current_background", filename)
+                logger.info(f"Successfully applied GIF background: {filename}")
+            else:
+                logger.warning(f"Failed to load GIF background '{filename}', applying fallback color.")
+                self.background_label.setStyleSheet("background-color: #1E1E1E;")
         else:
-            logger.info("New game dialog cancelled by user.")
+            logger.error(f"Unsupported background file type: {filename}")
+            self.background_label.setStyleSheet("background-color: #1E1E1E;") # Fallback color
 
-    def _show_save_game_dialog(self):
-        """Show dialog for saving the game."""
-        from gui.dialogs.save_game_dialog import SaveGameDialog
-        dialog = SaveGameDialog(parent=self)
-        if dialog.exec():
-            # Save the game with the provided name
-            save_name = dialog.save_name_edit.text()
+    def _on_new_game_finished(self, initial_narration: str):
+        """Handle successful new game creation."""
+        logger.info("[SUCCESS] New game flow complete. Initial narration received.")
+        self._hide_loading_overlay()
+        if initial_narration:
+            self.game_output.append_gm_message(initial_narration, gradual=True)
+        else:
+            logger.warning("New game finished but no initial narration was provided.")
+            self.game_output.append_system_message("A new world awaits...", gradual=False)
+        
+        # Final UI update to switch to the correct view (NARRATIVE) and refresh all panels.
+        self._update_ui()
 
-            # --- FIX: Synchronize combat entity stats BEFORE saving ---
-            try:
-                state = self.game_engine.state_manager.current_state
-                if state and state.current_mode.name == 'COMBAT' and state.combat_manager:
-                    logger.info("Performing pre-save synchronization of combat entity stats.")
-                    cm = state.combat_manager
-                    for entity_id, entity in cm.entities.items():
-                        stats_manager = cm._get_entity_stats_manager(entity_id, quiet=True)
-                        if stats_manager:
-                            entity.current_hp = stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
-                            entity.current_stamina = stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
-                            entity.current_mp = stats_manager.get_current_stat_value(DerivedStatType.MANA)
-                            # You can add other stats here if they also change during combat
-                    logger.info("Pre-save synchronization complete.")
-            except Exception as e:
-                logger.error(f"Failed to synchronize combat stats before save: {e}", exc_info=True)
-            # --- END FIX ---
+    def _on_worker_error(self, error_msg: str, title: str = "Error"):
+        """Generic error handler for worker threads."""
+        self._hide_loading_overlay()
+        QMessageBox.critical(self, title, f"An unexpected error occurred: {error_msg}")
+        # Optionally, reset parts of the UI
+        self._reset_ui_after_error()
 
-            saved_path = self.game_engine.save_game(save_name)
+    def _on_new_game_error(self, error_msg):
+        self._hide_loading_overlay()
+        QMessageBox.critical(self, "New Game Failed", f"Failed to start new game: {error_msg}")
+        self._reset_ui_after_error()
+
+    def _reset_ui_after_error(self):
+        """Resets the main panels to a hidden state after a critical failure like new game creation."""
+        self.center_widget.setVisible(False)
+        self.center_widget.setEnabled(False)
+        if hasattr(self, 'center_opacity_effect'): self.center_opacity_effect.setOpacity(0.0)
+        
+        self.right_panel.setVisible(False)
+        self.right_panel.setEnabled(False)
+        if hasattr(self, 'right_panel_opacity_effect'): self.right_panel_opacity_effect.setOpacity(0.0)
+
+        self.status_bar.setVisible(False)
+        self.status_bar.setEnabled(False)
+        if hasattr(self, 'status_bar_opacity_effect'): self.status_bar_opacity_effect.setOpacity(0.0)
+        logger.info("UI panels have been reset after a worker error.")
+
+    def _show_loading_overlay(self, text: str, origin_id: Optional[str] = None):
+        self.loading_label.setText(text)
+        self.loading_overlay.setGeometry(self.rect())
+
+        video_path_abs = ""
+        if origin_id:
+            # Convert to absolute path and use QUrl for reliability
+            video_path_rel = os.path.join("images", "gui", f"{origin_id}_loading.mp4")
+            video_path_abs = os.path.abspath(video_path_rel)
+            logger.info(f"Attempting to load origin-specific loading video from absolute path: {video_path_abs}")
+
+        if origin_id and os.path.exists(video_path_abs):
+            self.video_widget.setVisible(True)
+            self.fallback_loading_bar.setVisible(False)
+            self.fallback_loading_bar.stop_animation()
             
-            if saved_path:
-                QMessageBox.information(
-                    self, 
-                    "Game Saved", 
-                    f"Game saved successfully to {saved_path}" 
-                )
+            from PySide6.QtCore import QUrl
+            self.player.setSource(QUrl.fromLocalFile(video_path_abs))
+            self.player.play()
+            logger.info(f"Playing loading video: {video_path_rel}")
+        else:
+            if origin_id:
+                logger.warning(f"Loading video not found at '{video_path_abs}'. Using fallback progress bar.")
+            else:
+                logger.info("No origin_id provided. Using fallback progress bar for loading.")
+            self.video_widget.setVisible(False)
+            self.fallback_loading_bar.setVisible(True)
+            self.fallback_loading_bar.start_animation()
+            self.player.stop()
 
-    
-    def _show_load_game_dialog(self):
-        """Show dialog for loading a saved game."""
-        from gui.dialogs.load_game_dialog import LoadGameDialog
-        dialog = LoadGameDialog(parent=self)
-        if dialog.exec():
-            # Load the selected save
-            save_filename = dialog.selected_save
-            if save_filename:
-                # Pre-clear orchestrator and displays before loading save to preserve new outputs
-                try:
-                    if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator:
-                        self.game_engine._combat_orchestrator.clear_queue_and_reset_flags()
-                except Exception as e:
-                    logger.warning(f"Failed to clear orchestrator state before load: {e}")
-                try:
-                    self.game_output.clear()
-                except Exception as e:
-                    logger.warning(f"Failed to clear GameOutputWidget before load: {e}")
-                try:
-                    self.combat_display.clear_display()
-                except Exception as e:
-                    logger.warning(f"Failed to clear CombatDisplay before load: {e}")
-                self._last_submitted_command = None
-                loaded_state = self.game_engine.load_game(save_filename)
-                
-                if loaded_state:
-                    # Clear right panel tabs to avoid stale data before repopulating
-                    try:
-                        if hasattr(self.right_panel, 'journal_panel'):
-                            self.right_panel.journal_panel.clear_all()
-                        if hasattr(self.right_panel, 'inventory_panel') and hasattr(self.right_panel.inventory_panel, 'clear'):
-                            # If a clear method exists use it; otherwise update_inventory will refresh
-                            try:
-                                self.right_panel.inventory_panel.clear()
-                            except Exception:
-                                pass
-                        if hasattr(self.right_panel, 'character_sheet') and hasattr(self.right_panel.character_sheet, '_clear_stat_displays'):
-                            self.right_panel.character_sheet._clear_stat_displays()
-                    except Exception as e:
-                        logger.warning(f"Failed to clear right panel widgets prior to load repopulation: {e}")
+        self.loading_overlay.show()
+        self.loading_overlay.raise_()
 
-                    # Ensure journal exists
-                    if not hasattr(self.game_engine.state_manager.current_state, "journal"):
-                        self.game_engine.state_manager.current_state.journal = {
-                            "character": self.game_engine.state_manager.current_state.player.background,
-                            "quests": {},
-                            "notes": []
-                        }
-                    
-                    # Ensure the stats manager is fully initialized
-                    self.game_engine.state_manager.ensure_stats_manager_initialized()
+        # Fade in animation
+        self.fade_in_anim = QPropertyAnimation(self.loading_opacity_effect, b"opacity")
+        self.fade_in_anim.setDuration(300)
+        self.fade_in_anim.setStartValue(0.0)
+        self.fade_in_anim.setEndValue(1.0)
+        self.fade_in_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.fade_in_anim.start(QPropertyAnimation.DeleteWhenStopped)
 
-                    # Make game panels visible and enabled for loaded games
-                    self._show_game_panels_for_loaded_game()
-                    
-                    # Update UI
-                    self._update_ui()
+    def _hide_loading_overlay(self):
+        self.player.stop()
+        self.fallback_loading_bar.stop_animation()
+        
+        # Fade out animation
+        self.fade_out_anim = QPropertyAnimation(self.loading_opacity_effect, b"opacity")
+        self.fade_out_anim.setDuration(300)
+        self.fade_out_anim.setStartValue(1.0)
+        self.fade_out_anim.setEndValue(0.0)
+        self.fade_out_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.fade_out_anim.finished.connect(self.loading_overlay.hide)
+        self.fade_out_anim.start(QPropertyAnimation.DeleteWhenStopped)
 
-                    # Bind orchestrator to loaded CombatManager if save is in COMBAT
-                    try:
-                        state = self.game_engine.state_manager.current_state
-                        if state and state.current_mode.name == 'COMBAT' and getattr(state, 'combat_manager', None):
-                            if hasattr(self.game_engine, '_combat_orchestrator'):
-                                self.game_engine._combat_orchestrator.set_combat_manager(state.combat_manager)
-                                logger.info("Bound loaded CombatManager to Orchestrator in MainWindow (load dialog).")
-                    except Exception as e:
-                        logger.warning(f"Failed to bind CombatManager after load in MainWindow: {e}")
-
-                    # Emit consolidated stats_changed to refresh UI listeners
-                    try:
-                        sm = self.game_engine.state_manager.stats_manager
-                        if sm and hasattr(sm, 'stats_changed'):
-                            sm.stats_changed.emit(sm.get_all_stats())
-                            logger.info("Emitted consolidated stats_changed after load to refresh UI.")
-                    except Exception as e:
-                        logger.warning(f"Failed to emit stats_changed after load: {e}")
-                    
-                    # Force character sheet update with current player
-                    if self.game_engine.state_manager.current_state and self.game_engine.state_manager.current_state.player:
-                        self.right_panel.update_character(self.game_engine.state_manager.current_state.player)
-                else:
-                    QMessageBox.warning(
-                        self, 
-                        "Load Failed", 
-                        f"Failed to load game from {save_filename}"
-                    )
-    
     def _show_settings_dialog(self):
         """Show dialog for game settings."""
         if not hasattr(self, '_settings_dialog'):
@@ -1379,92 +1624,7 @@ class MainWindow(QMainWindow):
             logger.info("Settings applied successfully.")
         else:
              logger.info("Settings dialog cancelled or closed without saving.")
-    
-    def update_background(self, filename: Optional[str]):
-        """Load and apply a new background image or GIF to the main window."""
-        logger.info(f"Attempting to update background to: {filename}")
 
-        # Stop and clear any existing movie/pixmap
-        current_movie = self.background_label.movie()
-        if current_movie:
-            current_movie.stop()
-            self.background_label.setMovie(None)
-        self.background_label.setPixmap(QPixmap())
-        # Reset palette to default in case previous was PNG
-        self.background_container.setAutoFillBackground(False) # Important! Don't let palette fill container
-        self.background_label.setProperty("current_background", None) # Store current bg filename
-
-        if not filename:
-            logger.warning("No background filename provided, clearing background.")
-            # Optionally set a default color on the label if needed
-            self.background_label.setStyleSheet("background-color: #1E1E1E;")
-            return
-
-        name, ext = os.path.splitext(filename)
-        ext_lower = ext.lower()
-
-        if ext_lower == ".png":
-            pixmap = self.resource_manager.get_background_pixmap(name)
-            if not pixmap.isNull():
-                self.background_label.setPixmap(pixmap) # Label scales content
-                self.background_label.setStyleSheet("") # Clear any fallback color
-                self.background_label.setProperty("current_background", filename)
-                logger.info(f"Successfully applied PNG background: {filename}")
-            else:
-                logger.warning(f"Failed to load PNG background '{filename}', applying fallback color.")
-                self.background_label.setStyleSheet("background-color: #1E1E1E;")
-
-        elif ext_lower == ".gif":
-            movie = self.resource_manager.get_background_movie(name)
-            if movie.isValid():
-                self.background_label.setMovie(movie)
-                movie.start()
-                self.background_label.setStyleSheet("") # Clear any fallback color
-                self.background_label.setProperty("current_background", filename)
-                logger.info(f"Successfully applied GIF background: {filename}")
-            else:
-                logger.warning(f"Failed to load GIF background '{filename}', applying fallback color.")
-                self.background_label.setStyleSheet("background-color: #1E1E1E;")
-        else:
-            logger.error(f"Unsupported background file type: {filename}")
-            self.background_label.setStyleSheet("background-color: #1E1E1E;") # Fallback color
-
-    def _load_and_apply_initial_background(self):
-        """Load the saved background filename from settings and apply it.
-        If no valid setting is found, use the first available background alphabetically.
-        """
-        settings = QSettings("RPGGame", "Settings")
-        # Read the full filename setting
-        saved_filename = settings.value("style/background_filename", None)
-
-        available_backgrounds = self.resource_manager.list_background_names() # Gets list of (name, ext)
-        final_filename = None
-
-        # Check if saved filename exists in the available list
-        if saved_filename:
-            found = False
-            for name, ext in available_backgrounds:
-                if f"{name}{ext}" == saved_filename:
-                    final_filename = saved_filename
-                    found = True
-                    break
-            if found:
-                logger.info(f"Using saved background: {final_filename}")
-            else:
-                logger.warning(f"Saved background '{saved_filename}' not found in available list.")
-                saved_filename = None # Treat as not found
-
-        # If no valid saved name, use the first available background
-        if not final_filename and available_backgrounds:
-            first_name, first_ext = available_backgrounds[0] # Use first alphabetically
-            final_filename = f"{first_name}{first_ext}"
-            logger.info(f"No valid saved background found. Using first available: {final_filename}")
-        elif not final_filename:
-             logger.warning("No saved background setting found and no backgrounds available in images/gui/background/. Applying fallback color.")
-             # update_background will handle the fallback color if name is None
-
-        self.update_background(final_filename) # Pass None if no background is available
-    
     def _show_llm_settings_dialog(self):
         """Show dialog for LLM settings."""
         if not hasattr(self, '_llm_settings_dialog'):
@@ -1485,41 +1645,6 @@ class MainWindow(QMainWindow):
             self.game_output.append_system_message("LLM processing is now enabled.")
         else:
             self.game_output.append_system_message("LLM processing is now disabled.")
-
-    # Removed _delayed_character_update method - we now use direct update instead of timers
-    
-    def closeEvent(self, event):
-        """Handle window close event."""
-        # Ask for confirmation
-        reply = QMessageBox.question(
-            self, 
-            "Exit Game", 
-            "Are you sure you want to exit? Unsaved progress will be lost.",
-            QMessageBox.Yes | QMessageBox.No, 
-            QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
-            # Stop the game engine
-            self.game_engine.stop()
-
-            # Stop background movie if playing
-            bg_movie = self.background_label.movie()
-            if bg_movie:
-                bg_movie.stop()
-
-            event.accept()
-        else:
-            event.ignore()
-
-    def resizeEvent(self, event):
-        """Handle window resize event to keep background and content sized correctly."""
-        super().resizeEvent(event)
-        # Keep background label and content widget filling the container
-        if hasattr(self, 'background_label'): # Check if widgets exist yet
-             self.background_label.setGeometry(0, 0, event.size().width(), event.size().height())
-        if hasattr(self, 'main_content_widget'):
-             self.main_content_widget.setGeometry(0, 0, event.size().width(), event.size().height())
 
     def _load_last_save(self):
         """Loads the most recent non-auto save file."""
@@ -1895,200 +2020,52 @@ class MainWindow(QMainWindow):
             self.status_bar.setGraphicsEffect(self.status_bar_opacity_effect)
             self.status_bar_opacity_effect.setOpacity(0.0)
 
-    def _start_panel_animations(self, character_data: Dict[str, Any]):
-        """Starts the animation sequence for showing the main game panels."""
-        self._character_data_for_new_game = character_data 
-
+    def _start_panel_animations(self, character_data: dict):
+        """Fade in the main game panels after character creation."""
         self._initialize_panel_effects()
-
-        # 1. Make panels visible (for layout) but keep them disabled and transparent
+        
         self.center_widget.setVisible(True)
-        self.center_widget.setEnabled(False) # Keep disabled during animation
-        self.center_opacity_effect.setOpacity(0.0)
-
         self.right_panel.setVisible(True)
-        self.right_panel.setEnabled(False) # Keep disabled during animation
-        # Ensure right_panel is set to its desired initial expanded state before animation
-        if not self.right_panel.isExpanded(): 
-             self.right_panel.setExpanded(True) # Set its state, width animation will be part of its logic
-        self.right_panel_opacity_effect.setOpacity(0.0)
+        self.status_bar.setVisible(True)
 
-        animation_duration = 300 
+        self.anim_group = QParallelAnimationGroup(self)
+        
+        # Center widget animation
+        anim_center = QPropertyAnimation(self.center_opacity_effect, b"opacity")
+        anim_center.setDuration(1500)
+        anim_center.setStartValue(0.0)
+        anim_center.setEndValue(1.0)
+        anim_center.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.anim_group.addAnimation(anim_center)
+        
+        # Right panel animation
+        anim_right = QPropertyAnimation(self.right_panel_opacity_effect, b"opacity")
+        anim_right.setDuration(1500)
+        anim_right.setStartValue(0.0)
+        anim_right.setEndValue(1.0)
+        anim_right.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.anim_group.addAnimation(anim_right)
 
-        center_anim = QPropertyAnimation(self.center_opacity_effect, b"opacity", self)
-        center_anim.setDuration(animation_duration)
-        center_anim.setStartValue(0.0)
-        center_anim.setEndValue(1.0)
-        center_anim.setEasingCurve(QEasingCurve.InOutQuad)
+        # Status bar animation
+        anim_status = QPropertyAnimation(self.status_bar_opacity_effect, b"opacity")
+        anim_status.setDuration(1000) # Faster
+        anim_status.setStartValue(0.0)
+        anim_status.setEndValue(1.0)
+        self.anim_group.addAnimation(anim_status)
 
-        right_panel_anim = QPropertyAnimation(self.right_panel_opacity_effect, b"opacity", self)
-        right_panel_anim.setDuration(animation_duration)
-        right_panel_anim.setStartValue(0.0)
-        right_panel_anim.setEndValue(1.0)
-        right_panel_anim.setEasingCurve(QEasingCurve.InOutQuad)
+        # Connect the finished signal to the next step in the game flow
+        self.anim_group.finished.connect(lambda: self._on_panel_animations_finished(character_data))
+        self.anim_group.start()
 
-        self.parallel_anim_group = QParallelAnimationGroup(self)
-        self.parallel_anim_group.addAnimation(center_anim)
-        self.parallel_anim_group.addAnimation(right_panel_anim)
-
-        self.parallel_anim_group.finished.connect(self._animate_status_bar_in)
-        self.parallel_anim_group.start(QPropertyAnimation.DeleteWhenStopped)
-
-    @Slot()
-    def _animate_status_bar_in(self):
-        """Makes the status bar visible and animates its fade-in."""
-        # Enable the center and right panels now that their fade-in is complete
+    def _on_panel_animations_finished(self, character_data: dict):
+        """Callback for when the initial panel animations are finished."""
         self.center_widget.setEnabled(True)
         self.right_panel.setEnabled(True)
-        logger.info("Center widget and Right panel enabled after fade-in.")
-
-        self.status_bar.setVisible(True)
-        self.status_bar.setEnabled(False) # Keep disabled during its own animation
-        self.status_bar_opacity_effect.setOpacity(0.0)
-
-        status_bar_anim = QPropertyAnimation(self.status_bar_opacity_effect, b"opacity", self)
-        status_bar_anim.setDuration(200) 
-        status_bar_anim.setStartValue(0.0)
-        status_bar_anim.setEndValue(1.0)
-        status_bar_anim.setEasingCurve(QEasingCurve.InOutQuad)
-
-        status_bar_anim.finished.connect(self._start_game_flow_after_animation)
-        status_bar_anim.start(QPropertyAnimation.DeleteWhenStopped) 
-
-    @Slot()
-    def _start_game_flow_after_animation(self):
-        """Final step after all panel animations are complete. Starts the game engine flow."""
         self.status_bar.setEnabled(True)
+        logger.info("Center widget and Right panel enabled after fade-in.")
         logger.info("Status bar enabled after fade-in.")
-        logger.info("All panel animations complete. Starting game engine flow.")
-
-        character_data = getattr(self, '_character_data_for_new_game', None)
-        if not character_data:
-            logger.error("Character data not found after animation. Cannot start new game.")
-            QMessageBox.critical(self, "Error", "Failed to retrieve character data to start the game.")
-            # Reset UI to pre-new-game state
-            self.center_widget.setVisible(False)
-            self.center_widget.setEnabled(False)
-            if hasattr(self, 'center_opacity_effect'): self.center_opacity_effect.setOpacity(0.0)
-            
-            self.right_panel.setVisible(False)
-            self.right_panel.setEnabled(False)
-            if hasattr(self, 'right_panel_opacity_effect'): self.right_panel_opacity_effect.setOpacity(0.0)
-
-            self.status_bar.setVisible(False)
-            self.status_bar.setEnabled(False)
-            if hasattr(self, 'status_bar_opacity_effect'): self.status_bar_opacity_effect.setOpacity(0.0)
-            return
-
-        player_name = character_data['name']
-        race = character_data['race']
-        path = character_data['path']
-        origin_id = character_data.get('origin_id', '') # Get origin_id
-        sex = character_data.get('sex', 'Male')
-        # 'description' from character_data is the origin's intro_text/background
-        origin_description_as_background = character_data.get('description', '') 
-        character_image = character_data.get('character_image')
-        use_llm = character_data.get('use_llm', True)
-        custom_stats = None
-        if 'stats' in character_data:
-            if all(isinstance(val, int) for val in character_data['stats'].values()):
-                custom_stats = character_data['stats']
-            else: 
-                logger.warning("Unexpected stats format from character_data, attempting to parse.")
-                temp_stats = {}
-                for stat_name, stat_info in character_data['stats'].items():
-                    if isinstance(stat_info, dict) and 'base' in stat_info:
-                        temp_stats[stat_name] = stat_info['base']
-                    elif isinstance(stat_info, int):
-                         temp_stats[stat_name] = stat_info
-                if temp_stats: custom_stats = temp_stats
         
-        logger.info(f"Starting new game with resolved data: Name={player_name}, Race={race}, Path={path}, OriginID={origin_id}, Sex={sex}, LLM={use_llm}, Stats={custom_stats is not None}")
-
-        # Pre-clear any previous session UI and orchestrator state if starting a new game during an ongoing session
-        try:
-            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator:
-                # Detach any existing CombatManager and clear queued events
-                try:
-                    self.game_engine._combat_orchestrator.set_combat_manager(None)
-                except Exception:
-                    pass
-                self.game_engine._combat_orchestrator.clear_queue_and_reset_flags()
-        except Exception as e:
-            logger.warning(f"Failed to clear orchestrator state before starting new game: {e}")
-        # Ensure any lingering closing-narrative wait flag is reset
-        try:
-            if hasattr(self.game_engine, '_waiting_for_closing_narrative_display'):
-                self.game_engine._waiting_for_closing_narrative_display = False
-        except Exception:
-            pass
-        # Clear visible outputs to avoid mixing old content
-        try:
-            self.game_output.clear()
-        except Exception as e:
-            logger.warning(f"Failed to clear GameOutputWidget before starting new game: {e}")
-        try:
-            self.combat_display.clear_display()
-        except Exception as e:
-            logger.warning(f"Failed to clear CombatDisplay before starting new game: {e}")
-        # Clear right panel widgets to avoid stale state
-        try:
-            if hasattr(self.right_panel, 'journal_panel'):
-                self.right_panel.journal_panel.clear_all()
-            if hasattr(self.right_panel, 'inventory_panel') and hasattr(self.right_panel.inventory_panel, 'clear'):
-                try:
-                    self.right_panel.inventory_panel.clear()
-                except Exception:
-                    pass
-            if hasattr(self.right_panel, 'character_sheet') and hasattr(self.right_panel.character_sheet, '_clear_stat_displays'):
-                self.right_panel.character_sheet._clear_stat_displays()
-        except Exception as e:
-            logger.warning(f"Failed to clear right panel widgets before starting new game: {e}")
-        # Reset last submitted command tracking
-        self._last_submitted_command = None
-
-        self.game_engine.start_new_game(
-            player_name=player_name, 
-            race=race, 
-            path=path, 
-            background=origin_description_as_background, # Pass origin description as background
-            sex=sex,
-            character_image=character_image,
-            stats=custom_stats,
-            origin_id=origin_id # Pass origin_id here
-        )
-        
-        self.game_engine.set_llm_enabled(use_llm)
-        
-        # Ensure journal quests is a dictionary
-        initial_quests_data = character_data.get('initial_quests', [])
-        journal_quests = {}
-        if isinstance(initial_quests_data, dict):
-            journal_quests = initial_quests_data
-        elif isinstance(initial_quests_data, list):
-            logger.warning(f"Initial quests from origin is a list: {initial_quests_data}. Initializing journal quests as an empty dictionary. Full quest population from origin list is not yet implemented here.")
-        
-        current_game_state = self.game_engine.state_manager.current_state
-        if current_game_state:
-            if not hasattr(current_game_state, "journal") or current_game_state.journal is None:
-                current_game_state.journal = {
-                    "character": origin_description_as_background, # Use the same background/origin text
-                    "quests": journal_quests,
-                    "notes": []
-                }
-            # Ensure player state's origin_id is set, if GameEngine.start_new_game didn't already
-            if not current_game_state.player.origin_id:
-                 current_game_state.player.origin_id = origin_id
-        
-        self._update_ui() 
-        self.game_engine.state_manager.ensure_stats_manager_initialized()
-        
-        if current_game_state and current_game_state.player:
-            self.right_panel.update_character(current_game_state.player)
-
-        # Clean up the temporary data
-        if hasattr(self, '_character_data_for_new_game'):
-            delattr(self, '_character_data_for_new_game')
+        self.start_new_game(character_data)
 
     @Slot(str)
     def _handle_item_use_requested(self, item_id: str):

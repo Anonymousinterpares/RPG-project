@@ -319,48 +319,8 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
         except Exception as e:
             logger.warning(f"Structured welcome generation failed: {e}")
             narrative_text = "The world awaits your command..."
-
-        # Route the initial narrative through the orchestrator so we can append quest-start messages afterwards
-        try:
-            if hasattr(engine, '_combat_orchestrator') and engine._combat_orchestrator:
-                from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
-                engine._combat_orchestrator.add_event_to_queue(
-                    DisplayEvent(
-                        type=DisplayEventType.NARRATIVE_GENERAL,
-                        content=narrative_text,
-                        role="gm",
-                        target_display=DisplayTarget.MAIN_GAME_OUTPUT,
-                        gradual_visual_display=True,
-                        tts_eligible=True,
-                    )
-                )
-                # After the narrative is queued, append quest-start system messages to the queue
-                try:
-                    started_events = locals().get('started_events', [])
-                except Exception:
-                    started_events = []
-                # Consolidate all started quests into a single instant system line
-                titles = [title for _, title in started_events] if started_events else []
-                if titles:
-                    msg = "Quests started: " + "; ".join(titles)
-                    engine._combat_orchestrator.add_event_to_queue(
-                        DisplayEvent(
-                            type=DisplayEventType.SYSTEM_MESSAGE,
-                            content=msg,
-                            target_display=DisplayTarget.MAIN_GAME_OUTPUT,
-                            gradual_visual_display=False,
-                            tts_eligible=False,
-                        )
-                    )
-            else:
-                # Fallback: no orchestrator. Output narrative immediately, then quest messages.
-                engine._output("gm", narrative_text)
-                for qid, title in locals().get('started_events', []):
-                    engine._output("system", f"Quest Started: {title}")
-        except Exception as e:
-            logger.warning(f"Failed to route initial narrative/quest-start via orchestrator: {e}")
     else:
-        engine._output("gm", "The world awaits your command...")
+        narrative_text = "The world awaits your command..."
         # With LLM disabled, we can emit quest start messages immediately afterwards (no gradual display to wait for)
         try:
             titles = [title for _, title in locals().get('started_events', [])]
@@ -368,6 +328,9 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
                 engine._output("system", "Quests started: " + "; ".join(titles))
         except Exception:
             pass
+    
+    # Attach the generated narration to the game state so the worker can retrieve it
+    game_state.initial_narration = narrative_text if 'narrative_text' in locals() else "The world awaits..."
         
     logger.info(f"New game started for {game_state.player.name}")
     return game_state

@@ -769,7 +769,7 @@ class CombatDisplay(QWidget):
                 self.enemies_panel_container.setVisible(True)
                 self.center_panel_container.setVisible(True)
                 self.combat_active = True
-                self.apply_settings()
+                self.apply_theme()
             
             combat_manager = getattr(game_state, 'combat_manager', None)
             if not combat_manager:
