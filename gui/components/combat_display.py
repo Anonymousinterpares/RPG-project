@@ -65,6 +65,7 @@ class CombatDisplay(QWidget):
         self.stats_manager = get_stats_manager() 
         
         self.command_input_widget: Optional[QWidget] = None
+        self._connected_orchestrator = None
 
         # This is the root layout of the entire CombatDisplay widget
         root_layout = QVBoxLayout(self)
@@ -280,24 +281,24 @@ class CombatDisplay(QWidget):
         try:
             engine = get_game_engine()
             orch = getattr(engine, '_combat_orchestrator', None)
+
+            # Disconnect from the old orchestrator if it exists.
+            if self._connected_orchestrator:
+                try:
+                    self.dev_step_mode_btn.toggled.disconnect(self._connected_orchestrator.toggle_dev_step_mode)
+                    self.dev_next_step_btn.clicked.disconnect(self._connected_orchestrator.dev_release_next_step)
+                    self._connected_orchestrator.dev_waiting_state_changed.disconnect(self._on_orchestrator_dev_waiting_changed)
+                except Exception:
+                    pass
+
+            # Connect to the new orchestrator.
             if orch:
-                # Disconnect existing to avoid duplicates
-                try:
-                    self.dev_step_mode_btn.toggled.disconnect(orch.toggle_dev_step_mode)
-                except Exception:
-                    pass
-                try:
-                    self.dev_next_step_btn.clicked.disconnect(orch.dev_release_next_step)
-                except Exception:
-                    pass
                 self.dev_step_mode_btn.toggled.connect(orch.toggle_dev_step_mode)
                 self.dev_next_step_btn.clicked.connect(orch.dev_release_next_step)
-                # Listen to waiting state to enable/disable Next button
-                try:
-                    orch.dev_waiting_state_changed.disconnect(self._on_orchestrator_dev_waiting_changed)
-                except Exception:
-                    pass
                 orch.dev_waiting_state_changed.connect(self._on_orchestrator_dev_waiting_changed)
+
+            # Update the reference.
+            self._connected_orchestrator = orch
         except Exception as e:
             logger.warning(f"Failed initializing dev controls: {e}")
 
