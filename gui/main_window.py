@@ -4,6 +4,8 @@ Main window for the RPG game GUI.
 This module provides the MainWindow class that serves as the primary GUI container.
 """
 
+import datetime
+from datetime import datetime
 import logging
 import os
 import weakref
@@ -39,6 +41,7 @@ from gui.utils.resource_manager import get_resource_manager
 from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
 from gui.styles.theme_manager import ThemeManager, get_theme_manager
 from gui.dialogs.settings.settings_dialog import SettingsDialog
+from gui.dialogs.load_game_dialog import LoadGameDialog
 from gui.workers import SaveGameWorker, LoadGameWorker, NewGameWorker
 from gui.components.loading_bar import LoadingProgressBar
 
@@ -1248,7 +1251,7 @@ class MainWindow(QMainWindow):
             self.save_worker.moveToThread(self.save_thread)
             self.save_thread.started.connect(self.save_worker.run)
             self.save_worker.finished.connect(self._on_save_finished)
-            self.save_worker.error.connect(self._on_worker_error)
+            self.save_worker.error.connect(lambda msg: self._on_worker_error(msg, context="save"))
             self.save_worker.finished.connect(self.save_thread.quit)
             self.save_worker.finished.connect(self.save_worker.deleteLater)
             self.save_thread.finished.connect(self.save_thread.deleteLater)
@@ -1259,21 +1262,21 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Game Saved", f"Game saved successfully to {saved_path}")
 
     def _show_load_game_dialog(self):
-        """Show dialog for loading a saved game."""
-        from gui.dialogs.load_game_dialog import LoadGameDialog
+        """Show the load game dialog."""
         dialog = LoadGameDialog(parent=self)
         if dialog.exec():
             save_filename = dialog.selected_save
+            origin_id = dialog.selected_origin_id
             if save_filename:
                 self.game_output.clear()
-                self._show_loading_overlay(f"Loading game: {save_filename}...")
+                self._show_loading_overlay(f"Loading game: {save_filename}", origin_id=origin_id)
 
                 self.load_thread = QThread()
                 self.load_worker = LoadGameWorker(self.game_engine, save_filename)
                 self.load_worker.moveToThread(self.load_thread)
                 self.load_thread.started.connect(self.load_worker.run)
                 self.load_worker.finished.connect(self._on_load_finished)
-                self.load_worker.error.connect(self._on_worker_error)
+                self.load_worker.error.connect(lambda msg: self._on_worker_error(msg, context="load"))
                 self.load_worker.finished.connect(self.load_thread.quit)
                 self.load_worker.finished.connect(self.load_worker.deleteLater)
                 self.load_thread.finished.connect(self.load_thread.deleteLater)
@@ -1410,12 +1413,52 @@ class MainWindow(QMainWindow):
         # Final UI update to switch to the correct view (NARRATIVE) and refresh all panels.
         self._update_ui()
 
-    def _on_worker_error(self, error_msg: str, title: str = "Error"):
-        """Generic error handler for worker threads."""
+    def _on_worker_error(self, error_message: str, context: str = "unknown"):
+        """Handle errors from worker threads with context."""
+        logger.error(f"Worker error (context: {context}): {error_message}")
+        if context in ["save", "load"]:
+            self._on_save_load_worker_error(error_message)
+        else:
+            # Default to the more drastic reset for critical failures like new game
+            self._hide_loading_overlay()
+            QMessageBox.critical(self, "Error", f"A critical error occurred: {error_message}")
+            self._reset_ui_for_new_session()
+            logger.info("UI panels have been reset after a worker error.")
+
+    def _on_save_load_worker_error(self, error_message: str):
+        """Gentle error handler for save/load operations that doesn't reset the UI."""
         self._hide_loading_overlay()
-        QMessageBox.critical(self, title, f"An unexpected error occurred: {error_msg}")
-        # Optionally, reset parts of the UI
-        self._reset_ui_after_error()
+        QMessageBox.warning(self, "Operation Failed", f"The operation failed: {error_message}")
+        logger.info("Displayed save/load error without resetting UI panels.")
+
+    def _show_save_game_dialog(self):
+        """Show the custom save game dialog."""
+        if not self.game_engine.state_manager.current_state:
+            QMessageBox.warning(self, "Cannot Save", "There is no active game to save.")
+            return
+
+        from gui.dialogs.save_game_dialog import SaveGameDialog
+        dialog = SaveGameDialog(parent=self)
+        
+        if dialog.exec():
+            save_name = dialog.save_name_edit.text()
+            if not save_name:
+                QMessageBox.warning(self, "Invalid Name", "Save name cannot be empty.")
+                return
+
+            self._show_loading_overlay(f"Saving game: {save_name}...")
+
+            self.save_thread = QThread()
+            # The worker expects just the filename, not the full path.
+            self.save_worker = SaveGameWorker(self.game_engine, save_name)
+            self.save_worker.moveToThread(self.save_thread)
+            self.save_thread.started.connect(self.save_worker.run)
+            self.save_worker.finished.connect(self._on_save_finished)
+            self.save_worker.error.connect(lambda msg: self._on_worker_error(msg, context="save"))
+            self.save_worker.finished.connect(self.save_thread.quit)
+            self.save_worker.finished.connect(self.save_worker.deleteLater)
+            self.save_thread.finished.connect(self.save_thread.deleteLater)
+            self.save_thread.start()
 
     def _on_new_game_error(self, error_msg):
         self._hide_loading_overlay()

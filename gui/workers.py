@@ -15,7 +15,10 @@ class SaveGameWorker(QObject):
 
     def run(self):
         try:
-            screenshot = self.game_engine.save_game(self.slot, quick_save=self.quicksave)
+            # The GameEngine's save_game method expects 'auto_save', not 'quick_save'.
+            # For a manual save initiated via the dialog, we pass neither, letting the
+            # engine default to a standard, non-auto-save.
+            screenshot = self.game_engine.save_game(self.slot)
             self.finished.emit(screenshot)
         except Exception as e:
             self.error.emit(str(e))

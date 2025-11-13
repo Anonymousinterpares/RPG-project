@@ -127,6 +127,7 @@ class LoadGameDialog(BaseDialog):
         
         # Selected save
         self.selected_save = None
+        self.selected_origin_id = None
         
         # Set up the UI
         self._setup_ui()
@@ -298,43 +299,39 @@ class LoadGameDialog(BaseDialog):
                 self._load_saves() # Refresh list in case of mismatch
 
     def _load_saves(self):
-        """Load saves into the table."""
-        # Clear the table
+        """Load saves into the table using the efficient StateManager method."""
         self.saves_table.setRowCount(0)
         
-        # Get the saves directory
-        saves_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "saves")
-        
-        # Check if the directory exists
-        if not os.path.exists(saves_dir):
+        try:
+            from core.base.state import get_state_manager
+            saves = get_state_manager().get_available_saves()
+        except Exception as e:
+            logging.error(f"Failed to get available saves: {e}")
+            # Optionally, show an error message to the user
             return
-        
-        # Get all save files
-        save_files = [f for f in os.listdir(saves_dir) if f.endswith(".json")]
-        
-        # Sort by modification time (newest first)
-        save_files.sort(key=lambda x: os.path.getmtime(os.path.join(saves_dir, x)), reverse=True)
-        
-        # Add to table
-        for i, save_file in enumerate(save_files):
-            # Get the full path
-            save_path = os.path.join(saves_dir, save_file)
+
+        self.saves_table.setSortingEnabled(False) # Disable sorting during population
+
+        for i, save_info in enumerate(saves):
+            save_name = os.path.splitext(save_info["filename"])[0]
             
-            # Get the save name without extension
-            save_name = os.path.splitext(save_file)[0]
-            
-            # Get the modification time
-            mod_time = datetime.fromtimestamp(os.path.getmtime(save_path))
+            mod_time = datetime.fromtimestamp(save_info.get("mod_time", 0))
             mod_time_str = mod_time.strftime("%Y-%m-%d %H:%M")
             
-            # Get the character name (if possible)
-            character_name = self._get_character_name(save_path)
-            
-            # Add row to table
+            character_name = save_info.get("player_name", "Unknown")
+            origin_id = save_info.get("origin_id") # This can be None
+
             self.saves_table.insertRow(i)
-            self.saves_table.setItem(i, 0, QTableWidgetItem(save_name))
+            
+            # Store filename and origin_id in the first item's data
+            name_item = QTableWidgetItem(save_name)
+            name_item.setData(Qt.UserRole, {"filename": save_info["filename"], "origin_id": origin_id})
+            
+            self.saves_table.setItem(i, 0, name_item)
             self.saves_table.setItem(i, 1, QTableWidgetItem(mod_time_str))
             self.saves_table.setItem(i, 2, QTableWidgetItem(character_name))
+
+        self.saves_table.setSortingEnabled(True) # Re-enable sorting
     
     def _get_character_name(self, save_path: str) -> str:
         """Get the character name from a save file.
@@ -376,13 +373,24 @@ class LoadGameDialog(BaseDialog):
                 details = []
                 
                 # --- Character Information ---
-                if player_data:
-                    details.append("<b>Character Information:</b>")
-                    details.append(f"<b>Name:</b> {player_data.get('name', 'Unknown')}")
-                    details.append(f"<b>Race:</b> {player_data.get('race', 'Unknown')}")
-                    details.append(f"<b>Class:</b> {player_data.get('path', 'Unknown')}")
-                    details.append(f"<b>Level:</b> {player_data.get('level', 1)}")
-                    details.append("") # Spacer
+                details.append("<b>Character Information:</b>")
+                details.append(f"<b>Name:</b> {player_data.get('name', 'Unknown')}")
+
+                # --- Display Origin ---
+                origin_id = player_data.get('origin_id')
+                if origin_id:
+                    try:
+                        from core.base.config import get_config
+                        origins_config = get_config().get('origins', {})
+                        origin_name = origins_config.get(origin_id, {}).get('name', origin_id)
+                        details.append(f"<b>Origin:</b> {origin_name}")
+                    except Exception:
+                        details.append(f"<b>Origin:</b> {origin_id}") # Fallback to ID
+
+                details.append(f"<b>Race:</b> {player_data.get('race', 'Unknown')}")
+                details.append(f"<b>Class:</b> {player_data.get('path', 'Unknown')}")
+                details.append(f"<b>Level:</b> {player_data.get('level', 1)}")
+                details.append("") # Spacer
                 
                 # --- Background Summary ---
                 background_summary = player_data.get('background_summary')
@@ -428,16 +436,18 @@ class LoadGameDialog(BaseDialog):
         if not selected_rows:
             # No selection
             self.selected_save = None
+            self.selected_origin_id = None
             self.details_text.clear()
             self.load_button.setEnabled(False)
             self.delete_button.setEnabled(False)
             return
         
-        # Get the save name
-        save_name = self.saves_table.item(selected_rows[0].row(), 0).text()
+        # Retrieve the cached data from the first item in the selected row
+        item_data = self.saves_table.item(selected_rows[0].row(), 0).data(Qt.UserRole)
         
-        # Set the selected save
-        self.selected_save = save_name + ".json"
+        # Set the selected save filename and origin_id
+        self.selected_save = item_data.get("filename")
+        self.selected_origin_id = item_data.get("origin_id")
         
         # Get the save path
         saves_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "saves")

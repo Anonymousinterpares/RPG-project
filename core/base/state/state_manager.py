@@ -645,14 +645,21 @@ class StateManager:
                         with open(file_path, 'r', encoding='utf-8') as f:
                             data = json.load(f)
                             
+                            player_data = data.get("player", {})
+                            
                             # Extract basic info
                             save_info = {
                                 "filename": filename,
-                                "player_name": data.get("player", {}).get("name", "Unknown"),
-                                "level": data.get("player", {}).get("level", 1),
+                                "player_name": player_data.get("name", "Unknown"),
+                                "level": player_data.get("level", 1),
+                                "path": player_data.get("path", "Unknown"),
+                                "race": player_data.get("race", "Unknown"),
+                                "location": player_data.get("current_location", "Unknown"),
+                                "origin_id": player_data.get("origin_id"), # Can be None
+                                "background_summary": player_data.get("background_summary"),
+                                "last_events_summary": data.get("last_events_summary"),
                                 "created_at": data.get("created_at", 0),
                                 "last_saved_at": data.get("last_saved_at", 0),
-                                "location": data.get("player", {}).get("current_location", "Unknown"),
                                 "file_size": stat.st_size,
                                 "mod_time": stat.st_mtime,
                                 "is_auto_save": filename.startswith("auto_"),
