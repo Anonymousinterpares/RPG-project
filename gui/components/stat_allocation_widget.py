@@ -4,23 +4,21 @@ Stat allocation widget for character creation and level-up.
 """
 
 import os
-import json
-import logging
-from typing import Dict, List, Optional, Any, Tuple, Callable
+from typing import Dict, Optional, Any
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout, 
-    QFrame, QGroupBox, QPushButton, QToolTip, QSizePolicy,
-    QSpacerItem, QDialog, QFrame 
+    QFrame, QGroupBox, QPushButton, QToolTip, QDialog, QFrame 
 )
-from PySide6.QtCore import Qt, Signal, Slot, QPoint, QSize, QEvent
-from PySide6.QtGui import QFont, QColor, QPalette, QMouseEvent, QIcon, QPixmap, QCursor
+from PySide6.QtCore import Qt, Signal, Slot, QSize
+from PySide6.QtGui import QFont, QColor, QIcon, QPixmap, QCursor
 
 from core.stats.stats_base import StatType
 from core.stats.stat_allocation import StatPointAllocator
 from core.stats.stats_manager import StatsManager
 from core.stats.stat_modifier_info import StatModifierInfo
 from core.utils.logging_config import get_logger, log_migration_fix
+from gui.styles.theme_manager import get_theme_manager
 
 # Log the import fix
 log_migration_fix(
@@ -30,29 +28,6 @@ log_migration_fix(
 )
 
 logger = get_logger("GUI")
-
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'background_med': '#2d2520',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'border_light': '#5a4a40',
-    'text_primary': '#c9a875',
-    'text_secondary': '#8b7a65',
-    'text_disabled': '#5a4a40',
-    'text_bright': '#e8d4b8',
-    'positive': '#5a9068',
-    'negative': '#D94A38',
-    'recommended_primary': '#5a9068',
-    'recommended_secondary': '#c9a875',
-    'recommended_tertiary': '#b5654c',
-    'hover': '#4a3a30',
-    'pressed': '#1a1410',
-    'info_icon_bg': '#1178BB',
-    'info_icon_bg_dark': '#0b5a8e',
-}
-
 class TooltipLabel(QLabel):
     """A custom label that shows a tooltip when hovered over."""
     
@@ -77,12 +52,13 @@ class TooltipLabel(QLabel):
         """Set the tooltip text."""
         self.tooltip_text = text
 
-
 class StatInfoDialog(QDialog):
     """Dialog for displaying detailed information about a stat."""
     
-    def __init__(self, stat_name: str, stat_value: int, modifier_info: StatModifierInfo, parent=None):
+    def __init__(self, stat_name: str, stat_value: int, modifier_info: StatModifierInfo, palette: Dict[str, Any], parent=None):
         super().__init__(parent)
+        self.palette = palette
+        colors = self.palette['colors']
 
         # Configure dialog
         self.setWindowTitle(f"{stat_name} Stat Information")
@@ -90,19 +66,19 @@ class StatInfoDialog(QDialog):
         self.setModal(True)
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_bright']};
+                background-color: {colors['bg_medium']};
+                color: {colors['text_bright']};
             }}
             QLabel {{
-                color: {COLORS['text_bright']};
+                color: {colors['text_bright']};
             }}
             QGroupBox {{
-                background-color: {COLORS['background_dark']};
-                border: 1px solid {COLORS['border_dark']};
+                background-color: {colors['bg_dark']};
+                border: 1px solid {colors['border_dark']};
                 border-radius: 5px;
                 margin-top: 15px;
                 font-weight: bold;
-                color: {COLORS['text_primary']};
+                color: {colors['text_primary']};
             }}
             QGroupBox::title {{
                 subcontrol-origin: margin;
@@ -118,7 +94,7 @@ class StatInfoDialog(QDialog):
         layout.setSpacing(10)
 
         # Stat title
-        title_label = QLabel(f"<h2 style='color: {COLORS['text_primary']};'>{stat_name}</h2>")
+        title_label = QLabel(f"<h2 style='color: {colors['text_primary']};'>{stat_name}</h2>")
         layout.addWidget(title_label)
 
         # Stat description
@@ -137,8 +113,8 @@ class StatInfoDialog(QDialog):
         desc_label = QLabel(description)
         desc_label.setWordWrap(True)
         desc_label.setStyleSheet(f"""
-            color: {COLORS['text_secondary']}; 
-            background-color: {COLORS['background_dark']}; 
+            color: {colors['text_secondary']}; 
+            background-color: {colors['bg_dark']}; 
             padding: 10px; 
             border-radius: 5px;
         """)
@@ -155,16 +131,20 @@ class StatInfoDialog(QDialog):
         total_value = base_value + race_mod + class_mod
         ability_mod = (total_value - 10) // 2
         min_req = modifier_info.minimum_requirements.get(stat_name, 0)
+        
+        pos_color = colors['accent_positive']
+        neg_color = colors['accent_negative']
+        sec_color = colors['text_secondary']
 
         values_text = f"""<p><b>Base Value:</b> {base_value}</p>
-        <p><b>Race Modifier:</b> <span style='color: {COLORS['positive'] if race_mod > 0 else (COLORS['negative'] if race_mod < 0 else COLORS['text_secondary'])}'>{'+'+ str(race_mod) if race_mod > 0 else race_mod if race_mod != 0 else '0'}</span> ({modifier_info.race_name})</p>
-        <p><b>Class Modifier:</b> <span style='color: {COLORS['positive'] if class_mod > 0 else (COLORS['negative'] if class_mod < 0 else COLORS['text_secondary'])}'>{'+'+ str(class_mod) if class_mod > 0 else class_mod if class_mod != 0 else '0'}</span> ({modifier_info.class_name})</p>
+        <p><b>Race Modifier:</b> <span style='color: {pos_color if race_mod > 0 else (neg_color if race_mod < 0 else sec_color)}'>{'+'+ str(race_mod) if race_mod > 0 else race_mod if race_mod != 0 else '0'}</span> ({modifier_info.race_name})</p>
+        <p><b>Class Modifier:</b> <span style='color: {pos_color if class_mod > 0 else (neg_color if class_mod < 0 else sec_color)}'>{'+'+ str(class_mod) if class_mod > 0 else class_mod if class_mod != 0 else '0'}</span> ({modifier_info.class_name})</p>
         <p><b>Total Value:</b> {total_value}</p>
-        <p><b>Ability Modifier:</b> <span style='color: {COLORS['positive'] if ability_mod > 0 else (COLORS['negative'] if ability_mod < 0 else COLORS['text_secondary'])}'>{'+'+ str(ability_mod) if ability_mod > 0 else ability_mod if ability_mod != 0 else '0'}</span></p>"""
+        <p><b>Ability Modifier:</b> <span style='color: {pos_color if ability_mod > 0 else (neg_color if ability_mod < 0 else sec_color)}'>{'+'+ str(ability_mod) if ability_mod > 0 else ability_mod if ability_mod != 0 else '0'}</span></p>"""
 
         # Add minimum requirement if it exists
         if min_req > 0:
-            values_text += f"""<p><b>Minimum Requirement:</b> <span style='color: {COLORS['positive'] if total_value >= min_req else COLORS['negative']}>{min_req}</span> ({modifier_info.class_name})</p>"""
+            values_text += f"""<p><b>Minimum Requirement:</b> <span style='color: {pos_color if total_value >= min_req else neg_color}>{min_req}</span> ({modifier_info.class_name})</p>"""
 
         values_label = QLabel(values_text)
         values_label.setWordWrap(True)
@@ -190,7 +170,7 @@ class StatInfoDialog(QDialog):
         effects_text = "<p>This stat affects:</p><ul>"
         for effect in effects.get(stat_name, []):
             modifier_text = "+" if ability_mod > 0 else "-" if ability_mod < 0 else "±"
-            effects_text += f"<li>{effect} <span style='color: {COLORS['positive'] if ability_mod > 0 else (COLORS['negative'] if ability_mod < 0 else COLORS['text_secondary'])}'>({modifier_text})</span></li>"
+            effects_text += f"<li>{effect} <span style='color: {pos_color if ability_mod > 0 else (neg_color if ability_mod < 0 else sec_color)}'>({modifier_text})</span></li>"
         effects_text += "</ul>"
 
         effects_label = QLabel(effects_text)
@@ -200,17 +180,18 @@ class StatInfoDialog(QDialog):
 
         # Class importance
         importance = "Unknown"
-        importance_color = COLORS['text_secondary']
+        importance_color = sec_color
 
+        # Use accent colors for importance
         if stat_name in modifier_info.recommended_stats.get("primary", []):
             importance = "Primary"
-            importance_color = COLORS['recommended_primary']
+            importance_color = colors['accent_positive']
         elif stat_name in modifier_info.recommended_stats.get("secondary", []):
             importance = "Secondary"
-            importance_color = COLORS['recommended_secondary']
+            importance_color = colors['text_primary'] # Gold/Amber
         elif stat_name in modifier_info.recommended_stats.get("tertiary", []):
             importance = "Tertiary"
-            importance_color = COLORS['recommended_tertiary']
+            importance_color = colors['res_health'] # Reddish
 
         importance_text = f"<p><b>Importance for {modifier_info.class_name}:</b> <span style='color: {importance_color}'>{importance}</span></p>"
         importance_label = QLabel(importance_text)
@@ -221,23 +202,22 @@ class StatInfoDialog(QDialog):
         close_button = QPushButton("Close")
         close_button.setStyleSheet(f"""
             QPushButton {{
-                background-color: {COLORS['background_light']};
-                color: {COLORS['text_primary']};
-                border: 1px solid {COLORS['border_dark']};
+                background-color: {colors['bg_light']};
+                color: {colors['text_primary']};
+                border: 1px solid {colors['border_dark']};
                 border-radius: 4px;
                 padding: 8px 16px;
                 font-weight: bold;
             }}
             QPushButton:hover {{
-                background-color: {COLORS['hover']};
+                background-color: {colors['state_hover']};
             }}
             QPushButton:pressed {{
-                background-color: {COLORS['pressed']};
+                background-color: {colors['state_pressed']};
             }}
         """)
         close_button.clicked.connect(self.accept)
         layout.addWidget(close_button, 0, Qt.AlignCenter)
-
 class StatRow:
     """A class to hold UI elements for a stat row."""
     
@@ -270,20 +250,15 @@ class StatAllocationWidget(QWidget):
         max_value: int = 15,
         parent: Optional[QWidget] = None
     ):
-        """
-        Initialize the stat allocation widget.
-        
-        Args:
-            stats_manager: The stats manager to modify
-            race_name: The character's race
-            class_name: The character's class
-            total_points: Total points available for allocation
-            min_value: Minimum stat value
-            max_value: Maximum stat value
-            parent: The parent widget
-        """
+        """Initialize the stat allocation widget."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+
         # Set up the stat allocator
         self.stats_manager = stats_manager
         self.allocator = StatPointAllocator(stats_manager, total_points, min_value, max_value)
@@ -298,8 +273,15 @@ class StatAllocationWidget(QWidget):
         # Create the UI elements
         self._setup_ui()
         
+        # Initialize preset buttons based on the loaded modifiers
+        self._update_preset_buttons()
+        
+        # Apply initial theme (will also style the preset buttons)
+        self._update_theme()
+        
         # Update the display
         self._update_all_stat_displays()
+
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -313,13 +295,7 @@ class StatAllocationWidget(QWidget):
 
         # Points remaining label
         self.points_label = QLabel(f"Points Remaining: {self.allocator.get_remaining_points()}")
-        self.points_label.setStyleSheet(f"""
-            QLabel {{
-                font-size: 14px;
-                font-weight: bold;
-                color: {COLORS['text_primary']};
-            }}
-        """)
+        # Styling moved to _update_theme
         header_layout.addWidget(self.points_label)
 
         # Add spacer
@@ -336,28 +312,13 @@ class StatAllocationWidget(QWidget):
         main_layout.addLayout(header_layout)
 
         # Create the stat grid
-        stats_group = QGroupBox("Character Stats")
-        stats_group.setStyleSheet(f"""
-            QGroupBox {{
-                background-color: {COLORS['background_light']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 5px;
-                margin-top: 15px;
-                font-weight: bold;
-                color: {COLORS['text_primary']};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-                padding-left: 10px;
-                padding-right: 10px;
-            }}
-        """)
+        self.stats_group = QGroupBox("Character Stats")
+        # Styling moved to _update_theme
 
-        stats_layout = QGridLayout(stats_group)
+        stats_layout = QGridLayout(self.stats_group)
         stats_layout.setContentsMargins(15, 20, 15, 15)
-        stats_layout.setHorizontalSpacing(5) # Reduced horizontal spacing
-        stats_layout.setVerticalSpacing(10) # Keep vertical spacing reasonable
+        stats_layout.setHorizontalSpacing(5) 
+        stats_layout.setVerticalSpacing(10) 
 
         col1_start = 0
         col2_start = 8
@@ -366,53 +327,35 @@ class StatAllocationWidget(QWidget):
         num_stats_per_col = 4 
 
         headers = ["Stat", "Base", "Adjust", "Race", "Class", "Total", "Mod"]
-        mod_tooltip = (
-            f"<div style='background-color: {COLORS['background_med']}; padding: 8px; border: 1px solid {COLORS['border_dark']}; border-radius: 3px; color: {COLORS['text_secondary']};'>"
-            f"<b style='color: {COLORS['text_primary']};'>Ability Score Modifier</b><br>"
-            "Calculated as: (Total Stat Value - 10) ÷ 2, rounded down.<br><br>"
-            "This is the bonus/penalty applied to actions using this stat.<br>"
-            "e.g., a Strength of 14 gives a +2 modifier to melee attacks."
-            "</div>"
-        )
-
         for col_offset in [col1_start, col2_start]:
             for i, header_text in enumerate(headers):
                 if header_text == "Mod":
-                    header_widget = TooltipLabel(header_text, mod_tooltip)
-                    header_widget.setStyleSheet(f"font-weight: bold; color: {COLORS['text_secondary']}; text-decoration: underline dotted;")
+                    header_widget = TooltipLabel(header_text, "") # Tooltip set later
+                    header_widget.setProperty("is_mod_header", True) # Mark for styling
                     header_widget.setCursor(Qt.WhatsThisCursor)
                 else:
                     header_widget = QLabel(header_text)
-                    header_widget.setStyleSheet(f"font-weight: bold; color: {COLORS['text_secondary']};")
+                    header_widget.setProperty("is_header", True) # Mark for styling
                 stats_layout.addWidget(header_widget, 0, col_offset + i, alignment=Qt.AlignCenter)
 
-        all_stat_types = list(StatType) # Get all stat types
+        all_stat_types = list(StatType) 
         for index, stat_type in enumerate(all_stat_types):
             stat_name = str(stat_type)
-
-            # Determine row and column offset
-            row = (index % num_stats_per_col) + 1 # Row index (1-based)
+            row = (index % num_stats_per_col) + 1 
             col_offset = col1_start if index < num_stats_per_col else col2_start
 
-            # Create row object to hold UI elements
             stat_row = StatRow()
 
-            # Create stat name layout with info icon and impact indicators
+            # Stat Name & Icons
             stat_name_layout = QHBoxLayout()
             stat_name_layout.setSpacing(2)
             stat_name_layout.setContentsMargins(0, 0, 0, 0)
 
-            # Create stat name label with importance coloring
             stat_row.name_label = QLabel(stat_name)
-            name_color = COLORS['text_bright']
-            if stat_name in self.modifier_info.recommended_stats.get("primary", []): name_color = COLORS['recommended_primary']
-            elif stat_name in self.modifier_info.recommended_stats.get("secondary", []): name_color = COLORS['recommended_secondary']
-            elif stat_name in self.modifier_info.recommended_stats.get("tertiary", []): name_color = COLORS['recommended_tertiary']
-            stat_row.name_label.setStyleSheet(f"color: {name_color}; font-weight: bold;")
             stat_row.name_label.setCursor(Qt.PointingHandCursor)
             stat_row.name_label.mousePressEvent = lambda event, s=stat_type: self._show_stat_info(s)
 
-            # Define icons and their individual tooltips
+            # Icons
             impact_icons = {
                 "STR": [("⚔️", "Melee Combat Damage"), ("🏋️", "Carrying Capacity")],
                 "DEX": [("🏹", "Ranged Attack Accuracy"), ("👟", "Initiative/Dodge")], 
@@ -423,7 +366,6 @@ class StatAllocationWidget(QWidget):
                 "WIL": [("🧠", "Mental Fortitude"), ("🛡️", "Resist Influence")],
                 "INS": [("💡", "Intuition/Problem Solving"), ("🧐", "Reading People/Situations")] 
             }
-
             stat_icons = impact_icons.get(stat_name, [])
             icons_layout = QHBoxLayout()
             icons_layout.setSpacing(1)
@@ -439,93 +381,60 @@ class StatAllocationWidget(QWidget):
             icons_widget.setFixedWidth(45)
             icons_widget.setMouseTracking(True)
 
-            # Create info icon button
+            # Info Button
             stat_row.info_button = QPushButton()
-            stat_row.info_button.setIcon(self._create_info_icon())
+            # Icon set in _update_theme
             stat_row.info_button.setIconSize(QSize(16, 16))
             stat_row.info_button.setFixedSize(20, 20)
-            stat_row.info_button.setStyleSheet("""
-                QPushButton { background-color: transparent; border: none; }
-                QPushButton:hover { background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-            """)
             stat_row.info_button.setCursor(Qt.PointingHandCursor)
             stat_row.info_button.setToolTip("Click for detailed information")
             stat_row.info_button.clicked.connect(lambda checked=False, s=stat_type: self._show_stat_info(s))
 
-            # Add to name layout
             stat_name_layout.addWidget(stat_row.name_label)
             stat_name_layout.addWidget(icons_widget)
             stat_name_layout.addWidget(stat_row.info_button)
 
-            # Create base value label
+            # Base Value
             base_value = int(self.stats_manager.get_stat_value(stat_type))
             stat_row.base_label = QLabel(str(base_value))
-            stat_row.base_label.setStyleSheet(f"color: {COLORS['text_bright']};")
             stat_row.base_label.setAlignment(Qt.AlignCenter)
 
-            # Create adjustment buttons layout
+            # Adjustment Buttons
             adjust_layout = QHBoxLayout()
             adjust_layout.setSpacing(2)
+            
+            # Icons loaded in _update_theme or kept here if standard
             project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
             left_arrow_path = os.path.join(project_root, "images", "icons", "left_arrow.svg")
             right_arrow_path = os.path.join(project_root, "images", "icons", "right_arrow.svg")
+            
             stat_row.decrease_button = QPushButton()
             stat_row.decrease_button.setIcon(QIcon(left_arrow_path))
             stat_row.decrease_button.setIconSize(QSize(16, 16)); stat_row.decrease_button.setFixedSize(24, 24)
-            stat_row.decrease_button.setStyleSheet(f"""
-                QPushButton {{ background-color: {COLORS['negative']}; border-radius: 4px; border: none; }} 
-                QPushButton:hover {{ background-color: #E57373; }} 
-                QPushButton:pressed {{ background-color: #C62828; }} 
-                QPushButton:disabled {{ background-color: {COLORS['text_disabled']}; }}
-            """)
             stat_row.decrease_button.clicked.connect(lambda checked=False, s=stat_type: self._decrease_stat(s))
+            
             stat_row.increase_button = QPushButton()
             stat_row.increase_button.setIcon(QIcon(right_arrow_path))
             stat_row.increase_button.setIconSize(QSize(16, 16)); stat_row.increase_button.setFixedSize(24, 24)
-            stat_row.increase_button.setStyleSheet(f"""
-                QPushButton {{ background-color: {COLORS['positive']}; border-radius: 4px; border: none; }} 
-                QPushButton:hover {{ background-color: #6fc881; }} 
-                QPushButton:pressed {{ background-color: #4a7c59; }} 
-                QPushButton:disabled {{ background-color: {COLORS['text_disabled']}; }}
-            """)
             stat_row.increase_button.clicked.connect(lambda checked=False, s=stat_type: self._increase_stat(s))
+            
             adjust_layout.addWidget(stat_row.decrease_button)
             adjust_layout.addWidget(stat_row.increase_button)
 
-            # Create race modifier label
-            race_mod = self.modifier_info.race_modifiers.get(stat_name, 0)
-            mod_text = f"{race_mod:+d}" if race_mod != 0 else "0"
-            stat_row.race_mod_label = QLabel(mod_text)
-            stat_row.race_mod_label.setStyleSheet(f"color: {self.modifier_info.get_stat_modifier_color(stat_name, 'race')};")
+            # Modifiers
+            stat_row.race_mod_label = QLabel("0")
             stat_row.race_mod_label.setAlignment(Qt.AlignCenter)
 
-            # Create class modifier label
-            class_mod = self.modifier_info.class_modifiers.get(stat_name, 0)
-            mod_text = f"{class_mod:+d}" if class_mod != 0 else "0"
-            stat_row.class_mod_label = QLabel(mod_text)
-            stat_row.class_mod_label.setStyleSheet(f"color: {self.modifier_info.get_stat_modifier_color(stat_name, 'class')};")
+            stat_row.class_mod_label = QLabel("0")
             stat_row.class_mod_label.setAlignment(Qt.AlignCenter)
 
-            # Create total value label
-            total_value = base_value + race_mod + class_mod
-            stat_row.total_label = QLabel(str(total_value))
-            stat_row.total_label.setStyleSheet(f"color: {COLORS['text_bright']}; font-weight: bold;")
+            stat_row.total_label = QLabel("0")
             stat_row.total_label.setAlignment(Qt.AlignCenter)
 
-            # Create modifier label
-            modifier = (total_value - 10) // 2
-            mod_text = f"{modifier:+d}" if modifier != 0 else "0"
-            stat_row.mod_label = QLabel(mod_text)
-            stat_row.mod_label.setStyleSheet(f"color: {COLORS['positive'] if modifier > 0 else (COLORS['negative'] if modifier < 0 else COLORS['text_secondary'])};")
+            stat_row.mod_label = QLabel("0")
             stat_row.mod_label.setAlignment(Qt.AlignCenter)
 
-            # Add mouseover tooltip to the entire row
-            tooltip_text = self.modifier_info.get_tooltip_text(stat_name, base_value)
-            for widget in [stat_row.name_label, stat_row.base_label, stat_row.race_mod_label,
-                          stat_row.class_mod_label, stat_row.total_label, stat_row.mod_label]:
-                if widget: widget.setToolTip(tooltip_text)
-
-            # Add widgets to the grid using the calculated row and column offset
+            # Add to grid
             stats_layout.addLayout(stat_name_layout, row, col_offset + 0)
             stats_layout.addWidget(stat_row.base_label, row, col_offset + 1, alignment=Qt.AlignCenter)
             stats_layout.addLayout(adjust_layout, row, col_offset + 2)
@@ -534,77 +443,151 @@ class StatAllocationWidget(QWidget):
             stats_layout.addWidget(stat_row.total_label, row, col_offset + 5, alignment=Qt.AlignCenter)
             stats_layout.addWidget(stat_row.mod_label, row, col_offset + 6, alignment=Qt.AlignCenter)
 
-            # Store the row for later reference
             self.stat_rows[stat_type] = stat_row
 
-        separator = QFrame()
-        separator.setFrameShape(QFrame.VLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet(f"color: {COLORS['border_dark']};") # Make it visible
-        stats_layout.addWidget(separator, 1, separator_col, num_stats_per_col, 1) # Span rows
+        self.separator = QFrame()
+        self.separator.setFrameShape(QFrame.VLine)
+        self.separator.setFrameShadow(QFrame.Sunken)
+        stats_layout.addWidget(self.separator, 1, separator_col, num_stats_per_col, 1) 
 
-        # Give more space to name columns, less to modifiers/buttons
+        # Column stretch
         for col_offset in [col1_start, col2_start]:
-            stats_layout.setColumnStretch(col_offset + 0, 3) # Name
-            stats_layout.setColumnStretch(col_offset + 1, 1) # Base
-            stats_layout.setColumnStretch(col_offset + 2, 2) # Adjust
-            stats_layout.setColumnStretch(col_offset + 3, 1) # Race
-            stats_layout.setColumnStretch(col_offset + 4, 1) # Class
-            stats_layout.setColumnStretch(col_offset + 5, 1) # Total
-            stats_layout.setColumnStretch(col_offset + 6, 1) # Mod
-        stats_layout.setColumnStretch(separator_col, 0) # No stretch for separator
-        # --- END MODIFICATION ---
+            stats_layout.setColumnStretch(col_offset + 0, 3) 
+            stats_layout.setColumnStretch(col_offset + 1, 1) 
+            stats_layout.setColumnStretch(col_offset + 2, 2) 
+            stats_layout.setColumnStretch(col_offset + 3, 1) 
+            stats_layout.setColumnStretch(col_offset + 4, 1) 
+            stats_layout.setColumnStretch(col_offset + 5, 1) 
+            stats_layout.setColumnStretch(col_offset + 6, 1) 
+        stats_layout.setColumnStretch(separator_col, 0)
 
-        # Add stat color explanation (adjust row index)
-        stat_colors_explanation = QLabel(f"* Stat colors: <span style='color: {COLORS['recommended_primary']}'>Primary</span>, <span style='color: {COLORS['recommended_secondary']}'>Secondary</span>, <span style='color: {COLORS['recommended_tertiary']}'>Tertiary</span> for your class")
-        stat_colors_explanation.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 10px; font-style: italic;")
-        # Place below the grid, spanning all columns used
-        stats_layout.addWidget(stat_colors_explanation, num_stats_per_col + 1, 0, 1, col2_start + num_cols_per_stat, Qt.AlignLeft)
+        # Explanation Label
+        self.stat_colors_explanation = QLabel("* Stat colors: Primary, Secondary, Tertiary for your class")
+        stats_layout.addWidget(self.stat_colors_explanation, num_stats_per_col + 1, 0, 1, col2_start + num_cols_per_stat, Qt.AlignLeft)
 
-        # Add the stats group to the main layout
-        main_layout.addWidget(stats_group)
+        main_layout.addWidget(self.stats_group)
 
-        # Create preset buttons (remains the same)
-        presets_group = QGroupBox("Quick Presets")
-        presets_group.setStyleSheet(f"""
-            QGroupBox {{ 
-                background-color: {COLORS['background_light']}; 
-                border: 1px solid {COLORS['border_dark']}; 
-                border-radius: 5px; margin-top: 15px; 
-                font-weight: bold; color: {COLORS['text_primary']}; 
-            }}
-            QGroupBox::title {{ 
-                subcontrol-origin: margin; subcontrol-position: top center; 
-                padding-left: 10px; padding-right: 10px; 
-            }}
-        """)
-        presets_layout = QHBoxLayout(presets_group)
+        # Quick Presets
+        self.presets_group = QGroupBox("Quick Presets")
+        presets_layout = QHBoxLayout(self.presets_group)
         presets_layout.setContentsMargins(15, 20, 15, 15); presets_layout.setSpacing(10)
         self.preset_buttons = {}
-        for preset_name in self.modifier_info.archetype_presets:
-            preset_button = QPushButton(preset_name)
-            preset_button.setToolTip(self.modifier_info.archetype_presets[preset_name].get("description", ""))
-            preset_button.clicked.connect(lambda checked=False, p=preset_name: self._apply_preset(p))
-            presets_layout.addWidget(preset_button)
-            self.preset_buttons[preset_name] = preset_button
-        if not self.preset_buttons:
-            balanced_button = QPushButton("Balanced"); balanced_button.setToolTip("Apply a balanced distribution of stats")
-            balanced_button.clicked.connect(lambda: self._auto_allocate(balanced=True)); presets_layout.addWidget(balanced_button)
-            focused_button = QPushButton("Focused"); focused_button.setToolTip("Focus on primary stats for your class")
-            focused_button.clicked.connect(lambda: self._auto_allocate(balanced=False)); presets_layout.addWidget(focused_button)
-        main_layout.addWidget(presets_group)
+        # Buttons added dynamically in _update_preset_buttons, styled in _update_theme
+        
+        main_layout.addWidget(self.presets_group)
 
-        # Add information about race/class effects (remains the same)
-        info_text = f"""
-        <p><b>{self.modifier_info.race_name}:</b> {self.modifier_info.race_description}</p>
-        <p><b>{self.modifier_info.class_name}:</b> {self.modifier_info.class_description}</p>
-        """
-        info_label = QLabel(info_text); info_label.setWordWrap(True)
-        info_label.setStyleSheet(f"QLabel {{ color: {COLORS['text_secondary']}; background-color: {COLORS['background_dark']}; padding: 10px; border-radius: 5px; }}")
-        main_layout.addWidget(info_label)
+        # Info Label
+        self.info_label = QLabel("")
+        self.info_label.setWordWrap(True)
+        main_layout.addWidget(self.info_label)
 
-        # Add stretcher to push everything up
         main_layout.addStretch(1)
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        # Labels
+        self.points_label.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {colors['text_primary']};")
+        self.stat_colors_explanation.setText(f"* Stat colors: <span style='color: {colors['accent_positive']}'>Primary</span>, <span style='color: {colors['text_primary']}'>Secondary</span>, <span style='color: {colors['res_health']}'>Tertiary</span> for your class")
+        self.stat_colors_explanation.setStyleSheet(f"color: {colors['text_secondary']}; font-size: 10px; font-style: italic;")
+        
+        self.info_label.setStyleSheet(f"QLabel {{ color: {colors['text_secondary']}; background-color: {colors['bg_dark']}; padding: 10px; border-radius: 5px; }}")
+
+        # Group Boxes
+        group_style = f"""
+            QGroupBox {{
+                background-color: {colors['bg_light']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 5px;
+                margin-top: 15px;
+                font-weight: bold;
+                color: {colors['text_primary']};
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding-left: 10px;
+                padding-right: 10px;
+            }}
+        """
+        self.stats_group.setStyleSheet(group_style)
+        self.presets_group.setStyleSheet(group_style)
+
+        # Buttons Base Styles
+        btn_style_base = f"border-radius: 4px; border: none;"
+        btn_style_neg = f"QPushButton {{ background-color: {colors['accent_negative']}; {btn_style_base} }} QPushButton:hover {{ background-color: {colors['accent_negative_light']}; }} QPushButton:disabled {{ background-color: {colors['text_disabled']}; }}"
+        btn_style_pos = f"QPushButton {{ background-color: {colors['accent_positive']}; {btn_style_base} }} QPushButton:hover {{ background-color: {colors['accent_positive_light']}; }} QPushButton:disabled {{ background-color: {colors['text_disabled']}; }}"
+        btn_style_standard = f"""
+            QPushButton {{
+                background-color: {colors['bg_dark']};
+                color: {colors['text_primary']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 4px;
+                padding: 5px 10px;
+            }}
+            QPushButton:hover {{ background-color: {colors['state_hover']}; }}
+        """
+        
+        self.reset_button.setStyleSheet(btn_style_standard)
+
+        # Style Preset Buttons
+        if hasattr(self, 'preset_buttons'):
+            for btn in self.preset_buttons.values():
+                btn.setStyleSheet(btn_style_standard)
+
+        # Headers in grid
+        mod_tooltip_style = (
+            f"<div style='background-color: {colors['bg_medium']}; padding: 8px; border: 1px solid {colors['border_dark']}; border-radius: 3px; color: {colors['text_secondary']};'>"
+            f"<b style='color: {colors['text_primary']};'>Ability Score Modifier</b><br>"
+            "Calculated as: (Total Stat Value - 10) ÷ 2, rounded down.<br><br>"
+            "This is the bonus/penalty applied to actions using this stat.<br>"
+            "e.g., a Strength of 14 gives a +2 modifier to melee attacks."
+            "</div>"
+        )
+        
+        # Iterate children to style headers created in _setup_ui
+        for child in self.stats_group.findChildren(QLabel):
+            if child.property("is_mod_header"):
+                child.setStyleSheet(f"font-weight: bold; color: {colors['text_secondary']}; text-decoration: underline dotted;")
+                if isinstance(child, TooltipLabel): child.setTooltipText(mod_tooltip_style)
+            elif child.property("is_header"):
+                child.setStyleSheet(f"font-weight: bold; color: {colors['text_secondary']};")
+
+        # Separator
+        self.separator.setStyleSheet(f"color: {colors['border_dark']};")
+
+        # Update rows
+        for stat_type, row in self.stat_rows.items():
+            # Info Button
+            row.info_button.setIcon(self._create_info_icon()) # Re-create to match theme colors
+            row.info_button.setStyleSheet("""
+                QPushButton { background-color: transparent; border: none; }
+                QPushButton:hover { background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+            """)
+
+            # Buttons
+            row.decrease_button.setStyleSheet(btn_style_neg)
+            row.increase_button.setStyleSheet(btn_style_pos)
+
+            # Labels
+            row.base_label.setStyleSheet(f"color: {colors['text_bright']};")
+            # Note: total_label, mod_label, etc. colors depend on values, updated in _update_stat_display
+            
+            # Update stat name color based on importance
+            stat_name = str(stat_type)
+            name_color = colors['text_bright']
+            if stat_name in self.modifier_info.recommended_stats.get("primary", []): name_color = colors['accent_positive']
+            elif stat_name in self.modifier_info.recommended_stats.get("secondary", []): name_color = colors['text_primary']
+            elif stat_name in self.modifier_info.recommended_stats.get("tertiary", []): name_color = colors['res_health']
+            row.name_label.setStyleSheet(f"color: {name_color}; font-weight: bold;")
+
+        # Re-trigger display update to catch value-dependent styling
+        self._update_all_stat_displays()
 
     def _increase_stat(self, stat_type: StatType) -> None:
         """
@@ -672,15 +655,13 @@ class StatAllocationWidget(QWidget):
     def _update_stat_display(self, stat_type: StatType) -> None:
         """
         Update the display for a specific stat.
-        
-        Args:
-            stat_type: The stat to update
         """
         if stat_type not in self.stat_rows:
             return
         
         stat_row = self.stat_rows[stat_type]
         stat_name = str(stat_type)
+        colors = self.palette['colors']
         
         # Get current values
         base_value = int(self.stats_manager.get_stat_value(stat_type))
@@ -695,8 +676,15 @@ class StatAllocationWidget(QWidget):
         
         mod_text = f"{modifier:+d}" if modifier != 0 else "0"
         stat_row.mod_label.setText(mod_text)
-        stat_row.mod_label.setStyleSheet(f"color: {COLORS['positive'] if modifier > 0 else (COLORS['negative'] if modifier < 0 else COLORS['text_secondary'])};")
+        stat_row.mod_label.setStyleSheet(f"color: {colors['accent_positive'] if modifier > 0 else (colors['accent_negative'] if modifier < 0 else colors['text_secondary'])};")
         
+        # Update modifiers colors
+        race_color = colors['accent_positive'] if race_mod > 0 else (colors['accent_negative'] if race_mod < 0 else colors['text_secondary'])
+        stat_row.race_mod_label.setStyleSheet(f"color: {race_color};")
+        
+        class_color = colors['accent_positive'] if class_mod > 0 else (colors['accent_negative'] if class_mod < 0 else colors['text_secondary'])
+        stat_row.class_mod_label.setStyleSheet(f"color: {class_color};")
+
         # Update tooltips with new values
         tooltip_text = self.modifier_info.get_tooltip_text(stat_name, base_value)
         for widget in [stat_row.name_label, stat_row.base_label, stat_row.race_mod_label, 
@@ -710,9 +698,9 @@ class StatAllocationWidget(QWidget):
         # Check if total meets minimum requirement
         min_req = self.modifier_info.minimum_requirements.get(stat_name, 0)
         if min_req > 0 and total_value < min_req:
-            stat_row.total_label.setStyleSheet(f"color: {COLORS['negative']}; font-weight: bold;")
+            stat_row.total_label.setStyleSheet(f"color: {colors['accent_negative']}; font-weight: bold;")
         else:
-            stat_row.total_label.setStyleSheet(f"color: {COLORS['text_bright']}; font-weight: bold;")
+            stat_row.total_label.setStyleSheet(f"color: {colors['text_bright']}; font-weight: bold;")
     
     def _update_all_stat_displays(self) -> None:
         """Update all stat displays."""
@@ -874,56 +862,45 @@ class StatAllocationWidget(QWidget):
     
     def _update_preset_buttons(self) -> None:
         """Update the preset buttons based on current class."""
-        # Clear existing buttons
-        for button in self.preset_buttons.values():
-            button.setParent(None)
-            button.deleteLater()
-        
-        # Reset buttons dictionary
-        self.preset_buttons = {}
-        
-        # Get the presets group
-        presets_group = None
-        for i in range(self.layout().count()):
-            item = self.layout().itemAt(i)
-            if item.widget() and isinstance(item.widget(), QGroupBox) and item.widget().title() == "Quick Presets":
-                presets_group = item.widget()
-                break
-        
-        if not presets_group:
+        # Clear existing buttons from the layout and dictionary
+        if not hasattr(self, 'presets_group') or not self.presets_group.layout():
             return
+
+        layout = self.presets_group.layout()
         
-        # Get the layout
-        presets_layout = presets_group.layout()
-        if not presets_layout:
-            return
-        
-        # Clear the layout
-        while presets_layout.count():
-            item = presets_layout.takeAt(0)
+        # Remove all existing items from the layout
+        while layout.count():
+            item = layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         
-        # Add new preset buttons
+        self.preset_buttons = {}
+        
+        # Add new preset buttons based on archetype presets
         for preset_name in self.modifier_info.archetype_presets:
             preset_button = QPushButton(preset_name)
             preset_button.setToolTip(self.modifier_info.archetype_presets[preset_name].get("description", ""))
             preset_button.clicked.connect(lambda checked=False, p=preset_name: self._apply_preset(p))
-            presets_layout.addWidget(preset_button)
+            layout.addWidget(preset_button)
             self.preset_buttons[preset_name] = preset_button
         
-        # Add balanced preset if no archetypes found
+        # Add balanced/focused buttons if no archetypes found (fallback)
         if not self.preset_buttons:
             balanced_button = QPushButton("Balanced")
             balanced_button.setToolTip("Apply a balanced distribution of stats")
             balanced_button.clicked.connect(lambda: self._auto_allocate(balanced=True))
-            presets_layout.addWidget(balanced_button)
+            layout.addWidget(balanced_button)
+            self.preset_buttons["Balanced"] = balanced_button
             
             focused_button = QPushButton("Focused")
             focused_button.setToolTip("Focus on primary stats for your class")
             focused_button.clicked.connect(lambda: self._auto_allocate(balanced=False))
-            presets_layout.addWidget(focused_button)
-    
+            layout.addWidget(focused_button)
+            self.preset_buttons["Focused"] = focused_button
+            
+        # Apply current theme to the new buttons immediately
+        self._update_theme()
+
     def _update_race_class_info(self) -> None:
         """Update the race/class information label."""
         info_text = f"""
@@ -980,17 +957,15 @@ class StatAllocationWidget(QWidget):
         
     def _create_info_icon(self) -> QIcon:
         """
-        Create an information icon.
-
-        Returns:
-            QIcon: The information icon
+        Create an information icon using theme colors.
         """
+        colors = self.palette['colors']
+        
         # Create a pixmap
         pixmap = QPixmap(24, 24)
         pixmap.fill(Qt.transparent)
 
         # Draw an info icon using code
-        import math
         from PySide6.QtGui import QPainter, QPen, QBrush
         from PySide6.QtCore import QRect
 
@@ -998,10 +973,10 @@ class StatAllocationWidget(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         # Draw circle
-        pen = QPen(QColor(COLORS['info_icon_bg']))
+        pen = QPen(QColor(colors['info_icon_bg']))
         pen.setWidth(2)
         painter.setPen(pen)
-        painter.setBrush(QBrush(QColor(COLORS['info_icon_bg_dark'])))
+        painter.setBrush(QBrush(QColor(colors['info_icon_bg_dark'])))
         painter.drawEllipse(2, 2, 20, 20)
 
         # Draw "i" character
@@ -1017,15 +992,12 @@ class StatAllocationWidget(QWidget):
     def _show_stat_info(self, stat_type: StatType) -> None:
         """
         Show detailed information about a stat.
-
-        Args:
-            stat_type: The stat to show information for
         """
         stat_name = str(stat_type)
         base_value = int(self.stats_manager.get_stat_value(stat_type))
 
-        # Create and show the dialog
-        dialog = StatInfoDialog(stat_name, base_value, self.modifier_info, self)
+        # Create and show the dialog, passing the palette
+        dialog = StatInfoDialog(stat_name, base_value, self.modifier_info, self.palette, self)
         dialog.exec_()
 
     def get_allocated_stats(self) -> Dict[str, int]:

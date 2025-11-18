@@ -4,16 +4,14 @@ Enhanced character creation dialog with Origin selection and stat allocation for
 """
 
 import os
-import json
-import logging
 from typing import Dict, Optional, Any, List
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox,
+    QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox,
     QPushButton, QGroupBox, QTextEdit, QTabWidget, QWidget, QMessageBox,
     QCheckBox, QFormLayout
 )
-from PySide6.QtCore import Qt, Signal, Slot, QSize
+from PySide6.QtCore import Qt, Slot, QSize
 from PySide6.QtGui import QPixmap, QIcon
 
 from gui.dialogs.new_game_dialog import NewGameDialog
@@ -22,135 +20,32 @@ from core.stats.stats_manager import StatsManager
 from core.utils.logging_config import get_logger
 from core.agents.narrator import get_narrator_agent 
 from core.agents.base_agent import AgentContext 
-from core.base.config import get_config 
+from core.base.config import get_config
+from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_main_tab_widget_style
+from gui.styles.theme_manager import get_theme_manager 
 
 logger = get_logger("GUI")
 
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'background_med': '#2d2520',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'border_light': '#5a4a40',
-    'text_primary': '#c9a875',
-    'text_secondary': '#8b7a65',
-    'text_disabled': '#5a4a40',
-    'text_bright': '#e8d4b8',
-    'selected': '#c9a875',
-    'hover': '#4a3a30',
-    'positive': '#5a9068',
-    'negative': '#D94A38'
-}
 class CharacterCreationDialog(NewGameDialog):
     """Extended dialog for creating a new game character with Origin selection and stat allocation."""
 
     def __init__(self, parent=None):
         """Initialize the character creation dialog."""
         # We call QDialog's init directly as we heavily override the UI from NewGameDialog
+        # Note: NewGameDialog inherits from BaseDialog, so we are calling BaseDialog.__init__ via super()
         super().__init__(parent)
+
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
 
         # Set window properties from NewGameDialog if desired
         self.setWindowTitle("Create New Character")
         self.setMinimumWidth(800)
         self.setMinimumHeight(550)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_bright']};
-            }}
-            QLabel {{
-                color: {COLORS['text_primary']};
-                padding-top: 3px;
-            }}
-            QLineEdit, QTextEdit, QComboBox {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_bright']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 5px;
-            }}
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {{
-                border-color: {COLORS['text_primary']};
-            }}
-            QComboBox::drop-down {{
-                border: none; width: 15px;
-            }}
-            QComboBox::down-arrow {{
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid {COLORS['text_secondary']};
-            }}
-            QComboBox QAbstractItemView {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_bright']};
-                selection-background-color: {COLORS['hover']};
-                selection-color: {COLORS['selected']};
-                border: 1px solid {COLORS['border_dark']};
-            }}
-            QPushButton {{
-                background-color: {COLORS['background_light']};
-                color: {COLORS['text_primary']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {COLORS['hover']};
-                border-color: {COLORS['border_light']};
-            }}
-            QPushButton:pressed {{
-                background-color: {COLORS['background_dark']};
-            }}
-            QPushButton:disabled {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_disabled']};
-            }}
-            QGroupBox {{
-                background-color: {COLORS['background_light']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
-                font-weight: bold;
-                color: {COLORS['text_primary']};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-                padding: 0 10px 0 10px;
-            }}
-            QTabWidget::pane {{
-                border: 1px solid {COLORS['border_dark']};
-                background-color: {COLORS['background_med']};
-                border-radius: 5px;
-            }}
-            QTabBar::tab {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_secondary']};
-                border: 1px solid {COLORS['border_dark']};
-                border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-                padding: 6px 10px;
-                margin-right: 2px;
-            }}
-            QTabBar::tab:selected {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_primary']};
-            }}
-            QScrollArea {{
-                border: none;
-                background-color: transparent;
-            }}
-            #OriginDetailsLabel {{
-                color: {COLORS['text_secondary']};
-                padding-left: 5px;
-                padding-top: 0px;
-            }}
-        """)
-
+        
         # Load data dynamically
         self.available_races = self._load_races()
         self.available_classes = self._load_classes()
@@ -172,6 +67,9 @@ class CharacterCreationDialog(NewGameDialog):
 
         # Set up the UI with tabs SECOND (this creates self.icon_label etc.)
         self._setup_ui_with_tabs()
+
+        # Apply initial theme
+        self._update_theme()
 
         # Scan for icons and display the first one THIRD (now self.icon_label exists)
         # Initial scan based on default selections
@@ -204,11 +102,7 @@ class CharacterCreationDialog(NewGameDialog):
 
         # Create tab widget
         self.tab_widget = QTabWidget()
-        self.tab_widget.setStyleSheet("""
-            QTabWidget::pane { border: 1px solid #555555; background-color: #333333; border-radius: 5px; }
-            QTabBar::tab { background-color: #444444; color: #CCCCCC; border: 1px solid #555555; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px; padding: 6px 10px; margin-right: 2px; }
-            QTabBar::tab:selected { background-color: #333333; color: #E0E0E0; }
-        """)
+        # Styling moved to _update_theme
 
         # --- Tab 1: Basic Info & Origin ---
         self.basic_info_tab = QWidget()
@@ -218,8 +112,8 @@ class CharacterCreationDialog(NewGameDialog):
         # Left Side: Character Info & Portrait
         left_basic_layout = QVBoxLayout()
 
-        info_group = QGroupBox("Character Information")
-        info_form_layout = QFormLayout(info_group)
+        self.info_group = QGroupBox("Character Information")
+        info_form_layout = QFormLayout(self.info_group)
         info_form_layout.setContentsMargins(15, 25, 15, 15)
         info_form_layout.setSpacing(8)
 
@@ -247,17 +141,16 @@ class CharacterCreationDialog(NewGameDialog):
         self.llm_checkbox.setChecked(self.llm_enabled)
         info_form_layout.addRow("", self.llm_checkbox)
 
-        left_basic_layout.addWidget(info_group)
+        left_basic_layout.addWidget(self.info_group)
 
         # Portrait Section
-        icon_group = QGroupBox("Character Portrait")
-        icon_layout = QVBoxLayout(icon_group)
+        self.icon_group = QGroupBox("Character Portrait")
+        icon_layout = QVBoxLayout(self.icon_group)
         icon_layout.setContentsMargins(15, 25, 15, 15)
         icon_layout.setSpacing(8)
         self.icon_label = QLabel() # Create icon label
         self.icon_label.setAlignment(Qt.AlignCenter)
         self.icon_label.setFixedSize(150, 150)
-        self.icon_label.setStyleSheet("background-color: #1E1E1E; border: 1px solid #3F3F46;")
         self.icon_label.setText("No image")
         icon_layout.addWidget(self.icon_label, 0, Qt.AlignCenter)
         nav_layout = QHBoxLayout()
@@ -269,18 +162,17 @@ class CharacterCreationDialog(NewGameDialog):
         nav_layout.addWidget(self.icon_counter_label)
         nav_layout.addWidget(self.next_icon_button)
         icon_layout.addLayout(nav_layout)
-        portrait_hint = QLabel("Browse available portraits")
-        portrait_hint.setStyleSheet("color: #888888; font-style: italic;")
-        portrait_hint.setAlignment(Qt.AlignCenter)
-        icon_layout.addWidget(portrait_hint)
-        left_basic_layout.addWidget(icon_group)
+        self.portrait_hint = QLabel("Browse available portraits")
+        self.portrait_hint.setAlignment(Qt.AlignCenter)
+        icon_layout.addWidget(self.portrait_hint)
+        left_basic_layout.addWidget(self.icon_group)
         left_basic_layout.addStretch(1)
 
         # Right Side: Origin Details & Backstory Seed
         right_basic_layout = QVBoxLayout()
 
-        origin_details_group = QGroupBox("Origin Details")
-        origin_details_layout = QVBoxLayout(origin_details_group)
+        self.origin_details_group = QGroupBox("Origin Details")
+        origin_details_layout = QVBoxLayout(self.origin_details_group)
         origin_details_layout.setContentsMargins(15, 25, 15, 15)
         origin_details_layout.setSpacing(8)
         origin_details_layout.addWidget(QLabel("<b>Description:</b>"))
@@ -303,17 +195,16 @@ class CharacterCreationDialog(NewGameDialog):
         origin_details_layout.addStretch()
 
         # Backstory Seed Group
-        description_group = QGroupBox("Character Backstory (Seed)")
-        description_layout = QVBoxLayout(description_group)
+        self.description_group = QGroupBox("Character Backstory (Seed)")
+        description_layout = QVBoxLayout(self.description_group)
         description_layout.setContentsMargins(15, 25, 15, 15)
         description_layout.setSpacing(5)
-        description_label = QLabel("Edit the text below (loaded from Origin) to guide LLM background generation:")
-        description_label.setWordWrap(True)
-        description_label.setStyleSheet("color: #AAAAAA; font-style: italic;")
+        self.description_label = QLabel("Edit the text below (loaded from Origin) to guide LLM background generation:")
+        self.description_label.setWordWrap(True)
         self.description_edit = QTextEdit() # Create text edit
         self.description_edit.setPlaceholderText("Select an Origin to load starting text...")
         self.description_edit.setMinimumHeight(120)
-        description_layout.addWidget(description_label)
+        description_layout.addWidget(self.description_label)
         description_layout.addWidget(self.description_edit)
 
         # AI Buttons for Backstory
@@ -337,16 +228,12 @@ class CharacterCreationDialog(NewGameDialog):
         ai_button_layout.addWidget(self.generate_background_button)
         description_layout.addLayout(ai_button_layout)
 
-        right_basic_layout.addWidget(origin_details_group)
-        right_basic_layout.addWidget(description_group)
+        right_basic_layout.addWidget(self.origin_details_group)
+        right_basic_layout.addWidget(self.description_group)
         right_basic_layout.addStretch(1)
 
         basic_info_main_layout.addLayout(left_basic_layout, 1)
         basic_info_main_layout.addLayout(right_basic_layout, 2)
-
-        # --- Tab 2: Stats --- (Will be added later by user)
-        # self.stats_tab = QWidget()
-        # ...
 
         # --- Tab 3: Stats (Renamed from Tab 2) ---
         self.stats_tab = QWidget() # Renamed variable for clarity, though index matters more
@@ -362,7 +249,7 @@ class CharacterCreationDialog(NewGameDialog):
         self.race_prev_button.setIcon(QIcon(icon_path))
         self.race_prev_button.setIconSize(QSize(16, 16)); self.race_prev_button.setFixedSize(24, 24)
         self.race_label = QLabel("Race") # Create race label
-        self.race_label.setStyleSheet("color: #E0E0E0; font-weight: bold; font-size: 14px;"); self.race_label.setAlignment(Qt.AlignCenter)
+        self.race_label.setAlignment(Qt.AlignCenter)
         self.race_next_button = QPushButton()
         icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "images", "icons", "right_arrow.svg")
         self.race_next_button.setIcon(QIcon(icon_path))
@@ -377,7 +264,7 @@ class CharacterCreationDialog(NewGameDialog):
         self.class_prev_button.setIcon(QIcon(icon_path))
         self.class_prev_button.setIconSize(QSize(16, 16)); self.class_prev_button.setFixedSize(24, 24)
         self.class_label = QLabel("Class") # Create class label
-        self.class_label.setStyleSheet("color: #E0E0E0; font-weight: bold; font-size: 14px;"); self.class_label.setAlignment(Qt.AlignCenter)
+        self.class_label.setAlignment(Qt.AlignCenter)
         self.class_next_button = QPushButton()
         icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "images", "icons", "right_arrow.svg")
         self.class_next_button.setIcon(QIcon(icon_path))
@@ -397,7 +284,6 @@ class CharacterCreationDialog(NewGameDialog):
         # Info Label for Stats Tab
         self.stat_info_label = QLabel() # Create stat info label
         self.stat_info_label.setWordWrap(True)
-        self.stat_info_label.setStyleSheet("color: #E0E0E0; background-color: rgba(0, 0, 0, 0.2); padding: 10px; border-radius: 5px;")
         stats_layout.addWidget(self.stat_info_label)
         stats_layout.addStretch(1)
 
@@ -410,15 +296,9 @@ class CharacterCreationDialog(NewGameDialog):
 
         # Add tabs to the tab widget
         self.tab_widget.addTab(self.basic_info_tab, "1. Basic Info & Origin")
-        # --- MODIFICATION: Add placeholder for future Tab 2 ---
-        # self.tab_widget.addTab(QWidget(), "2. Skills & Feats (TBD)") # Placeholder
-        # --- END MODIFICATION ---
-        # --- MODIFICATION: Renamed Stats Tab ---
-        self.tab_widget.addTab(self.stats_tab, "3. Stats") # Renamed from "2. Stats"
-        # --- END MODIFICATION ---
+        self.tab_widget.addTab(self.stats_tab, "3. Stats") 
         # Connect tab changed signal
         self.tab_widget.currentChanged.connect(self._tab_changed)
-        # self.tab_widget.addTab(self.background_tab, "4. Review (Optional)") # Renumbered
 
         dialog_layout.addWidget(self.tab_widget)
 
@@ -429,26 +309,6 @@ class CharacterCreationDialog(NewGameDialog):
         self.cancel_button = QPushButton("Cancel")
         self.create_button = QPushButton("Create Character")
         self.start_game_button = QPushButton("Start Game")
-        self.start_game_button.setStyleSheet("""
-            QPushButton {
-                background-color: #22863a;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #2a9949;
-            }
-            QPushButton:pressed {
-                background-color: #1e7e34;
-            }
-            QPushButton:disabled {
-                background-color: #666666;
-                color: #AAAAAA;
-            }
-        """)
         self.start_game_button.hide()  # Initially hidden
 
         bottom_button_layout.addWidget(self.cancel_button)
@@ -466,6 +326,84 @@ class CharacterCreationDialog(NewGameDialog):
 
         # NOW populate the origin combo, as all widgets exist
         self._populate_origin_combo()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        fonts = self.palette['fonts']
+        
+        # Apply standard dialog style
+        self.setStyleSheet(create_dialog_style(self.palette))
+        
+        # Style tab widget
+        self.tab_widget.setStyleSheet(create_main_tab_widget_style(self.palette))
+        
+        # Style group boxes
+        group_style = create_groupbox_style(self.palette)
+        self.info_group.setStyleSheet(group_style)
+        self.icon_group.setStyleSheet(group_style)
+        self.origin_details_group.setStyleSheet(group_style)
+        self.description_group.setStyleSheet(group_style)
+        
+        # Style specific labels
+        label_style = f"color: {colors['text_secondary']};"
+        self.portrait_hint.setStyleSheet(f"{label_style} font-style: italic;")
+        self.description_label.setStyleSheet(f"{label_style} font-style: italic;")
+        
+        # Style icon label
+        self.icon_label.setStyleSheet(f"background-color: {colors['bg_dark']}; border: 1px solid {colors['border_dark']};")
+        
+        # Style stat info label
+        self.stat_info_label.setStyleSheet(f"""
+            QLabel {{
+                color: {colors['text_secondary']}; 
+                background-color: {colors['bg_dark']}; 
+                padding: 10px; 
+                border-radius: 5px;
+                border: 1px solid {colors['border_dark']};
+            }}
+        """)
+        
+        # Style race/class selector labels
+        header_style = f"color: {colors['text_primary']}; font-weight: bold; font-size: 14px;"
+        self.race_label.setStyleSheet(header_style)
+        self.class_label.setStyleSheet(header_style)
+        
+        # Style Origin Details internal labels
+        detail_label_style = f"color: {colors['text_secondary']}; padding-left: 5px;"
+        self.origin_desc_label.setStyleSheet(detail_label_style)
+        self.origin_skills_label.setStyleSheet(detail_label_style)
+        self.origin_traits_label.setStyleSheet(detail_label_style)
+        
+        # Style Start Game button (greenish)
+        self.start_game_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {colors['accent_positive']};
+                color: {colors['bg_dark']};
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {colors['accent_positive_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {colors['res_ap_active_dark']};
+            }}
+            QPushButton:disabled {{
+                background-color: {colors['bg_dark']};
+                color: {colors['text_disabled']};
+            }}
+        """)
+        
+        # Update child widgets
+        if hasattr(self, 'stat_allocation'):
+            self.stat_allocation._update_theme(self.palette)
 
     def _populate_combo(self, combo: QComboBox, items: List[str], item_type: str):
         """Helper to populate QComboBox and handle empty lists."""
@@ -662,24 +600,28 @@ class CharacterCreationDialog(NewGameDialog):
         """Connect signals to slots."""
         # Basic Info Tab
         self.player_name_edit.textChanged.connect(self._validate_form)
+        
+        # Race Combo: Validate form, update stats tab, update origin list, update icons
         self.race_combo.currentIndexChanged.connect(self._validate_form)
         self.race_combo.currentTextChanged.connect(self._update_race_class)
-        self.race_combo.currentTextChanged.connect(self._populate_origin_combo) 
+        self.race_combo.currentTextChanged.connect(self._populate_origin_combo)
+        self.race_combo.currentIndexChanged.connect(self._update_icons_on_selection_change)
+
+        # Path (Class) Combo: Validate form, update stats tab, update origin list, update icons
         self.path_combo.currentIndexChanged.connect(self._validate_form)
         self.path_combo.currentTextChanged.connect(self._update_race_class)
-        self.path_combo.currentTextChanged.connect(self._populate_origin_combo) 
+        self.path_combo.currentTextChanged.connect(self._populate_origin_combo)
+        self.path_combo.currentIndexChanged.connect(self._update_icons_on_selection_change)
 
-        # Only connect origin index change to validation and details update
+        # Origin Combo: Validate, update details/backstory
         self.origin_combo.currentIndexChanged.connect(self._validate_form)
         self.origin_combo.currentIndexChanged.connect(self._on_origin_selected)
 
+        # Sex Combo: Validate, update icons
         self.sex_combo.currentIndexChanged.connect(self._validate_form)
-        self.llm_checkbox.stateChanged.connect(self._toggle_llm)
-
-        # Update icons when race, class, or sex changes
-        self.race_combo.currentIndexChanged.connect(self._update_icons_on_selection_change)
-        self.path_combo.currentIndexChanged.connect(self._update_icons_on_selection_change)
         self.sex_combo.currentIndexChanged.connect(self._update_icons_on_selection_change)
+        
+        self.llm_checkbox.stateChanged.connect(self._toggle_llm)
 
         # Portrait
         self.prev_icon_button.clicked.connect(self._show_previous_icon)
@@ -724,6 +666,70 @@ class CharacterCreationDialog(NewGameDialog):
 
         # Initial AI button state update
         self._update_ai_button_state()
+
+    @Slot(int)
+    def _on_origin_selected(self, index: int):
+        """Update details display when an origin is selected."""
+        self.selected_origin_data = None # Reset selected data
+        origin_id = self.origin_combo.itemData(index)
+
+        # Track the text we automatically inserted last time
+        if not hasattr(self, '_last_auto_description'):
+            self._last_auto_description = ""
+
+        if origin_id is None: # Handle placeholder selection
+            self.origin_desc_label.setText("Select an Origin to see details.")
+            self.origin_skills_label.setText("-")
+            self.origin_traits_label.setText("-")
+            
+            # Only clear if user hasn't typed something custom
+            current_text = self.description_edit.toPlainText().strip()
+            if not current_text or current_text == self._last_auto_description:
+                self.description_edit.setPlainText("")
+                self._last_auto_description = ""
+                
+            self.description_edit.setPlaceholderText("Select an Origin to load starting text...")
+            self._validate_form()
+            return
+
+        # Find the full origin data using the ID
+        origin = next((o for o in self.available_origins if o.get('id') == origin_id), None)
+
+        if origin:
+            self.selected_origin_data = origin # Store the full data
+            self.origin_desc_label.setText(origin.get('description', 'No description available.'))
+
+            # Format skills
+            skills = origin.get('skill_proficiencies', [])
+            self.origin_skills_label.setText(", ".join(skills) if skills else "None")
+
+            # Format traits
+            traits = origin.get('origin_traits', [])
+            traits_text = ""
+            if traits:
+                trait_lines = [f"<b>{t.get('name', 'Unnamed Trait')}:</b> {t.get('description', 'No description.')}" for t in traits]
+                traits_text = "<br>".join(trait_lines) # Use HTML for formatting
+            else:
+                traits_text = "None"
+            self.origin_traits_label.setText(traits_text)
+
+            # Update backstory seed
+            new_intro_text = origin.get('introduction_text', '')
+            current_text = self.description_edit.toPlainText()
+            
+            # If box is empty OR matches the previous auto-text, update it
+            if not current_text.strip() or current_text == self._last_auto_description:
+                self.description_edit.setPlainText(new_intro_text)
+                self._last_auto_description = new_intro_text
+            # If user changed text, do nothing (preserve their edits)
+
+        else:
+            self.origin_desc_label.setText("Error: Could not load details.")
+            self.origin_skills_label.setText("-")
+            self.origin_traits_label.setText("-")
+            logger.error(f"Could not find origin data for ID: {origin_id}")
+
+        self._validate_form()
 
     # --- Validation ---
     def _validate_form(self):
@@ -865,10 +871,6 @@ class CharacterCreationDialog(NewGameDialog):
         logger.debug(f"Character stats: {data.get('stats')}")
         return data
 
-
-    # --- Methods inherited or potentially modified from NewGameDialog ---
-    # These might need adjustments based on the tabbed layout
-
     def _update_race_class(self, *args):
         """Update stat allocation and labels when race or class changes."""
         race = self.race_combo.currentText()
@@ -877,6 +879,7 @@ class CharacterCreationDialog(NewGameDialog):
         if hasattr(self, 'race_label'): self.race_label.setText(race)
         if hasattr(self, 'class_label'): self.class_label.setText(class_name)
 
+        # IMPORTANT: Propagate change to the stat allocation widget
         if hasattr(self, 'stat_allocation'):
             self.stat_allocation.update_race_class(race, class_name)
 
@@ -952,19 +955,10 @@ class CharacterCreationDialog(NewGameDialog):
         class_mods = modifier_info.class_modifiers
         reqs = modifier_info.minimum_requirements
         recomm = modifier_info.recommended_stats
+        
+        colors = self.palette['colors']
 
-        # --- UPDATED STYLING FOR THIS LABEL ---
-        self.stat_info_label.setStyleSheet(f"""
-            QLabel {{
-                color: {COLORS['text_secondary']}; 
-                background-color: {COLORS['background_dark']}; 
-                padding: 10px; 
-                border-radius: 5px;
-                border: 1px solid {COLORS['border_dark']};
-            }}
-        """)
-
-        info_text = f"<div style='font-weight: bold; font-size: 13px; color: {COLORS['text_primary']};'>{race} {class_name} Stat Info</div><hr style='border-color: {COLORS['border_dark']};'>"
+        info_text = f"<div style='font-weight: bold; font-size: 13px; color: {colors['text_primary']};'>{race} {class_name} Stat Info</div><hr style='border-color: {colors['border_dark']};'>"
 
         def format_mods(mods_dict, color_pos, color_neg):
             if not mods_dict: return "None"
@@ -975,8 +969,8 @@ class CharacterCreationDialog(NewGameDialog):
                     parts.append(f"<span style='color: {color}'>{stat} {mod:+d}</span>")
             return ", ".join(parts) if parts else "None"
 
-        info_text += f"<div style='margin-bottom: 8px;'><b>Race Modifiers:</b> {format_mods(race_mods, COLORS['positive'], COLORS['negative'])}</div>"
-        info_text += f"<div style='margin-bottom: 8px;'><b>Class Modifiers:</b> {format_mods(class_mods, COLORS['positive'], COLORS['negative'])}</div>"
+        info_text += f"<div style='margin-bottom: 8px;'><b>Race Modifiers:</b> {format_mods(race_mods, colors['accent_positive'], colors['accent_negative'])}</div>"
+        info_text += f"<div style='margin-bottom: 8px;'><b>Class Modifiers:</b> {format_mods(class_mods, colors['accent_positive'], colors['accent_negative'])}</div>"
 
         req_text = ", ".join([f"{stat} {val}" for stat, val in sorted(reqs.items())]) if reqs else "None"
         info_text += f"<div style='margin-bottom: 8px;'><b>Minimum Requirements:</b> {req_text}</div>"
@@ -985,7 +979,7 @@ class CharacterCreationDialog(NewGameDialog):
         info_text += f"<div><b>Recommended Primary:</b> {recomm_prim}</div>"
 
         self.stat_info_label.setText(info_text)
-
+        
     @Slot()
     def _improve_background(self):
         if not self._validate_for_ai_generation(): return # Check validation first
