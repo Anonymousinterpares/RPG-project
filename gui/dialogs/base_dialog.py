@@ -1,13 +1,23 @@
 #gui/dialogs/base_dialog.py
+from typing import Any, Dict, Optional
 from PySide6.QtWidgets import QDialog, QPushButton, QToolButton, QLineEdit, QTextEdit, QPlainTextEdit, QListWidget, QTableWidget, QComboBox
+from PySide6.QtCore import Slot
 from core.utils.logging_config import get_logger
+from gui.styles.stylesheet_factory import create_dialog_style
+from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("BASE_DIALOG")
 class BaseDialog(QDialog):
-    """Base class for dialogs to enforce maximum size constraints."""
+    """Base class for dialogs to enforce maximum size constraints and styling."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
         
         main_window = self
         while hasattr(main_window, 'parent') and main_window.parent():
@@ -19,6 +29,26 @@ class BaseDialog(QDialog):
         if hasattr(main_window, 'normal_cursor'):
             self.setCursor(main_window.normal_cursor)
             self._apply_cursors_to_children(main_window)
+
+        # Apply initial theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[Dict[str, Any]] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        # Apply the standard dialog style
+        self.setStyleSheet(create_dialog_style(self.palette))
+        
+        # Propagate theme update to any children that support it
+        # This is useful for complex dialogs composed of other custom widgets
+        for child in self.findChildren(object): # Iterate all QObjects
+            if hasattr(child, '_update_theme') and callable(child._update_theme):
+                # Avoid infinite recursion if child is self (shouldn't happen with findChildren but safe to check)
+                if child is not self:
+                     child._update_theme(self.palette)
 
     def _apply_cursors_to_children(self, main_window):
         """Finds all relevant child widgets and applies custom cursors from the main window."""

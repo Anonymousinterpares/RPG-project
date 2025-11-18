@@ -4,18 +4,16 @@ Base settings dialog for the RPG game GUI.
 This module provides a base dialog class for settings dialogs.
 """
 
-import os
-import json
 import logging
 from typing import Dict, Any, Optional
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTabWidget, QWidget
+    QVBoxLayout, QHBoxLayout, QPushButton
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Slot, Signal
 
 from gui.dialogs.base_dialog import BaseDialog
+from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_main_tab_widget_style
 
 # Get the module logger
 logger = logging.getLogger("GUI")
@@ -34,103 +32,6 @@ class BaseSettingsDialog(BaseDialog):
         self.setWindowTitle(title)
         self.setMinimumWidth(700)
         self.setMinimumHeight(500)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2D2D30;
-                color: #E0E0E0;
-            }
-            QLabel {
-                color: #E0E0E0;
-            }
-            QLineEdit, QComboBox, QSpinBox {
-                background-color: #1E1E1E;
-                color: #E0E0E0;
-                border: 1px solid #3F3F46;
-                border-radius: 4px;
-                padding: 5px;
-            }
-            QLineEdit:focus, QComboBox:focus, QSpinBox:focus {
-                border-color: #0E639C;
-            }
-            QPushButton {
-                background-color: #0E639C;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177BB;
-            }
-            QPushButton:pressed {
-                background-color: #0A4C7C;
-            }
-            QPushButton:disabled {
-                background-color: #666666;
-                color: #AAAAAA;
-            }
-            QPushButton.danger {
-                background-color: #D32F2F;
-            }
-            QPushButton.danger:hover {
-                background-color: #F44336;
-            }
-            QPushButton.danger:pressed {
-                background-color: #B71C1C;
-            }
-            QGroupBox {
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-top: 15px;
-                font-weight: bold;
-                color: #E0E0E0;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-                padding-left: 10px;
-                padding-right: 10px;
-            }
-            QTabWidget::pane {
-                border: 1px solid #555555;
-                background-color: #2D2D30;
-            }
-            QTabWidget::tab-bar {
-                left: 5px;
-            }
-            QTabBar::tab {
-                background-color: #333333;
-                border: 1px solid #555555;
-                border-bottom-color: #555555;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-                padding: 6px 10px;
-                color: #CCCCCC;
-                margin-right: 2px;
-            }
-            QTabBar::tab:selected {
-                background-color: #0E639C;
-                color: white;
-            }
-            QTabBar::tab:!selected {
-                margin-top: 2px;
-            }
-            QCheckBox {
-                color: #E0E0E0;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border: 1px solid #555555;
-                border-radius: 2px;
-                background-color: #1E1E1E;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #0E639C;
-                border-color: #0E639C;
-            }
-        """)
         
         # Create the main layout
         self.main_layout = QVBoxLayout(self)
@@ -139,6 +40,61 @@ class BaseSettingsDialog(BaseDialog):
         
         # Set up the bottom button layout
         self._setup_button_layout()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[Dict[str, Any]] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        # Combine base dialog style with specific settings dialog styles
+        base_style = create_dialog_style(self.palette)
+        tab_style = create_main_tab_widget_style(self.palette)
+        group_style = create_groupbox_style(self.palette)
+        
+        # Add specific overrides for checkboxes in settings
+        checkbox_style = f"""
+            QCheckBox {{
+                color: {colors['text_primary']};
+                spacing: 5px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 1px solid {colors['border_dark']};
+                border-radius: 2px;
+                background-color: {colors['bg_dark']};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {colors['accent_positive']};
+                border-color: {colors['accent_positive']};
+                image: url(none); /* Or a checkmark icon if available */
+            }}
+        """
+        
+        # Danger button style
+        danger_style = f"""
+            QPushButton.danger {{
+                background-color: {colors['accent_negative']};
+                color: {colors['text_bright']};
+                border: 1px solid {colors['border_dark']};
+            }}
+            QPushButton.danger:hover {{
+                background-color: {colors['accent_negative_light']};
+            }}
+            QPushButton.danger:pressed {{
+                background-color: {colors['state_pressed']};
+            }}
+        """
+
+        self.setStyleSheet(base_style + tab_style + group_style + checkbox_style + danger_style)
+        
+        # Propagate to children (tabs)
+        for child in self.findChildren(object):
+            if hasattr(child, '_update_theme') and callable(child._update_theme) and child is not self:
+                child._update_theme(self.palette)
     
     def _setup_button_layout(self):
         """Set up the bottom button layout."""

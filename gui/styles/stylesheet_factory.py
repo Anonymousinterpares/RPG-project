@@ -389,3 +389,75 @@ def create_overlay_command_input_style(palette: Dict[str, Any]) -> str:
             border-color: {border_color}; /* Keep the border color the same on focus */
         }}
     """
+
+def create_combobox_style(palette: Dict[str, Any]) -> str:
+    """Creates a standard style for QComboBox."""
+    colors = palette['colors']
+    return f"""
+        QComboBox {{
+            background-color: {colors['bg_dark']};
+            color: {colors['text_bright']};
+            border: 1px solid {colors['border_dark']};
+            border-radius: 4px;
+            padding: 5px 8px;
+        }}
+        QComboBox:hover {{
+            border-color: {colors['border_light']};
+        }}
+        QComboBox:on {{
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }}
+        QComboBox::drop-down {{
+            border: none;
+            border-left: 1px solid {colors['border_dark']};
+            width: 20px;
+        }}
+        QComboBox::down-arrow {{
+            image: none;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 6px solid {colors['text_primary']};
+            margin-right: 5px;
+        }}
+        QComboBox QAbstractItemView {{
+            background-color: {colors['bg_dark']};
+            color: {colors['text_bright']};
+            selection-background-color: {colors['state_hover']};
+            selection-color: {colors['text_primary']};
+            border: 1px solid {colors['border_dark']};
+            outline: none;
+        }}
+    """
+
+def create_line_edit_style(palette: Dict[str, Any]) -> str:
+    """Creates a standard style for QLineEdit."""
+    colors = palette['colors']
+    return f"""
+        QLineEdit {{
+            background-color: {colors['bg_dark']};
+            color: {colors['text_bright']};
+            border: 1px solid {colors['border_dark']};
+            border-radius: 4px;
+            padding: 5px 8px;
+        }}
+        QLineEdit:focus {{
+            border-color: {colors['text_primary']};
+        }}
+        QLineEdit::placeholder {{
+            color: {colors['text_secondary']};
+            font-style: italic;
+        }}
+    """
+
+def create_scroll_area_style(palette: Dict[str, Any]) -> str:
+    """Creates a transparent style for QScrollArea."""
+    return """
+        QScrollArea {
+            background-color: transparent;
+            border: none;
+        }
+        QScrollArea > QWidget > QWidget {
+            background-color: transparent;
+        }
+    """

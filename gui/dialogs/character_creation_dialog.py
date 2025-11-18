@@ -21,7 +21,7 @@ from core.utils.logging_config import get_logger
 from core.agents.narrator import get_narrator_agent 
 from core.agents.base_agent import AgentContext 
 from core.base.config import get_config
-from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_main_tab_widget_style
+from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_main_tab_widget_style, create_styled_button_style
 from gui.styles.theme_manager import get_theme_manager 
 
 logger = get_logger("GUI")
@@ -330,6 +330,10 @@ class CharacterCreationDialog(NewGameDialog):
     @Slot(dict)
     def _update_theme(self, palette: Optional[dict] = None):
         """Update styles from the theme palette."""
+        # Guard against premature call from BaseDialog.__init__ before UI is built
+        if not hasattr(self, 'tab_widget'):
+            return
+
         if palette:
             self.palette = palette
         
@@ -379,27 +383,8 @@ class CharacterCreationDialog(NewGameDialog):
         self.origin_skills_label.setStyleSheet(detail_label_style)
         self.origin_traits_label.setStyleSheet(detail_label_style)
         
-        # Style Start Game button (greenish)
-        self.start_game_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {colors['accent_positive']};
-                color: {colors['bg_dark']};
-                border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {colors['accent_positive_light']};
-            }}
-            QPushButton:pressed {{
-                background-color: {colors['res_ap_active_dark']};
-            }}
-            QPushButton:disabled {{
-                background-color: {colors['bg_dark']};
-                color: {colors['text_disabled']};
-            }}
-        """)
+        # Style Start Game button using factory
+        self.start_game_button.setStyleSheet(create_styled_button_style(self.palette))
         
         # Update child widgets
         if hasattr(self, 'stat_allocation'):
