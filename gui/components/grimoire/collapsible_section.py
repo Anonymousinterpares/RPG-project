@@ -5,9 +5,9 @@ Features smooth animations using QPropertyAnimation.
 """
 from __future__ import annotations
 
-from typing import Optional, List, Any, Callable
+from typing import Optional, List, Any, Callable, Dict
 
-from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QEasingCurve, QSize, Property
+from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QEasingCurve, QSize, Property, Slot
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QScrollArea, QSizePolicy
@@ -15,18 +15,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont, QTransform, QPainter, QPixmap
 
 from core.utils.logging_config import get_logger
+from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("GRIMOIRE")
-
-# --- ADD COLORS FOR STYLING ---
-COLORS = {
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'hover': '#4a3a30',
-    'text_primary': '#c9a875',
-    'text_bright': '#e8d4b8',
-    'content_bg': '#252528', # A slightly different dark for content
-}
 
 class CollapsibleMagicSystemSection(QWidget):
     """
@@ -44,16 +35,14 @@ class CollapsibleMagicSystemSection(QWidget):
         spell_count: int = 0,
         parent: Optional[QWidget] = None
     ):
-        """
-        Initialize the collapsible section.
-        
-        Args:
-            system_id: Internal ID of the magic system
-            system_name: Display name of the magic system
-            spell_count: Number of spells in this system
-            parent: Parent widget
-        """
+        """Initialize the collapsible section."""
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
         
         self.system_id = system_id
         self.system_name = system_name
@@ -66,6 +55,9 @@ class CollapsibleMagicSystemSection(QWidget):
         self._arrow_rotation = 90  # 0 = right, 90 = down
         
         self._setup_ui()
+        
+        # Apply initial theme
+        self._update_theme()
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -81,18 +73,43 @@ class CollapsibleMagicSystemSection(QWidget):
         self.content_layout.setContentsMargins(10, 5, 10, 5)
         self.content_layout.setSpacing(3)
         
+        self.main_layout.addWidget(self.content_area)
+        self.content_area.setVisible(True)
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
         # Style content area
         self.content_area.setStyleSheet(f"""
             QWidget {{
-                background-color: {COLORS['content_bg']};
+                background-color: {colors['bg_medium']};
                 border: none;
                 border-bottom-left-radius: 5px;
                 border-bottom-right-radius: 5px;
             }}
         """)
         
-        self.main_layout.addWidget(self.content_area)
-        self.content_area.setVisible(True)
+        # Style header frame
+        self.header_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {colors['bg_light']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 5px;
+                padding: 8px;
+            }}
+            QFrame:hover {{
+                background-color: {colors['state_hover']};
+            }}
+        """)
+        
+        # Style labels
+        self.arrow_label.setStyleSheet("color: #BBBBBB; background: transparent; border: none;")
+        self.title_label.setStyleSheet(f"color: {colors['text_primary']}; background: transparent; border: none;")
 
     def set_header_cursor(self, cursor):
         """Sets the cursor for the header frame."""
@@ -101,20 +118,8 @@ class CollapsibleMagicSystemSection(QWidget):
 
     def _create_header(self):
         """Create the clickable header section."""
-        self.header_frame = QFrame() # Renamed from self.header to be more specific
+        self.header_frame = QFrame()
         self.header_frame.setFrameShape(QFrame.StyledPanel)
-        # The cursor will be set dynamically via set_header_cursor
-        self.header_frame.setStyleSheet(f"""
-            QFrame {{
-                background-color: {COLORS['background_light']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 5px;
-                padding: 8px;
-            }}
-            QFrame:hover {{
-                background-color: {COLORS['hover']};
-            }}
-        """)
         
         header_layout = QHBoxLayout(self.header_frame)
         header_layout.setContentsMargins(8, 4, 8, 4)
@@ -122,7 +127,6 @@ class CollapsibleMagicSystemSection(QWidget):
         # Arrow indicator (will be rotated)
         self.arrow_label = QLabel("▶")
         self.arrow_label.setFont(QFont("Arial", 10))
-        self.arrow_label.setStyleSheet("color: #BBBBBB; background: transparent; border: none;")
         self.arrow_label.setFixedSize(16, 16)
         self.arrow_label.setAlignment(Qt.AlignCenter)
         self._update_arrow_rotation()
@@ -130,7 +134,6 @@ class CollapsibleMagicSystemSection(QWidget):
         # System name
         self.title_label = QLabel(f"{self.system_name} ({self._spell_count})")
         self.title_label.setFont(QFont("Arial", 11, QFont.Bold))
-        self.title_label.setStyleSheet(f"color: {COLORS['text_primary']}; background: transparent; border: none;")
         
         header_layout.addWidget(self.arrow_label)
         header_layout.addWidget(self.title_label, 1)
@@ -141,12 +144,7 @@ class CollapsibleMagicSystemSection(QWidget):
         self.main_layout.addWidget(self.header_frame)
     
     def add_spell_widget(self, spell_widget: QWidget):
-        """
-        Add a spell widget to this section's content area.
-        
-        Args:
-            spell_widget: The spell item widget to add
-        """
+        """Add a spell widget to this section's content area."""
         self.content_layout.addWidget(spell_widget)
         self._spell_count += 1
         self._update_title()
@@ -220,13 +218,7 @@ class CollapsibleMagicSystemSection(QWidget):
         self._animation.start()
     
     def _animate_arrow(self, target_rotation: int):
-        """
-        Animate the arrow rotation.
-        
-        Args:
-            target_rotation: Target rotation angle (0 for right, 90 for down)
-        """
-        # Simple approach: directly set rotation and update
+        """Animate the arrow rotation."""
         self._arrow_rotation = target_rotation
         self._update_arrow_rotation()
     
@@ -247,11 +239,6 @@ class CollapsibleMagicSystemSection(QWidget):
         return self._is_expanded
     
     def set_spell_count(self, count: int):
-        """
-        Update the spell count display.
-        
-        Args:
-            count: Number of spells in this system
-        """
+        """Update the spell count display."""
         self._spell_count = count
         self._update_title()

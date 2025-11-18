@@ -914,28 +914,6 @@ class CharacterSheetWidget(QScrollArea):
                 QTimer.singleShot(0, eng._combat_orchestrator._handle_visual_display_complete)
         except Exception: pass
 
-
-    # def _get_groupbox_style(self) -> str:
-    #     """Helper to get consistent QGroupBox styling."""
-    #     return f"""
-    #         QGroupBox {{
-    #             background-color: {COLORS['background_med']};
-    #             border: 2px solid {COLORS['border_dark']};
-    #             border-radius: 8px;
-    #             margin-top: 15px;
-    #             font-weight: bold;
-    #             color: {COLORS['text_primary']};
-    #             padding-top: 20px;
-    #         }}
-    #         QGroupBox::title {{
-    #             subcontrol-origin: margin;
-    #             subcontrol-position: top center;
-    #             padding-left: 10px;
-    #             padding-right: 10px;
-    #             color: {COLORS['text_primary']};
-    #         }}
-    #     """
-
     @Slot(QPoint, EquipmentSlot, str)
     def _handle_equipped_item_context_menu(self, global_pos: QPoint, slot: EquipmentSlot, item_id: str):
         inventory_manager = get_inventory_manager()

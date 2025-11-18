@@ -5,16 +5,16 @@ Features role-based color coding, hover effects, and selection states.
 """
 from __future__ import annotations
 
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame, QVBoxLayout
 from PySide6.QtGui import QFont, QCursor
 
 from core.utils.logging_config import get_logger
+from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("GRIMOIRE")
-
 
 class SpellItemWidget(QFrame):
     """
@@ -26,14 +26,6 @@ class SpellItemWidget(QFrame):
     double_clicked = Signal(str)  # spell_id
     right_clicked = Signal(str)  # spell_id
     
-    # Role-based colors
-    ROLE_COLORS = {
-        'offensive': '#D94A38',  # Red/Orange
-        'defensive': '#0E639C',  # Blue
-        'utility': '#8B7FBF',    # Purple/Gray
-        'unknown': '#666666'     # Dark gray fallback
-    }
-    
     def __init__(
         self, 
         spell_id: str,
@@ -41,22 +33,19 @@ class SpellItemWidget(QFrame):
         spell_obj: Any,
         parent: Optional[QWidget] = None
     ):
-        """
-        Initialize the spell item widget.
-        
-        Args:
-            spell_id: Internal spell identifier
-            spell_name: Display name of the spell
-            spell_obj: The spell object from catalog
-            parent: Parent widget
-        """
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
         
         self.spell_id = spell_id
         self.spell_name = spell_name
         self.spell_obj = spell_obj
         self._is_selected = False
-        self._is_on_cooldown = False  # Placeholder for future cooldown system
+        self._is_on_cooldown = False 
         
         # Extract spell properties
         self.combat_role = getattr(spell_obj, 'combat_role', 'offensive').lower()
@@ -65,10 +54,11 @@ class SpellItemWidget(QFrame):
         self.spell_range = self._get_range()
         
         self._setup_ui()
-        self._apply_normal_style()
+        
+        # Apply initial theme (this will call _apply_normal_style)
+        self._update_theme()
     
     def _get_mana_cost(self) -> float:
-        """Extract mana cost from spell object."""
         try:
             data = getattr(self.spell_obj, 'data', {}) or {}
             cost = data.get('mana_cost') or data.get('cost') or data.get('mp')
@@ -77,7 +67,6 @@ class SpellItemWidget(QFrame):
             return 0.0
     
     def _get_casting_time(self) -> str:
-        """Extract casting time from spell object."""
         try:
             data = getattr(self.spell_obj, 'data', {}) or {}
             time = data.get('casting_time') or data.get('cast_time')
@@ -86,7 +75,6 @@ class SpellItemWidget(QFrame):
             return "1 action"
     
     def _get_range(self) -> str:
-        """Extract range from spell object."""
         try:
             data = getattr(self.spell_obj, 'data', {}) or {}
             rng = data.get('range')
@@ -112,80 +100,101 @@ class SpellItemWidget(QFrame):
         name_layout.addWidget(self.name_label)
         
         # Spell info line (mana, time, range icons)
-        info_label = QLabel(f"💧 {self.mana_cost} | ⏱ {self.casting_time} | 📏 {self.spell_range}")
-        info_label.setFont(QFont("Arial", 8))
-        info_label.setStyleSheet("color: #AAAAAA;")
-        name_layout.addWidget(info_label)
+        self.info_label = QLabel(f"💧 {self.mana_cost} | ⏱ {self.casting_time} | 📏 {self.spell_range}")
+        self.info_label.setFont(QFont("Arial", 8))
+        name_layout.addWidget(self.info_label)
         
         main_layout.addLayout(name_layout, 1)
         
         # Right side: role indicator
-        role_label = QLabel(self.combat_role.capitalize())
-        role_label.setFont(QFont("Arial", 8, QFont.Bold))
-        role_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        role_color = self.ROLE_COLORS.get(self.combat_role, self.ROLE_COLORS['unknown'])
-        role_label.setStyleSheet(f"color: {role_color};")
-        main_layout.addWidget(role_label)
-    
+        self.role_label = QLabel(self.combat_role.capitalize())
+        self.role_label.setFont(QFont("Arial", 8, QFont.Bold))
+        self.role_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        main_layout.addWidget(self.role_label)
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        # Define role colors based on theme
+        self.role_colors = {
+            'offensive': colors['accent_negative'],
+            'defensive': colors['accent_positive'],
+            'utility': colors['text_secondary'],
+            'unknown': colors['text_disabled']
+        }
+        
+        # Apply styles to labels
+        self.info_label.setStyleSheet("color: #AAAAAA;") # Or theme equivalent
+        
+        role_color = self.role_colors.get(self.combat_role, self.role_colors['unknown'])
+        self.role_label.setStyleSheet(f"color: {role_color};")
+        
+        # Re-apply frame style
+        if self._is_selected:
+            self._apply_selected_style()
+        else:
+            self._apply_normal_style()
+
     def _apply_normal_style(self):
         """Apply normal (unselected, not hovered) styling."""
-        role_color = self.ROLE_COLORS.get(self.combat_role, self.ROLE_COLORS['unknown'])
+        colors = self.palette['colors']
+        role_color = self.role_colors.get(self.combat_role, self.role_colors['unknown'])
         
         if self._is_on_cooldown:
-            # Grayed out for cooldown
             self.setStyleSheet(f"""
                 SpellItemWidget {{
-                    background-color: #2A2A2A;
-                    border-left: 3px solid #555555;
+                    background-color: {colors['bg_dark']};
+                    border-left: 3px solid {colors['text_disabled']};
                     border-radius: 3px;
                     opacity: 0.5;
                 }}
                 QLabel {{
                     background: transparent;
-                    color: #777777;
+                    color: {colors['text_disabled']};
                 }}
             """)
             self.setEnabled(False)
         else:
             self.setStyleSheet(f"""
                 SpellItemWidget {{
-                    background-color: #2D2D30;
+                    background-color: {colors['bg_dark']};
                     border-left: 3px solid {role_color};
                     border-radius: 3px;
                 }}
                 SpellItemWidget:hover {{
-                    background-color: #353538;
+                    background-color: {colors['state_hover']};
                 }}
                 QLabel {{
                     background: transparent;
-                    color: #E0E0E0;
+                    color: {colors['text_bright']};
                 }}
             """)
             self.setEnabled(True)
     
     def _apply_selected_style(self):
         """Apply selected styling."""
-        role_color = self.ROLE_COLORS.get(self.combat_role, self.ROLE_COLORS['unknown'])
+        colors = self.palette['colors']
+        role_color = self.role_colors.get(self.combat_role, self.role_colors['unknown'])
         self.setStyleSheet(f"""
             SpellItemWidget {{
-                background-color: #3E3E42;
+                background-color: {colors['bg_medium']};
                 border-left: 4px solid {role_color};
                 border-radius: 3px;
                 border: 2px solid {role_color};
             }}
             QLabel {{
                 background: transparent;
-                color: #FFFFFF;
+                color: {colors['text_primary']};
             }}
         """)
     
     def set_selected(self, selected: bool):
-        """
-        Set the selection state of this spell item.
-        
-        Args:
-            selected: True if selected, False otherwise
-        """
+        """Set the selection state of this spell item."""
         self._is_selected = selected
         if selected:
             self._apply_selected_style()
@@ -193,17 +202,11 @@ class SpellItemWidget(QFrame):
             self._apply_normal_style()
     
     def set_on_cooldown(self, on_cooldown: bool):
-        """
-        Set the cooldown state (placeholder for future implementation).
-        
-        Args:
-            on_cooldown: True if spell is on cooldown
-        """
+        """Set the cooldown state."""
         self._is_on_cooldown = on_cooldown
         self._apply_normal_style()
     
     def mousePressEvent(self, event):
-        """Handle mouse press events."""
         if event.button() == Qt.LeftButton:
             self.clicked.emit(self.spell_id)
         elif event.button() == Qt.RightButton:
@@ -211,12 +214,10 @@ class SpellItemWidget(QFrame):
         super().mousePressEvent(event)
     
     def mouseDoubleClickEvent(self, event):
-        """Handle double-click events."""
         if event.button() == Qt.LeftButton:
             self.double_clicked.emit(self.spell_id)
         super().mouseDoubleClickEvent(event)
     
     @property
     def is_selected(self) -> bool:
-        """Check if this spell is currently selected."""
         return self._is_selected
