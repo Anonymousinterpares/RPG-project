@@ -5,7 +5,7 @@ Shows targets with HP bars, color coding, and icons.
 """
 from __future__ import annotations
 
-from typing import Optional, Any, List
+from typing import Dict, Optional, Any, List
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -13,8 +13,11 @@ from PySide6.QtWidgets import (
     QPushButton, QFrame, QProgressBar, QScrollArea, QWidget
 )
 from PySide6.QtGui import QFont
+from PySide6.QtCore import Slot
 
 from core.utils.logging_config import get_logger
+from gui.styles.stylesheet_factory import create_dialog_style, create_styled_button_style
+from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("TARGET_SELECTION")
 
@@ -24,11 +27,12 @@ class TargetButton(QFrame):
     
     clicked = Signal(str)  # entity_id
     
-    def __init__(self, entity: Any, parent: Optional[QWidget] = None):
+    def __init__(self, entity: Any, palette: Dict[str, Any], parent: Optional[QWidget] = None):
         super().__init__(parent)
         
         self.entity = entity
         self.entity_id = entity.id
+        self.palette = palette
         self.setFrameShape(QFrame.StyledPanel)
         self.setCursor(Qt.PointingHandCursor)
         
@@ -54,10 +58,13 @@ class TargetButton(QFrame):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(6)
         
+        colors = self.palette['colors']
+        pb_styles = self.palette['progress_bars']
+
         # Name label
         name_label = QLabel(self.name)
         name_label.setFont(QFont("Arial", 11, QFont.Bold))
-        name_label.setStyleSheet("color: #E0E0E0; background: transparent;")
+        name_label.setStyleSheet(f"color: {colors['text_primary']}; background: transparent;")
         layout.addWidget(name_label)
         
         # HP info layout
@@ -67,7 +74,7 @@ class TargetButton(QFrame):
         # HP text
         hp_text = QLabel(f"{int(self.current_hp)} / {int(self.max_hp)}")
         hp_text.setFont(QFont("Arial", 9))
-        hp_text.setStyleSheet("color: #BBBBBB; background: transparent;")
+        hp_text.setStyleSheet(f"color: {colors['text_secondary']}; background: transparent;")
         hp_text.setFixedWidth(80)
         hp_layout.addWidget(hp_text)
         
@@ -79,19 +86,17 @@ class TargetButton(QFrame):
         hp_bar.setFixedHeight(12)
         
         # Color based on HP percentage
-        if self.hp_percent > 75:
-            bar_color = "#28A745"  # Green - healthy
-        elif self.hp_percent > 50:
-            bar_color = "#FFC107"  # Yellow - moderate
+        if self.hp_percent > 50:
+            bar_color = pb_styles.get('hp_normal', '#D94A38')
         elif self.hp_percent > 25:
-            bar_color = "#FF9800"  # Orange - low
+            bar_color = pb_styles.get('hp_low', '#cc0000')
         else:
-            bar_color = "#DC3545"  # Red - critical
+            bar_color = pb_styles.get('hp_critical', '#990000')
         
         hp_bar.setStyleSheet(f"""
             QProgressBar {{
-                background-color: #2A2A2A;
-                border: 1px solid #555555;
+                background-color: {pb_styles.get('bg', '#1a1410')};
+                border: 1px solid {colors['border_dark']};
                 border-radius: 3px;
             }}
             QProgressBar::chunk {{
@@ -105,44 +110,29 @@ class TargetButton(QFrame):
     
     def _apply_normal_style(self):
         """Apply normal (not hovered) style."""
-        self.setStyleSheet("""
-            TargetButton {
-                background-color: #2D2D30;
-                border: 2px solid #555555;
+        colors = self.palette['colors']
+        self.setStyleSheet(f"""
+            TargetButton {{
+                background-color: {colors['bg_light']};
+                border: 2px solid {colors['border_dark']};
                 border-radius: 5px;
-            }
-            TargetButton:hover {
-                background-color: #353538;
-                border-color: #0E639C;
-            }
+            }}
+            TargetButton:hover {{
+                background-color: {colors['state_hover']};
+                border-color: {colors['state_active_border']};
+            }}
         """)
     
     def _apply_hover_style(self):
         """Apply hover style."""
-        self.setStyleSheet("""
-            TargetButton {
-                background-color: #353538;
-                border: 2px solid #0E639C;
+        colors = self.palette['colors']
+        self.setStyleSheet(f"""
+            TargetButton {{
+                background-color: {colors['state_hover']};
+                border: 2px solid {colors['state_active_border']};
                 border-radius: 5px;
-            }
+            }}
         """)
-    
-    def mousePressEvent(self, event):
-        """Handle mouse press."""
-        if event.button() == Qt.LeftButton:
-            self.clicked.emit(self.entity_id)
-        super().mousePressEvent(event)
-    
-    def enterEvent(self, event):
-        """Handle mouse enter."""
-        self._apply_hover_style()
-        super().enterEvent(event)
-    
-    def leaveEvent(self, event):
-        """Handle mouse leave."""
-        self._apply_normal_style()
-        super().leaveEvent(event)
-
 
 class TargetSelectionDialog(QDialog):
     """Dialog for selecting a spell target with visual HP indicators."""
@@ -158,6 +148,12 @@ class TargetSelectionDialog(QDialog):
     ):
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         self.targets = targets
         self.spell_name = spell_name
         self.selected_target_id: Optional[str] = None
@@ -167,14 +163,41 @@ class TargetSelectionDialog(QDialog):
         self.setMinimumWidth(400)
         self.setMinimumHeight(300)
         
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2D2D30;
-            }
-        """)
-        
         self._setup_ui()
+        self._update_theme()
     
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call
+        if not hasattr(self, 'header'):
+            return
+
+        if palette:
+            self.palette = palette
+            
+        colors = self.palette['colors']
+        
+        self.setStyleSheet(create_dialog_style(self.palette))
+        
+        self.header.setStyleSheet(f"color: {colors['text_primary']}; padding: 5px;")
+        self.cancel_btn.setStyleSheet(create_styled_button_style(self.palette))
+        
+        # Recreate target buttons to apply new theme
+        # Clear existing
+        while self.scroll_layout.count():
+            item = self.scroll_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Add target buttons with current palette
+        for target in self.targets:
+            target_btn = TargetButton(target, self.palette)
+            target_btn.clicked.connect(self._on_target_clicked)
+            self.scroll_layout.addWidget(target_btn)
+        
+        self.scroll_layout.addStretch()
+
     def _setup_ui(self):
         """Set up the dialog UI."""
         main_layout = QVBoxLayout(self)
@@ -182,12 +205,11 @@ class TargetSelectionDialog(QDialog):
         main_layout.setSpacing(10)
         
         # Header
-        header = QLabel(f"🎯 Choose a target for <b>{self.spell_name}</b>")
-        header.setTextFormat(Qt.RichText)
-        header.setFont(QFont("Arial", 11))
-        header.setStyleSheet("color: #E0E0E0; padding: 5px;")
-        header.setWordWrap(True)
-        main_layout.addWidget(header)
+        self.header = QLabel(f"🎯 Choose a target for <b>{self.spell_name}</b>")
+        self.header.setTextFormat(Qt.RichText)
+        self.header.setFont(QFont("Arial", 11))
+        self.header.setWordWrap(True)
+        main_layout.addWidget(self.header)
         
         # Scroll area for targets
         scroll = QScrollArea()
@@ -196,17 +218,12 @@ class TargetSelectionDialog(QDialog):
         scroll.setStyleSheet("QScrollArea { background-color: transparent; border: none; }")
         
         scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setSpacing(8)
+        self.scroll_layout = QVBoxLayout(scroll_content)
+        self.scroll_layout.setContentsMargins(0, 0, 0, 0)
+        self.scroll_layout.setSpacing(8)
         
-        # Add target buttons
-        for target in self.targets:
-            target_btn = TargetButton(target)
-            target_btn.clicked.connect(self._on_target_clicked)
-            scroll_layout.addWidget(target_btn)
+        # Target buttons will be added in _update_theme
         
-        scroll_layout.addStretch()
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll, 1)
         
@@ -214,35 +231,8 @@ class TargetSelectionDialog(QDialog):
         cancel_layout = QHBoxLayout()
         cancel_layout.addStretch()
         
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #555555;
-                color: #FFFFFF;
-                border: 2px solid #666666;
-                border-radius: 6px;
-                font-size: 10pt;
-                font-weight: bold;
-                padding: 8px 24px;
-            }
-            QPushButton:hover {
-                background-color: #666666;
-            }
-            QPushButton:pressed {
-                background-color: #444444;
-            }
-        """)
-        cancel_btn.clicked.connect(self.reject)
-        cancel_layout.addWidget(cancel_btn)
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.reject)
+        cancel_layout.addWidget(self.cancel_btn)
         
         main_layout.addLayout(cancel_layout)
-    
-    def _on_target_clicked(self, entity_id: str):
-        """Handle target button click."""
-        self.selected_target_id = entity_id
-        self.target_selected.emit(entity_id)
-        self.accept()
-    
-    def get_selected_target(self) -> Optional[str]:
-        """Get the selected target ID."""
-        return self.selected_target_id

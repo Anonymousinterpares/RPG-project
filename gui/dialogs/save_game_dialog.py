@@ -4,34 +4,18 @@ Save game dialog for the RPG game GUI.
 This module provides a dialog for saving the game.
 """
 
-import logging
 import os
-from typing import Optional, List
+from typing import Optional
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QGroupBox, QListWidget, QListWidgetItem
 )
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Slot
 
 from gui.dialogs.base_dialog import BaseDialog
-
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'background_med': '#2d2520',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'border_light': '#5a4a40',
-    'text_primary': '#c9a875',
-    'text_secondary': '#8b7a65',
-    'text_disabled': '#5a4a40',
-    'text_bright': '#e8d4b8',
-    'selected': '#c9a875',
-    'hover': '#4a3a30',
-}
-# --- END STYLING COLORS ---
-
+from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_line_edit_style, create_list_widget_style, create_styled_button_style
+from gui.styles.theme_manager import get_theme_manager
 
 class SaveGameDialog(BaseDialog):
     """Dialog for saving the game."""
@@ -40,81 +24,16 @@ class SaveGameDialog(BaseDialog):
         """Initialize the save game dialog."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Set window properties
         self.setWindowTitle("Save Game")
         self.setMinimumWidth(400)
         self.setMinimumHeight(300)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_bright']};
-            }}
-            QLabel {{
-                color: {COLORS['text_primary']};
-                font-weight: bold;
-            }}
-            QLineEdit {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_bright']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 5px;
-            }}
-            QLineEdit:focus {{
-                border-color: {COLORS['text_primary']};
-            }}
-            QPushButton {{
-                background-color: {COLORS['background_light']};
-                color: {COLORS['text_primary']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {COLORS['hover']};
-                border-color: {COLORS['border_light']};
-            }}
-            QPushButton:pressed {{
-                background-color: {COLORS['background_dark']};
-            }}
-            QPushButton:disabled {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_disabled']};
-                border-color: {COLORS['background_dark']};
-            }}
-            QGroupBox {{
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 5px;
-                margin-top: 15px;
-                font-weight: bold;
-                color: {COLORS['text_primary']};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-                padding-left: 10px;
-                padding-right: 10px;
-            }}
-            QListWidget {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_bright']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                alternate-background-color: {COLORS['background_med']};
-            }}
-            QListWidget::item {{
-                padding: 5px;
-                border-bottom: 1px solid {COLORS['border_dark']};
-            }}
-            QListWidget::item:selected {{
-                background-color: {COLORS['hover']};
-                color: {COLORS['selected']};
-            }}
-            QListWidget::item:hover {{
-                background-color: {COLORS['hover']};
-            }}
-        """)
         
         # Set up the UI
         self._setup_ui()
@@ -122,13 +41,43 @@ class SaveGameDialog(BaseDialog):
         # Connect signals
         self._connect_signals()
 
+        # Apply initial theme
+        self._update_theme()
+
         # Wire UI sounds for Save dialog (all clicks -> dropdown style; no tabs)
         try:
             from gui.utils.ui_sfx import map_container
             map_container(self, click_kind='dropdown', dropdown_kind='dropdown')
         except Exception:
             pass
-    
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call
+        if not hasattr(self, 'save_name_edit'):
+            return
+
+        if palette:
+            self.palette = palette
+        
+        # Base dialog style
+        self.setStyleSheet(create_dialog_style(self.palette))
+        
+        # Input style
+        self.save_name_edit.setStyleSheet(create_line_edit_style(self.palette))
+        
+        # GroupBox style
+        self.existing_group.setStyleSheet(create_groupbox_style(self.palette))
+        
+        # List style
+        self.saves_list.setStyleSheet(create_list_widget_style(self.palette))
+        
+        # Button styles
+        btn_style = create_styled_button_style(self.palette)
+        self.save_button.setStyleSheet(btn_style)
+        self.cancel_button.setStyleSheet(btn_style)
+
     def _setup_ui(self):
         """Set up the user interface."""
         # Create the main layout
@@ -154,8 +103,8 @@ class SaveGameDialog(BaseDialog):
         main_layout.addLayout(name_layout)
         
         # Create existing saves group
-        existing_group = QGroupBox("Existing Saves")
-        existing_layout = QVBoxLayout(existing_group)
+        self.existing_group = QGroupBox("Existing Saves")
+        existing_layout = QVBoxLayout(self.existing_group)
         existing_layout.setContentsMargins(10, 20, 10, 10)
         
         # Create existing saves list
@@ -166,7 +115,7 @@ class SaveGameDialog(BaseDialog):
         existing_layout.addWidget(self.saves_list)
         
         # Add existing group to main layout
-        main_layout.addWidget(existing_group)
+        main_layout.addWidget(self.existing_group)
         
         # Create the dialog buttons
         button_layout = QHBoxLayout()

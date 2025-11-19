@@ -10,26 +10,12 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QLineEdit, QComboBox, QHBoxLayout,
     QPushButton, QCheckBox, QLabel
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Slot
 
 from core.base.engine import get_game_engine
 from core.context.game_context import load_context_enums
-
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'background_med': '#2d2520',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'border_light': '#5a4a40',
-    'text_primary': '#c9a875',
-    'text_secondary': '#8b7a65',
-    'text_disabled': '#5a4a40',
-    'text_bright': '#e8d4b8',
-    'selected': '#c9a875',
-    'hover': '#4a3a30',
-}
-# --- END STYLING COLORS ---
+from gui.styles.stylesheet_factory import create_checkbox_style, create_combobox_style, create_line_edit_style, create_styled_button_style
+from gui.styles.theme_manager import get_theme_manager
 
 
 class ContextPanelWidget(QWidget):
@@ -37,6 +23,13 @@ class ContextPanelWidget(QWidget):
         super().__init__(parent)
         self._engine = get_game_engine()
         self._enums: Dict[str, Any] = load_context_enums()
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+
         self._build_ui()
         # Dirty-state to avoid overwriting user edits; cleared on Apply/Refresh
         self._dirty: bool = False
@@ -53,60 +46,79 @@ class ContextPanelWidget(QWidget):
                 self._engine.music_state_updated.connect(self._on_music_state_updated)
         except Exception:
             pass
-        # Style to match dark panel
-        self.setStyleSheet(f"""
-            ContextPanelWidget {{
-                background-color: transparent;
+            
+        # Apply initial theme
+        self._update_theme()
+
+        # Subscribe to playback updates
+        try:
+            if hasattr(self._engine, 'playback_updated'):
+                self._engine.playback_updated.connect(self._on_playback_updated)
+        except Exception:
+            pass
+
+        # Initial load
+        self.refresh_from_engine()
+        try:
+            self._on_playback_updated(self._engine.get_playback_snapshot())
+        except Exception:
+            pass
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call
+        if not hasattr(self, '_loc_name'):
+            return
+
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        self.setStyleSheet("ContextPanelWidget { background-color: transparent; }")
+        
+        # Labels
+        for label in self.findChildren(QLabel):
+            label.setStyleSheet(f"color: {colors['text_primary']}; font-size: 10pt;")
+        self._status.setStyleSheet(f"color: {colors['text_secondary']};")
+        
+        # Inputs
+        line_edit_style = create_line_edit_style(self.palette)
+        self._loc_name.setStyleSheet(line_edit_style)
+        
+        combo_style = create_combobox_style(self.palette)
+        for cb in (self._loc_major, self._loc_venue, self._weather, self._tod, 
+                   self._biome, self._music_mood, self._crowd, self._danger):
+            cb.setStyleSheet(combo_style)
+            
+        # Checkboxes
+        check_style = create_checkbox_style(self.palette)
+        self._interior.setStyleSheet(check_style)
+        self._underground.setStyleSheet(check_style)
+        
+        # Buttons
+        btn_style = create_styled_button_style(self.palette)
+        self._refresh_btn.setStyleSheet(btn_style)
+        self._apply_btn.setStyleSheet(btn_style)
+        
+        # Text Edits / Lists
+        # _json_view is a QPlainTextEdit, _now_playing is a QListWidget
+        self._json_view.setStyleSheet(f"""
+            QPlainTextEdit {{ 
+                background-color: {colors['bg_dark']}; 
+                color: {colors['text_secondary']}; 
+                font-family: Consolas, 'Courier New', monospace; 
+                font-size: 10pt; 
+                border: 1px solid {colors['border_dark']}; 
             }}
-            QLabel {{ 
-                color: {COLORS['text_primary']}; 
-                font-size: 10pt;
-            }}
-            QLineEdit, QComboBox {{ 
-                background-color: {COLORS['background_dark']}; 
-                color: {COLORS['text_primary']}; 
-                border: 1px solid {COLORS['border_dark']}; 
-                padding: 4px; 
-                font-size: 10pt;
-            }}
-            QComboBox:hover {{
-                border-color: {COLORS['border_light']};
-            }}
-            QComboBox::drop-down {{
-                border: none;
-                width: 15px;
-            }}
-            QComboBox::down-arrow {{
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid {COLORS['text_secondary']};
-            }}
-            QComboBox QAbstractItemView {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_primary']};
-                selection-background-color: {COLORS['hover']};
-                selection-color: {COLORS['selected']};
-                border: 1px solid {COLORS['border_dark']};
-            }}
-            QCheckBox {{ 
-                color: {COLORS['text_primary']}; 
-                font-size: 10pt;
-            }}
-            QPushButton {{
-                background-color: {COLORS['background_light']};
-                color: {COLORS['text_primary']};
-                border: 2px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-weight: bold;
-                font-size: 10pt;
-            }}
-            QPushButton:hover {{
-                background-color: {COLORS['hover']};
-                border-color: {COLORS['border_light']};
-            }}
-            QPushButton:pressed {{
-                background-color: {COLORS['background_dark']};
+        """)
+        
+        self._now_playing.setStyleSheet(f"""
+            QListWidget {{ 
+                background-color: {colors['bg_dark']}; 
+                color: {colors['text_secondary']}; 
+                border: 1px solid {colors['border_dark']}; 
             }}
         """)
 
@@ -190,40 +202,25 @@ class ContextPanelWidget(QWidget):
         self._refresh_btn = QPushButton("Refresh")
         self._apply_btn = QPushButton("Apply")
         self._status = QLabel("")
-        self._status.setStyleSheet(f"color: {COLORS['text_secondary']};")
+        
         self._status.setWordWrap(True)
         btn_row.addWidget(self._refresh_btn)
         btn_row.addWidget(self._apply_btn)
         lay.addLayout(btn_row)
+        
         # JSON captured values viewer
         from PySide6.QtWidgets import QPlainTextEdit
         self._json_view = QPlainTextEdit()
         self._json_view.setReadOnly(True)
-        self._json_view.setStyleSheet(f"""
-            QPlainTextEdit {{ 
-                background-color: {COLORS['background_dark']}; 
-                color: {COLORS['text_secondary']}; 
-                font-family: Consolas, 'Courier New', monospace; 
-                font-size: 10pt; 
-                border: 1px solid {COLORS['border_dark']}; 
-            }}
-        """)
         self._json_view.setPlaceholderText("Captured GameContext (read-only)")
         lay.addWidget(self._json_view, stretch=1)
 
         # Now Playing list (music + up to 4 SFX)
         from PySide6.QtWidgets import QListWidget
         self._now_playing = QListWidget()
-        self._now_playing.setStyleSheet(f"""
-            QListWidget {{ 
-                background-color: {COLORS['background_dark']}; 
-                color: {COLORS['text_secondary']}; 
-                border: 1px solid {COLORS['border_dark']}; 
-            }}
-        """)
+        
         self._now_playing.setMaximumHeight(110)
         now_playing_label = QLabel("Now Playing (music + SFX):")
-        now_playing_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         lay.addWidget(now_playing_label)
         lay.addWidget(self._now_playing)
 
@@ -255,13 +252,6 @@ class ContextPanelWidget(QWidget):
         try:
             if hasattr(self._engine, 'playback_updated'):
                 self._engine.playback_updated.connect(self._on_playback_updated)
-        except Exception:
-            pass
-
-        # Initial load
-        self.refresh_from_engine()
-        try:
-            self._on_playback_updated(self._engine.get_playback_snapshot())
         except Exception:
             pass
 

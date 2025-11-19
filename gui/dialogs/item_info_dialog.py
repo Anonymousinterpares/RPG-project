@@ -4,75 +4,68 @@ Dialog for displaying detailed item information.
 """
 
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout,
+    QVBoxLayout, QHBoxLayout, QLabel, QGridLayout,
     QTextBrowser, QPushButton, QSizePolicy, QScrollArea, QWidget, QFrame
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QColor
+from PySide6.QtCore import Qt,Slot
 
 from core.inventory.item import Item
 from core.inventory.currency_manager import CurrencyManager
-from gui.dialogs.base_dialog import BaseDialog 
+from gui.dialogs.base_dialog import BaseDialog
+from gui.styles.stylesheet_factory import create_styled_button_style, create_text_edit_style
+from gui.styles.theme_manager import get_theme_manager 
 
 logger = logging.getLogger("GUI")
-
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'background_med': '#2d2520',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'border_light': '#5a4a40',
-    'text_primary': '#c9a875',
-    'text_secondary': '#8b7a65',
-    'text_bright': '#e8d4b8',
-    'hover': '#4a3a30',
-}
-# --- END STYLING COLORS ---
-
 
 class ItemInfoDialog(BaseDialog):
     """Dialog to display detailed information about an item."""
 
     def __init__(self, item: Optional[Item] = None, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         self.item = item
         self.setWindowTitle("Item Information")
         self.setMinimumSize(400, 550) # Increased min height
+
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(15, 15, 15, 15)
+        self.main_layout.setSpacing(10)
+
+        self._setup_ui()
+        
+        # Apply initial theme (which also calls populate_data)
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[Dict[str, Any]] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call from BaseDialog.__init__
+        if not hasattr(self, 'description_browser'):
+            return
+
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_bright']};
-                border: 1px solid {COLORS['border_dark']};
+                background-color: {colors['bg_medium']};
+                color: {colors['text_bright']};
+                border: 1px solid {colors['border_dark']};
             }}
             QLabel {{
-                color: {COLORS['text_bright']};
+                color: {colors['text_bright']};
                 background-color: transparent;
-            }}
-            QTextBrowser {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_secondary']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 3px;
-                padding: 5px;
-            }}
-            QPushButton {{
-                background-color: {COLORS['background_light']};
-                color: {COLORS['text_primary']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {COLORS['hover']};
-                border-color: {COLORS['border_light']};
-            }}
-            QPushButton:pressed {{
-                background-color: {COLORS['background_dark']};
             }}
             QScrollArea {{
                 border: none;
@@ -82,12 +75,23 @@ class ItemInfoDialog(BaseDialog):
                 background-color: transparent;
             }}
         """)
-
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(15, 15, 15, 15)
-        self.main_layout.setSpacing(10)
-
-        self._setup_ui()
+        
+        # Update separator color if it exists
+        if hasattr(self, 'separator1'):
+            self.separator1.setStyleSheet(f"color: {colors['border_dark']};")
+        if hasattr(self, 'separator2'):
+            self.separator2.setStyleSheet(f"color: {colors['border_dark']};")
+            
+        # Update text browsers using factory
+        text_style = create_text_edit_style(self.palette, read_only=True)
+        self.description_browser.setStyleSheet(text_style)
+        self.stats_browser.setStyleSheet(text_style)
+        self.custom_props_browser.setStyleSheet(text_style)
+        
+        # Update button using factory
+        self.close_button.setStyleSheet(create_styled_button_style(self.palette))
+        
+        # Re-populate data to refresh label colors
         if self.item:
             self.populate_data()
 
@@ -107,23 +111,21 @@ class ItemInfoDialog(BaseDialog):
         # Name and Rarity
         name_rarity_layout = QHBoxLayout()
         self.name_label = QLabel("Item Name")
-        self.name_label.setStyleSheet(f"font-size: 16pt; font-weight: bold; color: {COLORS['text_primary']};")
         name_rarity_layout.addWidget(self.name_label)
         name_rarity_layout.addStretch()
         self.rarity_label = QLabel("(Rarity)")
-        self.rarity_label.setStyleSheet("font-size: 10pt; font-style: italic;")
         name_rarity_layout.addWidget(self.rarity_label)
         self.content_layout.addLayout(name_rarity_layout)
 
         # Type
         self.type_label = QLabel("Type: ?")
-        self.type_label.setStyleSheet(f"font-size: 11pt; color: {COLORS['text_secondary']};")
         self.content_layout.addWidget(self.type_label)
         
-        self.content_layout.addWidget(self._create_separator())
+        self.separator1 = self._create_separator()
+        self.content_layout.addWidget(self.separator1)
 
         # Description
-        self.description_title_label = QLabel(f"<b style='color: {COLORS['text_primary']};'>Description:</b>")
+        self.description_title_label = QLabel("Description:")
         self.content_layout.addWidget(self.description_title_label)
         self.description_browser = QTextBrowser()
         self.description_browser.setTextInteractionFlags(Qt.NoTextInteraction)
@@ -148,10 +150,11 @@ class ItemInfoDialog(BaseDialog):
         self.equip_slots_label = self._add_grid_row("Equip Slots:", "?", 5)
         self.equip_slots_label.setWordWrap(True)
         
-        self.content_layout.addWidget(self._create_separator())
+        self.separator2 = self._create_separator()
+        self.content_layout.addWidget(self.separator2)
 
         # Stats & Effects
-        self.stats_effects_title_label = QLabel(f"<b style='color: {COLORS['text_primary']};'>Stats & Effects:</b>")
+        self.stats_effects_title_label = QLabel("Stats & Effects:")
         self.content_layout.addWidget(self.stats_effects_title_label)
         self.stats_browser = QTextBrowser()
         self.stats_browser.setPlaceholderText("?")
@@ -160,7 +163,7 @@ class ItemInfoDialog(BaseDialog):
         self.content_layout.addWidget(self.stats_browser)
         
         # Custom Properties
-        self.custom_props_title_label = QLabel(f"<b style='color: {COLORS['text_primary']};'>Properties:</b>") # Changed title slightly for clarity
+        self.custom_props_title_label = QLabel("Properties:") 
         self.content_layout.addWidget(self.custom_props_title_label)
         self.custom_props_browser = QTextBrowser()
         self.custom_props_browser.setPlaceholderText("?")
@@ -170,7 +173,6 @@ class ItemInfoDialog(BaseDialog):
 
         # Tags
         self.tags_label = QLabel("Tags: ?")
-        self.tags_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         self.tags_label.setWordWrap(True)
         self.content_layout.addWidget(self.tags_label)
 
@@ -186,23 +188,48 @@ class ItemInfoDialog(BaseDialog):
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setFrameShadow(QFrame.Shadow.Sunken)
-        sep.setStyleSheet(f"color: {COLORS['border_dark']};") # Make it slightly visible
+        # Initial styling, updated in _update_theme
         return sep
 
     def _add_grid_row(self, label_text: str, value_text: str, row: int) -> QLabel:
         """Helper to add a row to the grid layout."""
         label = QLabel(label_text)
-        label.setStyleSheet(f"font-weight: bold; color: {COLORS['text_primary']};")
+        # Store reference to label widget if needed for styling updates later, 
+        # but for now we rely on populate_data or general stylesheet
+        label.setProperty("is_grid_label", True) 
         label.setAlignment(Qt.AlignRight | Qt.AlignTop) # Align right and top for multi-line values
+        
         value = QLabel(value_text)
-        value.setStyleSheet(f"color: {COLORS['text_secondary']};")
+        value.setProperty("is_grid_value", True)
         value.setWordWrap(True) # Allow values to wrap
+        
         self.grid_layout.addWidget(label, row, 0)
         self.grid_layout.addWidget(value, row, 1)
         return value
 
     def populate_data(self):
         """Populate the dialog with item data."""
+        colors = self.palette['colors']
+        
+        # Update label styles with current theme colors
+        self.name_label.setStyleSheet(f"font-size: 16pt; font-weight: bold; color: {colors['text_primary']};")
+        self.type_label.setStyleSheet(f"font-size: 11pt; color: {colors['text_secondary']};")
+        
+        title_style = f"<b style='color: {colors['text_primary']};'>"
+        self.description_title_label.setText(f"{title_style}Description:</b>")
+        self.stats_effects_title_label.setText(f"{title_style}Stats & Effects:</b>")
+        self.custom_props_title_label.setText(f"{title_style}Properties:</b>")
+        
+        self.tags_label.setStyleSheet(f"color: {colors['text_secondary']};")
+        
+        # Style grid labels
+        for i in range(self.grid_layout.count()):
+            widget = self.grid_layout.itemAt(i).widget()
+            if widget and widget.property("is_grid_label"):
+                widget.setStyleSheet(f"font-weight: bold; color: {colors['text_primary']};")
+            elif widget and widget.property("is_grid_value"):
+                widget.setStyleSheet(f"color: {colors['text_secondary']};")
+
         if not self.item:
             self.name_label.setText("No Item Selected")
             self.description_browser.setHtml("<i>No item selected.</i>")
@@ -223,7 +250,7 @@ class ItemInfoDialog(BaseDialog):
         self.name_label.setText(title_name)
         
         rarity_str = "?"
-        rarity_color = "#CFCFCF" 
+        rarity_color = colors['text_disabled']
         if "rarity" in known and item.rarity:
             rarity_str = item.rarity.value.capitalize()
             rarity_color = item.rarity.color
@@ -351,7 +378,6 @@ class ItemInfoDialog(BaseDialog):
                 custom_props_html = "<ul>" + "".join(known_custom_prop_details) + "</ul>"
         
         self.custom_props_browser.setHtml(custom_props_html if custom_props_html else "<i>No special properties known.</i>")
-
 
         # Tags
         self.tags_label.setVisible(True) # Always show the Tags label

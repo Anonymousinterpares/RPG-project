@@ -4,18 +4,14 @@ Style settings tab for the RPG game GUI.
 This module provides a tab for configuring UI style settings.
 """
 
-import os
-import logging
-from typing import Dict, Any
-
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, 
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QFormLayout, QGroupBox, QRadioButton, 
     QButtonGroup, QColorDialog, QFontDialog, QGridLayout,
     QFrame, QSlider
 )
-from PySide6.QtCore import Qt, Signal, QSettings, QSize
-from PySide6.QtGui import QFont, QColor, QPixmap, QIcon
+from PySide6.QtCore import Qt, QSettings
+from PySide6.QtGui import QFont, QColor
 
 class StyleTab(QWidget):
     """Tab for configuring UI style settings."""
@@ -69,8 +65,8 @@ class StyleTab(QWidget):
         row, col = 0, 0
         for i, (color_name, color_hex) in enumerate(predefined_colors):
             button = QRadioButton(color_name)
-            # Set a background color style for the button
-            button.setStyleSheet(f"QRadioButton {{ background-color: {color_hex}; padding: 5px; border-radius: 3px; }}")
+            # Note: Individual color button styling is data-driven, not theme-driven,
+            # so we set it here or in _load_settings to reflect the color choice.
             button.setProperty("color_hex", color_hex)
             
             self.predefined_colors_layout.addWidget(button, row, col)
@@ -93,7 +89,6 @@ class StyleTab(QWidget):
         self.custom_color_preview = QFrame()
         self.custom_color_preview.setFixedSize(20, 20)
         self.custom_color_preview.setFrameShape(QFrame.StyledPanel)
-        self.custom_color_preview.setStyleSheet("background-color: #D2B48C; border: 1px solid gray;")
         
         self.custom_color_layout.addWidget(self.custom_color_radio)
         self.custom_color_layout.addWidget(self.custom_color_button)
@@ -133,8 +128,6 @@ class StyleTab(QWidget):
         row, col = 0, 0
         for i, (color_name, color_hex) in enumerate(predefined_sys_colors):
             button = QRadioButton(color_name)
-            # Set a foreground color style for the button
-            button.setStyleSheet(f"QRadioButton {{ color: {color_hex}; font-weight: bold; }}")
             button.setProperty("color_hex", color_hex)
             
             self.sys_colors_layout.addWidget(button, row, col)
@@ -157,7 +150,6 @@ class StyleTab(QWidget):
         self.custom_sys_color_preview = QFrame()
         self.custom_sys_color_preview.setFixedSize(20, 20)
         self.custom_sys_color_preview.setFrameShape(QFrame.StyledPanel)
-        self.custom_sys_color_preview.setStyleSheet("background-color: #FF0000; border: 1px solid gray;")
         
         self.custom_sys_color_layout.addWidget(self.custom_sys_color_radio)
         self.custom_sys_color_layout.addWidget(self.custom_sys_color_button)
@@ -192,7 +184,6 @@ class StyleTab(QWidget):
         self.font_color_preview = QFrame()
         self.font_color_preview.setFixedSize(20, 20)
         self.font_color_preview.setFrameShape(QFrame.StyledPanel)
-        self.font_color_preview.setStyleSheet("background-color: #000000; border: 1px solid gray;")
         
         self.font_color_layout.addWidget(self.font_color_label)
         self.font_color_layout.addWidget(self.font_color_button)
@@ -225,7 +216,6 @@ class StyleTab(QWidget):
         self.user_input_font_color_preview = QFrame()
         self.user_input_font_color_preview.setFixedSize(20, 20)
         self.user_input_font_color_preview.setFrameShape(QFrame.StyledPanel)
-        self.user_input_font_color_preview.setStyleSheet("background-color: #0d47a1; border: 1px solid gray;")
         
         self.user_input_font_color_layout.addWidget(self.user_input_font_color_label)
         self.user_input_font_color_layout.addWidget(self.user_input_font_color_button)
@@ -428,6 +418,11 @@ class StyleTab(QWidget):
         # Load output background color
         bg_color = settings.value("style/output_bg_color", "#D2B48C")
         
+        # Apply colors to radio buttons (visual feedback of the option)
+        for button in self.color_buttons.values():
+             hex_val = button.property("color_hex")
+             button.setStyleSheet(f"QRadioButton {{ background-color: {hex_val}; padding: 5px; border-radius: 3px; }}")
+        
         # Check if it's one of the predefined colors
         found_predefined = False
         for button in self.color_buttons.values():
@@ -445,6 +440,11 @@ class StyleTab(QWidget):
         # Load system message color
         sys_color = settings.value("style/system_msg_color", "#FF0000")
         
+        # Apply colors to sys radio buttons
+        for button in self.sys_color_buttons.values():
+             hex_val = button.property("color_hex")
+             button.setStyleSheet(f"QRadioButton {{ color: {hex_val}; font-weight: bold; }}")
+
         # Check if it's one of the predefined colors
         found_predefined = False
         for button in self.sys_color_buttons.values():

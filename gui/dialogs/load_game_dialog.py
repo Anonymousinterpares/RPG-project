@@ -7,36 +7,20 @@ This module provides a dialog for loading a saved game.
 import logging
 import os
 import json
-from typing import Optional, List, Dict
+from typing import Optional
 from datetime import datetime
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-    QPushButton, QGroupBox, QListWidget, QListWidgetItem,
+    QVBoxLayout, QHBoxLayout, 
+    QPushButton, QGroupBox,
     QSplitter, QWidget, QTextEdit, QHeaderView, QTableWidget,
     QTableWidgetItem, QAbstractItemView
 )
-from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon, QFont
+from PySide6.QtCore import Qt, Slot
 
 from gui.dialogs.base_dialog import BaseDialog
-
-# --- STYLING COLORS ---
-COLORS = {
-    'background_dark': '#1a1410',
-    'background_med': '#2d2520',
-    'background_light': '#3a302a',
-    'border_dark': '#4a3a30',
-    'border_light': '#5a4a40',
-    'text_primary': '#c9a875',
-    'text_secondary': '#8b7a65',
-    'text_disabled': '#5a4a40',  # <-- THIS WAS MISSING
-    'text_bright': '#e8d4b8',
-    'selected': '#c9a875',
-    'hover': '#4a3a30',
-    'negative': '#D94A38',
-}
-# --- END STYLING COLORS ---
+from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_styled_button_style, create_text_edit_style
+from gui.styles.theme_manager import get_theme_manager
 
 
 class LoadGameDialog(BaseDialog):
@@ -46,88 +30,19 @@ class LoadGameDialog(BaseDialog):
         """Initialize the load game dialog."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Set window properties
         self.setWindowTitle("Load Game")
         self.setMinimumWidth(600)
         self.setMinimumHeight(400)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {COLORS['background_med']};
-                color: {COLORS['text_bright']};
-            }}
-            QLabel {{
-                color: {COLORS['text_primary']};
-            }}
-            QPushButton {{
-                background-color: {COLORS['background_light']};
-                color: {COLORS['text_primary']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {COLORS['hover']};
-                border-color: {COLORS['border_light']};
-            }}
-            QPushButton:pressed {{
-                background-color: {COLORS['background_dark']};
-            }}
-            QPushButton:disabled {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_disabled']};
-                border-color: {COLORS['background_dark']};
-            }}
-            QGroupBox {{
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 5px;
-                margin-top: 15px;
-                font-weight: bold;
-                color: {COLORS['text_primary']};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-                padding-left: 10px;
-                padding-right: 10px;
-            }}
-            QTableWidget {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_bright']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                alternate-background-color: {COLORS['background_med']};
-                gridline-color: {COLORS['border_dark']};
-            }}
-            QTableWidget::item {{
-                padding: 5px;
-                border-bottom: 1px solid {COLORS['border_dark']};
-            }}
-            QTableWidget::item:selected {{
-                background-color: {COLORS['hover']};
-                color: {COLORS['selected']};
-            }}
-            QTextEdit {{
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_bright']};
-                border: 1px solid {COLORS['border_dark']};
-                border-radius: 4px;
-                padding: 5px;
-            }}
-            QHeaderView::section {{
-                background-color: {COLORS['background_light']};
-                color: {COLORS['text_primary']};
-                padding: 5px;
-                border: 1px solid {COLORS['border_dark']};
-            }}
-            QSplitter::handle {{
-                background-color: {COLORS['border_dark']};
-            }}
-        """)
         
         # Selected save
         self.selected_save = None
-        self.selected_origin_id = None
         
         # Set up the UI
         self._setup_ui()
@@ -135,12 +50,90 @@ class LoadGameDialog(BaseDialog):
         # Connect signals
         self._connect_signals()
 
+        # Apply initial theme
+        self._update_theme()
+
         # Wire UI sounds for Load dialog (all clicks -> dropdown style; no tabs)
         try:
             from gui.utils.ui_sfx import map_container
             map_container(self, click_kind='dropdown', dropdown_kind='dropdown')
         except Exception:
             pass
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call
+        if not hasattr(self, 'saves_table'):
+            return
+
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        # Base dialog style
+        self.setStyleSheet(create_dialog_style(self.palette))
+        
+        # Table style
+        self.saves_table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {colors['bg_dark']};
+                color: {colors['text_bright']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 4px;
+                alternate-background-color: {colors['bg_medium']};
+                gridline-color: {colors['border_dark']};
+            }}
+            QTableWidget::item {{
+                padding: 5px;
+                border-bottom: 1px solid {colors['border_dark']};
+            }}
+            QTableWidget::item:selected {{
+                background-color: {colors['bg_light']};
+                color: {colors['text_primary']};
+            }}
+            QHeaderView::section {{
+                background-color: {colors['bg_medium']};
+                color: {colors['text_primary']};
+                padding: 5px;
+                border: 1px solid {colors['border_dark']};
+            }}
+        """)
+        
+        # GroupBox style
+        self.details_group.setStyleSheet(create_groupbox_style(self.palette))
+        
+        # TextEdit style
+        self.details_text.setStyleSheet(create_text_edit_style(self.palette, read_only=True))
+        
+        # Button styles
+        btn_style = create_styled_button_style(self.palette)
+        self.load_button.setStyleSheet(btn_style)
+        self.cancel_button.setStyleSheet(btn_style)
+        
+        # Delete button (danger style)
+        self.delete_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {colors['accent_negative']};
+                color: {colors['text_bright']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 4px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {colors['accent_negative_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {colors['state_pressed']};
+            }}
+            QPushButton:disabled {{ 
+                background-color: {colors['bg_dark']};
+                color: {colors['text_disabled']};
+                border-color: {colors['border_dark']};
+            }}
+        """)
 
     def _setup_ui(self):
         """Set up the user interface."""
@@ -179,8 +172,8 @@ class LoadGameDialog(BaseDialog):
         details_layout.setContentsMargins(0, 0, 0, 0)
         
         # Create the details group
-        details_group = QGroupBox("Save Details")
-        details_group_layout = QVBoxLayout(details_group)
+        self.details_group = QGroupBox("Save Details")
+        details_group_layout = QVBoxLayout(self.details_group)
         
         # Create the details text
         self.details_text = QTextEdit()
@@ -190,7 +183,7 @@ class LoadGameDialog(BaseDialog):
         details_group_layout.addWidget(self.details_text)
         
         # Add details group to layout
-        details_layout.addWidget(details_group)
+        details_layout.addWidget(self.details_group)
         
         # Add widgets to splitter
         splitter.addWidget(saves_widget)
@@ -213,19 +206,7 @@ class LoadGameDialog(BaseDialog):
         # Create delete button
         self.delete_button = QPushButton("Delete Save")
         self.delete_button.setEnabled(False)
-        self.delete_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {COLORS['negative']};
-                color: #FFFFFF;
-            }}
-            QPushButton:hover {{ background-color: #E57373; }}
-            QPushButton:pressed {{ background-color: #C62828; }}
-            QPushButton:disabled {{ 
-                background-color: {COLORS['background_dark']};
-                color: {COLORS['text_disabled']};
-                border-color: {COLORS['background_dark']};
-            }}
-        """)
+        self.delete_button.clicked.connect(self._on_delete_clicked)
         
         # Create load button
         self.load_button = QPushButton("Load Game")

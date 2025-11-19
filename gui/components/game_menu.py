@@ -8,11 +8,13 @@ import logging
 from typing import Optional
 
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QPushButton, QButtonGroup, 
+    QWidget, QHBoxLayout, QPushButton, 
     QMenu, QToolButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Signal, Slot
+
+from gui.styles.stylesheet_factory import create_image_button_style
+from gui.styles.theme_manager import get_theme_manager
 
 class GameMenuWidget(QWidget):
     """Widget for game menu options."""
@@ -29,54 +31,54 @@ class GameMenuWidget(QWidget):
         """Initialize the game menu widget."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Set up the UI
         self._setup_ui()
+        
+        # Apply initial theme
+        self._update_theme()
     
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+            
+        # Use image button style for all main buttons
+        btn_style = create_image_button_style(self.palette)
+        
+        self.new_game_button.setStyleSheet(btn_style)
+        self.save_button.setStyleSheet(btn_style)
+        self.load_button.setStyleSheet(btn_style)
+        self.settings_button.setStyleSheet(btn_style)
+        self.exit_button.setStyleSheet(btn_style)
+
     def _setup_ui(self):
         """Set up the user interface."""
         # Create the main layout
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 5, 0, 5)
         
-        # Style for buttons
-        button_style = """
-            QPushButton, QToolButton {
-                background-color: #333333;
-                color: #E0E0E0;
-                border: 1px solid #555555;
-                border-radius: 4px;
-                padding: 5px 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover, QToolButton:hover {
-                background-color: #444444;
-                border-color: #666666;
-            }
-            QPushButton:pressed, QToolButton:pressed {
-                background-color: #222222;
-                border-color: #777777;
-            }
-        """
-        
         # Create menu buttons
         self.new_game_button = QPushButton("New Game")
-        self.new_game_button.setStyleSheet(button_style)
         self.new_game_button.clicked.connect(self.new_game_requested.emit)
         
         # Save game button
         self.save_button = QPushButton("Save")
-        self.save_button.setStyleSheet(button_style)
         self.save_button.clicked.connect(self.save_game_requested.emit)
         
         # Load game button
         self.load_button = QPushButton("Load")
-        self.load_button.setStyleSheet(button_style)
         self.load_button.clicked.connect(self.load_game_requested.emit)
         
         # Settings button with dropdown
         self.settings_button = QToolButton()
         self.settings_button.setText("Settings")
-        self.settings_button.setStyleSheet(button_style)
         self.settings_button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         
         self.settings_menu = QMenu(self.settings_button)
@@ -94,7 +96,6 @@ class GameMenuWidget(QWidget):
         
         # Exit button
         self.exit_button = QPushButton("Exit")
-        self.exit_button.setStyleSheet(button_style)
         self.exit_button.clicked.connect(self.exit_requested.emit)
         
         # Add spacer to push buttons to the left

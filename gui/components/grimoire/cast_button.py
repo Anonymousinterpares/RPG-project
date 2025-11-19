@@ -8,14 +8,14 @@ import os
 from enum import Enum
 from typing import Optional
 
-from PySide6.QtCore import Qt, Signal, QTimer, QSize
+from PySide6.QtCore import Slot, Signal, QTimer, QSize
 from PySide6.QtWidgets import QPushButton
-from PySide6.QtGui import QPixmap, QIcon, QPalette, QColor
+from PySide6.QtGui import QPixmap, QIcon
 
 from core.utils.logging_config import get_logger
+from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("GRIMOIRE")
-
 
 class CastButtonState(Enum):
     """Enumeration of possible Cast button states."""
@@ -68,6 +68,12 @@ class CastButton(QPushButton):
         """
         super().__init__("Cast Spell", parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         self._current_state = CastButtonState.DISABLED
         self._state_images = {}
         self._using_images = False
@@ -83,11 +89,20 @@ class CastButton(QPushButton):
         self.setMinimumSize(QSize(120, 40))
         self.setMaximumHeight(50)
         
-        # Apply initial state
+        # Apply initial state (will use theme)
         self.set_state(CastButtonState.DISABLED)
         
         # Connect click signal
         self.clicked.connect(self._on_clicked)
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        # Re-apply current state to refresh styles
+        self.set_state(self._current_state)
     
     def _load_state_images(self):
         """Load state images from disk or prepare fallback styles."""
@@ -178,12 +193,25 @@ class CastButton(QPushButton):
     
     def _apply_fallback_style(self, state: CastButtonState):
         """
-        Apply color-based fallback styling for the given state.
+        Apply color-based fallback styling for the given state using theme palette.
         
         Args:
             state: The button state
         """
-        base_color = self.STATE_FALLBACK_COLORS.get(state, "#555555")
+        colors = self.palette['colors']
+        
+        # Map states to theme colors
+        state_color_map = {
+            CastButtonState.ENABLED: colors.get('res_mana', '#0E639C'),
+            CastButtonState.DISABLED: colors.get('bg_dark', '#555555'),
+            CastButtonState.CLICKING: colors.get('res_mana_dark', '#083D5F'),
+            CastButtonState.HOVERING: colors.get('state_active_border', '#1178BB'),
+            CastButtonState.INSUFFICIENT_MANA: colors.get('log_roll', '#D97728'), # Orange-ish
+            CastButtonState.SUCCESS: colors.get('accent_positive', '#28A745'),
+            CastButtonState.FAIL: colors.get('accent_negative', '#8B0000')
+        }
+        
+        base_color = state_color_map.get(state, colors['bg_dark'])
         
         # Calculate hover and press colors (slightly lighter/darker)
         hover_color = self._adjust_color_brightness(base_color, 1.2)
@@ -192,8 +220,8 @@ class CastButton(QPushButton):
         stylesheet = f"""
             QPushButton {{
                 background-color: {base_color};
-                color: #FFFFFF;
-                border: 2px solid #666666;
+                color: {colors['text_bright']};
+                border: 2px solid {colors['border_dark']};
                 border-radius: 6px;
                 font-size: 12pt;
                 font-weight: bold;
@@ -201,15 +229,15 @@ class CastButton(QPushButton):
             }}
             QPushButton:hover {{
                 background-color: {hover_color};
-                border-color: #888888;
+                border-color: {colors['border_light']};
             }}
             QPushButton:pressed {{
                 background-color: {press_color};
             }}
             QPushButton:disabled {{
-                background-color: #3A3A3A;
-                color: #777777;
-                border-color: #555555;
+                background-color: {colors['bg_dark']};
+                color: {colors['text_disabled']};
+                border-color: {colors['border_dark']};
             }}
         """
         self.setStyleSheet(stylesheet)
