@@ -439,14 +439,14 @@ def create_line_edit_style(palette: Dict[str, Any]) -> str:
             color: {colors['text_bright']};
             border: 1px solid {colors['border_dark']};
             border-radius: 4px;
-            padding: 5px 8px;
+            padding: 5px;
         }}
         QLineEdit:focus {{
             border-color: {colors['text_primary']};
         }}
-        QLineEdit::placeholder {{
-            color: {colors['text_secondary']};
-            font-style: italic;
+        QLineEdit:disabled {{
+            background-color: {colors['bg_medium']};
+            color: {colors['text_disabled']};
         }}
     """
 
@@ -460,4 +460,30 @@ def create_scroll_area_style(palette: Dict[str, Any]) -> str:
         QScrollArea > QWidget > QWidget {
             background-color: transparent;
         }
+    """
+
+def create_checkbox_style(palette: Dict[str, Any]) -> str:
+    """Creates a standard style for QCheckBox."""
+    colors = palette['colors']
+    return f"""
+        QCheckBox {{
+            color: {colors['text_primary']};
+            spacing: 5px;
+        }}
+        QCheckBox::indicator {{
+            width: 18px;
+            height: 18px;
+            border: 1px solid {colors['border_dark']};
+            border-radius: 2px;
+            background-color: {colors['bg_dark']};
+        }}
+        QCheckBox::indicator:checked {{
+            background-color: {colors['accent_positive']};
+            border-color: {colors['accent_positive']};
+            /* Optional: Add an image or keep solid color for checked state */
+            image: url(none); 
+        }}
+        QCheckBox::indicator:hover {{
+            border-color: {colors['accent_positive_light']};
+        }}
     """

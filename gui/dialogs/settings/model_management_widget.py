@@ -16,10 +16,15 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QMessageBox, QDialog, QFormLayout,
     QDialogButtonBox, QGroupBox
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, Slot
 
 from core.llm.provider_manager import ProviderType, get_provider_manager
 from core.llm.settings_manager import get_settings_manager
+from gui.styles.theme_manager import get_theme_manager
+from gui.styles.stylesheet_factory import (
+    create_styled_button_style, create_groupbox_style, 
+    create_list_widget_style, create_dialog_style, create_line_edit_style
+)
 
 # Get the module logger
 logger = logging.getLogger("GUI")
@@ -28,13 +33,14 @@ class AddEditModelDialog(QDialog):
     """Dialog for adding or editing a model."""
     
     def __init__(self, parent=None, edit_data: Optional[Tuple[str, str]] = None):
-        """Initialize the dialog.
-        
-        Args:
-            parent: Parent widget.
-            edit_data: Tuple of (display_name, model_id) if editing, None if adding.
-        """
+        """Initialize the dialog."""
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
         
         self.edit_data = edit_data
         self.setWindowTitle("Add Model" if not edit_data else "Edit Model")
@@ -44,7 +50,28 @@ class AddEditModelDialog(QDialog):
         
         if edit_data:
             self._populate_edit_data(edit_data)
+            
+        # Apply initial theme
+        self._update_theme()
     
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        self.setStyleSheet(create_dialog_style(self.palette))
+        
+        # Style inputs
+        line_edit_style = create_line_edit_style(self.palette)
+        self.name_edit.setStyleSheet(line_edit_style)
+        self.value_edit.setStyleSheet(line_edit_style)
+        
+        # Style help text
+        self.help_label.setStyleSheet(f"color: {colors['text_secondary']}; font-style: italic; font-size: 10px;")
+
     def _setup_ui(self):
         """Set up the user interface."""
         layout = QVBoxLayout(self)
@@ -63,12 +90,11 @@ class AddEditModelDialog(QDialog):
         form_layout.addRow("Model ID:", self.value_edit)
         
         # Add help text
-        help_label = QLabel(
+        self.help_label = QLabel(
             "Note: Model ID should match the exact identifier expected by the API. "
             "For example: 'gpt-4o' for OpenAI or 'gemini-2.0-flash' for Google."
         )
-        help_label.setWordWrap(True)
-        help_label.setStyleSheet("color: #666; font-style: italic; font-size: 10px;")
+        self.help_label.setWordWrap(True)
         
         # Button box
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -77,7 +103,7 @@ class AddEditModelDialog(QDialog):
         
         # Add layouts to main layout
         layout.addLayout(form_layout)
-        layout.addWidget(help_label)
+        layout.addWidget(self.help_label)
         layout.addWidget(button_box)
     
     def _populate_edit_data(self, edit_data: Tuple[str, str]):
@@ -87,11 +113,7 @@ class AddEditModelDialog(QDialog):
         self.value_edit.setText(model_id)
     
     def get_model_data(self) -> Tuple[str, str]:
-        """Get the model data entered by the user.
-        
-        Returns:
-            Tuple of (display_name, model_id).
-        """
+        """Get the model data entered by the user."""
         return (self.name_edit.text(), self.value_edit.text())
 
 
@@ -102,14 +124,14 @@ class ModelManagementWidget(QWidget):
     models_updated = Signal(list)  # List of (display_name, model_id) tuples
     
     def __init__(self, parent=None, provider_type: ProviderType = None, provider_name: str = "Provider"):
-        """Initialize the widget.
-        
-        Args:
-            parent: Parent widget.
-            provider_type: The type of provider.
-            provider_name: Human-readable name of the provider.
-        """
+        """Initialize the widget."""
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
         
         self.provider_type = provider_type
         self.provider_name = provider_name
@@ -121,6 +143,34 @@ class ModelManagementWidget(QWidget):
         
         self._setup_ui()
         self._load_models()
+        
+        # Apply initial theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        # Style group box
+        self.group_box.setStyleSheet(create_groupbox_style(self.palette))
+        
+        # Style description
+        self.description.setStyleSheet(f"color: {colors['text_primary']};")
+        
+        # Style list widget
+        self.model_list.setStyleSheet(create_list_widget_style(self.palette))
+        
+        # Style buttons
+        btn_style = create_styled_button_style(self.palette)
+        for btn in [self.add_button, self.edit_button, self.remove_button, self.set_default_button]:
+            btn.setStyleSheet(btn_style)
+            
+        # Style default label
+        self.default_model_label.setStyleSheet(f"color: {colors['text_secondary']}; font-style: italic;")
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -129,13 +179,13 @@ class ModelManagementWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         
         # Group box
-        group_box = QGroupBox(f"{self.provider_name} Models")
-        group_layout = QVBoxLayout(group_box)
+        self.group_box = QGroupBox(f"{self.provider_name} Models")
+        group_layout = QVBoxLayout(self.group_box)
         
         # Description
-        description = QLabel(f"Manage available models for {self.provider_name}:")
-        description.setWordWrap(True)
-        group_layout.addWidget(description)
+        self.description = QLabel(f"Manage available models for {self.provider_name}:")
+        self.description.setWordWrap(True)
+        group_layout.addWidget(self.description)
         
         # List and buttons layout
         list_buttons_layout = QHBoxLayout()
@@ -180,7 +230,7 @@ class ModelManagementWidget(QWidget):
         group_layout.addWidget(self.default_model_label)
         
         # Add group box to main layout
-        layout.addWidget(group_box)
+        layout.addWidget(self.group_box)
     
     def _load_models(self):
         """Load models from settings."""
@@ -380,11 +430,7 @@ class ModelManagementWidget(QWidget):
         self._set_default_model(model_id)
     
     def _set_default_model(self, model_id: str):
-        """Set the default model.
-        
-        Args:
-            model_id: The model ID to set as default.
-        """
+        """Set the default model."""
         if not self.provider_type:
             return
         
@@ -419,11 +465,7 @@ class ModelManagementWidget(QWidget):
         logger.info(f"Updated models for {self.provider_name}: {model_ids}")
     
     def set_models(self, models: List[Tuple[str, str]]):
-        """Set the models list.
-        
-        Args:
-            models: List of (display_name, model_id) tuples.
-        """
+        """Set the models list."""
         self.models = models.copy()
         self.model_list.clear()
         

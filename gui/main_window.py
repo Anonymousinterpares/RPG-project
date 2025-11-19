@@ -4,9 +4,6 @@ Main window for the RPG game GUI.
 This module provides the MainWindow class that serves as the primary GUI container.
 """
 
-import datetime
-from datetime import datetime
-import logging
 import os
 import weakref
 from typing import Optional, List, Dict, Any, Tuple
@@ -18,14 +15,13 @@ from PySide6.QtWidgets import (
     QMenu, QSlider, QWidgetAction, QLineEdit, QTextEdit, QPlainTextEdit, QTabBar
 )
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, Signal, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QPixmap, QTextCursor, QCursor, QMovie
+from PySide6.QtGui import QPixmap, QTextCursor, QCursor
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
 from core.inventory import get_inventory_manager
 from core.inventory.item import Item
 from core.inventory.item_enums import EquipmentSlot
-from core.stats.stats_base import DerivedStatType
 from gui.dialogs.game_over_dialog import GameOverDialog
 from core.base.engine import get_game_engine
 from core.combat.enums import CombatState, CombatStep
@@ -39,7 +35,7 @@ from gui.components.status_bar import GameStatusBar
 from gui.components.combat_display import CombatDisplay
 from gui.utils.resource_manager import get_resource_manager
 from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
-from gui.styles.theme_manager import ThemeManager, get_theme_manager
+from gui.styles.theme_manager import get_theme_manager
 from gui.dialogs.settings.settings_dialog import SettingsDialog
 from gui.dialogs.load_game_dialog import LoadGameDialog
 from gui.workers import SaveGameWorker, LoadGameWorker, NewGameWorker
@@ -279,11 +275,11 @@ class MainWindow(QMainWindow):
             except:
                 # Fallback to default if parsing fails
                 resolution = (1280, 720)
-                logging.warning("Failed to parse resolution setting, using default")
+                logger.warning("Failed to parse resolution setting, using default")
         
         # Set window size
         self.setFixedSize(*resolution)
-        logging.info(f"Applied saved resolution: {resolution}")
+        logger.info(f"Applied saved resolution: {resolution}")
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -786,7 +782,7 @@ class MainWindow(QMainWindow):
                 
                 self.finished.emit()
             except Exception as e:
-                logging.error(f"Error processing input: {e}", exc_info=True)
+                logger.error(f"Error processing input: {e}", exc_info=True)
                 self.error.emit(str(e))
             finally:
                 self.processing.emit(False)
@@ -1537,7 +1533,6 @@ class MainWindow(QMainWindow):
     def _show_settings_dialog(self):
         """Show dialog for game settings."""
         if not hasattr(self, '_settings_dialog'):
-            from gui.dialogs.settings.settings_dialog import SettingsDialog
             self._settings_dialog = SettingsDialog(parent=self)
             logger.info("SettingsDialog instance created on-demand.")
 
@@ -1654,11 +1649,11 @@ class MainWindow(QMainWindow):
                 q_settings = QSettings("RPGGame", "Settings")
                 dev_enabled = bool(q_settings.value("dev/enabled", False, type=bool))
                 show_stats_logs = bool(q_settings.value("dev/show_stats_manager_logs", False, type=bool))
-                stats_logger = logging.getLogger("core.stats.stats_manager")
+                stats_logger = logger.getLogger("core.stats.stats_manager")
                 if dev_enabled and show_stats_logs:
-                    stats_logger.setLevel(logging.DEBUG)
+                    stats_logger.setLevel(logger.DEBUG)
                 else:
-                    stats_logger.setLevel(logging.WARNING)
+                    stats_logger.setLevel(logger.WARNING)
             except Exception as e:
                 logger.warning(f"Failed to apply stats_manager logging setting: {e}")
 
@@ -1671,7 +1666,6 @@ class MainWindow(QMainWindow):
     def _show_llm_settings_dialog(self):
         """Show dialog for LLM settings."""
         if not hasattr(self, '_llm_settings_dialog'):
-            from gui.dialogs.settings.llm_settings_dialog import LLMSettingsDialog
             self._llm_settings_dialog = LLMSettingsDialog(parent=self)
             self._llm_settings_dialog.settings_saved.connect(self._on_llm_settings_saved)
             logger.info("LLMSettingsDialog instance created on-demand.")

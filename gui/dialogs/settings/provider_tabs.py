@@ -4,20 +4,20 @@ LLM provider-specific tabs for the RPG game GUI.
 This module provides tabs for different LLM providers.
 """
 
-import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Optional, Tuple
 
 from PySide6.QtWidgets import (
-    QFormLayout, QLineEdit, QLabel, QVBoxLayout
-)
-from PySide6.QtCore import Qt
+    QFormLayout, QLineEdit)
+from PySide6.QtCore import Slot
 
+from core.utils.logging_config import get_logger
 from gui.dialogs.settings.llm_provider_tab import LLMProviderTab
 from gui.dialogs.settings.model_management_widget import ModelManagementWidget
 from core.llm.provider_manager import ProviderType
+from gui.styles.stylesheet_factory import create_line_edit_style
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class OpenAITab(LLMProviderTab):
     """Tab for OpenAI settings."""
@@ -49,6 +49,29 @@ class OpenAITab(LLMProviderTab):
         
         # Connect signals
         self.enabled_check.toggled.connect(self._toggle_openai_fields)
+        
+        # Apply initial theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call
+        if not hasattr(self, 'org_edit'):
+            return
+
+        if palette:
+            self.palette = palette
+            
+        # Call base class update
+        super()._update_theme(self.palette)
+        
+        # Style specific fields
+        self.org_edit.setStyleSheet(create_line_edit_style(self.palette))
+        
+        # Propagate to model manager
+        if hasattr(self, 'model_manager'):
+            self.model_manager._update_theme(self.palette)
     
     def _toggle_openai_fields(self, enabled: bool):
         """Toggle OpenAI-specific fields."""
@@ -56,12 +79,7 @@ class OpenAITab(LLMProviderTab):
         self.model_manager.setEnabled(enabled)
         
     def _on_models_updated(self, models: List[Tuple[str, str]]):
-        """Handle models updated from model manager.
-        
-        Args:
-            models: List of (display_name, value) tuples
-        """
-        # Just store the models
+        """Handle models updated from model manager."""
         self.models = models
     
     def set_settings(self, settings: Dict[str, Any]):
@@ -76,26 +94,17 @@ class OpenAITab(LLMProviderTab):
         available_models = settings.get("available_models", [])
         models = []
         for model in available_models:
-            # Use the model ID as the display name as well
             models.append((model, model))
             
-        # Keep the tab's internal model list in sync so saving doesn't wipe it
         self.models = models
-        
-        # Set models in model manager
         self.model_manager.set_models(models)
     
     def get_settings(self) -> Dict[str, Any]:
         """Get the current settings from the tab."""
         settings = super().get_settings()
-        
-        # Add OpenAI-specific settings
         settings["organization"] = self.org_edit.text()
-        
-        # Add models
         model_ids = [model_id for _, model_id in self.models]
         settings["available_models"] = model_ids
-        
         return settings
 
 
@@ -115,6 +124,22 @@ class GoogleTab(LLMProviderTab):
         
         # Set info text
         self.info_label.setText("Google's Gemini models provide strong multilingual capabilities and state-of-the-art performance.")
+        
+        # Apply initial theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call
+        if not hasattr(self, 'model_manager'):
+            return
+
+        if palette:
+            self.palette = palette
+        super()._update_theme(self.palette)
+        if hasattr(self, 'model_manager'):
+            self.model_manager._update_theme(self.palette)
     
     def _toggle_fields(self, enabled: bool):
         """Toggle fields based on enabled state."""
@@ -122,39 +147,26 @@ class GoogleTab(LLMProviderTab):
         self.model_manager.setEnabled(enabled)
     
     def _on_models_updated(self, models: List[Tuple[str, str]]):
-        """Handle models updated from model manager.
-        
-        Args:
-            models: List of (display_name, value) tuples
-        """
-        # Just store the models
+        """Handle models updated from model manager."""
         self.models = models
     
     def set_settings(self, settings: Dict[str, Any]):
         """Set the tab settings."""
         super().set_settings(settings)
         
-        # Set up models for model management widget
         available_models = settings.get("available_models", [])
         models = []
         for model in available_models:
-            # Use the model ID as the display name as well
             models.append((model, model))
             
-        # Keep the tab's internal model list in sync so saving doesn't wipe it
         self.models = models
-        
-        # Set models in model manager
         self.model_manager.set_models(models)
         
     def get_settings(self) -> Dict[str, Any]:
         """Get the current settings from the tab."""
         settings = super().get_settings()
-        
-        # Add models
         model_ids = [model_id for _, model_id in self.models]
         settings["available_models"] = model_ids
-        
         return settings
 
 
@@ -174,6 +186,22 @@ class OpenRouterTab(LLMProviderTab):
         
         # Set info text
         self.info_label.setText("OpenRouter allows access to multiple AI models from different providers through a single API. Create an account at openrouter.ai to get started.")
+        
+        # Apply initial theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call
+        if not hasattr(self, 'model_manager'):
+            return
+            
+        if palette:
+            self.palette = palette
+        super()._update_theme(self.palette)
+        if hasattr(self, 'model_manager'):
+            self.model_manager._update_theme(self.palette)
     
     def _toggle_fields(self, enabled: bool):
         """Toggle fields based on enabled state."""
@@ -181,37 +209,24 @@ class OpenRouterTab(LLMProviderTab):
         self.model_manager.setEnabled(enabled)
     
     def _on_models_updated(self, models: List[Tuple[str, str]]):
-        """Handle models updated from model manager.
-        
-        Args:
-            models: List of (display_name, value) tuples
-        """
-        # Just store the models
+        """Handle models updated from model manager."""
         self.models = models
     
     def set_settings(self, settings: Dict[str, Any]):
         """Set the tab settings."""
         super().set_settings(settings)
         
-        # Set up models for model management widget
         available_models = settings.get("available_models", [])
         models = []
         for model in available_models:
-            # Use the model ID as the display name as well
             models.append((model, model))
             
-        # Keep the tab's internal model list in sync so saving doesn't wipe it
         self.models = models
-        
-        # Set models in model manager
         self.model_manager.set_models(models)
         
     def get_settings(self) -> Dict[str, Any]:
         """Get the current settings from the tab."""
         settings = super().get_settings()
-        
-        # Add models
         model_ids = [model_id for _, model_id in self.models]
         settings["available_models"] = model_ids
-        
         return settings

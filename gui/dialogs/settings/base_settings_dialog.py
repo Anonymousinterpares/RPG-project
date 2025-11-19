@@ -4,7 +4,6 @@ Base settings dialog for the RPG game GUI.
 This module provides a base dialog class for settings dialogs.
 """
 
-import logging
 from typing import Dict, Any, Optional
 
 from PySide6.QtWidgets import (
@@ -12,13 +11,15 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Slot, Signal
 
+from core.utils.logging_config import get_logger
 from gui.dialogs.base_dialog import BaseDialog
-from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_main_tab_widget_style
+from gui.styles.stylesheet_factory import create_checkbox_style, create_dialog_style, create_groupbox_style, create_main_tab_widget_style
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class BaseSettingsDialog(BaseDialog):
+    
     """Base dialog for settings dialogs."""
     
     # Signal emitted when settings are saved
@@ -53,26 +54,7 @@ class BaseSettingsDialog(BaseDialog):
         base_style = create_dialog_style(self.palette)
         tab_style = create_main_tab_widget_style(self.palette)
         group_style = create_groupbox_style(self.palette)
-        
-        # Add specific overrides for checkboxes in settings
-        checkbox_style = f"""
-            QCheckBox {{
-                color: {colors['text_primary']};
-                spacing: 5px;
-            }}
-            QCheckBox::indicator {{
-                width: 18px;
-                height: 18px;
-                border: 1px solid {colors['border_dark']};
-                border-radius: 2px;
-                background-color: {colors['bg_dark']};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {colors['accent_positive']};
-                border-color: {colors['accent_positive']};
-                image: url(none); /* Or a checkmark icon if available */
-            }}
-        """
+        checkbox_style = create_checkbox_style(self.palette)
         
         # Danger button style
         danger_style = f"""

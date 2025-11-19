@@ -4,17 +4,22 @@ LLM general settings tab for the RPG game GUI.
 This module provides a tab for configuring general LLM settings.
 """
 
-import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QGroupBox, 
     QComboBox, QCheckBox, QSpinBox
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Slot
+
+from core.utils.logging_config import get_logger
+from gui.styles.theme_manager import get_theme_manager
+from gui.styles.stylesheet_factory import (
+    create_groupbox_style, create_checkbox_style, create_combobox_style
+)
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class LLMGeneralTab(QWidget):
     """Tab for general LLM settings."""
@@ -23,9 +28,56 @@ class LLMGeneralTab(QWidget):
         """Initialize the general settings tab."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Set up the UI
         self._setup_ui()
+        
+        # Apply initial theme
+        self._update_theme()
     
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+            
+        colors = self.palette['colors']
+
+        # Style group boxes
+        group_style = create_groupbox_style(self.palette)
+        self.general_group.setStyleSheet(group_style)
+        self.advanced_group.setStyleSheet(group_style)
+        
+        # Style checkboxes
+        checkbox_style = create_checkbox_style(self.palette)
+        self.llm_enabled_check.setStyleSheet(checkbox_style)
+        self.diagnostics_check.setStyleSheet(checkbox_style)
+        
+        # Style combo boxes
+        combo_style = create_combobox_style(self.palette)
+        self.default_provider_combo.setStyleSheet(combo_style)
+        self.temperature_combo.setStyleSheet(combo_style)
+        
+        # Style spin boxes (reuse line edit style logic or define specific one if needed)
+        # For now, a simple style based on line edit
+        spinbox_style = f"""
+            QSpinBox {{
+                background-color: {colors['bg_dark']};
+                color: {colors['text_bright']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 4px;
+                padding: 5px;
+            }}
+        """
+        self.timeout_spin.setStyleSheet(spinbox_style)
+        self.retry_spin.setStyleSheet(spinbox_style)
+        self.retry_delay_spin.setStyleSheet(spinbox_style)
+
     def _setup_ui(self):
         """Set up the user interface."""
         # Create layout
@@ -34,8 +86,8 @@ class LLMGeneralTab(QWidget):
         layout.setSpacing(10)
         
         # Create general settings group
-        general_group = QGroupBox("General LLM Settings")
-        general_layout = QFormLayout(general_group)
+        self.general_group = QGroupBox("General LLM Settings")
+        general_layout = QFormLayout(self.general_group)
         general_layout.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
         
         # Create default provider setting
@@ -56,8 +108,8 @@ class LLMGeneralTab(QWidget):
         general_layout.addRow("", self.diagnostics_check)
         
         # Create advanced settings group
-        advanced_group = QGroupBox("Advanced Settings")
-        advanced_layout = QFormLayout(advanced_group)
+        self.advanced_group = QGroupBox("Advanced Settings")
+        advanced_layout = QFormLayout(self.advanced_group)
         
         # Create timeout setting
         self.timeout_spin = QSpinBox()
@@ -88,8 +140,8 @@ class LLMGeneralTab(QWidget):
         advanced_layout.addRow("Default Temperature:", self.temperature_combo)
         
         # Add groups to layout
-        layout.addWidget(general_group)
-        layout.addWidget(advanced_group)
+        layout.addWidget(self.general_group)
+        layout.addWidget(self.advanced_group)
         layout.addStretch(1)
     
     def set_settings(self, settings: Dict[str, Any]):

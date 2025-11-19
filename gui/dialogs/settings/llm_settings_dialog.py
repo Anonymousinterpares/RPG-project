@@ -6,27 +6,30 @@ This module provides a dialog for configuring LLM settings.
 
 import os
 import json
-import logging
-from typing import Dict, Any
+from typing import Optional
 import shutil
 from datetime import datetime
 
 from PySide6.QtWidgets import (
     QTabWidget, QMessageBox, QPushButton
 )
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import Slot
 
 from core.llm.provider_manager import ProviderType, get_provider_manager
 from core.llm.llm_manager import get_llm_manager
 
+from core.llm.settings_manager import get_settings_manager
+from core.utils.logging_config import get_logger
 from gui.dialogs.settings.base_settings_dialog import BaseSettingsDialog
 from gui.dialogs.settings.llm_general_tab import LLMGeneralTab
 from gui.dialogs.settings.provider_tabs import OpenAITab, GoogleTab, OpenRouterTab
 from gui.dialogs.settings.anthropic_tab import AnthropicTab
 from gui.dialogs.settings.agent_setup_tab import AgentSetupTab
+from gui.styles.stylesheet_factory import create_main_tab_widget_style, create_styled_button_style
+from gui.styles.theme_manager import get_theme_manager
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class LLMSettingsDialog(BaseSettingsDialog):
     """Dialog for configuring LLM settings."""
@@ -35,6 +38,12 @@ class LLMSettingsDialog(BaseSettingsDialog):
         """Initialize the LLM settings dialog."""
         super().__init__(parent, title="LLM Settings")
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Get provider manager
         self.provider_manager = get_provider_manager()
         
@@ -42,21 +51,20 @@ class LLMSettingsDialog(BaseSettingsDialog):
         self.llm_manager = get_llm_manager()
 
         # Get settings manager
-        from core.llm.settings_manager import get_settings_manager # Add import if not already present
         self.settings_manager = get_settings_manager()
 
         # Load settings using SettingsManager
         self.provider_settings = self.settings_manager.get_provider_settings()
-        self.base_settings = self.settings_manager.get_llm_settings() # Load base settings directly
-
-        # Remove QSettings dependency entirely
-        # self.qsettings = QSettings("RPG_Game", "LLM_Settings_Base")
+        self.base_settings = self.settings_manager.get_llm_settings()
 
         # Set up the UI
         self._setup_ui()
         
         # Populate the UI with settings
         self._populate_settings()
+        
+        # Apply initial theme
+        self._update_theme()
 
         # Wire UI sounds for LLM Settings dialog
         try:
@@ -64,6 +72,47 @@ class LLMSettingsDialog(BaseSettingsDialog):
             map_container(self, click_kind='dropdown', tab_kind='tab_click', dropdown_kind='dropdown')
         except Exception:
             pass
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        # Guard against premature call from BaseDialog.__init__
+        if not hasattr(self, 'tab_widget'):
+            return
+
+        if palette:
+            self.palette = palette
+        
+        # Call base class update first
+        super()._update_theme(self.palette)
+        
+        colors = self.palette['colors']
+
+        # Style tab widget
+        self.tab_widget.setStyleSheet(create_main_tab_widget_style(self.palette))
+        
+        # Style buttons
+        button_style = create_styled_button_style(self.palette)
+        self.test_button.setStyleSheet(button_style)
+        
+        # Danger button style for reset (overrides standard styled button)
+        danger_style = f"""
+            QPushButton {{
+                background-color: {colors['accent_negative']};
+                color: {colors['text_bright']};
+                border: 1px solid {colors['border_dark']};
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {colors['accent_negative_light']};
+            }}
+            QPushButton:pressed {{
+                background-color: {colors['state_pressed']};
+            }}
+        """
+        self.reset_button.setStyleSheet(danger_style)
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -91,7 +140,7 @@ class LLMSettingsDialog(BaseSettingsDialog):
         
         # Create reset button
         self.reset_button = QPushButton("Reset to Default")
-        self.reset_button.setStyleSheet("QPushButton { background-color: #D32F2F; }")
+        # Styling handled in _update_theme
         self.reset_button.clicked.connect(self._reset_settings)
         
         # Create test button
@@ -104,9 +153,6 @@ class LLMSettingsDialog(BaseSettingsDialog):
         
         # Add button layout
         self.add_button_layout()
-
-    # _load_provider_settings method removed - SettingsManager handles loading in __init__
-    # _load_base_settings method definition removed below
 
     def _populate_settings(self):
         """Populate the UI with current settings."""

@@ -5,13 +5,16 @@ This module provides a base tab for configuring LLM provider settings.
 """
 
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QGroupBox, 
     QLineEdit, QComboBox, QCheckBox, QLabel
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Slot
+
+from gui.styles.theme_manager import get_theme_manager
+from gui.styles.stylesheet_factory import create_checkbox_style, create_groupbox_style, create_line_edit_style
 
 # Get the module logger
 logger = logging.getLogger("GUI")
@@ -23,6 +26,12 @@ class LLMProviderTab(QWidget):
         """Initialize the provider settings tab."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         # Provider properties
         self.provider_name = provider_name
         self.api_key_setting_name = "api_key"
@@ -30,6 +39,9 @@ class LLMProviderTab(QWidget):
         
         # Set up the UI
         self._setup_ui()
+        
+        # Apply initial theme
+        self._update_theme()
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -39,8 +51,8 @@ class LLMProviderTab(QWidget):
         self.main_layout.setSpacing(10)
         
         # Create API settings group
-        api_group = QGroupBox(f"{self.provider_name} API Settings")
-        api_layout = QFormLayout(api_group)
+        self.api_group = QGroupBox(f"{self.provider_name} API Settings")
+        api_layout = QFormLayout(self.api_group)
         
         # Create enabled checkbox
         self.enabled_check = QCheckBox(f"Enable {self.provider_name}")
@@ -57,12 +69,36 @@ class LLMProviderTab(QWidget):
         # Add info section (to be overridden by subclasses)
         self.info_label = QLabel("")
         self.info_label.setWordWrap(True)
-        self.info_label.setStyleSheet("color: #AAAAAA; font-style: italic;")
         
         # Add groups to layout
-        self.main_layout.addWidget(api_group)
+        self.main_layout.addWidget(self.api_group)
         self.main_layout.addWidget(self.info_label)
         self.main_layout.addStretch(1)
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        # Style group box
+        self.api_group.setStyleSheet(create_groupbox_style(self.palette))
+        
+        # Style line edit
+        self.api_key_edit.setStyleSheet(create_line_edit_style(self.palette))
+        
+        # Style info label
+        self.info_label.setStyleSheet(f"color: {colors['text_secondary']}; font-style: italic;")
+        
+        # Style checkbox
+        self.enabled_check.setStyleSheet(create_checkbox_style(self.palette))
+        
+        # Propagate to children (like ModelManagementWidget in subclasses)
+        for child in self.findChildren(QWidget):
+            if hasattr(child, '_update_theme') and callable(child._update_theme) and child is not self:
+                child._update_theme(self.palette)
     
     def add_models(self, models: List[Tuple[str, str]]):
         """Store models data.

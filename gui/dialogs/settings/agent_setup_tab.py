@@ -5,19 +5,19 @@ This module provides a tab for configuring which LLM provider and model to use f
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
-import json
-import os
+from typing import Dict, Any, Optional
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QPushButton,
+    QWidget, QVBoxLayout, QFormLayout, QLabel, QPushButton,
     QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QSpinBox,
-    QDoubleSpinBox, QGroupBox, QDialog, QDialogButtonBox
+    QDoubleSpinBox, QDialog, QDialogButtonBox
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Slot
 
 from core.llm.provider_manager import ProviderType, get_provider_manager
 from core.llm.settings_manager import get_settings_manager
+from gui.styles.theme_manager import get_theme_manager
+from gui.styles.stylesheet_factory import create_dialog_style, create_styled_button_style
 
 # Get the module logger
 logger = logging.getLogger("GUI")
@@ -26,14 +26,14 @@ class AgentSetupDialog(QDialog):
     """Dialog for configuring an agent's LLM settings."""
     
     def __init__(self, parent=None, agent_name: str = "", agent_settings: Dict[str, Any] = None):
-        """Initialize the dialog.
-        
-        Args:
-            parent: Parent widget.
-            agent_name: Name of the agent being configured.
-            agent_settings: Current agent settings.
-        """
+        """Initialize the dialog."""
         super().__init__(parent)
+        
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
         
         self.agent_name = agent_name
         self.agent_settings = agent_settings or {}
@@ -43,9 +43,44 @@ class AgentSetupDialog(QDialog):
         self.setWindowTitle(f"Configure {agent_name.capitalize()} Agent")
         self.setMinimumWidth(450)
         
+        # 1. Setup UI first (creates self.provider_combo)
         self._setup_ui()
+        
+        # 2. Populate settings (uses self.provider_combo)
         self._populate_settings()
-    
+        
+        # 3. Apply theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        # Apply dialog style
+        self.setStyleSheet(create_dialog_style(self.palette))
+        
+        colors = self.palette['colors']
+        
+        # Style labels
+        for label in self.findChildren(QLabel):
+            label.setStyleSheet(f"color: {colors['text_primary']};")
+            
+        # Style inputs
+        input_style = f"""
+            background-color: {colors['bg_dark']};
+            color: {colors['text_bright']};
+            border: 1px solid {colors['border_dark']};
+            border-radius: 4px;
+            padding: 5px;
+        """
+        
+        # Apply to each input type separately to avoid findChildren TypeError
+        for widget_type in (QComboBox, QSpinBox, QDoubleSpinBox):
+            for widget in self.findChildren(widget_type):
+                widget.setStyleSheet(input_style)
+
     def _setup_ui(self):
         """Set up the user interface."""
         layout = QVBoxLayout(self)
@@ -175,11 +210,7 @@ class AgentSetupDialog(QDialog):
         self.timeout_spin.setValue(self.agent_settings.get("timeout_seconds", 30))
     
     def get_settings(self) -> Dict[str, Any]:
-        """Get the settings from the dialog.
-        
-        Returns:
-            Dictionary of agent settings.
-        """
+        """Get the settings from the dialog."""
         # Get provider type
         provider_index = self.provider_combo.currentIndex()
         provider_type_str = self.provider_combo.itemData(provider_index)
@@ -207,6 +238,12 @@ class AgentSetupTab(QWidget):
         """Initialize the agent setup tab."""
         super().__init__(parent)
         
+        # --- THEME MANAGEMENT ---
+        self.theme_manager = get_theme_manager()
+        self.palette = self.theme_manager.get_current_palette()
+        self.theme_manager.theme_changed.connect(self._update_theme)
+        # --- END THEME MANAGEMENT ---
+        
         self.settings_manager = get_settings_manager()
         self.provider_manager = get_provider_manager()
         
@@ -215,18 +252,58 @@ class AgentSetupTab(QWidget):
         
         self._setup_ui()
         self._load_agent_settings()
+        
+        # Apply initial theme
+        self._update_theme()
+
+    @Slot(dict)
+    def _update_theme(self, palette: Optional[dict] = None):
+        """Update styles from the theme palette."""
+        if palette:
+            self.palette = palette
+        
+        colors = self.palette['colors']
+        
+        # Style description label
+        self.description_label.setStyleSheet(f"color: {colors['text_secondary']};")
+        
+        # Style table
+        self.agents_table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {colors['bg_dark']};
+                color: {colors['text_bright']};
+                gridline-color: {colors['border_dark']};
+                border: 1px solid {colors['border_dark']};
+            }}
+            QHeaderView::section {{
+                background-color: {colors['bg_medium']};
+                color: {colors['text_primary']};
+                border: 1px solid {colors['border_dark']};
+                padding: 4px;
+            }}
+            QTableWidget::item {{
+                padding: 5px;
+            }}
+        """)
+        
+        # Re-style buttons inside the table
+        button_style = create_styled_button_style(self.palette)
+        for i in range(self.agents_table.rowCount()):
+            widget = self.agents_table.cellWidget(i, 4)
+            if isinstance(widget, QPushButton):
+                widget.setStyleSheet(button_style)
     
     def _setup_ui(self):
         """Set up the user interface."""
         layout = QVBoxLayout(self)
         
         # Description
-        description = QLabel(
+        self.description_label = QLabel(
             "Configure which LLM provider and model to use for each agent in the game. "
             "Each agent can use a different provider and model configuration."
         )
-        description.setWordWrap(True)
-        layout.addWidget(description)
+        self.description_label.setWordWrap(True)
+        layout.addWidget(self.description_label)
         
         # Agents table
         self.agents_table = QTableWidget()
@@ -241,7 +318,11 @@ class AgentSetupTab(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.Stretch)
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        # Use Fixed for the button column to ensure it respects width
+        header.setSectionResizeMode(4, QHeaderView.Fixed)
+        
+        # Set default row height to accommodate buttons
+        self.agents_table.verticalHeader().setDefaultSectionSize(50)
         
         layout.addWidget(self.agents_table)
     
@@ -261,6 +342,7 @@ class AgentSetupTab(QWidget):
             
             # Add row
             self.agents_table.insertRow(i)
+            self.agents_table.setRowHeight(i, 50) # Explicitly set row height
             
             # Agent name
             name_item = QTableWidgetItem(agent_name.capitalize())
@@ -269,7 +351,6 @@ class AgentSetupTab(QWidget):
             
             # Provider
             provider_type_str = settings.get("provider_type", "OPENAI")
-            # Check if provider_type_str is None and provide a default
             if provider_type_str is None:
                 provider_type_str = "OPENAI"
             provider_item = QTableWidgetItem(provider_type_str.capitalize())
@@ -290,26 +371,22 @@ class AgentSetupTab(QWidget):
             
             # Configure button
             self.agents_table.setCellWidget(i, 4, self._create_configure_button(agent_name))
+            
+        # Set fixed width for the Configure column
+        self.agents_table.setColumnWidth(4, 120)
     
     def _create_configure_button(self, agent_name: str) -> QPushButton:
-        """Create a configure button for an agent.
-        
-        Args:
-            agent_name: Name of the agent.
-            
-        Returns:
-            Configure button widget.
-        """
+        """Create a configure button for an agent."""
         button = QPushButton("Configure")
+        # Apply style immediately
+        button.setStyleSheet(create_styled_button_style(self.palette))
+        # Fix height to fit nicely in row
+        button.setFixedHeight(30) 
         button.clicked.connect(lambda: self._configure_agent(agent_name))
         return button
     
     def _configure_agent(self, agent_name: str) -> None:
-        """Open the agent configuration dialog.
-        
-        Args:
-            agent_name: Name of the agent to configure.
-        """
+        """Open the agent configuration dialog."""
         # Get agent settings
         settings = self.agent_settings.get(agent_name, {})
         
@@ -335,11 +412,7 @@ class AgentSetupTab(QWidget):
             self._load_agent_settings()
     
     def save_settings(self) -> bool:
-        """Save all agent settings.
-        
-        Returns:
-            True if successful, False otherwise.
-        """
+        """Save all agent settings."""
         success = True
         
         for agent_name, settings in self.agent_settings.items():
