@@ -102,31 +102,30 @@ class Item:
                 self.known_properties.add("is_equippable")
                 self.known_properties.add("equip_slots")
             
-            if not self.is_template:
-                self.known_properties.add("description")
-                self.known_properties.add("value")
-                if self.durability is not None: 
-                    self.known_properties.add("durability")
-                    self.known_properties.add("current_durability")
-                
-                # Automatically make core combat effects/stats known for instances
-                if self.item_type == ItemType.WEAPON and self.dice_roll_effects:
-                    self.known_properties.add("dice_roll_effects")
-                    # Also make individual stats listed in item.stats known by default if it's a weapon and has stats
-                    if self.stats:
-                        self.known_properties.add("stats") # Make the category known
-                        for stat_obj in self.stats:
-                             self.known_properties.add(f"stat_{stat_obj.name}")
-                
-                if (self.item_type == ItemType.ARMOR or self.item_type == ItemType.SHIELD):
-                    if self.stats: # If armor/shield has stats defined
-                        self.known_properties.add("stats") # Make the category known
-                        for stat_obj in self.stats:
-                            # Make primary defensive stats (like 'armor' or 'defense') known by default
-                            if stat_obj.name.lower() in ["armor", "defense", "block_chance"]: # Add other common defensive stat names
-                                self.known_properties.add(f"stat_{stat_obj.name}")
-                            # Other stats on armor might still require discovery unless explicitly made known here
+        if not self.is_template:
+            self.known_properties.add("description")
+            self.known_properties.add("value")
+            if self.durability is not None: 
+                self.known_properties.add("durability")
+                self.known_properties.add("current_durability")
             
+            # Automatically make core combat effects/stats known for instances
+            # This ensures players can see what their items do by default
+            if self.dice_roll_effects:
+                self.known_properties.add("dice_roll_effects")
+            
+            if self.stats:
+                self.known_properties.add("stats")
+                for stat_obj in self.stats:
+                    self.known_properties.add(f"stat_{stat_obj.name}")
+            
+            # Ensure custom properties that act as stats are also known by default
+            # This covers the gap where resist properties were hidden
+            if self.custom_properties:
+                    self.known_properties.add("custom_properties")
+                    for key in self.custom_properties.keys():
+                        self.known_properties.add(f"custom_{key}")
+
         if self.durability is not None and self.current_durability is None:
             self.current_durability = self.durability
             

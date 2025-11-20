@@ -331,6 +331,8 @@ class ItemInfoDialog(BaseDialog):
         # Stats & Effects
         self.stats_effects_title_label.setVisible(True)
         stats_html_parts = []
+        displayed_custom_keys = set()
+
         # Only try to display stats if the "stats" category itself is known
         if "stats" in known and item.stats: 
             known_item_stats_found = False
@@ -358,7 +360,46 @@ class ItemInfoDialog(BaseDialog):
                 temp_dice_effects_list.append(f"<li>{desc}</li>")
             if known_dice_effects_found:
                  stats_html_parts.append("<u>Effects:</u><ul>" + "".join(temp_dice_effects_list) + "</ul>")
+
+        # Custom Properties acting as Stats/Effects
+        if "custom_properties" in known and item.custom_properties:
+            cp = item.custom_properties
             
+            # Typed Resistances (Percent)
+            if "typed_resistances" in cp and isinstance(cp["typed_resistances"], dict):
+                displayed_custom_keys.add("typed_resistances")
+                temp_res_list = []
+                for r_type, r_val in cp["typed_resistances"].items():
+                    temp_res_list.append(f"<li><b>{r_type.replace('_',' ').title()} Resistance:</b> {r_val}%</li>")
+                if temp_res_list:
+                    stats_html_parts.append("<u>Resistances:</u><ul>" + "".join(temp_res_list) + "</ul>")
+
+            # Typed Resistances (Dice)
+            if "typed_resistances_dice" in cp and isinstance(cp["typed_resistances_dice"], dict):
+                displayed_custom_keys.add("typed_resistances_dice")
+                temp_res_dice_list = []
+                for r_type, r_val in cp["typed_resistances_dice"].items():
+                    val_str = ", ".join(str(v) for v in r_val) if isinstance(r_val, list) else str(r_val)
+                    temp_res_dice_list.append(f"<li><b>{r_type.replace('_',' ').title()} Resist:</b> {val_str}</li>")
+                if temp_res_dice_list:
+                    stats_html_parts.append("<u>Resistance Dice:</u><ul>" + "".join(temp_res_dice_list) + "</ul>")
+
+            # Special effect keys
+            temp_special_list = []
+            for key, value in cp.items():
+                # Keywords that suggest a combat/functional stat
+                if any(k in key for k in ["_damage", "_resistance", "_restore", "_duration", "_bonus", "_penalty", "capacity", "light_intensity"]):
+                    # Skip if it's the resistance dicts handled above
+                    if key in ["typed_resistances", "typed_resistances_dice"]: continue
+                    
+                    displayed_custom_keys.add(key)
+                    clean_key = key.replace('_', ' ').title()
+                    clean_val = str(value).replace('_', ' ')
+                    temp_special_list.append(f"<li><b>{clean_key}:</b> {clean_val}</li>")
+            
+            if temp_special_list:
+                stats_html_parts.append("<u>Special:</u><ul>" + "".join(temp_special_list) + "</ul>")
+
         if stats_html_parts:
             final_stats_html = "<br>".join(stats_html_parts)
             self.stats_browser.setHtml(final_stats_html)
@@ -372,6 +413,7 @@ class ItemInfoDialog(BaseDialog):
         if "custom_properties" in known and item.custom_properties: 
             known_custom_prop_details = []
             for key, value in item.custom_properties.items():
+                if key in displayed_custom_keys: continue # Skip already displayed
                 if f"custom_{key}" in known: 
                     known_custom_prop_details.append(f"<li><b>{key.replace('_', ' ').title()}:</b> {value}</li>")
             if known_custom_prop_details:
