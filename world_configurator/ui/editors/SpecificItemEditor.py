@@ -175,39 +175,6 @@ class ItemStatDialog(BaseDialog):
             data["is_percentage"] = True
         return data
 
-    def get_stat_data(self) -> Optional[Dict[str, Any]]:
-        name = self.name_edit.text().strip()
-        value_str = self.value_edit.text().strip()
-        display_name = self.display_name_edit.text().strip()
-        is_percentage = self.is_percentage_check.isChecked()
-
-        if not name or not value_str:
-            QMessageBox.warning(self, "Input Error", "Stat ID and Value are required.")
-            return None
-
-        # Attempt to parse value as float, int, or bool
-        parsed_value: Any
-        try:
-            if '.' in value_str:
-                parsed_value = float(value_str)
-            else:
-                parsed_value = int(value_str)
-        except ValueError:
-            if value_str.lower() == 'true':
-                parsed_value = True
-            elif value_str.lower() == 'false':
-                parsed_value = False
-            else: # Treat as string if not parsable as number/bool
-                parsed_value = value_str
-
-
-        data = {"name": name, "value": parsed_value}
-        if display_name:
-            data["display_name"] = display_name
-        if is_percentage:
-            data["is_percentage"] = True
-        return data
-
 # --- Dice Roll Effect Dialog ---
 class DiceRollEffectDialog(BaseDialog):
     """Dialog for adding/editing a dice roll effect with constrained dice notation."""
@@ -520,20 +487,12 @@ class SpecificItemEditor(QWidget):
             self.items_data[self.current_item_index] = new_dict
 
     def _select_item_by_id(self, item_id: str) -> None:
-        # Find new index and select in list widget
-        target_index = None
-        for i, it in enumerate(self.items_data):
-            if isinstance(it, dict) and it.get("id") == item_id:
-                target_index = i
-                break
-        if target_index is None:
-            return
-        # Find the row in the QListWidget whose UserRole matches target_index
+        # Find the row in the QListWidget whose UserRole matches item_id
         for row in range(self.item_list_widget.count()):
             it = self.item_list_widget.item(row)
-            if it and it.data(Qt.UserRole) == target_index:
+            if it and it.data(Qt.UserRole) == item_id:
                 self.item_list_widget.setCurrentRow(row)
-                break
+                return
 
     def _ensure_unique_id(self, proposed_id: str) -> str:
         existing = {str(it.get("id")) for it in self.items_data if isinstance(it, dict) and it.get("id")}
@@ -722,10 +681,44 @@ class SpecificItemEditor(QWidget):
         left_panel = QFrame()
         left_panel.setFrameShape(QFrame.StyledPanel)
         left_layout = QVBoxLayout(left_panel)
+        
+        # Header and Controls
         left_layout.addWidget(QLabel(f"{self.item_file_key} List"))
+
+        # Filter & Sort Layout
+        filter_sort_layout = QVBoxLayout()
+        
+        # Filter
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Filter:"))
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItem("All Types", "all")
+        # Populate with standard item types
+        item_types = ["armor", "weapon", "shield", "accessory", "consumable", "tool", "container", "document", "key", "material", "treasure", "miscellaneous"]
+        for it in sorted(item_types):
+            self.filter_combo.addItem(it.title(), it)
+        self.filter_combo.currentIndexChanged.connect(self._refresh_item_list_widget)
+        filter_layout.addWidget(self.filter_combo)
+        filter_sort_layout.addLayout(filter_layout)
+
+        # Sort
+        sort_layout = QHBoxLayout()
+        sort_layout.addWidget(QLabel("Sort:"))
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItem("Name (A-Z)", "name_asc")
+        self.sort_combo.addItem("Name (Z-A)", "name_desc")
+        self.sort_combo.addItem("Type (A-Z)", "type_asc")
+        self.sort_combo.addItem("ID (A-Z)", "id_asc")
+        self.sort_combo.currentIndexChanged.connect(self._refresh_item_list_widget)
+        sort_layout.addWidget(self.sort_combo)
+        filter_sort_layout.addLayout(sort_layout)
+
+        left_layout.addLayout(filter_sort_layout)
+
         self.item_list_widget = QListWidget()
         self.item_list_widget.currentItemChanged.connect(self._on_item_selected)
         left_layout.addWidget(self.item_list_widget)
+        
         list_buttons_layout = QHBoxLayout()
         self.add_item_button = QPushButton("Add Item")
         self.add_item_button.clicked.connect(self._add_item)
@@ -908,14 +901,49 @@ class SpecificItemEditor(QWidget):
 
     def _refresh_item_list_widget(self):
         self.item_list_widget.clear()
-        self.items_data.sort(key=lambda x: x.get("name", x.get("id", ""))) # Sort by name, then ID
-        for index, item_dict in enumerate(self.items_data):
-            display_name = f"{item_dict.get('name', 'Unnamed Item')} ({item_dict.get('id', 'No ID')})"
+        
+        # Get filter/sort criteria
+        filter_type = self.filter_combo.currentData()
+        sort_mode = self.sort_combo.currentData()
+        
+        # create a list of (index, item) to preserve link to original data, though ID is better
+        # actually just filtering items is enough if we use ID for lookup
+        visible_items = []
+        for item in self.items_data:
+            if filter_type != "all":
+                itype = item.get("item_type", "miscellaneous").lower()
+                if itype != filter_type:
+                    continue
+            visible_items.append(item)
+            
+        # Sort
+        if sort_mode == "name_asc":
+            visible_items.sort(key=lambda x: x.get("name", "").lower())
+        elif sort_mode == "name_desc":
+            visible_items.sort(key=lambda x: x.get("name", "").lower(), reverse=True)
+        elif sort_mode == "type_asc":
+            visible_items.sort(key=lambda x: (x.get("item_type", "").lower(), x.get("name", "").lower()))
+        elif sort_mode == "id_asc":
+            visible_items.sort(key=lambda x: x.get("id", "").lower())
+            
+        for item_dict in visible_items:
+            name = item_dict.get('name', 'Unnamed')
+            iid = item_dict.get('id', 'No ID')
+            itype = item_dict.get('item_type', 'Misc').title()
+            
+            display_name = f"{name} [{itype}] ({iid})"
             list_item = QListWidgetItem(display_name)
-            list_item.setData(Qt.UserRole, index) # Store index in the list
+            list_item.setData(Qt.UserRole, iid) # Store ID instead of index
             self.item_list_widget.addItem(list_item)
+            
         self._set_details_enabled(False)
         self.remove_item_button.setEnabled(False)
+
+    def _get_index_by_id(self, item_id: str) -> Optional[int]:
+        for i, item in enumerate(self.items_data):
+            if item.get("id") == item_id:
+                return i
+        return None
 
     # --- UI Callbacks ---
     @Slot(QListWidgetItem, QListWidgetItem)
@@ -928,8 +956,9 @@ class SpecificItemEditor(QWidget):
                  # A simpler approach is to rely on the explicit "Save Item Changes" button.
                  pass
 
-
-            self.current_item_index = current.data(Qt.UserRole)
+            item_id = current.data(Qt.UserRole)
+            self.current_item_index = self._get_index_by_id(item_id)
+            
             if self.current_item_index is not None and self.current_item_index < len(self.items_data):
                 self._populate_details_from_item_data(self.items_data[self.current_item_index])
                 self._set_details_enabled(True)
@@ -960,10 +989,7 @@ class SpecificItemEditor(QWidget):
         self.items_data.append(new_item)
         self._refresh_item_list_widget()
         # Select the new item
-        for i in range(self.item_list_widget.count()):
-            if self.item_list_widget.item(i).data(Qt.UserRole) == len(self.items_data) - 1:
-                self.item_list_widget.setCurrentRow(i)
-                break
+        self._select_item_by_id(new_id)
         self.id_edit.setFocus() # Focus on ID for editing
         self.data_modified.emit()
 
@@ -1018,30 +1044,7 @@ class SpecificItemEditor(QWidget):
         # Refresh the list item text in case name/ID changed
         self._refresh_item_list_widget()
         # Reselect the item
-        for i in range(self.item_list_widget.count()):
-            if self.item_list_widget.item(i).data(Qt.UserRole) == self.current_item_index: # index might shift if sorted by name
-                # find by new ID instead if ID changed
-                if item_id != original_id:
-                    found_by_new_id = False
-                    for new_idx, item_in_list_data in enumerate(self.items_data):
-                        if item_in_list_data.get("id") == item_id:
-                            self.current_item_index = new_idx # update current_item_index
-                            self.item_list_widget.setCurrentRow(new_idx)
-                            found_by_new_id = True
-                            break
-                    if not found_by_new_id:
-                        self.current_item_index = None # Should not happen if ID is unique
-                else: # ID didn't change, reselect by old index (if still valid after sort)
-                    # Re-find by ID to be safe after sort
-                    found_by_id_after_sort = False
-                    for new_idx_after_sort, item_in_list_data_after_sort in enumerate(self.items_data):
-                        if item_in_list_data_after_sort.get("id") == original_id:
-                            self.current_item_index = new_idx_after_sort
-                            self.item_list_widget.setCurrentRow(new_idx_after_sort)
-                            found_by_id_after_sort = True
-                            break
-                    if not found_by_id_after_sort:
-                        self.current_item_index = None
+        self._select_item_by_id(item_id)
 
 
     # --- Helper Methods for Detail Management ---
