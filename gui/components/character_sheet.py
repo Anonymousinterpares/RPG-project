@@ -815,6 +815,18 @@ class CharacterSheetWidget(QScrollArea):
             label.setText(f"{label.text().split(':')[0]}: 0/0") 
             bar.setRange(0, 100) 
             bar.setValue(0) 
+            
+        # Clear skills
+        if hasattr(self, 'skill_labels'):
+            for label in self.skill_labels.values():
+                label.setText("0")
+                label.update_stat_data({})
+
+        # Clear equipment
+        if hasattr(self, 'equip_labels'):
+            for label in self.equip_labels.values():
+                label.set_item_data("None", None)
+
         self.initiative_value.setText("0")
         self.status_effects_list.clear()
         self.turn_order_list.clear()

@@ -462,12 +462,38 @@ class StateManager:
                     self._stats_manager = get_stats_manager()
                     # Load saved stats into the singleton instance
                     if isinstance(data['character_stats'], dict):
+                        # Restore primary stats
                         for stat_type, stat_dict in data['character_stats'].get('stats', {}).items():
                             if 'base_value' in stat_dict:
                                 try:
                                     self._stats_manager.set_base_stat(stat_type, stat_dict['base_value'])
                                 except Exception as e:
                                     logger.warning(f"Failed to restore stat {stat_type}: {e}")
+                        
+                        # Restore skills
+                        skills_data = data['character_stats'].get('skills', {})
+                        if skills_data:
+                            for skill_key, skill_dict in skills_data.items():
+                                try:
+                                    # Normalize skill key
+                                    normalized_key = skill_key.lower().replace(" ", "_")
+                                    
+                                    # Get existing skill object
+                                    if normalized_key in self._stats_manager.skills:
+                                        skill_stat = self._stats_manager.skills[normalized_key]
+                                        # Update fields
+                                        skill_stat.base_value = float(skill_dict.get('base_value', 0.0))
+                                        skill_stat.exp = float(skill_dict.get('exp', 0.0))
+                                        skill_stat.exp_to_next = float(skill_dict.get('exp_to_next', 100.0))
+                                    else:
+                                        # If skill doesn't exist in manager, try to create it
+                                        from core.stats.stats_base import Stat
+                                        self._stats_manager.skills[normalized_key] = Stat.from_dict(skill_dict)
+                                        
+                                except Exception as e:
+                                    logger.warning(f"Failed to restore skill {skill_key}: {e}")
+                            logger.info(f"Restored {len(skills_data)} skills from save")
+
                     # Make sure to recalculate derived stats and emit signal
                     self._stats_manager._recalculate_derived_stats()
                     logger.info("Recalculated derived stats and emitted stats_changed signal")
