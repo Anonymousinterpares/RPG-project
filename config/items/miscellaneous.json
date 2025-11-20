@@ -1,5 +1,22 @@
 [
   {
+    "id": "template_book_lore",
+    "name": "Ancient Tome",
+    "description": "A dusty book filled with historical accounts and legends.",
+    "item_type": "document",
+    "rarity": "uncommon",
+    "weight": 1.0,
+    "value": 150,
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": false,
+    "tags": [
+      "book",
+      "lore",
+      "knowledge"
+    ]
+  },
+  {
     "id": "template_key_brass",
     "name": "Brass Key",
     "description": "A simple brass key. It must unlock something.",
@@ -15,42 +32,6 @@
       "key",
       "metal",
       "utility"
-    ]
-  },
-  {
-    "id": "template_gold_coin",
-    "name": "Gold Coin",
-    "description": "Standard currency. Worth 100 silver coins.",
-    "item_type": "treasure",
-    "rarity": "common",
-    "weight": 0.01,
-    "value": 10000,
-    "is_equippable": false,
-    "is_consumable": false,
-    "is_stackable": true,
-    "stack_limit": 999,
-    "tags": [
-      "currency",
-      "metal",
-      "gold"
-    ]
-  },
-  {
-    "id": "template_silver_coin",
-    "name": "Silver Coin",
-    "description": "Standard currency. Worth 100 copper coins.",
-    "item_type": "treasure",
-    "rarity": "common",
-    "weight": 0.01,
-    "value": 100,
-    "is_equippable": false,
-    "is_consumable": false,
-    "is_stackable": true,
-    "stack_limit": 999,
-    "tags": [
-      "currency",
-      "metal",
-      "silver"
     ]
   },
   {
@@ -72,6 +53,69 @@
     ]
   },
   {
+    "id": "template_gold_coin",
+    "name": "Gold Coin",
+    "description": "Standard currency. Worth 100 silver coins.",
+    "item_type": "treasure",
+    "rarity": "common",
+    "weight": 0.01,
+    "value": 10000,
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": true,
+    "stack_limit": 999,
+    "tags": [
+      "currency",
+      "metal",
+      "gold"
+    ]
+  },
+  {
+    "id": "template_backpack",
+    "name": "Leather Backpack",
+    "description": "A sturdy backpack made from tanned leather. Increases carrying capacity.",
+    "item_type": "container",
+    "rarity": "common",
+    "weight": 2.0,
+    "value": 200,
+    "is_equippable": true,
+    "equip_slots": [
+      "back"
+    ],
+    "is_consumable": false,
+    "is_stackable": false,
+    "stats": [
+      {
+        "name": "CARRY_CAPACITY",
+        "value": 20,
+        "display_name": "Extra Carrying Capacity"
+      }
+    ],
+    "tags": [
+      "container",
+      "leather",
+      "utility"
+    ]
+  },
+  {
+    "id": "template_rope",
+    "name": "Rope (50ft)",
+    "description": "A coil of sturdy hemp rope. Useful for climbing and many other tasks.",
+    "item_type": "tool",
+    "rarity": "common",
+    "weight": 5.0,
+    "value": 10,
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": true,
+    "stack_limit": 5,
+    "tags": [
+      "tool",
+      "climbing",
+      "utility"
+    ]
+  },
+  {
     "id": "template_gemstone_ruby",
     "name": "Ruby",
     "description": "A polished red gemstone that glitters in the light.",
@@ -90,20 +134,21 @@
     ]
   },
   {
-    "id": "template_book_lore",
-    "name": "Ancient Tome",
-    "description": "A dusty book filled with historical accounts and legends.",
-    "item_type": "document",
-    "rarity": "uncommon",
-    "weight": 1.0,
-    "value": 150,
+    "id": "template_silver_coin",
+    "name": "Silver Coin",
+    "description": "Standard currency. Worth 100 copper coins.",
+    "item_type": "treasure",
+    "rarity": "common",
+    "weight": 0.01,
+    "value": 100,
     "is_equippable": false,
     "is_consumable": false,
-    "is_stackable": false,
+    "is_stackable": true,
+    "stack_limit": 999,
     "tags": [
-      "book",
-      "lore",
-      "knowledge"
+      "currency",
+      "metal",
+      "silver"
     ]
   },
   {
@@ -133,51 +178,6 @@
       "light",
       "fire",
       "tool"
-    ]
-  },
-  {
-    "id": "template_rope",
-    "name": "Rope (50ft)",
-    "description": "A coil of sturdy hemp rope. Useful for climbing and many other tasks.",
-    "item_type": "tool",
-    "rarity": "common",
-    "weight": 5.0,
-    "value": 10,
-    "is_equippable": false,
-    "is_consumable": false,
-    "is_stackable": true,
-    "stack_limit": 5,
-    "tags": [
-      "tool",
-      "climbing",
-      "utility"
-    ]
-  },
-  {
-    "id": "template_backpack",
-    "name": "Leather Backpack",
-    "description": "A sturdy backpack made from tanned leather. Increases carrying capacity.",
-    "item_type": "container",
-    "rarity": "common",
-    "weight": 2.0,
-    "value": 200,
-    "is_equippable": true,
-    "equip_slots": [
-      "back"
-    ],
-    "is_consumable": false,
-    "is_stackable": false,
-    "stats": [
-      {
-        "name": "CARRY_CAPACITY",
-        "value": 20,
-        "display_name": "Extra Carrying Capacity"
-      }
-    ],
-    "tags": [
-      "container",
-      "leather",
-      "utility"
     ]
   }
 ]

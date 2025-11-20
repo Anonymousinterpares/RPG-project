@@ -175,12 +175,23 @@
       "description": "You've recently joined the nomadic Ashen Covenant, embracing their philosophy of impermanence. You seek to learn their unique spiritual practices, including the mysterious art of Ash Walking.",
       "starting_location_id": "ashen_camp",
       "starting_items": [
+        "alchemical_antidote",
         "ash-treated_clothing",
+        "bread",
         "covenant_pendant",
+        "ember_renewal_tonic",
+        "environmental_adaptation_tonic",
         "fire_striker",
+        "lunch_bundle",
+        "mana_renewal_tonic",
+        "minor_healing_potion",
+        "preserved_provisions",
+        "rations_pack",
         "ritual_dagger",
         "small_pouch_of_ancestral_ash",
+        "stamina_renewal_tonic",
         "test_apple",
+        "water_flask",
         "wooden_shield"
       ],
       "initial_quests": [

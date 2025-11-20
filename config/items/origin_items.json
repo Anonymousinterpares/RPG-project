@@ -36,6 +36,34 @@
     "dice_roll_effects": []
   },
   {
+    "description": "A simple potion that restores a small amount of health. Useful for treating minor wounds and ailments.",
+    "dice_roll_effects": [],
+    "durability": 1,
+    "is_consumable": true,
+    "is_equippable": false,
+    "is_quest_item": false,
+    "is_stackable": true,
+    "item_type": "consumable",
+    "name": "Alchemical Antidote",
+    "rarity": "common",
+    "stats": [
+      {
+        "name": "health",
+        "value": 15,
+        "display_name": "Health Restored"
+      }
+    ],
+    "tags": [
+      "potion",
+      "healing",
+      "consumable"
+    ],
+    "value": 20,
+    "weight": 0.2,
+    "stack_limit": 1,
+    "id": "alchemical_antidote"
+  },
+  {
     "id": "ancestral_ash_container",
     "name": "Ancestral Ash Container",
     "description": "A specially crafted container made from obsidian and silver, designed to safely hold and preserve sacred ancestral ashes.",
@@ -188,7 +216,14 @@
       "tool",
       "writing",
       "notes"
-    ]
+    ],
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": false,
+    "is_quest_item": false,
+    "durability": 0,
+    "stats": [],
+    "dice_roll_effects": []
   },
   {
     "id": "bottled_lightning",
@@ -268,7 +303,13 @@
       "shifting_library",
       "research",
       "cataloging"
-    ]
+    ],
+    "is_equippable": false,
+    "is_consumable": false,
+    "is_stackable": false,
+    "is_quest_item": false,
+    "durability": 0,
+    "dice_roll_effects": []
   },
   {
     "id": "clan_trade_contract",
@@ -1327,6 +1368,34 @@
     ]
   },
   {
+    "description": "A mystical tonic that quickly restores mana reserves.",
+    "dice_roll_effects": [],
+    "durability": 0,
+    "is_consumable": true,
+    "is_equippable": false,
+    "is_quest_item": false,
+    "is_stackable": true,
+    "item_type": "consumable",
+    "name": "Mana Renewal Tonic",
+    "rarity": "common",
+    "stats": [
+      {
+        "name": "mana",
+        "value": 25,
+        "display_name": "Mana Restored"
+      }
+    ],
+    "tags": [
+      "potion",
+      "mana",
+      "regeneration"
+    ],
+    "value": 25,
+    "weight": 0.1,
+    "stack_limit": 1,
+    "id": "mana_renewal_tonic"
+  },
+  {
     "id": "master_crafting_tools",
     "name": "Master Crafting Tools",
     "description": "A comprehensive set of high-quality tools for various crafts, kept in a sturdy leather roll.",
@@ -1380,6 +1449,35 @@
       "trade_good",
       "crafting"
     ]
+  },
+  {
+    "description": "A small vial filled with a glowing red liquid. Drinking it restores a small amount of health.",
+    "dice_roll_effects": [],
+    "durability": 0,
+    "is_consumable": true,
+    "is_equippable": false,
+    "is_quest_item": false,
+    "is_stackable": true,
+    "item_type": "consumable",
+    "name": "Minor Healing Potion",
+    "rarity": "common",
+    "stats": [
+      {
+        "name": "health",
+        "value": 10,
+        "display_name": "Health Restored"
+      }
+    ],
+    "tags": [
+      "potion",
+      "healing",
+      "consumable"
+    ],
+    "value": 20,
+    "weight": 0.1,
+    "equip_slots": [],
+    "stack_limit": 1,
+    "id": "minor_healing_potion"
   },
   {
     "id": "multi-planar_currency",
@@ -2231,6 +2329,34 @@
       "spores",
       "collection"
     ]
+  },
+  {
+    "description": "A revitalizing tonic that rapidly replenishes stamina reserves.",
+    "dice_roll_effects": [],
+    "durability": 0,
+    "is_consumable": true,
+    "is_equippable": false,
+    "is_quest_item": false,
+    "is_stackable": true,
+    "item_type": "consumable",
+    "name": "Stamina Renewal Tonic",
+    "rarity": "common",
+    "stats": [
+      {
+        "name": "stamina",
+        "value": 25,
+        "display_name": "Stamina Restored"
+      }
+    ],
+    "tags": [
+      "potion",
+      "stamina",
+      "regeneration"
+    ],
+    "value": 25,
+    "weight": 0.1,
+    "stack_limit": 1,
+    "id": "stamina_renewal_tonic"
   },
   {
     "id": "standard_issue_weapon",

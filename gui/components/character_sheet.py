@@ -114,7 +114,7 @@ class CollapsibleSection(QWidget):
             self.content_area.setMaximumHeight(16777215) # QWIDGETSIZE_MAX
 
 class StatLabel(QLabel):
-    """A label for displaying a stat that shows details on right-click."""
+    """A label for displaying a stat that shows details on right-click and hover."""
     
     def __init__(self, text: str, stat_name: str, parent=None):
         super().__init__(text, parent)
@@ -161,7 +161,7 @@ class StatLabel(QLabel):
         except Exception as e:
             return []
 
-    def show_tooltip(self, position: QPoint) -> None:
+    def _build_tooltip_html(self) -> str:
         modifiers = self._fetch_modifiers()
         display_name = self.stat_name_key
         if hasattr(self, 'display_name_override'):
@@ -205,12 +205,12 @@ class StatLabel(QLabel):
                 dur_text = f" ({mod_duration} turns)" if (mod_duration is not None) else ""
                 tooltip_text += f"<li>{mod_source}: {val_text}{dur_text}</li>"
             tooltip_text += "</ul>"
-        else:
-            tooltip_text += f"<br><i style='color: {colors['text_disabled']};'>No active modifiers.</i>"
         
         tooltip_text += "</div>"
+        return tooltip_text
 
-        QToolTip.showText(position, tooltip_text)
+    def show_tooltip(self, position: QPoint) -> None:
+        QToolTip.showText(position, self._build_tooltip_html())
 
     def show_context_menu(self, position: QPoint) -> None:
         display_name = self.stat_name_key
@@ -234,6 +234,9 @@ class StatLabel(QLabel):
             self.base_value = stat_data['base_value']
         if 'value' in stat_data:
             self.current_value = stat_data['value']
+        
+        # Update tooltip
+        self.setToolTip(self._build_tooltip_html())
 
 class CharacterSheetWidget(QScrollArea):
     """Widget for displaying character information."""
@@ -569,6 +572,7 @@ class CharacterSheetWidget(QScrollArea):
         
         skills_section.setContentLayout(self.skills_layout)
         self.skill_labels = {}
+        self.skill_name_labels = {}
         self.main_layout.addWidget(skills_section)
 
     def _update_skills(self, skills_data: Dict[str, Any]):
@@ -578,9 +582,6 @@ class CharacterSheetWidget(QScrollArea):
         sorted_skills = sorted(skills_data.items(), key=lambda x: x[1].get('name', x[0]))
         
         # Rebuild layout if number of skills changed (simplest approach to handle init)
-        # Note: In CollapsibleSection, the widget size will adjust when we add widgets if expanded.
-        # If collapsed, sizeHint update happens next expand.
-        
         if len(sorted_skills) != len(self.skill_labels):
             # Clear existing
             for i in reversed(range(self.skills_layout.count())): 
@@ -588,12 +589,15 @@ class CharacterSheetWidget(QScrollArea):
                 if widget:
                     widget.setParent(None)
             self.skill_labels = {}
+            self.skill_name_labels = {}
             
             row = 0
             col = 0
             for skill_key, skill_data in sorted_skills:
                 name = skill_data.get('name', skill_key)
-                label = QLabel(f"{name}:")
+                
+                # Use StatLabel for the name as well to support tooltips
+                label = StatLabel(f"{name}:", skill_key)
                 label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 label.setStyleSheet(f"color: {colors['text_primary']}; font-weight: 600; padding-right: 5px; font-size: 13px;")
                 
@@ -602,6 +606,8 @@ class CharacterSheetWidget(QScrollArea):
                 value_label.setStyleSheet(f"color: {colors['text_bright']}; min-width: 50px; padding-left: 5px; font-size: 13px;")
                 
                 self.skill_labels[skill_key] = value_label
+                self.skill_name_labels[skill_key] = label
+                
                 self.skills_layout.addWidget(label, row, col * 2)
                 self.skills_layout.addWidget(value_label, row, col * 2 + 1)
                 
@@ -619,6 +625,10 @@ class CharacterSheetWidget(QScrollArea):
                     if self.skill_labels[skill_key].text() != new_text:
                         self.skill_labels[skill_key].setText(new_text)
                     self.skill_labels[skill_key].update_stat_data(skill_data)
+                    
+                    # Also update the name label to ensure it gets the description/tooltip
+                    if skill_key in self.skill_name_labels:
+                        self.skill_name_labels[skill_key].update_stat_data(skill_data)
                 except Exception: pass
 
     def _create_equipment_section(self):
