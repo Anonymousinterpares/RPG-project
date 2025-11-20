@@ -269,7 +269,8 @@ class GameEngine(QObject):
     def start_new_game(self, player_name: str, race: str = "Human", 
                         path: str = "Wanderer", background: str = "Commoner",
                         sex: str = "Male", character_image: Optional[str] = None,
-                        stats: Optional[Dict[str, int]] = None, 
+                        stats: Optional[Dict[str, int]] = None,
+                        skills: Optional[Dict[str, int]] = None,
                         origin_id: Optional[str] = None) -> GameState:
         """
         Start a new game.
@@ -284,6 +285,9 @@ class GameEngine(QObject):
             background: The background of the player character.
             sex: The sex/gender of the player character.
             character_image: Path to character image.
+            stats: Optional dictionary of starting stats.
+            skills: Optional dictionary of starting skill ranks.
+            origin_id: The ID of the player's chosen origin.
         
         Returns:
             The new game state.
@@ -349,6 +353,7 @@ class GameEngine(QObject):
             sex=sex,
             character_image=character_image,
             stats=stats,
+            skills=skills, # Pass skills
             origin_id=origin_id # Pass origin_id
         )
         if background: # background from params is the origin description

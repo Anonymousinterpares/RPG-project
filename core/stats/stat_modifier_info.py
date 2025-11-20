@@ -26,6 +26,7 @@ class StatModifierInfo:
         """Initialize the stat modifier info."""
         self.race_name = ""
         self.class_name = ""
+        self.origin_name = ""
         self.race_modifiers = {}
         self.class_modifiers = {}
         self.minimum_requirements = {}
@@ -38,18 +39,23 @@ class StatModifierInfo:
         self.race_description = ""
         self.class_description = ""
         self.archetype_presets = {}
+        self.class_skills = []
+        self.skill_points_per_level = 4
+        self.origin_skills = []
         
-    def load_modifiers(self, race_name: str, class_name: str) -> None:
+    def load_modifiers(self, race_name: str, class_name: str, origin_name: Optional[str] = None) -> None:
         """
-        Load racial and class modifiers from config files.
+        Load racial, class, and origin modifiers from config files.
         
         Args:
             race_name: The name of the selected race
             class_name: The name of the selected class
+            origin_name: The name of the selected origin (background)
         """
         # Reset and store new names
         self.race_name = race_name
         self.class_name = class_name
+        self.origin_name = origin_name
         self.race_modifiers = {}
         self.class_modifiers = {}
         self.minimum_requirements = {}
@@ -57,16 +63,18 @@ class StatModifierInfo:
         self.race_description = ""
         self.class_description = ""
         self.archetype_presets = {}
+        self.class_skills = []
+        self.skill_points_per_level = 4
+        self.origin_skills = []
         
         # Find the config directory
         project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
         race_config_path = os.path.join(project_root, "config", "character", "races.json")
         class_config_path = os.path.join(project_root, "config", "character", "classes.json")
+        origin_config_path = os.path.join(project_root, "config", "character", "backgrounds.json")
         
         # Debug log paths
-        logger.debug(f"Loading modifiers for race: {race_name}, class: {class_name}")
-        logger.debug(f"Race config path: {race_config_path}")
-        logger.debug(f"Class config path: {class_config_path}")
+        logger.debug(f"Loading modifiers for race: {race_name}, class: {class_name}, origin: {origin_name}")
         
         # Load race data
         if os.path.exists(race_config_path):
@@ -74,28 +82,17 @@ class StatModifierInfo:
                 with open(race_config_path, 'r', encoding='utf-8') as f:
                     race_data = json.load(f)
                 
-                # Debug log available races
-                available_races = list(race_data.get("races", {}).keys())
-                logger.debug(f"Available races in config: {available_races}")
-                
                 if race_name in race_data.get("races", {}):
                     race_info = race_data["races"][race_name]
                     self.race_modifiers = race_info.get("stat_modifiers", {})
                     self.race_description = race_info.get("description", "")
-                    
-                    # Debug log loaded modifiers
-                    logger.debug(f"Loaded race modifiers for {race_name}: {self.race_modifiers}")
-                else:
-                    logger.warning(f"Race '{race_name}' not found in config. Available races: {available_races}")
-                    
+                
                 # Load display colors
                 if "display_colors" in race_data:
                     self.race_color_bonus = race_data["display_colors"].get("racial_bonus", self.race_color_bonus)
                     self.race_color_penalty = race_data["display_colors"].get("racial_penalty", self.race_color_penalty)
             except Exception as e:
                 logger.error(f"Error loading race data: {e}")
-                self.race_modifiers = {}
-                self.race_description = ""
         else:
             logger.error(f"Race config file not found: {race_config_path}")
         
@@ -105,10 +102,6 @@ class StatModifierInfo:
                 with open(class_config_path, 'r', encoding='utf-8') as f:
                     class_data = json.load(f)
                 
-                # Debug log available classes
-                available_classes = list(class_data.get("classes", {}).keys())
-                logger.debug(f"Available classes in config: {available_classes}")
-                
                 if class_name in class_data.get("classes", {}):
                     class_info = class_data["classes"][class_name]
                     self.class_modifiers = class_info.get("stat_modifiers", {})
@@ -116,13 +109,8 @@ class StatModifierInfo:
                     self.recommended_stats = class_info.get("recommended_stats", {})
                     self.class_description = class_info.get("description", "")
                     self.archetype_presets = class_info.get("archetypes", {})
-                    
-                    # Debug log loaded data
-                    logger.debug(f"Loaded class modifiers for {class_name}: {self.class_modifiers}")
-                    logger.debug(f"Loaded minimum requirements: {self.minimum_requirements}")
-                    logger.debug(f"Loaded recommended stats: {self.recommended_stats}")
-                else:
-                    logger.warning(f"Class '{class_name}' not found in config. Available classes: {available_classes}")
+                    self.class_skills = class_info.get("class_skills", [])
+                    self.skill_points_per_level = class_info.get("skill_points_per_level", 4)
                     
                 # Load display colors
                 if "display_colors" in class_data:
@@ -131,13 +119,22 @@ class StatModifierInfo:
                     self.below_minimum_color = class_data["display_colors"].get("below_minimum", self.below_minimum_color)
             except Exception as e:
                 logger.error(f"Error loading class data: {e}")
-                self.class_modifiers = {}
-                self.minimum_requirements = {}
-                self.recommended_stats = {}
-                self.class_description = ""
-                self.archetype_presets = {}
         else:
             logger.error(f"Class config file not found: {class_config_path}")
+            
+        # Load origin (background) data
+        if origin_name and os.path.exists(origin_config_path):
+            try:
+                with open(origin_config_path, 'r', encoding='utf-8') as f:
+                    origin_data = json.load(f)
+                
+                if origin_name in origin_data.get("backgrounds", {}):
+                    origin_info = origin_data["backgrounds"][origin_name]
+                    self.origin_skills = origin_info.get("starting_skills", [])
+                    # Origin might also have stat modifiers, but sticking to plan focus on skills for now
+                    # If needed: self.race_modifiers.update(origin_info.get("stat_modifiers", {})) # Or separate dict
+            except Exception as e:
+                logger.error(f"Error loading origin data: {e}")
     
     def get_combined_modifier(self, stat_type: str) -> int:
         """

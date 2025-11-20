@@ -216,12 +216,16 @@ class SkillCheckResult:
         disadvantage: bool = False,
         situational_modifier: int = 0,
         skill_name: Optional[str] = None,
-        skill_exists: bool = True
+        skill_exists: bool = True,
+        xp_gained: float = 0.0,
+        leveled_up: bool = False
     ):
         """Initialize the skill check result."""
         self.stat_type = stat_type
         self.skill_name = skill_name  # Optional name of the skill being used
         self.skill_exists = skill_exists  # Whether the skill exists in the system
+        self.xp_gained = xp_gained # Experience gained from this check
+        self.leveled_up = leveled_up # Whether the skill leveled up
         
         # Handle None stat_value
         if stat_value is None:
@@ -269,6 +273,9 @@ class SkillCheckResult:
 
         # Use skill name if available, otherwise fall back to stat type
         check_name = self.skill_name if self.skill_name else str(self.stat_type)
+        
+        xp_str = f" [+ {self.xp_gained:.1f} XP]" if self.xp_gained > 0 else ""
+        lvl_str = " [LEVEL UP!]" if self.leveled_up else ""
             
         return (
             f"{check_name} Check ({self.difficulty_desc}, DC {self.difficulty}){adv_str}: " +
@@ -279,7 +286,8 @@ class SkillCheckResult:
             (f" (situational)" if self.situational_modifier != 0 else "") +
             f" = {self.total} " +
             f"→ {self.outcome_desc}" +
-            (f" (Crit!)" if self.critical else "")
+            (f" (Crit!)" if self.critical else "") +
+            xp_str + lvl_str
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -298,7 +306,9 @@ class SkillCheckResult:
             "disadvantage": self.disadvantage,
             "critical": self.critical,
             "margin": self.margin,
-            "outcome_desc": self.outcome_desc
+            "outcome_desc": self.outcome_desc,
+            "xp_gained": self.xp_gained,
+            "leveled_up": self.leveled_up
         }
         
         # Add skill-related fields if available

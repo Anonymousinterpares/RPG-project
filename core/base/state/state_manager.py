@@ -125,6 +125,7 @@ class StateManager:
                        path: str = "Wanderer", background: str = "Commoner",
                        sex: str = "Male", character_image: Optional[str] = None,
                        stats: Optional[Dict[str, int]] = None,
+                       skills: Optional[Dict[str, int]] = None,
                        origin_id: Optional[str] = None) -> GameState: # Added origin_id parameter
         """
         Create a new game state.
@@ -137,6 +138,7 @@ class StateManager:
             sex: The sex/gender of the player character.
             character_image: Path to the character's portrait image.
             stats: Optional dictionary of starting stats.
+            skills: Optional dictionary of starting skill ranks.
             origin_id: The ID of the player's chosen origin.
         
         Returns:
@@ -209,6 +211,21 @@ class StateManager:
                 self._stats_manager._recalculate_derived_stats()
                 logger.info("Recalculated derived stats after setting custom stats")
             
+            # Apply custom skills if provided
+            if skills:
+                for skill_name, rank in skills.items():
+                    try:
+                        # Normalize skill key (lowercase, spaces to underscores)
+                        skill_key = skill_name.lower().replace(" ", "_")
+                        
+                        if skill_key in self._stats_manager.skills:
+                            self._stats_manager.skills[skill_key].base_value = int(rank)
+                        else:
+                            logger.warning(f"Skill {skill_name} (key: {skill_key}) not found in StatsManager")
+                    except Exception as e:
+                        logger.warning(f"Failed to set custom skill {skill_name}: {e}")
+                logger.info(f"Applied {len(skills)} custom skill ranks")
+
             # Apply race modifiers from config file
             try:
                 # Load race configuration 

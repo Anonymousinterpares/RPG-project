@@ -16,6 +16,7 @@ from PySide6.QtGui import QPixmap, QIcon
 
 from gui.dialogs.new_game_dialog import NewGameDialog
 from gui.components.stat_allocation_widget import StatAllocationWidget
+from gui.components.skill_allocation_widget import SkillAllocationWidget
 from core.stats.stats_manager import StatsManager
 from core.utils.logging_config import get_logger
 from core.agents.narrator import get_narrator_agent 
@@ -43,8 +44,8 @@ class CharacterCreationDialog(NewGameDialog):
 
         # Set window properties from NewGameDialog if desired
         self.setWindowTitle("Create New Character")
-        self.setMinimumWidth(800)
-        self.setMinimumHeight(550)
+        self.setMinimumWidth(1000) # Increased width for split view
+        self.setMinimumHeight(650)
         
         # Load data dynamically
         self.available_races = self._load_races()
@@ -79,7 +80,7 @@ class CharacterCreationDialog(NewGameDialog):
         self._connect_signals()
 
         # Update UI based on initial race/class FIFTH (important for stat allocation)
-        self._update_race_class() # This also calls _show_stat_requirements_info
+        self._update_allocators() # Replaced _update_race_class with consolidated update
 
         self._on_origin_selected(self.origin_combo.currentIndex())
 
@@ -235,12 +236,15 @@ class CharacterCreationDialog(NewGameDialog):
         basic_info_main_layout.addLayout(left_basic_layout, 1)
         basic_info_main_layout.addLayout(right_basic_layout, 2)
 
-        # --- Tab 3: Stats (Renamed from Tab 2) ---
-        self.stats_tab = QWidget() # Renamed variable for clarity, though index matters more
-        stats_layout = QVBoxLayout(self.stats_tab)
-        stats_layout.setSpacing(10)
+        # --- Tab 2: Stats & Skills (Redesigned) ---
+        self.stats_tab = QWidget() 
+        stats_tab_layout = QHBoxLayout(self.stats_tab) # Use HBox for side-by-side
+        stats_tab_layout.setSpacing(15)
 
-        # Race/Class selectors
+        # LEFT COLUMN: Race/Class & Attributes
+        left_stats_layout = QVBoxLayout()
+        
+        # Race/Class selectors (Moved here)
         race_class_selection_layout = QVBoxLayout()
         race_selector_layout = QHBoxLayout()
         race_selector_layout.setContentsMargins(0, 5, 0, 0); race_selector_layout.setSpacing(8)
@@ -271,7 +275,7 @@ class CharacterCreationDialog(NewGameDialog):
         self.class_next_button.setIconSize(QSize(16, 16)); self.class_next_button.setFixedSize(24, 24)
         class_selector_layout.addWidget(self.class_prev_button); class_selector_layout.addWidget(self.class_label, 1); class_selector_layout.addWidget(self.class_next_button)
         race_class_selection_layout.addLayout(class_selector_layout)
-        stats_layout.addLayout(race_class_selection_layout)
+        left_stats_layout.addLayout(race_class_selection_layout)
 
         # Stat Allocation Widget
         self.stat_allocation = StatAllocationWidget( # Create stat widget
@@ -279,13 +283,27 @@ class CharacterCreationDialog(NewGameDialog):
             self.race_combo.currentText(),
             self.path_combo.currentText()
         )
-        stats_layout.addWidget(self.stat_allocation)
+        left_stats_layout.addWidget(self.stat_allocation)
 
         # Info Label for Stats Tab
         self.stat_info_label = QLabel() # Create stat info label
         self.stat_info_label.setWordWrap(True)
-        stats_layout.addWidget(self.stat_info_label)
-        stats_layout.addStretch(1)
+        left_stats_layout.addWidget(self.stat_info_label)
+        left_stats_layout.addStretch(1)
+
+        # RIGHT COLUMN: Skills
+        right_stats_layout = QVBoxLayout()
+        
+        # Skill Allocation Widget
+        # Reuse the modifier info from stat allocation to share loaded data
+        self.skill_allocation = SkillAllocationWidget(
+            self.stats_manager,
+            self.stat_allocation.modifier_info 
+        )
+        right_stats_layout.addWidget(self.skill_allocation)
+        
+        stats_tab_layout.addLayout(left_stats_layout, 3) # 60% width
+        stats_tab_layout.addLayout(right_stats_layout, 2) # 40% width
 
         # --- Tab 4: Background (Simplified) --- (Renamed from Tab 3)
         self.background_tab = QWidget()
@@ -296,7 +314,7 @@ class CharacterCreationDialog(NewGameDialog):
 
         # Add tabs to the tab widget
         self.tab_widget.addTab(self.basic_info_tab, "1. Basic Info & Origin")
-        self.tab_widget.addTab(self.stats_tab, "3. Stats") 
+        self.tab_widget.addTab(self.stats_tab, "2. Stats & Skills") 
         # Connect tab changed signal
         self.tab_widget.currentChanged.connect(self._tab_changed)
 
@@ -389,6 +407,8 @@ class CharacterCreationDialog(NewGameDialog):
         # Update child widgets
         if hasattr(self, 'stat_allocation'):
             self.stat_allocation._update_theme(self.palette)
+        if hasattr(self, 'skill_allocation'):
+            self.skill_allocation._update_theme(self.palette)
 
     def _populate_combo(self, combo: QComboBox, items: List[str], item_type: str):
         """Helper to populate QComboBox and handle empty lists."""
@@ -588,13 +608,13 @@ class CharacterCreationDialog(NewGameDialog):
         
         # Race Combo: Validate form, update stats tab, update origin list, update icons
         self.race_combo.currentIndexChanged.connect(self._validate_form)
-        self.race_combo.currentTextChanged.connect(self._update_race_class)
+        self.race_combo.currentTextChanged.connect(self._update_allocators) # Update both allocators
         self.race_combo.currentTextChanged.connect(self._populate_origin_combo)
         self.race_combo.currentIndexChanged.connect(self._update_icons_on_selection_change)
 
         # Path (Class) Combo: Validate form, update stats tab, update origin list, update icons
         self.path_combo.currentIndexChanged.connect(self._validate_form)
-        self.path_combo.currentTextChanged.connect(self._update_race_class)
+        self.path_combo.currentTextChanged.connect(self._update_allocators) # Update both allocators
         self.path_combo.currentTextChanged.connect(self._populate_origin_combo)
         self.path_combo.currentIndexChanged.connect(self._update_icons_on_selection_change)
 
@@ -618,6 +638,7 @@ class CharacterCreationDialog(NewGameDialog):
         self.class_prev_button.clicked.connect(self._previous_class)
         self.class_next_button.clicked.connect(self._next_class)
         self.stat_allocation.stats_changed.connect(self._stats_changed)
+        self.skill_allocation.skills_changed.connect(self._stats_changed) # Handle skill changes too
 
         # Backstory Seed / AI Buttons
         self.improve_background_button.clicked.connect(self._improve_background)
@@ -648,9 +669,588 @@ class CharacterCreationDialog(NewGameDialog):
         self.player_name_edit.textChanged.connect(self._update_ai_button_state)
         self.stat_allocation.stats_changed.connect(self._update_ai_button_state)
         self.stat_allocation.allocation_complete.connect(self._update_ai_button_state)
+        self.skill_allocation.allocation_complete.connect(self._update_ai_button_state)
 
         # Initial AI button state update
         self._update_ai_button_state()
+
+    @Slot(int)
+    def _on_origin_selected(self, index: int):
+        """Update details display when an origin is selected."""
+        self.selected_origin_data = None # Reset selected data
+        origin_id = self.origin_combo.itemData(index)
+
+        # Track the text we automatically inserted last time
+        if not hasattr(self, '_last_auto_description'):
+            self._last_auto_description = ""
+
+        if origin_id is None: # Handle placeholder selection
+            self.origin_desc_label.setText("Select an Origin to see details.")
+            self.origin_skills_label.setText("-")
+            self.origin_traits_label.setText("-")
+            
+            # Only clear if user hasn't typed something custom
+            current_text = self.description_edit.toPlainText().strip()
+            if not current_text or current_text == self._last_auto_description:
+                self.description_edit.setPlainText("")
+                self._last_auto_description = ""
+                
+            self.description_edit.setPlaceholderText("Select an Origin to load starting text...")
+            self._update_allocators() # Update allocators (reset origin influence)
+            self._validate_form()
+            return
+
+        # Find the full origin data using the ID
+        origin = next((o for o in self.available_origins if o.get('id') == origin_id), None)
+
+        if origin:
+            self.selected_origin_data = origin # Store the full data
+            self.origin_desc_label.setText(origin.get('description', 'No description available.'))
+
+            # Format skills
+            skills = origin.get('skill_proficiencies', [])
+            self.origin_skills_label.setText(", ".join(skills) if skills else "None")
+
+            # Format traits
+            traits = origin.get('origin_traits', [])
+            traits_text = ""
+            if traits:
+                trait_lines = [f"<b>{t.get('name', 'Unnamed Trait')}:</b> {t.get('description', 'No description.')}" for t in traits]
+                traits_text = "<br>".join(trait_lines) # Use HTML for formatting
+            else:
+                traits_text = "None"
+            self.origin_traits_label.setText(traits_text)
+
+            # Update backstory seed
+            new_intro_text = origin.get('introduction_text', '')
+            current_text = self.description_edit.toPlainText()
+            
+            # If box is empty OR matches the previous auto-text, update it
+            if not current_text.strip() or current_text == self._last_auto_description:
+                self.description_edit.setPlainText(new_intro_text)
+                self._last_auto_description = new_intro_text
+            # If user changed text, do nothing (preserve their edits)
+
+        else:
+            self.origin_desc_label.setText("Error: Could not load details.")
+            self.origin_skills_label.setText("-")
+            self.origin_traits_label.setText("-")
+            logger.error(f"Could not find origin data for ID: {origin_id}")
+
+        self._update_allocators() # Update allocators with new origin
+        self._validate_form()
+
+    # --- Validation ---
+    def _validate_form(self):
+        """Validate the form and enable/disable the create button."""
+        # This validation now applies mainly to the Create button state
+        has_name = bool(self.player_name_edit.text().strip())
+        race_selected = self.race_combo.isEnabled() and self.race_combo.currentIndex() >= 0
+        class_selected = self.path_combo.isEnabled() and self.path_combo.currentIndex() >= 0
+        origin_selected = self.origin_combo.isEnabled() and self.origin_combo.currentIndex() > 0 # Check for valid origin index
+        
+        # Check allocation status
+        stats_allocated = hasattr(self, 'stat_allocation') and self.stat_allocation.are_points_fully_allocated()
+        skills_allocated = hasattr(self, 'skill_allocation') and self.skill_allocation.allocator and self.skill_allocation.allocator.get_remaining_points() == 0
+
+        can_create = (
+            has_name and
+            race_selected and
+            class_selected and
+            origin_selected and
+            stats_allocated and
+            skills_allocated
+        )
+
+        # Get current tab
+        current_tab_index = self.tab_widget.currentIndex()
+        
+        # Set Create button state if visible
+        if self.create_button.isVisible():
+            self.create_button.setEnabled(can_create)
+            if can_create:
+                self.create_button.setToolTip("Create your character")
+            else:
+                missing = []
+                if not has_name: missing.append("name")
+                if not origin_selected: missing.append("origin")
+                if not stats_allocated: missing.append("stats allocation")
+                if not skills_allocated: missing.append("skills allocation")
+                self.create_button.setToolTip(f"Please complete: {', '.join(missing)}")
+
+        # Enable/disable next button based on basic info validity if on first tab
+        if current_tab_index == 0:
+            basic_valid = has_name and race_selected and class_selected and origin_selected
+            self.next_tab_button.setEnabled(basic_valid)
+            if basic_valid:
+                self.next_tab_button.setToolTip("Proceed to character stats")
+            else:
+                self.next_tab_button.setToolTip("Please complete all required fields before proceeding")
+        else:
+            self.next_tab_button.setEnabled(True) # Always enabled on other tabs (except last)
+
+
+    # --- Icon Display --- (Keep as is)
+    def _show_previous_icon(self):
+        if not self.character_icons: return
+        self.current_icon_index = (self.current_icon_index - 1 + len(self.character_icons)) % len(self.character_icons)
+        self._display_current_icon()
+
+    def _show_next_icon(self):
+        if not self.character_icons: return
+        self.current_icon_index = (self.current_icon_index + 1) % len(self.character_icons)
+        self._display_current_icon()
+
+    def _display_current_icon(self):
+        if not self.character_icons:
+            self.selected_icon_path = None
+            self.icon_label.setText("No Icons Found")
+            self.icon_counter_label.setText("0 / 0")
+            return
+
+        icon_info = self.character_icons[self.current_icon_index]
+        icon_path = icon_info['path']
+        self.icon_counter_label.setText(f"{self.current_icon_index + 1} / {len(self.character_icons)}")
+
+        try:
+            pixmap = QPixmap(icon_path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(self.icon_label.width(), self.icon_label.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.icon_label.setPixmap(pixmap)
+                self.selected_icon_path = icon_path
+            else:
+                self.icon_label.setText("Load Error")
+                self.selected_icon_path = None
+        except Exception as e:
+            logger.error(f"Error loading icon '{icon_path}': {e}")
+            self.icon_label.setText("Load Error")
+            self.selected_icon_path = None
+
+    # --- Get Character Data ---
+    def get_character_data(self) -> Optional[Dict[str, Any]]:
+        """Get the final character data from all tabs."""
+        # Validate basic info first
+        if not self._validate_basic_info():
+             QMessageBox.warning(self, "Incomplete Information", "Please complete the basic character information.")
+             self.tab_widget.setCurrentIndex(0) # Go back to first tab
+             return None
+
+        # Retrieve basic info
+        name = self.player_name_edit.text().strip()
+        race = self.race_combo.currentText()
+        path = self.path_combo.currentText()
+        origin_id = self.origin_combo.currentData() # Get the ID stored in data
+        sex = self.sex_combo.currentText()
+
+        # Basic validation again (should pass if Create button was enabled)
+        if not name or not race or not path or origin_id is None:
+             logger.error("Validation failed in get_character_data despite enabled button.")
+             return None
+
+        # Retrieve backstory seed text
+        backstory_seed = self.description_edit.toPlainText().strip()
+        if not backstory_seed and self.selected_origin_data:
+            backstory_seed = self.selected_origin_data.get('introduction_text', '')
+
+        # Retrieve final stats from allocation widget
+        allocated_stats = self.stat_allocation.get_allocated_stats()
+        if not allocated_stats:
+            logger.error("Could not retrieve allocated stats.")
+            QMessageBox.critical(self, "Stat Error", "Could not retrieve final stats. Please check the Stats tab.")
+            self.tab_widget.setCurrentIndex(1) # Go to stats tab
+            return None
+
+        # Build the final data dictionary
+        data = {
+            'name': name,
+            'race': race,
+            'path': path,
+            'origin_id': origin_id, # Use origin ID
+            'sex': sex,
+            'description': backstory_seed, # The seed text for LLM
+            'use_llm': self.llm_enabled,
+            'character_image': self.selected_icon_path,
+            'stats': allocated_stats, # Include allocated base stats
+            # Add starting items/location based on selected origin
+            'starting_location_id': self.selected_origin_data.get('starting_location_id', '') if self.selected_origin_data else '',
+            'starting_items': self.selected_origin_data.get('starting_items', []) if self.selected_origin_data else [],
+            'initial_quests': self.selected_origin_data.get('initial_quests', []) if self.selected_origin_data else []
+        }
+
+        logger.info(f"Character data collected: { {k:v for k,v in data.items() if k != 'stats'} }") # Log non-stat data
+        logger.debug(f"Character stats: {data.get('stats')}")
+        return data
+
+    def _update_allocators(self, *args):
+        """Update stat and skill allocation widgets when selections change."""
+        race = self.race_combo.currentText()
+        class_name = self.path_combo.currentText()
+        origin_id = self.origin_combo.currentData()
+        # Find origin name (or use ID if name unavailable)
+        origin_name = next((o['name'] for o in self.available_origins if o['id'] == origin_id), None)
+
+        if hasattr(self, 'race_label'): self.race_label.setText(race)
+        if hasattr(self, 'class_label'): self.class_label.setText(class_name)
+
+        # Update Stat Allocation (Modifiers)
+        if hasattr(self, 'stat_allocation'):
+            # Use the updated method that handles Origin correctly
+            self.stat_allocation.update_params(race, class_name, origin_name) 
+            
+        self._show_stat_requirements_info(race, class_name)
+        
+        # Update Skill Allocation
+        if hasattr(self, 'skill_allocation'):
+            # It shares self.stat_allocation.modifier_info, which was just updated above.
+            # Trigger UI rebuild.
+            self.skill_allocation.update_race_class_origin(race, class_name, origin_name)
+
+        self._validate_form() # Re-validate
+
+    def _previous_race(self):
+        current_index = self.race_combo.currentIndex()
+        if current_index > 0:
+            self.race_combo.setCurrentIndex(current_index - 1)
+
+    def _next_race(self):
+        current_index = self.race_combo.currentIndex()
+        if current_index < self.race_combo.count() - 1:
+            self.race_combo.setCurrentIndex(current_index + 1)
+
+    def _previous_class(self):
+        current_index = self.path_combo.currentIndex()
+        if current_index > 0:
+            self.path_combo.setCurrentIndex(current_index - 1)
+
+    def _next_class(self):
+        current_index = self.path_combo.currentIndex()
+        if current_index < self.path_combo.count() - 1:
+            self.path_combo.setCurrentIndex(current_index + 1)
+
+    def _stats_changed(self, stats=None): # stats arg optional as skill signal doesn't send it
+        """Handle stat changes from allocation widget."""
+        # If stats changed (INT), we might need to update skill points pool
+        if hasattr(self, 'skill_allocation'):
+            # Check if INT changed enough to alter modifier
+            # For now, just force update skill allocation if it's the stat widget triggering
+            # But be careful not to reset spent points if modifier didn't change.
+            # The skill allocator re-inits on update_race_class_origin.
+            # We need a lighter update that just adjusts max points?
+            pass 
+            
+        self._validate_form() # Re-validate overall form
+        self._update_ai_button_state()
+
+    def _validate_for_ai_generation(self) -> bool:
+        """Checks if conditions are met for enabling AI generation buttons."""
+        has_name = bool(self.player_name_edit.text().strip())
+        stats_allocated = hasattr(self, 'stat_allocation') and self.stat_allocation.are_points_fully_allocated()
+        # Don't strictly require skills for background gen, but good practice
+        return has_name and stats_allocated
+
+    def _update_ai_button_state(self):
+        """Updates the enabled state and tooltip of AI buttons."""
+        can_generate = self._validate_for_ai_generation()
+        tooltip_text = ""
+
+        if not can_generate:
+            missing = []
+            if not bool(self.player_name_edit.text().strip()):
+                missing.append("Enter a character name")
+            if not (hasattr(self, 'stat_allocation') and self.stat_allocation.are_points_fully_allocated()):
+                remaining = self.stat_allocation.get_remaining_points() if hasattr(self, 'stat_allocation') else 'N/A'
+                missing.append(f"Allocate all stat points ({remaining} remaining)")
+            tooltip_text = "Cannot generate backstory:\n- " + "\n- ".join(missing)
+
+        # Update Improve Button
+        if hasattr(self, 'improve_background_button'):
+            self.improve_background_button.setEnabled(can_generate)
+            self.improve_background_button.setToolTip(tooltip_text if not can_generate else "Improve Backstory Seed via AI")
+
+        # Update Generate Button
+        if hasattr(self, 'generate_background_button'):
+            self.generate_background_button.setEnabled(can_generate)
+            self.generate_background_button.setToolTip(tooltip_text if not can_generate else "Generate Backstory Seed via AI")
+    
+    def _show_stat_requirements_info(self, race: str, class_name: str):
+        """Display info about race/class modifiers and requirements."""
+        if not hasattr(self, 'stat_allocation') or not hasattr(self, 'stat_info_label'):
+            return
+
+        modifier_info = self.stat_allocation.modifier_info
+        if not modifier_info:
+            self.stat_info_label.setText("Loading stat info...")
+            return
+
+        race_mods = modifier_info.race_modifiers
+        class_mods = modifier_info.class_modifiers
+        reqs = modifier_info.minimum_requirements
+        recomm = modifier_info.recommended_stats
+        
+        colors = self.palette['colors']
+
+        info_text = f"<div style='font-weight: bold; font-size: 13px; color: {colors['text_primary']};'>{race} {class_name} Stat Info</div><hr style='border-color: {colors['border_dark']};'>"
+
+        def format_mods(mods_dict, color_pos, color_neg):
+            if not mods_dict: return "None"
+            parts = []
+            for stat, mod in sorted(mods_dict.items()):
+                if mod != 0:
+                    color = color_pos if mod > 0 else color_neg
+                    parts.append(f"<span style='color: {color}'>{stat} {mod:+d}</span>")
+            return ", ".join(parts) if parts else "None"
+
+        info_text += f"<div style='margin-bottom: 8px;'><b>Race Modifiers:</b> {format_mods(race_mods, colors['accent_positive'], colors['accent_negative'])}</div>"
+        info_text += f"<div style='margin-bottom: 8px;'><b>Class Modifiers:</b> {format_mods(class_mods, colors['accent_positive'], colors['accent_negative'])}</div>"
+
+        req_text = ", ".join([f"{stat} {val}" for stat, val in sorted(reqs.items())]) if reqs else "None"
+        info_text += f"<div style='margin-bottom: 8px;'><b>Minimum Requirements:</b> {req_text}</div>"
+
+        recomm_prim = ", ".join(recomm.get('primary', [])) if recomm.get('primary') else "Balanced"
+        info_text += f"<div><b>Recommended Primary:</b> {recomm_prim}</div>"
+
+        self.stat_info_label.setText(info_text)
+        
+    @Slot()
+    def _improve_background(self):
+        if not self._validate_for_ai_generation(): return # Check validation first
+
+        text = self.description_edit.toPlainText().strip()
+        if not text:
+            QMessageBox.warning(self, "No Text", "Please enter some background seed text first.")
+            return
+
+        detailed_context = self._get_detailed_context_for_llm()
+        formatted_context = self._format_context_for_llm_prompt(detailed_context)
+
+        prompt = (
+            f"Improve the following background seed text for the character described below. "
+            f"Make it an engaging character description focusing on personality, motivation, and appearance, "
+            f"fitting the provided context. Do not narrate actions, just describe the character.\n\n"
+            f"BACKGROUND SEED:\n{text}\n\n"
+            f"{formatted_context}"
+        )
+
+        logger.debug(f"Sending improve background prompt:\n{prompt}") # Log the prompt
+
+        # Call LLM
+        ctx = AgentContext(
+            game_state={}, player_state={}, world_state={}, # Minimal state needed
+            player_input=prompt, # Use the constructed prompt
+            conversation_history=[], relevant_memories=[], additional_context={}
+        )
+        # Add error handling for LLM calls
+        try:
+            # Disable buttons during generation
+            self.improve_background_button.setEnabled(False)
+            self.generate_background_button.setEnabled(False)
+            self.repaint() # Force UI update
+
+            response = get_narrator_agent().process(ctx) # Assumes this function exists
+
+            # Re-enable buttons
+            self._update_ai_button_state()
+
+            narrative_content = response.get("narrative") if response else None
+            if narrative_content:
+                self.description_edit.setPlainText(narrative_content.strip())
+                # Update context tracking only AFTER successful generation
+                self._last_generated_params = (
+                    detailed_context.get('race',{}).get('name'),
+                    detailed_context.get('class',{}).get('name'),
+                    detailed_context.get('origin',{}).get('name'),
+                    detailed_context.get('character',{}).get('sex')
+                 )
+            else:
+                 QMessageBox.warning(self, "AI Error", "Could not improve background. No valid response from AI.")
+        except Exception as e:
+            logger.error(f"Error improving background: {e}", exc_info=True)
+            QMessageBox.critical(self, "AI Error", f"An error occurred while improving the background:\n{e}")
+            self._update_ai_button_state() # Ensure buttons are re-enabled on error
+
+    @Slot()
+    def _generate_background(self):
+        if not self._validate_for_ai_generation(): return # Check validation first
+
+        detailed_context = self._get_detailed_context_for_llm()
+        formatted_context = self._format_context_for_llm_prompt(detailed_context)
+
+        prompt = (
+            f"Generate a short, engaging character description backstory seed (personality, motivation, appearance) "
+            f"for the character described below. Do not narrate actions, just describe the character based on the context.\n\n"
+            f"{formatted_context}"
+        )
+
+        logger.debug(f"Sending generate background prompt:\n{prompt}") # Log the prompt
+
+        # Call LLM
+        ctx = AgentContext(
+            game_state={}, player_state={}, world_state={}, # Minimal state needed
+            player_input=prompt, # Use the constructed prompt
+            conversation_history=[], relevant_memories=[], additional_context={}
+        )
+        # Add error handling for LLM calls
+        try:
+            # Disable buttons during generation
+            self.improve_background_button.setEnabled(False)
+            self.generate_background_button.setEnabled(False)
+            self.repaint() # Force UI update
+
+            response = get_narrator_agent().process(ctx) # Assumes this function exists
+
+            # Re-enable buttons
+            self._update_ai_button_state()
+
+            narrative_content = response.get("narrative") if response else None
+            if narrative_content:
+                self.description_edit.setPlainText(narrative_content.strip())
+                 # Update context tracking only AFTER successful generation
+                self._last_generated_params = (
+                    detailed_context.get('race',{}).get('name'),
+                    detailed_context.get('class',{}).get('name'),
+                    detailed_context.get('origin',{}).get('name'),
+                    detailed_context.get('character',{}).get('sex')
+                 )
+            else:
+                 QMessageBox.warning(self, "AI Error", "Could not generate background. No valid response from AI.")
+        except Exception as e:
+            logger.error(f"Error generating background: {e}", exc_info=True)
+            QMessageBox.critical(self, "AI Error", f"An error occurred while generating the background:\n{e}")
+            self._update_ai_button_state() # Ensure buttons are re-enabled on error
+
+    def _check_generated_context(self):
+        """Warn if selections change after background generation."""
+        if self._last_generated_params:
+            current = (
+                self.race_combo.currentText(),
+                self.path_combo.currentText(),
+                self.origin_combo.currentText(), # Use origin name
+                self.sex_combo.currentText()
+            )
+            if current != self._last_generated_params:
+                QMessageBox.warning(
+                    self,
+                    "Background Mismatch",
+                    "The backstory seed was generated for a previous selection. Please regenerate or edit to match."
+                )
+                # Clear the tracking so it doesn't warn repeatedly
+                self._last_generated_params = None
+
+    # --- Tab Navigation Logic ---
+    def _previous_tab(self):
+        current = self.tab_widget.currentIndex()
+        if current > 0:
+            self.tab_widget.setCurrentIndex(current - 1)
+
+    def _next_tab(self):
+        current = self.tab_widget.currentIndex()
+        total = self.tab_widget.count()
+        if current < total - 1:
+            # Validate basic info before leaving first tab
+            if current == 0 and not self._validate_basic_info():
+                return # Stay on first tab if invalid
+            self.tab_widget.setCurrentIndex(current + 1)
+        # Note: Finishing logic is now in _finish_character_creation connected to create_button
+        
+    def _validate_basic_info(self) -> bool:
+        """Validate the basic character information on the first tab."""
+        logger.debug("Validating basic character information")
+        
+        # Check if name is entered
+        name = self.player_name_edit.text().strip()
+        if not name:
+            logger.warning("Character creation validation failed: Missing name")
+            QMessageBox.warning(self, "Missing Name", "Please enter a character name.")
+            return False
+            
+        # Check if race is selected
+        race_selected = self.race_combo.isEnabled() and self.race_combo.currentIndex() >= 0
+        if not race_selected:
+            logger.warning("Character creation validation failed: Missing race")
+            QMessageBox.warning(self, "Missing Race", "Please select a race for your character.")
+            return False
+            
+        # Check if class is selected
+        class_selected = self.path_combo.isEnabled() and self.path_combo.currentIndex() >= 0
+        if not class_selected:
+            logger.warning("Character creation validation failed: Missing class")
+            QMessageBox.warning(self, "Missing Class", "Please select a class for your character.")
+            return False
+            
+        # Check if origin is selected (choosing the first placeholder item doesn't count)
+        origin_selected = self.origin_combo.isEnabled() and self.origin_combo.currentIndex() > 0
+        if not origin_selected:
+            logger.warning("Character creation validation failed: Missing origin")
+            QMessageBox.warning(self, "Missing Origin", "Please select an origin for your character.")
+            return False
+            
+        # All basic info is valid
+        logger.debug("Basic character information validation passed")
+        return True
+
+    def _tab_changed(self, index: int):
+        """Handle tab change events for button visibility."""
+        logger.debug(f"Tab changed to index {index}")
+        total = self.tab_widget.count()
+        self.prev_tab_button.setEnabled(index > 0)
+
+        # Find the correct QHBoxLayout holding the buttons
+        bottom_layout = None
+        for i in range(self.layout().count()):
+            item = self.layout().itemAt(i)
+            if isinstance(item, QHBoxLayout):
+                widget_texts = []
+                for j in range(item.count()):
+                    widget = item.itemAt(j).widget()
+                    if isinstance(widget, QPushButton):
+                        widget_texts.append(widget.text())
+                if "< Previous" in widget_texts:
+                    bottom_layout = item
+                    break
+
+        if not bottom_layout:
+            logger.error("Could not find bottom button layout in _tab_changed")
+            return
+
+
+        stats_tab_index = 1 
+
+        if index == stats_tab_index:  
+            logger.debug("Showing 'Create Character' button on Stats tab")
+            # Hide the next button if it's visible
+            if self.next_tab_button.isVisible():
+                bottom_layout.removeWidget(self.next_tab_button)
+                self.next_tab_button.hide()
+
+            # Show the create button
+            if bottom_layout.indexOf(self.create_button) == -1:
+                bottom_layout.addWidget(self.create_button)
+            self.create_button.show()
+            self._validate_form() 
+
+        elif index < stats_tab_index:
+            logger.debug(f"Showing 'Next' button on tab {index}")
+
+            if self.create_button.isVisible():
+                bottom_layout.removeWidget(self.create_button)
+                self.create_button.hide()
+
+            # Show the next button
+            if bottom_layout.indexOf(self.next_tab_button) == -1:
+
+                 stretch_index = -1
+                 for i in range(bottom_layout.count()):
+                     if bottom_layout.itemAt(i).spacerItem():
+                         stretch_index = i
+                         break
+                 if stretch_index != -1:
+                     insert_index = bottom_layout.indexOf(self.create_button)
+                     if insert_index == -1: insert_index = stretch_index + 1 
+                     bottom_layout.insertWidget(insert_index, self.next_tab_button)
+                 else:  
+                    bottom_layout.addWidget(self.next_tab_button)
+            self.next_tab_button.show()
+            self._validate_form()
 
     @Slot(int)
     def _on_origin_selected(self, index: int):
@@ -826,6 +1426,15 @@ class CharacterCreationDialog(NewGameDialog):
             self.tab_widget.setCurrentIndex(1) # Go to stats tab
             return None
 
+        # Retrieve allocated skills
+        allocated_skills = {}
+        if hasattr(self, 'skill_allocation') and self.skill_allocation.allocator:
+            # The allocator modifies the StatsManager directly, so we read from it
+            for skill_key, stat in self.stats_manager.skills.items():
+                rank = int(stat.base_value)
+                if rank > 0:
+                    allocated_skills[skill_key] = rank
+
         # Build the final data dictionary
         data = {
             'name': name,
@@ -837,6 +1446,7 @@ class CharacterCreationDialog(NewGameDialog):
             'use_llm': self.llm_enabled,
             'character_image': self.selected_icon_path,
             'stats': allocated_stats, # Include allocated base stats
+            'skills': allocated_skills, # Include allocated skills
             # Add starting items/location based on selected origin
             'starting_location_id': self.selected_origin_data.get('starting_location_id', '') if self.selected_origin_data else '',
             'starting_items': self.selected_origin_data.get('starting_items', []) if self.selected_origin_data else [],
@@ -891,7 +1501,7 @@ class CharacterCreationDialog(NewGameDialog):
         if current_index < self.path_combo.count() - 1:
             self.path_combo.setCurrentIndex(current_index + 1)
 
-    def _stats_changed(self, stats: Dict[str, Dict[str, int]]):
+    def _stats_changed(self, stats: Optional[Dict[str, Dict[str, int]]] = None):
         """Handle stat changes from allocation widget."""
         self._validate_form() # Re-validate overall form
         self._update_ai_button_state()

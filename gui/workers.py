@@ -66,7 +66,8 @@ class NewGameWorker(QObject):
                 sex=self.character_data.get('sex', 'Male'),
                 background=self.character_data.get('description'), # The 'description' from origin is the background
                 character_image=self.character_data.get('character_image'),
-                stats=self.character_data.get('stats')
+                stats=self.character_data.get('stats'),
+                skills=self.character_data.get('skills') # Pass skills
             )
 
             # The lifecycle method now returns the entire game state. We need the intro narration from it.

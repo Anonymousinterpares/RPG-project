@@ -125,8 +125,8 @@ class Stat:
     base_value: float
     category: StatCategory
     description: str = ""
-
-    # REMOVED: modifiers: List[StatModifier] = field(default_factory=list)
+    exp: float = 0.0
+    exp_to_next: float = 100.0
 
     # RESTORED: value property, simplified to return base_value
     @property
@@ -148,8 +148,9 @@ class Stat:
             "name": self.name.name if isinstance(self.name, (StatType, DerivedStatType)) else str(self.name),
             "base_value": self.base_value,
             "category": self.category.name,
-            # REMOVED: "modifiers": [ ... ] section
-            "description": self.description
+            "description": self.description,
+            "exp": self.exp,
+            "exp_to_next": self.exp_to_next
         }
 
     @classmethod
@@ -173,7 +174,9 @@ class Stat:
             name=name,
             base_value=data["base_value"],
             category=category,
-            description=data.get("description", "")
+            description=data.get("description", ""),
+            exp=data.get("exp", 0.0),
+            exp_to_next=data.get("exp_to_next", 100.0)
         )
         # REMOVED: Loading modifiers from data here
 

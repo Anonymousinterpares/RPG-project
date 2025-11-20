@@ -18,6 +18,7 @@ from core.stats.skill_check import perform_check, calculate_success_chance, Skil
 from core.stats.combat_effects import StatusEffect, StatusEffectManager, StatusEffectType
 from core.base.config import get_config
 from core.stats.registry import resolve_stat_enum
+from core.stats.skill_manager import get_skill_manager
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class StatsManager(QObject):
         
         self.stats: Dict[Union[StatType, str], Stat] = {}
         self.derived_stats: Dict[Union[DerivedStatType, str], Stat] = {}
+        self.skills: Dict[str, Stat] = {} # Initialize skills dictionary
         self.modifier_manager = ModifierManager()
         self.status_effect_manager = StatusEffectManager(self)
         self.level = 1
@@ -75,6 +77,9 @@ class StatsManager(QObject):
 
         # Initialize derived stats
         self._initialize_derived_stats()
+        
+        # Initialize skills
+        self._initialize_skills()
 
     def _initialize_primary_stats(self) -> None:
         """Initialize the primary stats with default values."""
@@ -90,6 +95,20 @@ class StatsManager(QObject):
                 base_value=base_value,
                 category=StatCategory.PRIMARY,
                 description=self._get_stat_description(stat_type)
+            )
+
+    def _initialize_skills(self) -> None:
+        """Initialize skills from the SkillManager."""
+        skill_manager = get_skill_manager()
+        all_skills = skill_manager.get_all_skills()
+        
+        for skill_key, skill_data in all_skills.items():
+            # Use the skill key as the identifier
+            self.skills[skill_key] = Stat(
+                name=skill_data.get("name", skill_key),
+                base_value=0.0, # Default skill rank is 0
+                category=StatCategory.SKILL,
+                description=skill_data.get("description", "")
             )
 
     def _initialize_derived_stats(self) -> None:
@@ -266,6 +285,71 @@ class StatsManager(QObject):
             modified_value = modified_value * (1 + mods['percentage'] / 100)
 
         return modified_value
+        
+    def get_skill(self, skill_name: str) -> Optional[Stat]:
+        """
+        Get a skill object by name.
+        
+        Args:
+            skill_name: The name of the skill (case-insensitive).
+            
+        Returns:
+            The skill Stat object if found, None otherwise.
+        """
+        # Normalize
+        skill_key = skill_name.lower().replace(" ", "_")
+        
+        # Try direct lookup
+        if skill_key in self.skills:
+            return self.skills[skill_key]
+            
+        # Try partial match or case-insensitive search
+        for key, skill in self.skills.items():
+            if key == skill_key or skill.name.lower().replace(" ", "_") == skill_key:
+                return skill
+        
+        return None
+
+    def get_skill_value(self, skill_name: str) -> float:
+        """
+        Get the current value (rank) of a skill.
+        
+        Args:
+            skill_name: The name of the skill.
+            
+        Returns:
+            The current value of the skill (base + modifiers).
+            Returns 0.0 if skill not found.
+        """
+        skill = self.get_skill(skill_name)
+        if not skill:
+            return 0.0
+            
+        # Base rank
+        value = skill.value
+        
+        # Apply modifiers (if any logic for specific skill modifiers exists)
+        # Currently ModifierManager handles StatType/DerivedStatType. 
+        # If we extend it to handle strings or Skill enums, we would call it here.
+        # For now, we return the rank stored in the Stat object which includes its own direct modifiers.
+        
+        return value
+
+    def set_skill_value(self, skill_name: str, value: float) -> None:
+        """
+        Set the base rank of a skill.
+        
+        Args:
+            skill_name: The name of the skill.
+            value: The new base value (rank).
+        """
+        skill = self.get_skill(skill_name)
+        if skill:
+            skill.base_value = float(value)
+            # Emit signal
+            self.stats_changed.emit(self.get_all_stats())
+        else:
+            logger.warning(f"Attempted to set value for unknown skill: {skill_name}")
 
     def set_base_stat(self, stat_type: Union[StatType, str], value: float) -> None:
         """
@@ -1075,6 +1159,41 @@ class StatsManager(QObject):
             # Fallback
             return 10
 
+    def award_skill_exp(self, skill_name: str, amount: float) -> bool:
+        """
+        Award experience points to a skill.
+        
+        Args:
+            skill_name: The name of the skill.
+            amount: The amount of XP to award.
+            
+        Returns:
+            True if the skill leveled up, False otherwise.
+        """
+        skill = self.get_skill(skill_name)
+        if not skill:
+            return False
+            
+        if amount <= 0:
+            return False
+            
+        skill.exp += amount
+        leveled_up = False
+        
+        # Check for level up
+        while skill.exp >= skill.exp_to_next:
+            skill.exp -= skill.exp_to_next
+            skill.base_value += 1.0
+            # Scale next level requirement
+            skill.exp_to_next = math.floor(skill.exp_to_next * 1.5)
+            leveled_up = True
+            logger.info(f"Skill {skill_name} leveled up to {skill.base_value}!")
+            
+        if leveled_up:
+            self.stats_changed.emit(self.get_all_stats())
+            
+        return leveled_up
+
     def perform_skill_check(
         self,
         stat_type: Union[StatType, DerivedStatType, str],
@@ -1104,14 +1223,37 @@ class StatsManager(QObject):
         if skill_name:
             try:
                 from core.stats.skill_check import perform_skill_check_by_name
-                return perform_skill_check_by_name(
+                
+                # Get the skill rank (value) to add to the check
+                skill_rank = self.get_skill_value(skill_name)
+                
+                # Add skill rank to situational modifier
+                total_modifier = situational_modifier + int(skill_rank)
+                
+                result = perform_skill_check_by_name(
                     skill_name=skill_name,
                     difficulty=difficulty,
                     stats_manager=self,
                     advantage=advantage,
                     disadvantage=disadvantage,
-                    situational_modifier=situational_modifier
+                    situational_modifier=total_modifier
                 )
+
+                # Calculate and award XP
+                if result.skill_exists:
+                    # XP Formula: (DC * Multiplier) / (Rank + 1)
+                    # Multiplier: 1.0 for Success, 1.5 for Failure
+                    multiplier = 1.0 if result.success else 1.5
+                    if result.critical:
+                        multiplier *= 2.0
+                        
+                    xp_amount = (difficulty * multiplier) / (skill_rank + 1)
+                    leveled_up = self.award_skill_exp(skill_name, xp_amount)
+                    result.xp_gained = xp_amount
+                    result.leveled_up = leveled_up
+                
+                return result
+
             except (ImportError, AttributeError) as e:
                 logger.warning(f"Error using skill-based check: {e}. Falling back to stat-based check.")
                 # Fall back to stat-based check if skill check fails
@@ -1211,9 +1353,12 @@ class StatsManager(QObject):
         # Reinitialize stats dictionaries
         self.stats = {}
         self.derived_stats = {}
+        self.skills = {} # Reset skills
+        
         # Primary then derived (derived depends on primary)
         self._initialize_primary_stats()
         self._initialize_derived_stats()
+        self._initialize_skills() # Re-init skills
 
         # Ensure resource currents are exactly max after any internal clamping
         try:
@@ -1331,6 +1476,7 @@ class StatsManager(QObject):
             "level": self.level,
             "stats": {str(stat_type): stat.to_dict() for stat_type, stat in self.stats.items()},
             "derived_stats": {str(stat_type): stat.to_dict() for stat_type, stat in self.derived_stats.items()},
+            "skills": {key: stat.to_dict() for key, stat in self.skills.items()}, # Serialize skills
             "modifiers": self.modifier_manager.to_dict(),
             "status_effects": self.status_effect_manager.to_dict()
         }
@@ -1352,6 +1498,11 @@ class StatsManager(QObject):
         manager.derived_stats = {}
         for stat_name, stat_data in data.get("derived_stats", {}).items():
             manager.derived_stats[DerivedStatType.from_string(stat_name)] = Stat.from_dict(stat_data)
+            
+        # Load skills
+        manager.skills = {}
+        for skill_key, skill_data in data.get("skills", {}).items():
+            manager.skills[skill_key] = Stat.from_dict(skill_data)
 
         # Load modifiers
         if "modifiers" in data:
@@ -1393,13 +1544,9 @@ class StatsManager(QObject):
         except ValueError:
             pass
             
-        # Check if it's a skill
-        try:
-            skill_name = name.upper()
-            if skill_name in [skill.name for skill in Skill]:
-                return True
-        except (ValueError, AttributeError):
-            pass
+        # Check if it's a skill (by name)
+        if self.get_skill(name):
+            return True
             
         return False
     
@@ -1432,7 +1579,7 @@ class StatsManager(QObject):
                 }
 
             # Categorize derived stats
-            resource_stats = [DerivedStatType.HEALTH, DerivedStatType.MAX_HEALTH, DerivedStatType.MANA, DerivedStatType.STAMINA]
+            resource_stats = [DerivedStatType.HEALTH, DerivedStatType.MAX_HEALTH, DerivedStatType.MANA, DerivedStatType.MAX_MANA, DerivedStatType.STAMINA, DerivedStatType.MAX_STAMINA]
             combat_stats = [
                 DerivedStatType.MELEE_ATTACK, DerivedStatType.RANGED_ATTACK,
                 DerivedStatType.MAGIC_ATTACK, DerivedStatType.DEFENSE,
@@ -1460,10 +1607,16 @@ class StatsManager(QObject):
                 else: # CARRY_CAPACITY, MOVEMENT etc.
                     result["other"][stat_name_key] = stat_info # Use enum name key
 
-            # Add skills (if skill management is implemented and needed here)
-            # Example:
-            # for skill in Skill:
-            #     result["skills"][skill.name] = { ... skill details ... }
+            # Add skills
+            for skill_key, stat in self.skills.items():
+                result["skills"][skill_key] = {
+                    "name": stat.name,
+                    "value": stat.value,
+                    "base_value": stat.base_value,
+                    "description": stat.description,
+                    "exp": stat.exp,
+                    "exp_to_next": stat.exp_to_next
+                }
 
             return result
     

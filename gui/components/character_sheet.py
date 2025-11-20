@@ -211,7 +211,6 @@ class CharacterSheetWidget(QScrollArea):
         self.name_label.setStyleSheet(f"font-size: 14pt; font-weight: bold; color: {colors['text_primary']};")
         self.race_class_label.setStyleSheet(f"font-size: 12pt; color: {colors['text_primary']};")
         self.level_exp_label.setStyleSheet(f"font-size: 11pt; color: {colors['text_secondary']};")
-        self.no_skills_label.setStyleSheet(f"color: {colors['text_disabled']}; font-style: italic;")
         
         # Stat Labels (Keys/Titles)
         for label in self.findChildren(QLabel):
@@ -439,11 +438,60 @@ class CharacterSheetWidget(QScrollArea):
 
     def _create_skills_section(self):
         skills_group = QGroupBox("Skills")
-        skills_layout = QVBoxLayout(skills_group)
-        self.no_skills_label = QLabel("No skills available yet.")
-        self.no_skills_label.setAlignment(Qt.AlignCenter)
-        skills_layout.addWidget(self.no_skills_label)
+        self.skills_layout = QGridLayout(skills_group)
+        self.skills_layout.setColumnStretch(0, 1); self.skills_layout.setColumnStretch(2, 1)
+        self.skills_layout.setColumnMinimumWidth(1, 50); self.skills_layout.setColumnMinimumWidth(3, 50)
+        self.skills_layout.setHorizontalSpacing(10)
+        
+        self.skill_labels = {}
         self.main_layout.addWidget(skills_group)
+
+    def _update_skills(self, skills_data: Dict[str, Any]):
+        colors = self.palette['colors']
+        
+        # Sort skills by name
+        sorted_skills = sorted(skills_data.items(), key=lambda x: x[1].get('name', x[0]))
+        
+        # Rebuild layout if number of skills changed (simplest approach to handle init)
+        if len(sorted_skills) != len(self.skill_labels):
+            # Clear existing
+            for i in reversed(range(self.skills_layout.count())): 
+                widget = self.skills_layout.itemAt(i).widget()
+                if widget:
+                    widget.setParent(None)
+            self.skill_labels = {}
+            
+            row = 0
+            col = 0
+            for skill_key, skill_data in sorted_skills:
+                name = skill_data.get('name', skill_key)
+                label = QLabel(f"{name}:")
+                label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                label.setStyleSheet(f"color: {colors['text_primary']}; font-weight: 600; padding-right: 5px; font-size: 13px;")
+                
+                value_label = StatLabel("0", skill_key)
+                value_label.setAlignment(Qt.AlignLeft)
+                value_label.setStyleSheet(f"color: {colors['text_bright']}; min-width: 50px; padding-left: 5px; font-size: 13px;")
+                
+                self.skill_labels[skill_key] = value_label
+                self.skills_layout.addWidget(label, row, col * 2)
+                self.skills_layout.addWidget(value_label, row, col * 2 + 1)
+                
+                col += 1
+                if col >= 2:
+                    col = 0
+                    row += 1
+
+        # Update values
+        for skill_key, skill_data in skills_data.items():
+            if skill_key in self.skill_labels:
+                try:
+                    value = int(skill_data.get('value', 0))
+                    new_text = f"{value}"
+                    if self.skill_labels[skill_key].text() != new_text:
+                        self.skill_labels[skill_key].setText(new_text)
+                    self.skill_labels[skill_key].update_stat_data(skill_data)
+                except Exception: pass
 
     def _create_equipment_section(self):
         equipment_group = QGroupBox("Equipment")
@@ -513,6 +561,8 @@ class CharacterSheetWidget(QScrollArea):
                         if category in all_stats: self._update_derived_stats(all_stats[category], category)
                     if "resources" in all_stats:
                         self._update_resources(all_stats["resources"], all_player_stats=all_stats)
+                    if "skills" in all_stats:
+                        self._update_skills(all_stats["skills"])
                     self._update_combat_status(character)
                 else:
                     self._clear_stat_displays()
@@ -645,13 +695,14 @@ class CharacterSheetWidget(QScrollArea):
     def _update_from_stats(self, stats_data):
         try:
             if isinstance(stats_data, dict):
-                has_valid_stats = any(cat in stats_data for cat in ['primary', 'resources', 'combat', 'social', 'other'])
+                has_valid_stats = any(cat in stats_data for cat in ['primary', 'resources', 'combat', 'social', 'other', 'skills'])
                 if not has_valid_stats: return
 
                 if 'primary' in stats_data: self._update_primary_stats(stats_data['primary'])
                 for category in ['combat', 'social', 'other']:
                     if category in stats_data: self._update_derived_stats(stats_data[category], category)
                 if 'resources' in stats_data: self._update_resources(stats_data['resources'], all_player_stats=stats_data)
+                if 'skills' in stats_data: self._update_skills(stats_data['skills'])
                 
                 if self.state_manager and self.state_manager.current_state and self.state_manager.current_state.player:
                     self._update_combat_status(self.state_manager.current_state.player)

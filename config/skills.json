@@ -203,6 +203,90 @@
       "primary_stat": "STRENGTH",
       "category": "COMBAT",
       "description": "Combat attacks without weapons, such as punches and kicks."
+    },
+    "resonance_sensing": {
+      "name": "Resonance Sensing",
+      "primary_stat": "INSIGHT",
+      "category": "MENTAL",
+      "description": "Sensing upcoming Resonance Events or weak planar boundaries; helps finding hidden paths in bleed zones."
+    },
+    "ash_walking": {
+      "name": "Ash Walking",
+      "primary_stat": "DEXTERITY",
+      "category": "COVERT",
+      "description": "Moving silently specifically over brittle/noisy terrain (ash, glass). Stealth bonus in Ashen/Crystalline biomes."
+    },
+    "facet_logic": {
+      "name": "Facet Logic",
+      "primary_stat": "INTELLIGENCE",
+      "category": "KNOWLEDGE",
+      "description": "Deciphering geometric puzzles; required for advanced Facet Magic spells. The mathematical magic of the Consortium."
+    },
+    "green_speech": {
+      "name": "Green Speech",
+      "primary_stat": "CHARISMA",
+      "category": "SOCIAL",
+      "description": "Non-verbal communication with flora. Gathering info from plants; calming aggressive plant-beasts."
+    },
+    "echo_navigation": {
+      "name": "Echo Navigation",
+      "primary_stat": "WISDOM",
+      "category": "EXPLORATION",
+      "description": "Navigating the shifting, non-Euclidean layouts of the Ghost Markets. Reduces travel time; prevents getting lost."
+    },
+    "scavenging": {
+      "name": "Scavenging",
+      "primary_stat": "WISDOM",
+      "category": "EXPLORATION",
+      "description": "Finding use in the decay of the Shattering. Higher loot drop rates; finding food in wastelands."
+    },
+    "planar_anchoring": {
+      "name": "Planar Anchoring",
+      "primary_stat": "WILLPOWER",
+      "category": "MENTAL",
+      "description": "Resisting the mental drift caused by plane-shifting. Saving throw vs. planar displacement or madness."
+    },
+    "attunement": {
+      "name": "Attunement",
+      "primary_stat": "CONSTITUTION",
+      "category": "PHYSICAL",
+      "description": "Physically adapting body rhythm to the current plane. Reduces stamina drain in hostile planar environments."
+    },
+    "storm_riding": {
+      "name": "Storm Riding",
+      "primary_stat": "DEXTERITY",
+      "category": "EXPLORATION",
+      "description": "Moving with the chaotic flow of probability. Initiative bonus; traverse hazardous weather effects safely."
+    },
+    "oral_history": {
+      "name": "Oral History",
+      "primary_stat": "CHARISMA",
+      "category": "KNOWLEDGE",
+      "description": "Remembering knowledge that cannot be written down. Unlock lore hints without books; improves reputation with nomadic tribes."
+    },
+    "barter": {
+      "name": "Barter",
+      "primary_stat": "CHARISMA",
+      "category": "SOCIAL",
+      "description": "The universal language of the Nexus. Better prices; unlocking 'special stock' in shops."
+    },
+    "tinkering": {
+      "name": "Tinkering",
+      "primary_stat": "INTELLIGENCE",
+      "category": "UTILITY",
+      "description": "Maintaining gear in a world where physics glitch. Repair equipment; craft improvised traps."
+    },
+    "first_aid": {
+      "name": "First Aid",
+      "primary_stat": "WISDOM",
+      "category": "UTILITY",
+      "description": "Non-magical healing. Stop bleeding; stabilize dying allies without mana."
+    },
+    "focus": {
+      "name": "Focus",
+      "primary_stat": "WILLPOWER",
+      "category": "MENTAL",
+      "description": "Maintaining spell concentration amidst chaos. Interrupt resistance; mental defense."
     }
   }
 }

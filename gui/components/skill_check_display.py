@@ -191,16 +191,22 @@ class SkillCheckDisplay(QWidget):
         self.context_label.setAlignment(Qt.AlignCenter)
         self.context_label.setWordWrap(True)
         
+        # Create the XP display
+        self.xp_label = QLabel("+0 XP")
+        self.xp_label.setAlignment(Qt.AlignCenter)
+        self.xp_label.setVisible(False)
+        
         # Add all elements to the main layout
         self.main_layout.addWidget(self.title_label)
         self.main_layout.addLayout(self.stat_layout)
         self.main_layout.addLayout(self.dice_layout)
         self.main_layout.addLayout(self.result_layout)
         self.main_layout.addWidget(self.success_label)
+        self.main_layout.addWidget(self.xp_label)
         self.main_layout.addWidget(self.context_label)
         
         # Set a fixed size for the widget
-        self.setFixedSize(300, 250)
+        self.setFixedSize(300, 280) # Increased height slightly
 
     @Slot(dict)
     def _update_theme(self, palette: Optional[dict] = None):
@@ -249,6 +255,12 @@ class SkillCheckDisplay(QWidget):
             color: {colors['text_secondary']};
         """)
         
+        self.xp_label.setStyleSheet(f"""
+            font-size: 12px;
+            font-weight: bold;
+            color: {colors.get('text_highlight', '#FFD700')};
+        """)
+        
         # Re-apply success/fail color based on current text
         text = self.success_label.text()
         if "CRITICAL SUCCESS" in text:
@@ -281,6 +293,29 @@ class SkillCheckDisplay(QWidget):
         self.difficulty_label.setText(f"Difficulty: {result.difficulty}")
         self.mod_label.setText(f"Modifier: {'+' if result.modifier >= 0 else ''}{result.modifier}")
         self.total_label.setText(f"Total: {result.roll + result.modifier}")
+        
+        # Update XP Label
+        if hasattr(result, 'xp_gained') and result.xp_gained > 0:
+            xp_text = f"+{result.xp_gained:.1f} XP"
+            if hasattr(result, 'leveled_up') and result.leveled_up:
+                xp_text += " [LEVEL UP!]"
+                self.xp_label.setStyleSheet(f"""
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: {colors.get('accent_positive', '#5a9068')};
+                    background-color: rgba(255, 215, 0, 0.1);
+                    border-radius: 4px;
+                """)
+            else:
+                self.xp_label.setStyleSheet(f"""
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: {colors.get('text_highlight', '#FFD700')};
+                """)
+            self.xp_label.setText(xp_text)
+            self.xp_label.setVisible(True)
+        else:
+            self.xp_label.setVisible(False)
         
         # Set success/failure display
         if result.success:

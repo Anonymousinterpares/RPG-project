@@ -800,24 +800,27 @@ class StatAllocationWidget(QWidget):
         # Emit the signal
         self.stats_changed.emit(stats)
     
-    def update_race_class(self, race_name: str, class_name: str) -> None:
+    def update_params(self, race_name: str, class_name: str, origin_name: Optional[str] = None) -> None:
         """
-        Update the race and class modifiers.
+        Update the race, class, and origin modifiers.
         
         Args:
             race_name: The new race name
             class_name: The new class name
+            origin_name: The new origin name (optional)
         """
-        logger.info(f"Updating race to {race_name} and class to {class_name}")
+        logger.info(f"Updating params: Race={race_name}, Class={class_name}, Origin={origin_name}")
         
-        # Check if we're already using this race/class combination
-        if race_name == self.modifier_info.race_name and class_name == self.modifier_info.class_name:
-            logger.debug(f"Race and class already set to {race_name} and {class_name}, skipping update")
+        # Check if we're already using this combination
+        if (race_name == self.modifier_info.race_name and 
+            class_name == self.modifier_info.class_name and 
+            origin_name == self.modifier_info.origin_name):
+            logger.debug("Race, class, and origin already set to current values, skipping update")
             return
         
-        # Re-create the modifier info with new race/class to ensure fresh loading
+        # Re-create the modifier info with new parameters
         self.modifier_info = StatModifierInfo()
-        self.modifier_info.load_modifiers(race_name, class_name)
+        self.modifier_info.load_modifiers(race_name, class_name, origin_name)
         
         # Update UI for each stat
         for stat_type in StatType:
