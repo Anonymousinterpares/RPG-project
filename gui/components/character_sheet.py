@@ -32,22 +32,18 @@ logger = get_logger("GUI")
 
 class CollapsibleSection(QWidget):
     """A widget that provides a collapsible section with a toggle button header."""
-    def __init__(self, title="", parent=None, animation_duration=300):
+    def __init__(self, title="", parent=None, animation_duration=300, default_expanded=False):
         super().__init__(parent)
         self.animation_duration = animation_duration
         
         self.toggle_button = QToolButton(text=title)
         self.toggle_button.setStyleSheet("QToolButton { border: none; font-weight: bold; }")
         self.toggle_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.toggle_button.setArrowType(Qt.RightArrow)
         self.toggle_button.setCheckable(True)
-        self.toggle_button.setChecked(False)
         self.toggle_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.toggle_button.toggled.connect(self.on_toggled)
 
         self.content_area = QWidget()
-        self.content_area.setMaximumHeight(0)
-        self.content_area.setMinimumHeight(0)
         self.content_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.content_area.setContentsMargins(0, 0, 0, 0)
 
@@ -61,6 +57,19 @@ class CollapsibleSection(QWidget):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self.toggle_button)
         self.main_layout.addWidget(self.content_area)
+        
+        if default_expanded:
+            self.toggle_button.blockSignals(True)
+            self.toggle_button.setChecked(True)
+            self.toggle_button.blockSignals(False)
+            self.toggle_button.setArrowType(Qt.DownArrow)
+            self.content_area.setMaximumHeight(16777215)
+        else:
+            self.toggle_button.blockSignals(True)
+            self.toggle_button.setChecked(False)
+            self.toggle_button.blockSignals(False)
+            self.toggle_button.setArrowType(Qt.RightArrow)
+            self.content_area.setMaximumHeight(0)
         
     def setContentLayout(self, layout):
         """Sets the layout for the collapsible content area."""
@@ -80,7 +89,11 @@ class CollapsibleSection(QWidget):
             # layout.sizeHint() should give the preferred size.
             # Ensure layout is activated to calculate size
             self.content_area.updateGeometry()
-            content_height = self.content_area.layout().sizeHint().height()
+            layout = self.content_area.layout()
+            if layout:
+                content_height = layout.sizeHint().height()
+            else:
+                content_height = 0
             
             # Start from current height (which might be 0 or partial if interrupted)
             start_height = self.content_area.height()
@@ -246,6 +259,7 @@ class CharacterSheetWidget(QScrollArea):
             self.setWidget(self.character_widget)
             self.state_manager = get_state_manager()
             self._signal_connected = False
+            self._last_game_mode = None
 
             self._pending_player_bar_updates: Dict[str, Dict[str, Any]] = {} 
             self._pending_bar_updates: Dict[str, Dict[str, Any]] = {} # For internal anim
@@ -429,18 +443,23 @@ class CharacterSheetWidget(QScrollArea):
         self.main_layout.addWidget(header_group)
     
     def _create_stats_section(self):
-        # Resources (Keep as GroupBox - essential info)
-        resources_group = QGroupBox("Resources")
-        resources_layout = QVBoxLayout(resources_group)
+        # Resources (Collapsible, Default Expanded)
+        self.resources_section = CollapsibleSection("Resources", default_expanded=True)
+        resources_layout = QVBoxLayout() # Use a fresh layout for the content
+        resources_layout.setContentsMargins(10, 10, 10, 10)
+        
         self.resource_bars = {}
         self._add_resource_bar(resources_layout, "Health", 100, 100)
         self._add_resource_bar(resources_layout, "Mana", 50, 50)
         self._add_resource_bar(resources_layout, "Stamina", 100, 100)
-        self.main_layout.addWidget(resources_group)
+        
+        self.resources_section.setContentLayout(resources_layout)
+        self.main_layout.addWidget(self.resources_section)
 
-        # Combat Info (Keep as GroupBox - essential info)
-        combat_info_group = QGroupBox("Combat Info")
-        combat_info_layout = QVBoxLayout(combat_info_group)
+        # Combat Info (Collapsible, Default Collapsed)
+        self.combat_info_section = CollapsibleSection("Combat Info", default_expanded=False)
+        combat_info_layout = QVBoxLayout()
+        combat_info_layout.setContentsMargins(10, 10, 10, 10)
 
         self.ap_display = APDisplayWidget(self)
         combat_info_layout.addWidget(self.ap_display)
@@ -468,7 +487,9 @@ class CharacterSheetWidget(QScrollArea):
         initiative_layout.addWidget(initiative_title_label)
         initiative_layout.addWidget(self.initiative_value)
         combat_info_layout.addLayout(initiative_layout)
-        self.main_layout.addWidget(combat_info_group)
+        
+        self.combat_info_section.setContentLayout(combat_info_layout)
+        self.main_layout.addWidget(self.combat_info_section)
 
         # Primary Stats (Collapsible)
         primary_stats_section = CollapsibleSection("Primary Stats")
@@ -476,7 +497,7 @@ class CharacterSheetWidget(QScrollArea):
         primary_stats_layout.setColumnStretch(0, 1); primary_stats_layout.setColumnStretch(2, 1)
         primary_stats_layout.setColumnMinimumWidth(1, 50); primary_stats_layout.setColumnMinimumWidth(3, 50)
         primary_stats_layout.setHorizontalSpacing(10)
-        primary_stats_layout.setContentsMargins(10, 10, 10, 10) # Add internal margins
+        primary_stats_layout.setContentsMargins(10, 10, 10, 10)
 
         self._add_stat(primary_stats_layout, 0, 0, StatType.STRENGTH.name, "Strength", "")
         self._add_stat(primary_stats_layout, 0, 1, StatType.DEXTERITY.name, "Dexterity", "")
@@ -737,6 +758,27 @@ class CharacterSheetWidget(QScrollArea):
             return
             
         game_state = state_manager.current_state
+        
+        # Auto-expand/collapse Combat Info based on mode transition
+        if game_state:
+            current_mode = game_state.current_mode
+            
+            if self._last_game_mode is None:
+                # Initial load logic
+                if current_mode == InteractionMode.COMBAT:
+                     if not self.combat_info_section.toggle_button.isChecked():
+                         self.combat_info_section.toggle_button.setChecked(True)
+            elif current_mode != self._last_game_mode:
+                # Transition logic
+                if current_mode == InteractionMode.COMBAT:
+                     if not self.combat_info_section.toggle_button.isChecked():
+                         self.combat_info_section.toggle_button.setChecked(True)
+                elif self._last_game_mode == InteractionMode.COMBAT and current_mode != InteractionMode.COMBAT:
+                     if self.combat_info_section.toggle_button.isChecked():
+                         self.combat_info_section.toggle_button.setChecked(False)
+            
+            self._last_game_mode = current_mode
+        
         combat_manager = getattr(game_state, 'combat_manager', None)
         
         self.status_effects_list.clear()
