@@ -9,9 +9,10 @@ import re
 from typing import Optional, Dict, Any, List
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QGridLayout, QTextEdit,
-    QScrollArea, QFrame, QGroupBox, QProgressBar, QMenu, QToolTip
+    QScrollArea, QFrame, QGroupBox, QProgressBar, QMenu, QToolTip,
+    QToolButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, Slot, Signal, QPoint
+from PySide6.QtCore import Qt, Slot, Signal, QPoint, QPropertyAnimation, QEasingCurve, QAbstractAnimation
 from PySide6.QtGui import  QPixmap, QCursor, QMouseEvent
 
 from core.base.state import get_state_manager
@@ -28,6 +29,76 @@ from gui.styles.stylesheet_factory import create_groupbox_style
 from gui.styles.theme_manager import get_theme_manager
 
 logger = get_logger("GUI")
+
+class CollapsibleSection(QWidget):
+    """A widget that provides a collapsible section with a toggle button header."""
+    def __init__(self, title="", parent=None, animation_duration=300):
+        super().__init__(parent)
+        self.animation_duration = animation_duration
+        
+        self.toggle_button = QToolButton(text=title)
+        self.toggle_button.setStyleSheet("QToolButton { border: none; font-weight: bold; }")
+        self.toggle_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.toggle_button.setArrowType(Qt.RightArrow)
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(False)
+        self.toggle_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.toggle_button.toggled.connect(self.on_toggled)
+
+        self.content_area = QWidget()
+        self.content_area.setMaximumHeight(0)
+        self.content_area.setMinimumHeight(0)
+        self.content_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.content_area.setContentsMargins(0, 0, 0, 0)
+
+        self.toggle_animation = QPropertyAnimation(self.content_area, b"maximumHeight")
+        self.toggle_animation.setDuration(self.animation_duration)
+        self.toggle_animation.setEasingCurve(QEasingCurve.InOutQuad)
+        self.toggle_animation.finished.connect(self.on_animation_finished)
+
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setSpacing(0)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.addWidget(self.toggle_button)
+        self.main_layout.addWidget(self.content_area)
+        
+    def setContentLayout(self, layout):
+        """Sets the layout for the collapsible content area."""
+        # If content_area already has a layout, we need to handle that, but QWidget.setLayout replaces it.
+        # We also need to ensure the layout has zero margins if desired, or let caller handle it.
+        self.content_area.setLayout(layout)
+
+    @Slot(bool)
+    def on_toggled(self, checked):
+        self.toggle_button.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)
+        
+        self.toggle_animation.stop() # Stop any running animation
+        
+        if checked:
+            # Expanding
+            # We need to find the target height. 
+            # layout.sizeHint() should give the preferred size.
+            # Ensure layout is activated to calculate size
+            self.content_area.updateGeometry()
+            content_height = self.content_area.layout().sizeHint().height()
+            
+            # Start from current height (which might be 0 or partial if interrupted)
+            start_height = self.content_area.height()
+            self.toggle_animation.setStartValue(start_height)
+            self.toggle_animation.setEndValue(content_height)
+        else:
+            # Collapsing
+            start_height = self.content_area.height()
+            self.toggle_animation.setStartValue(start_height)
+            self.toggle_animation.setEndValue(0)
+            
+        self.toggle_animation.start()
+
+    @Slot()
+    def on_animation_finished(self):
+        # If expanded, remove the fixed maximum height to allow content to grow dynamically
+        if self.toggle_button.isChecked():
+            self.content_area.setMaximumHeight(16777215) # QWIDGETSIZE_MAX
 
 class StatLabel(QLabel):
     """A label for displaying a stat that shows details on right-click."""
@@ -230,6 +301,29 @@ class CharacterSheetWidget(QScrollArea):
             else:
                 label.setStyleSheet(f"color: {colors['text_secondary']}; font-style: italic; font-size: 13px;")
 
+        # Collapsible Sections
+        for section in self.findChildren(CollapsibleSection):
+            section.toggle_button.setStyleSheet(f"""
+                QToolButton {{
+                    background-color: {colors['bg_medium']};
+                    color: {colors['text_primary']};
+                    border: 1px solid {colors['border_dark']};
+                    border-radius: 4px;
+                    padding: 8px;
+                    font-weight: bold;
+                    text-align: left;
+                }}
+                QToolButton:hover {{
+                    background-color: {colors['state_hover']};
+                    border-color: {colors['accent_positive']};
+                }}
+                QToolButton:checked {{
+                    background-color: {colors['bg_dark']};
+                    border-bottom-left-radius: 0;
+                    border-bottom-right-radius: 0;
+                }}
+            """)
+
         # Text Edits (Status/Turn Order)
         text_edit_style = f"""
             QTextEdit {{
@@ -295,6 +389,9 @@ class CharacterSheetWidget(QScrollArea):
         self._create_stats_section()
         self._create_skills_section()
         self._create_equipment_section()
+        
+        # Add a stretch at the end to push everything up
+        self.main_layout.addStretch()
 
     def _create_header(self):
         header_group = QGroupBox("Character")
@@ -332,31 +429,16 @@ class CharacterSheetWidget(QScrollArea):
         self.main_layout.addWidget(header_group)
     
     def _create_stats_section(self):
-        # Primary Stats
-        primary_stats_group = QGroupBox("Primary Stats")
-        primary_stats_layout = QGridLayout(primary_stats_group)
-        primary_stats_layout.setColumnStretch(0, 1); primary_stats_layout.setColumnStretch(2, 1)
-        primary_stats_layout.setColumnMinimumWidth(1, 50); primary_stats_layout.setColumnMinimumWidth(3, 50)
-        primary_stats_layout.setHorizontalSpacing(10)
-
-        self._add_stat(primary_stats_layout, 0, 0, StatType.STRENGTH.name, "Strength", "")
-        self._add_stat(primary_stats_layout, 0, 1, StatType.DEXTERITY.name, "Dexterity", "")
-        self._add_stat(primary_stats_layout, 1, 0, StatType.CONSTITUTION.name, "Constitution", "")
-        self._add_stat(primary_stats_layout, 1, 1, StatType.INTELLIGENCE.name, "Intelligence", "")
-        self._add_stat(primary_stats_layout, 2, 0, StatType.WISDOM.name, "Wisdom", "")
-        self._add_stat(primary_stats_layout, 2, 1, StatType.CHARISMA.name, "Charisma", "")
-        self._add_stat(primary_stats_layout, 3, 0, StatType.WILLPOWER.name, "Willpower", "")
-        self._add_stat(primary_stats_layout, 3, 1, StatType.INSIGHT.name, "Insight", "")
-
-        # Resources
+        # Resources (Keep as GroupBox - essential info)
         resources_group = QGroupBox("Resources")
         resources_layout = QVBoxLayout(resources_group)
         self.resource_bars = {}
         self._add_resource_bar(resources_layout, "Health", 100, 100)
         self._add_resource_bar(resources_layout, "Mana", 50, 50)
         self._add_resource_bar(resources_layout, "Stamina", 100, 100)
+        self.main_layout.addWidget(resources_group)
 
-        # Combat Info
+        # Combat Info (Keep as GroupBox - essential info)
         combat_info_group = QGroupBox("Combat Info")
         combat_info_layout = QVBoxLayout(combat_info_group)
 
@@ -386,13 +468,35 @@ class CharacterSheetWidget(QScrollArea):
         initiative_layout.addWidget(initiative_title_label)
         initiative_layout.addWidget(self.initiative_value)
         combat_info_layout.addLayout(initiative_layout)
+        self.main_layout.addWidget(combat_info_group)
 
-        # Derived Stats
-        derived_stats_group = QGroupBox("Derived Stats")
-        derived_stats_layout = QGridLayout(derived_stats_group)
+        # Primary Stats (Collapsible)
+        primary_stats_section = CollapsibleSection("Primary Stats")
+        primary_stats_layout = QGridLayout()
+        primary_stats_layout.setColumnStretch(0, 1); primary_stats_layout.setColumnStretch(2, 1)
+        primary_stats_layout.setColumnMinimumWidth(1, 50); primary_stats_layout.setColumnMinimumWidth(3, 50)
+        primary_stats_layout.setHorizontalSpacing(10)
+        primary_stats_layout.setContentsMargins(10, 10, 10, 10) # Add internal margins
+
+        self._add_stat(primary_stats_layout, 0, 0, StatType.STRENGTH.name, "Strength", "")
+        self._add_stat(primary_stats_layout, 0, 1, StatType.DEXTERITY.name, "Dexterity", "")
+        self._add_stat(primary_stats_layout, 1, 0, StatType.CONSTITUTION.name, "Constitution", "")
+        self._add_stat(primary_stats_layout, 1, 1, StatType.INTELLIGENCE.name, "Intelligence", "")
+        self._add_stat(primary_stats_layout, 2, 0, StatType.WISDOM.name, "Wisdom", "")
+        self._add_stat(primary_stats_layout, 2, 1, StatType.CHARISMA.name, "Charisma", "")
+        self._add_stat(primary_stats_layout, 3, 0, StatType.WILLPOWER.name, "Willpower", "")
+        self._add_stat(primary_stats_layout, 3, 1, StatType.INSIGHT.name, "Insight", "")
+        
+        primary_stats_section.setContentLayout(primary_stats_layout)
+        self.main_layout.addWidget(primary_stats_section)
+
+        # Derived Stats (Collapsible)
+        derived_stats_section = CollapsibleSection("Derived Stats")
+        derived_stats_layout = QGridLayout()
         derived_stats_layout.setColumnStretch(0, 1); derived_stats_layout.setColumnStretch(2, 1)
         derived_stats_layout.setColumnMinimumWidth(1, 50); derived_stats_layout.setColumnMinimumWidth(3, 50)
         derived_stats_layout.setHorizontalSpacing(10)
+        derived_stats_layout.setContentsMargins(10, 10, 10, 10)
 
         self._add_stat(derived_stats_layout, 0, 0, DerivedStatType.MELEE_ATTACK.name, "Melee Attack", "")
         self._add_stat(derived_stats_layout, 0, 1, DerivedStatType.RANGED_ATTACK.name, "Ranged Attack", "")
@@ -402,11 +506,9 @@ class CharacterSheetWidget(QScrollArea):
         self._add_stat(derived_stats_layout, 3, 0, DerivedStatType.CARRY_CAPACITY.name, "Carry Capacity", "")
         self._add_stat(derived_stats_layout, 3, 1, DerivedStatType.MOVEMENT.name, "Movement", "")
         self._add_stat(derived_stats_layout, 2, 1, DerivedStatType.DAMAGE_REDUCTION.name, "Damage Reduction", "")
-
-        self.main_layout.addWidget(resources_group)
-        self.main_layout.addWidget(combat_info_group)
-        self.main_layout.addWidget(primary_stats_group)
-        self.main_layout.addWidget(derived_stats_group)
+        
+        derived_stats_section.setContentLayout(derived_stats_layout)
+        self.main_layout.addWidget(derived_stats_section)
         
     def _add_stat(self, layout, row, col, stat_id, stat_name, value):
         label = QLabel(f"{stat_name}:")
@@ -437,14 +539,16 @@ class CharacterSheetWidget(QScrollArea):
         layout.addWidget(container)
 
     def _create_skills_section(self):
-        skills_group = QGroupBox("Skills")
-        self.skills_layout = QGridLayout(skills_group)
+        skills_section = CollapsibleSection("Skills")
+        self.skills_layout = QGridLayout()
         self.skills_layout.setColumnStretch(0, 1); self.skills_layout.setColumnStretch(2, 1)
         self.skills_layout.setColumnMinimumWidth(1, 50); self.skills_layout.setColumnMinimumWidth(3, 50)
         self.skills_layout.setHorizontalSpacing(10)
+        self.skills_layout.setContentsMargins(10, 10, 10, 10)
         
+        skills_section.setContentLayout(self.skills_layout)
         self.skill_labels = {}
-        self.main_layout.addWidget(skills_group)
+        self.main_layout.addWidget(skills_section)
 
     def _update_skills(self, skills_data: Dict[str, Any]):
         colors = self.palette['colors']
@@ -453,6 +557,9 @@ class CharacterSheetWidget(QScrollArea):
         sorted_skills = sorted(skills_data.items(), key=lambda x: x[1].get('name', x[0]))
         
         # Rebuild layout if number of skills changed (simplest approach to handle init)
+        # Note: In CollapsibleSection, the widget size will adjust when we add widgets if expanded.
+        # If collapsed, sizeHint update happens next expand.
+        
         if len(sorted_skills) != len(self.skill_labels):
             # Clear existing
             for i in reversed(range(self.skills_layout.count())): 
@@ -494,9 +601,10 @@ class CharacterSheetWidget(QScrollArea):
                 except Exception: pass
 
     def _create_equipment_section(self):
-        equipment_group = QGroupBox("Equipment")
-        equipment_layout = QGridLayout(equipment_group)
+        equipment_section = CollapsibleSection("Equipment")
+        equipment_layout = QGridLayout()
         equipment_layout.setSpacing(5)
+        equipment_layout.setContentsMargins(10, 10, 10, 10)
         
         self.equip_labels: Dict[str, CharacterSheetWidget.EquippedItemLabel] = {}
         slots_to_display = [
@@ -530,7 +638,8 @@ class CharacterSheetWidget(QScrollArea):
             equipment_layout.addWidget(slot_label_widget, row, col * 2)
             equipment_layout.addWidget(value_label_widget, row, col * 2 + 1)
         
-        self.main_layout.addWidget(equipment_group)
+        equipment_section.setContentLayout(equipment_layout)
+        self.main_layout.addWidget(equipment_section)
 
     def update_character(self, character=None):
             if not self._signal_connected:
