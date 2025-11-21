@@ -361,6 +361,8 @@ class CombatManager:
 
     def process_combat_step(self, engine): # Engine is received here
         """Processes the current step and triggers the next one if appropriate."""
+        logger.info(f"[CM_DEBUG] process_combat_step called. Step: {self.current_step}, Waiting: {self.waiting_for_display_completion}")
+
         # Guard: ignore callbacks on an inactive/old manager (e.g., after New Game)
         try:
             state_manager = getattr(engine, '_state_manager', None)
@@ -1976,13 +1978,16 @@ class CombatManager:
                             if target_entity: target_internal_id = target_entity.id
                             else: engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=f"Cannot perform action: Target '{target_combat_name_req}' not found.", target_display=DisplayTarget.COMBAT_LOG))
                         
+                        # --- FIX: Queue attempt narrative for ALL regular actions ---
+                        # This ensures the orchestrator has an event to process, preventing deadlock.
+                        if attempt_narrative_text:
+                            self._add_to_log(attempt_narrative_text, role="gm")
+                            engine._combat_orchestrator.add_event_to_queue(
+                                DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
+                            )
+                        # --- END FIX ---
+
                         if combat_action_type == ActionType.ATTACK and target_internal_id:
-                            # Non-spell: enqueue attempt narrative before creating action (preserve behavior)
-                            if attempt_narrative_text:
-                                self._add_to_log(attempt_narrative_text, role="gm")
-                                engine._combat_orchestrator.add_event_to_queue(
-                                    DisplayEvent(type=DisplayEventType.NARRATIVE_ATTEMPT, content=attempt_narrative_text, role="gm", tts_eligible=True, gradual_visual_display=True, target_display=DisplayTarget.COMBAT_LOG, source_step=self.current_step.name)
-                                )
                             self._pending_action = AttackAction(performer_id=player_id, target_id=target_internal_id, weapon_name=normalized_skill_for_action_name, dice_notation=action_request.get("dice_notation", "1d6"))
                         elif combat_action_type == ActionType.SPELL:
                             # Stage 2a–2d: resolve and gate spells BEFORE attempt narrative

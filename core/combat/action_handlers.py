@@ -970,17 +970,23 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
     from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
     from core.game_flow.mode_transitions import _determine_flee_parameters 
 
-    queued_events_this_handler = False
-    handler_result_summary = {"success": False, "fled": False, "message": "Flee attempt failed."} 
-    current_result_detail.update(handler_result_summary)
-
-    logger.info(f"{performer.combat_name} attempts to flee.")
+    # Populate standard result fields for the bridge/narrator
+    current_result_detail.update({
+        "performer_name": performer.combat_name,
+        "action_name": "Flee",
+        "action_type": action.action_type,  # Ensure this matches ActionType.FLEE enum
+        "target_name": "N/A",  # Fleeing has no specific target usually
+        "target_defeated": False, # Required by bridge logic
+        "damage": 0
+    })
 
     if performer.has_status_effect("Immobilized"):
         immobilized_msg = f"  {performer.combat_name} cannot flee, they are immobilized!"
         engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=immobilized_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(immobilized_msg)
         queued_events_this_handler = True
         current_result_detail["message"] = "Cannot flee while immobilized."
+        current_result_detail["success"] = False
+        current_result_detail["fled"] = False
         current_result_detail["queued_events"] = queued_events_this_handler
         return current_result_detail # Return immediately
 
@@ -999,20 +1005,49 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
         # Pass the actual GameState rather than CombatManager to parameter determination
         flee_dc, situational_modifier, modifier_reasons = _determine_flee_parameters(engine._state_manager.current_state, performer)
 
+        # Determine best skill for fleeing (Acrobatics vs Athletics)
+        # Default to acrobatics as it's the primary flee skill, but allow athletics if better
+        skill_to_use = "acrobatics"
+        stat_for_skill = StatType.DEXTERITY
+        
+        try:
+            acrobatics_rank = performer_stats_manager.get_skill_value("acrobatics")
+            athletics_rank = performer_stats_manager.get_skill_value("athletics")
+            
+            if athletics_rank > acrobatics_rank:
+                skill_to_use = "athletics"
+                stat_for_skill = StatType.STRENGTH
+        except Exception:
+            # Fallback if get_skill_value fails
+            pass
+
         check_result = performer_stats_manager.perform_skill_check(
-            stat_type=StatType.DEXTERITY, 
+            stat_type=stat_for_skill, 
             difficulty=flee_dc,
-            situational_modifier=situational_modifier
+            situational_modifier=situational_modifier,
+            skill_name=skill_to_use
         )
         
+        # Construct display string
         modifier_str_display = f"{check_result.modifier} (stat)"
+        
         if check_result.situational_modifier != 0:
             modifier_str_display += f" {check_result.situational_modifier:+}"
-            if modifier_reasons: modifier_str_display += f" ({', '.join(modifier_reasons)})"
-            else: modifier_str_display += " (situational)"
+            reasons_display = []
+            if modifier_reasons:
+                reasons_display.extend(modifier_reasons)
+            
+            # Add skill note
+            if check_result.skill_exists:
+                 reasons_display.append(f"{check_result.skill_name or skill_to_use}")
+            else:
+                 reasons_display.append("situational")
+
+            if reasons_display:
+                 modifier_str_display += f" ({', '.join(reasons_display)})"
 
         check_roll_msg = (
-            f"{performer.combat_name} attempts to flee ({StatType.DEXTERITY.name} check DC {flee_dc}): "
+            f"{performer.combat_name} attempts to flee ({check_result.skill_name or skill_to_use} check DC {flee_dc}): "
             f"Roll {check_result.roll} + {modifier_str_display} "
             f"= {check_result.total} -> {check_result.outcome_desc}"
             f"{' (Crit!)' if check_result.critical else ''}"
@@ -1022,12 +1057,22 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
 
         flee_succeeded_mechanically = check_result.success
         current_result_detail["roll_details"] = check_result.to_dict()
-
+        
         if flee_succeeded_mechanically:
             # The "fled" flag in current_result_detail signals to _step_advancing_turn
             # to end combat for the fleeing entity.
             current_result_detail.update({"success": True, "fled": True, "message": "Escape successful!"})
             performer.is_active_in_combat = False # Mark as no longer active
+            
+            # Delay removing the entity from active combat until after text
+            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+                type=DisplayEventType.APPLY_ENTITY_STATE_UPDATE,
+                content={},
+                metadata={"entity_id": performer.id, "is_active_in_combat": False}
+            ))
+            
+            # Logic to handle combat end if player fled is in CM's _step_narrating_action_outcome / _compute_regular_outcome_next_step
+            # But we need to signal that the *actor* has fled.
         else:
             current_result_detail.update({"success": False, "fled": False, "message": "Escape attempt failed."})
             

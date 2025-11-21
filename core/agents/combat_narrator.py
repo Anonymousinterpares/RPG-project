@@ -113,6 +113,7 @@ class CombatNarratorAgent(BaseAgent):
 
         ## CRITICAL INSTRUCTION: JSON OUTPUT ONLY & COMBAT NAMES
         Your *ENTIRE* response MUST be a single, valid JSON object. NO introductory text, explanations, markdown, or other characters outside the JSON structure.
+        **ABSOLUTELY NO COMMENTS (like // or /* */) INSIDE THE JSON.**
         **VERY IMPORTANT**: When referring to entities in the `"requests"` list (`actor_id`, `target_actor_id`, `target_entity`), YOU MUST use their **Combat Name** exactly as listed in the 'Participants' section below (e.g., 'Qa', 'elder', 'Goblin 1'). Do **NOT** use original names or generic terms like 'player'.
 
         ## Required Output Format (JSON Object Only)
@@ -278,6 +279,10 @@ class CombatNarratorAgent(BaseAgent):
             try:
                  # 1. Remove potential markdown fences first
                 cleaned_response = re.sub(r'^```(?:json)?\s*|\s*```$', '', cleaned_response, flags=re.MULTILINE).strip()
+                
+                # 1.5. Remove C-style comments (// ...)
+                # This is crucial because the LLM sometimes ignores the "no comments" rule.
+                cleaned_response = re.sub(r'//.*$', '', cleaned_response, flags=re.MULTILINE)
 
                 # 2. Try direct parsing
                 parsed_output = json.loads(cleaned_response)

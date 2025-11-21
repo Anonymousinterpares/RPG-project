@@ -620,6 +620,39 @@ class MainWindow(QMainWindow):
         # Return the widget for reference
         return music_widget
     
+    @Slot()
+    def _handle_combat_display_complete(self):
+        """Slot for CombatDisplay completion signal. Filters based on active event target."""
+        try:
+            orch = getattr(self.game_engine, '_combat_orchestrator', None)
+            if orch and orch.is_processing_event and orch.current_event:
+                # Only forward if the current event is targeting the Combat Log
+                # (or if the event type implies combat log usage)
+                from core.orchestration.events import DisplayTarget
+                if orch.current_event.target_display == DisplayTarget.COMBAT_LOG:
+                    logger.debug(f"[GUI] MainWindow: Forwarding combat display completion to orchestrator for event {orch.current_event.event_id}")
+                    orch._handle_visual_display_complete()
+                else:
+                    logger.debug(f"[GUI] MainWindow: Ignoring combat display completion for event {orch.current_event.event_id} (Target: {orch.current_event.target_display})")
+        except Exception as e:
+            logger.error(f"Error in _handle_combat_display_complete: {e}")
+
+    @Slot()
+    def _handle_narrative_display_complete(self):
+        """Slot for GameOutputWidget completion signal. Filters based on active event target."""
+        try:
+            orch = getattr(self.game_engine, '_combat_orchestrator', None)
+            if orch and orch.is_processing_event and orch.current_event:
+                # Only forward if the current event is targeting the Main Output
+                from core.orchestration.events import DisplayTarget
+                if orch.current_event.target_display == DisplayTarget.MAIN_GAME_OUTPUT:
+                    logger.debug(f"[GUI] MainWindow: Forwarding narrative display completion to orchestrator for event {orch.current_event.event_id}")
+                    orch._handle_visual_display_complete()
+                else:
+                    logger.debug(f"[GUI] MainWindow: Ignoring narrative display completion for event {orch.current_event.event_id} (Target: {orch.current_event.target_display})")
+        except Exception as e:
+            logger.error(f"Error in _handle_narrative_display_complete: {e}")
+
     def _connect_signals(self):
         """Connect signals and slots."""
         self.narrative_command_input.command_submitted.connect(self._process_command)
@@ -638,6 +671,24 @@ class MainWindow(QMainWindow):
             logger.info("Successfully connected engine.output_generated signal")
         except Exception as e:
             logger.error(f"Failed to connect output_generated signal: {e}")
+
+        # --- ECFA FIX: Filtered connections for visual completion ---
+        try:
+            # Disconnect any previous direct connections if they exist (safe to try)
+            try:
+                self.combat_display.visualDisplayComplete.disconnect()
+            except Exception: pass
+            try:
+                self.game_output.visualDisplayComplete.disconnect()
+            except Exception: pass
+            
+            # Connect to the new filtered slots
+            self.combat_display.visualDisplayComplete.connect(self._handle_combat_display_complete)
+            self.game_output.visualDisplayComplete.connect(self._handle_narrative_display_complete)
+            logger.info("[GUI] MainWindow: Connected visualDisplayComplete signals to filtered handlers.")
+        except Exception as e:
+             logger.error(f"[GUI] MainWindow: Failed to connect visualDisplayComplete signals: {e}")
+        # --- End ECFA FIX ---
 
         self.menu_panel.new_game_requested.connect(self._show_new_game_dialog)
         self.menu_panel.save_game_requested.connect(self._show_save_game_dialog)

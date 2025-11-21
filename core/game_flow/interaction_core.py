@@ -303,9 +303,19 @@ def _validate_agent_action(engine: 'GameEngine', context: Dict[str, Any], agent_
 
     # Prepare validation context, embedding the structured request in the input
     validation_input = f"Action intent: {intent}\nStructured requests: {json.dumps(agent_output.get('requests', []), indent=2)}"
+    
+    # Enrich player state with location info for RuleChecker
+    player_state_for_validation = context.get('player', {}).copy()
+    location_data = context.get('location', {})
+    if isinstance(location_data, dict):
+        if 'current_location' not in player_state_for_validation:
+             player_state_for_validation['current_location'] = location_data.get('name', 'Unknown')
+        if 'current_district' not in player_state_for_validation:
+             player_state_for_validation['current_district'] = location_data.get('major', location_data.get('venue', 'Unknown'))
+
     validation_context = AgentContext(
         game_state=context,
-        player_state=context.get('player', {}),
+        player_state=player_state_for_validation,
         world_state={
             'location': context.get('location'),
             'time_of_day': context.get('time_of_day'),

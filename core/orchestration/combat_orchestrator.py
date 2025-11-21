@@ -120,10 +120,33 @@ class CombatOutputOrchestrator(QObject):
             logger.debug("Event queue empty. Orchestrator idle.")
             combat_manager = self.combat_manager_ref() if self.combat_manager_ref else None
             engine = self.engine_ref() if self.engine_ref else None
+            
             if combat_manager and getattr(combat_manager, 'waiting_for_display_completion', False):
                  logger.debug("Event queue empty, but CombatManager was waiting. Signalling resume (end of sub-step).")
                  self._signal_combat_manager_resume()
-            elif engine and getattr(engine, '_waiting_for_closing_narrative_display', False):
+            
+            # --- FIX: Check for combat completion pending finalization ---
+            # If combat is ended but we are still in COMBAT mode, trigger finalization.
+            try:
+                if engine and combat_manager:
+                    from core.combat.enums import CombatStep, CombatState
+                    from core.interaction.enums import InteractionMode
+                    
+                    # Check if we need to finalize combat (switch mode to NARRATIVE)
+                    if (getattr(combat_manager, 'current_step', None) == CombatStep.COMBAT_ENDED and 
+                        getattr(combat_manager, 'state', None) != CombatState.PLAYER_DEFEAT):
+                        
+                        state_manager = getattr(engine, '_state_manager', None)
+                        game_state = state_manager.current_state if state_manager else None
+                        
+                        if game_state and game_state.current_mode == InteractionMode.COMBAT:
+                            logger.info("Queue empty and Combat ended. Triggering _finalize_combat_transition_if_needed.")
+                            engine._finalize_combat_transition_if_needed()
+            except Exception as e:
+                logger.error(f"Error checking for combat finalization in orchestrator: {e}")
+            # --- END FIX ---
+
+            if engine and getattr(engine, '_waiting_for_closing_narrative_display', False):
                  logger.info("Orchestrator queue empty, and engine was waiting for closing narrative. Signaling engine completion.")
                  if hasattr(engine, 'on_orchestrator_idle_and_combat_manager_resumed'):
                      engine.on_orchestrator_idle_and_combat_manager_resumed()
@@ -393,27 +416,12 @@ class CombatOutputOrchestrator(QObject):
                  logger.debug("Orchestrator delay timeout: Triggering MainWindow._update_ui()")
                  QTimer.singleShot(0, main_window._update_ui) # Schedule UI update
         
-        # Root-cause fix: only resume CombatManager when queue is empty; otherwise continue processing next event.
-        if not self.is_processing_event and self.event_queue:
-            logger.debug("Processing next event from queue after delay.")
-            self._process_next_event_from_queue()
-        elif not self.is_processing_event and not self.event_queue:
-            logger.debug("Queue empty after delay. Resuming CombatManager for next step.")
-            self._signal_combat_manager_resume()
-            # If combat just ended successfully, trigger engine's auto-finalization to switch to narrative mode.
-            try:
-                engine = self.engine_ref() if self.engine_ref else None
-                if engine:
-                    from core.interaction.enums import InteractionMode
-                    from core.combat.enums import CombatStep, CombatState
-                    state_manager = getattr(engine, '_state_manager', None)
-                    game_state = state_manager.current_state if state_manager else None
-                    if game_state and game_state.current_mode == InteractionMode.COMBAT and getattr(game_state, 'combat_manager', None):
-                        cm = game_state.combat_manager
-                        if getattr(cm, 'current_step', None) == CombatStep.COMBAT_ENDED and getattr(cm, 'state', None) != CombatState.PLAYER_DEFEAT:
-                            QTimer.singleShot(0, engine._finalize_combat_transition_if_needed)
-            except Exception as e:
-                logger.error(f"Error scheduling automatic post-combat finalization: {e}", exc_info=True)
+        # Resume processing loop (or trigger idle handling)
+        # We delegate strictly to _process_next_event_from_queue because it handles both
+        # "processing the next event" AND "handling idle state" (resuming CM, signaling Engine).
+        # Duplicate logic here was causing the Engine signal to be missed when the queue emptied.
+        logger.debug("Delay finished. Delegating to _process_next_event_from_queue to resume or handle idle.")
+        self._process_next_event_from_queue()
 
 
     def _signal_combat_manager_resume(self) -> bool:
@@ -422,34 +430,42 @@ class CombatOutputOrchestrator(QObject):
         engine = self.engine_ref() if self.engine_ref else None
         resumed_and_not_waiting_again = False
 
-        if combat_manager and getattr(combat_manager, 'waiting_for_display_completion', False):
-            # Do not resume if combat is no longer in progress
-            try:
-                from core.combat.enums import CombatState
-                cm_state = getattr(combat_manager, 'state', None)
-                logger.info(f"CombatManager resume check. State: {cm_state.name if cm_state else 'Not available'}")
-                if cm_state is not None and cm_state != CombatState.IN_PROGRESS:
-                    logger.info(f"CombatManager state is {cm_state.name}, not IN_PROGRESS. Clearing stale events and nudging CM for final messages.")
-                    # 1. Clear any stale events from the normal combat flow.
-                    self.clear_queue_and_reset_flags()
-                    # 2. Nudge the CombatManager to run its final step (_step_ending_combat).
-                    #    This will add the correct final messages (loot, conclusion) to the now-clean queue.
-                    if engine:
-                        QTimer.singleShot(0, lambda: combat_manager.process_combat_step(engine))
-                    # 3. Return False because we are not resuming the normal combat loop.
-                    return False
-            except Exception:
-                pass
-            logger.info("Signaling CombatManager to resume processing.")
-            combat_manager.waiting_for_display_completion = False
-            if engine:
-                # Use QTimer to allow event loop to process signals first.
-                QTimer.singleShot(0, lambda: combat_manager.process_combat_step(engine))
-                resumed_and_not_waiting_again = not getattr(combat_manager, 'waiting_for_display_completion', True)
+        logger.info(f"[ORCHESTRATOR_DEBUG] _signal_combat_manager_resume called. CM: {combat_manager}, Engine: {engine}")
+
+        if combat_manager:
+            is_waiting = getattr(combat_manager, 'waiting_for_display_completion', False)
+            logger.info(f"[ORCHESTRATOR_DEBUG] CM waiting_for_display_completion: {is_waiting}")
+            
+            if is_waiting:
+                # Do not resume if combat is no longer in progress
+                try:
+                    from core.combat.enums import CombatState
+                    cm_state = getattr(combat_manager, 'state', None)
+                    logger.info(f"[ORCHESTRATOR_DEBUG] CM State: {cm_state.name if cm_state else 'Not available'}")
+                    if cm_state is not None and cm_state != CombatState.IN_PROGRESS:
+                        logger.info(f"[ORCHESTRATOR_DEBUG] Clearing stale events due to state {cm_state}")
+                        # 1. Clear any stale events from the normal combat flow.
+                        self.clear_queue_and_reset_flags()
+                        # 2. Nudge the CombatManager to run its final step (_step_ending_combat).
+                        if engine:
+                            QTimer.singleShot(0, lambda: combat_manager.process_combat_step(engine))
+                        return False
+                except Exception as e:
+                    logger.error(f"[ORCHESTRATOR_DEBUG] Error checking CM state: {e}")
+                    pass
+                
+                logger.info("[ORCHESTRATOR_DEBUG] signaling resume: Setting waiting=False and triggering process_combat_step")
+                combat_manager.waiting_for_display_completion = False
+                if engine:
+                    # Use QTimer to allow event loop to process signals first.
+                    QTimer.singleShot(0, lambda: combat_manager.process_combat_step(engine))
+                    resumed_and_not_waiting_again = not getattr(combat_manager, 'waiting_for_display_completion', True)
+                else:
+                    logger.error("[ORCHESTRATOR_DEBUG] Cannot resume CombatManager: Engine reference missing.")
             else:
-                logger.error("Cannot resume CombatManager: Engine reference missing.")
+                logger.info("[ORCHESTRATOR_DEBUG] CM was not waiting. No action taken.")
         else:
-            logger.debug("CombatManager not waiting or not available. No resume signal sent.")
+            logger.debug("[ORCHESTRATOR_DEBUG] CombatManager not waiting or not available. No resume signal sent.")
         return resumed_and_not_waiting_again
     
     def clear_queue_and_reset_flags(self):
