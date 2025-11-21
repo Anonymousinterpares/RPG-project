@@ -599,11 +599,17 @@ def _generate_reintroductory_narrative_content(engine: 'GameEngine', game_state:
         background_context = ""
         if hasattr(player, 'background') and player.background:
             background_context = f"Background: {player.background}. "
+            
+        # Include last events summary if available
+        events_context = ""
+        if hasattr(game_state, 'last_events_summary') and game_state.last_events_summary:
+            events_context = f"Recent Events: {game_state.last_events_summary}. "
         
         # Build the reintroduction prompt
         reintro_prompt = (
             f"I'm continuing my adventure as {player.name}, a {player.race} {player.path}. "
             f"{background_context}"
+            f"{events_context}"
             f"I'm currently at {current_location}. "
             f"It is {time_of_day}. "
             f"Please provide an immersive narrative that reintroduces me to my current situation. "

@@ -360,6 +360,12 @@ class NPCSystem:
                         encounter_size=encounter_size
                     )
                 logger.debug(f"Families-based generation succeeded (variant={used_variant}) for id='{target_id}' overlay='{overlay_id}' diff='{difficulty}' enc='{encounter_size}'")
+                
+                # Ensure persistence and registration in manager
+                if npc:
+                    npc.is_persistent = True
+                    self.manager.add_npc(npc)
+                    
             except Exception as e:
                 logger.error(f"Families-based NPC generation failed for id='{enemy_type}': {e}", exc_info=True)
                 # Fallback to legacy if families fail

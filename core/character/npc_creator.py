@@ -160,6 +160,8 @@ class NPCCreator:
                     difficulty=difficulty,
                     encounter_size=encounter_size,
                 )
+            # Ensure persistence for loot tracking
+            npc.is_persistent = True
             # Add to manager and return
             self.npc_manager.add_npc(npc)
             return npc
@@ -171,6 +173,7 @@ class NPCCreator:
             level=level,
             location=location
         )
+        npc.is_persistent = True  # Ensure enemies are persistent so loot/state is saved
         # Add to manager
         self.npc_manager.add_npc(npc)
         return npc

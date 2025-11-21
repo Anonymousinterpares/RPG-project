@@ -65,6 +65,9 @@ class StateManager:
         # Stats manager instance (set when creating or loading a game)
         self._stats_manager = None
         
+        # NPC System instance
+        self._npc_system = None
+        
         self._initialized = True
     
     @property
@@ -416,6 +419,14 @@ class StateManager:
                 logger.info("Including detailed quest data in save")
         except Exception as e:
             logger.warning(f"Error including quest data in save: {e}")
+            
+        # Save NPC system state
+        try:
+            if self.get_npc_system():
+                self.get_npc_system().save_state()
+                logger.info("Saved NPC system state")
+        except Exception as e:
+            logger.warning(f"Error saving NPC system state: {e}")
         
         # Save state
         try:
@@ -535,6 +546,14 @@ class StateManager:
                         logger.info("Restored detailed quest data from save")
                 except Exception as e:
                     logger.warning(f"Error restoring quest data: {e}")
+            
+            # Restore NPC system state
+            try:
+                if self.get_npc_system():
+                    self.get_npc_system().load_state()
+                    logger.info("Restored NPC system state")
+            except Exception as e:
+                logger.warning(f"Error restoring NPC system state: {e}")
             
             # Connect inventory and stats managers for equipment modifier synchronization
             self._connect_inventory_and_stats_managers()

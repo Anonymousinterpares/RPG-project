@@ -987,6 +987,29 @@ class GameEngine(QObject):
                         self._sfx_manager.play_one_shot('event','victory')
             except Exception:
                 pass
+
+            # --- Add high-level combat summary to conversation history for save context ---
+            try:
+                # Gather participants
+                participants = []
+                if combat_manager.entities:
+                    for entity in combat_manager.entities.values():
+                        participants.append(f"{entity.name} ({entity.entity_type.name})")
+                
+                # Get the closing narrative we just generated (if any)
+                # We need to capture the result of the LLM call below, or pre-generate it here?
+                # The LLM call happens *after* this block in the original code.
+                # Let's move the LLM generation *up* or add a placeholder summary now.
+                # Ideally, we wait for the closing narrative. 
+                # But _finalize... runs before the orchestrator processes the queue.
+                
+                # Simple summary for now:
+                summary_text = f"[COMBAT ENDED] Outcome: {final_combat_outcome}. Participants: {', '.join(participants)}."
+                game_state.add_conversation_entry("system", summary_text)
+                
+            except Exception as e:
+                logger.warning(f"Failed to add combat summary to history: {e}")
+
             game_state.combat_manager = None
 
             # Reset orchestrator for post-combat messages

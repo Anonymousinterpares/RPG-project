@@ -57,3 +57,7 @@ python -m pytest tests/
 ## Development Conventions
 
 The project follows a modular design with separated components for core logic, UI, configuration, and LLM integration. The codebase is well-structured and includes README files in key directories, providing specific information about each component.
+
+***CRITICAL***
+DO NOT MAKE OWN DECISIONS IF THERE IS MORE THAN ONE POSSIBLE APPROACH!
+YOU MUST CONSULT THE USER!
