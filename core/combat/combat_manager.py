@@ -258,6 +258,7 @@ class CombatManager:
         self._current_intent: Optional[str] = None
         self._active_entity_id: Optional[str] = None 
         self._surprise_round_entities: List[str] = [] # Retained for surprise round actor selection
+        self._player_surrendered: bool = False # Track surrender state explicitly
 
         # Keep references to offloaded LLM worker objects to avoid premature GC (PySide/PyQt requirement)
         self._llm_threads: List[QThread] = []
@@ -1294,6 +1295,9 @@ class CombatManager:
             final_action_success = self._last_action_result_detail.get("success", False)
             final_action_message = self._last_action_result_detail.get("message", "Action processed.")
             
+            if final_action_success and action.action_type == ActionType.SURRENDER:
+                self._player_surrendered = True
+
             return {"success": final_action_success, "message": final_action_message, "queued_events": queued_events_flag, "details": self._last_action_result_detail}
     def _step_processing_npc_action(self, engine):
         """Processes the NPC's stored intent, queues attempt narrative, converts to action, sets next step, then pauses."""
@@ -2473,13 +2477,28 @@ class CombatManager:
     def _check_combat_state(self) -> None:
         if self.state != CombatState.IN_PROGRESS: return
         alive_players = 0; alive_enemies = 0
+        player_survived = False
+        
         for entity in self.entities.values():
             if entity.is_alive() and getattr(entity, 'is_active_in_combat', True):
                 if entity.entity_type == EntityType.PLAYER or entity.entity_type == EntityType.ALLY: alive_players += 1
                 elif entity.entity_type == EntityType.ENEMY: alive_enemies += 1
+            
+            # Check if player exists and is alive (even if inactive)
+            if entity.entity_type == EntityType.PLAYER and entity.is_alive():
+                player_survived = True
+
         if alive_players == 0:
-            self.state = CombatState.PLAYER_DEFEAT
-            self._add_to_log("Combat ended: All players defeated!")
+            if player_survived:
+                if self._player_surrendered:
+                    self.state = CombatState.PLAYER_SURRENDERED
+                    self._add_to_log("Combat ended: Player surrendered.")
+                else:
+                    self.state = CombatState.FLED
+                    self._add_to_log("Combat ended: Player fled the battle.")
+            else:
+                self.state = CombatState.PLAYER_DEFEAT
+                self._add_to_log("Combat ended: All players defeated!")
         elif alive_enemies == 0:
             self.state = CombatState.PLAYER_VICTORY
             escaped_enemies = [e.name for e in self.entities.values() if e.entity_type == EntityType.ENEMY and not getattr(e, 'is_active_in_combat', False) and e.is_alive()]

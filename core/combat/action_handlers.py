@@ -1160,16 +1160,87 @@ def _handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatA
     current_result_detail["roll_details"] = check_result.to_dict()
 
     if check_result.success:
+        # Explicit clarification for the LLM to avoid "Enemies Surrender" hallucination
+        current_result_detail["intent_clarification"] = (
+            "The player's surrender was ACCEPTED by the enemies. "
+            "The player lays down their arms and submits. "
+            "The enemies DO NOT surrender; they have won by forcing the player to submit. "
+            "The player is stripped of all equipment as a consequence."
+        )
+        
+        # --- Equipment Stripping Logic ---
+        try:
+            from core.inventory import get_inventory_manager
+            import random
+            inv_mgr = get_inventory_manager()
+            
+            # Collect all items
+            items_to_transfer = []
+            if hasattr(inv_mgr, 'items'):
+                # items can be list or dict depending on version, handle both
+                if isinstance(inv_mgr.items, dict):
+                    items_to_transfer.extend(list(inv_mgr.items.values()))
+                elif isinstance(inv_mgr.items, list):
+                    items_to_transfer.extend(inv_mgr.items)
+            
+            if hasattr(inv_mgr, 'equipment') and isinstance(inv_mgr.equipment, dict):
+                for item in inv_mgr.equipment.values():
+                    if item: items_to_transfer.append(item)
+            
+            distribution_log = []
+            if items_to_transfer and enemies:
+                npc_system = engine.state_manager.get_npc_system()
+                for item in items_to_transfer:
+                    recipient_entity = random.choice(enemies)
+                    # Update persistent NPC data if possible
+                    if npc_system:
+                        npc_obj = npc_system.get_npc_by_id(recipient_entity.id)
+                        if npc_obj:
+                            # Assume NPC has 'inventory' list or similar. 
+                            # If not, we might need to add it or just log it for now.
+                            if not hasattr(npc_obj, 'inventory'):
+                                npc_obj.inventory = []
+                            # Store item data (simplified)
+                            npc_obj.inventory.append(item.to_dict() if hasattr(item, 'to_dict') else str(item))
+                            distribution_log.append(f"{item.name} -> {recipient_entity.combat_name}")
+                    else:
+                        distribution_log.append(f"{item.name} -> {recipient_entity.combat_name}")
+
+                # Clear Player Inventory
+                # We can use specific methods if available, or brute force clear for this prototype
+                if hasattr(inv_mgr, 'clear_inventory'):
+                    inv_mgr.clear_inventory()
+                else:
+                    # Fallback clear
+                    if isinstance(inv_mgr.items, dict): inv_mgr.items.clear()
+                    elif isinstance(inv_mgr.items, list): inv_mgr.items.clear()
+                
+                if hasattr(inv_mgr, 'clear_equipment'):
+                    inv_mgr.clear_equipment()
+                else:
+                    if hasattr(inv_mgr, 'equipment'): inv_mgr.equipment.clear()
+                
+                # Queue system message about loss
+                loss_msg = f"You have been stripped of your belongings! ({len(items_to_transfer)} items lost)"
+                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=loss_msg, target_display=DisplayTarget.COMBAT_LOG))
+                manager._add_to_log(loss_msg)
+                current_result_detail["consequences"] = f"Player lost {len(items_to_transfer)} items to enemies."
+
+        except Exception as e:
+            logger.error(f"Error stripping player equipment: {e}", exc_info=True)
+            current_result_detail["consequences_error"] = f"Error handling equipment loss: {e}"
+        # --- End Equipment Stripping ---
+
         current_result_detail.update({"success": True, "fled": True, "surrendered": True, "message": "Surrender accepted!"})
         performer.is_active_in_combat = False 
         
-        # Mark player as surrendered state logic handled by CM end check
         engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
             type=DisplayEventType.APPLY_ENTITY_STATE_UPDATE,
             content={},
             metadata={"entity_id": performer.id, "is_active_in_combat": False}
         ))
     else:
+        current_result_detail["intent_clarification"] = "The player attempted to surrender, but the enemies REFUSED. The enemies continue to attack."
         current_result_detail.update({"success": False, "surrendered": False, "message": "Surrender rejected."})
 
     current_result_detail["queued_events"] = queued_events_this_handler

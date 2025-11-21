@@ -1,12 +1,14 @@
 from enum import Enum, auto
 
 class CombatState(Enum):
-    """Possible states of combat."""
     NOT_STARTED = auto()
     IN_PROGRESS = auto()
     PLAYER_VICTORY = auto()
     PLAYER_DEFEAT = auto()
+    PLAYER_SURRENDERED = auto() # Player surrendered and survived (with consequences)
     FLED = auto()
+    DRAW = auto()
+    ERROR = auto()
 
 class CombatStep(Enum):
     NOT_STARTED = auto()
