@@ -39,17 +39,14 @@ def get_inventory_data(game_state: GameState) -> Dict[str, Any]:
 
         # Populate equipped items
         if hasattr(inventory_manager, 'equipment') and isinstance(inventory_manager.equipment, dict):
-            for slot, item_id in inventory_manager.equipment.items():
-                if item_id:
-                    item_obj: Optional[Item] = inventory_manager.get_item(item_id)
-                    if item_obj:
-                        equipped_items_dict[slot.value] = { # Use slot.value for the key
-                            "name": item_obj.name,
-                            "id": item_obj.id,
-                            "type": item_obj.item_type.value if hasattr(item_obj.item_type, 'value') else str(item_obj.item_type)
-                        }
-                    else:
-                        logger.warning(f"Equipped item ID {item_id} in slot {slot.value} not found in inventory manager items.")
+            for slot, item_obj in inventory_manager.equipment.items():
+                if item_obj:
+                    # item_obj is already the Item instance
+                    equipped_items_dict[slot.value] = { # Use slot.value for the key
+                        "name": item_obj.name,
+                        "id": item_obj.id,
+                        "type": item_obj.item_type.value if hasattr(item_obj.item_type, 'value') else str(item_obj.item_type)
+                    }
         else:
             logger.warning("Inventory manager 'equipment' attribute missing or not a dict.")
 

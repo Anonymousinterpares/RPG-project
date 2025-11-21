@@ -10,14 +10,15 @@ import uuid
 
 class ActionType(Enum):
     """Types of combat actions."""
-    ATTACK = auto()       # Basic melee or ranged attack
-    SPELL = auto()        # Magical ability
-    SKILL = auto()        # Special physical ability
-    DEFEND = auto()       # Defensive stance
-    ITEM = auto()         # Use an item
-    FLEE = auto()         # Attempt to escape
-    MOVE = auto()         # Change position
-    OTHER = auto()        # Miscellaneous action
+    ATTACK = "attack"
+    DEFEND = "defend"
+    FLEE = "flee"
+    SURRENDER = "surrender"  # New action type
+    ITEM = "item"
+    SPELL = "spell"
+    WAIT = "wait"
+    SKILL = "skill"
+    OTHER = "other"
 
 
 @dataclass
@@ -162,6 +163,21 @@ class DefendAction(CombatAction):
             performer_id=performer_id,
             description="Take a defensive stance, reducing incoming damage",
             special_effects={"damage_reduction": 0.5},  # 50% damage reduction
+            **kwargs
+        )
+
+
+@dataclass
+class SurrenderAction(CombatAction):
+    """Represents an attempt to surrender in combat."""
+    
+    def __init__(self, performer_id: str, **kwargs):
+        super().__init__(
+            id=kwargs.get("id", str(uuid.uuid4())),
+            name="Surrender",
+            action_type=ActionType.SURRENDER,
+            performer_id=performer_id,
+            description="Attempt to surrender to enemies",
             **kwargs
         )
 

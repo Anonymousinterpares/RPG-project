@@ -1091,3 +1091,86 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
         
     current_result_detail["queued_events"] = queued_events_this_handler
     return current_result_detail
+
+def _handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict) -> Dict[str, Any]:
+    """Handles the mechanics of a surrender attempt. Queues DisplayEvents."""
+    from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+    from core.stats.stats_base import StatType
+    
+    # Populate standard result fields for the bridge/narrator
+    current_result_detail.update({
+        "performer_name": performer.combat_name,
+        "action_name": "Surrender",
+        "action_type": action.action_type,
+        "target_name": "Enemies", 
+        "target_defeated": False, 
+        "damage": 0
+    })
+    
+    queued_events_this_handler = False
+
+    # Calculate Surrender DC based on enemy strength/will
+    surrender_dc = 12 # Base DC
+    enemies = [e for e in manager.entities.values() if e.entity_type == EntityType.ENEMY and e.is_alive() and getattr(e, 'is_active_in_combat', True)]
+    
+    if not enemies:
+        no_enemies_msg = f"{performer.combat_name} lays down arms... but there is no one to surrender to. Combat ends."
+        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=no_enemies_msg, target_display=DisplayTarget.COMBAT_LOG))
+        manager._add_to_log(no_enemies_msg)
+        current_result_detail.update({"success": True, "surrendered": True, "message": "No enemies to surrender to."})
+        current_result_detail["queued_events"] = True
+        return current_result_detail
+
+    # Adjust DC based on enemy "ferocity" or level (simplified heuristic)
+    # E.g. if any enemy is much higher level or has "Aggressive" trait
+    highest_level = 1
+    aggro_mod = 0
+    for enemy in enemies:
+        lvl = getattr(enemy, 'level', 1)
+        if lvl > highest_level: highest_level = lvl
+        # Placeholder for traits
+        if "Undead" in enemy.name: aggro_mod += 5 # Harder to reason with undead
+        
+    surrender_dc = max(10, 10 + highest_level + aggro_mod)
+    
+    # Perform Skill Check (Persuasion / Charisma)
+    skill_to_use = "persuasion"
+    stat_for_skill = StatType.CHARISMA
+    
+    check_result = performer_stats_manager.perform_skill_check(
+        stat_type=stat_for_skill,
+        difficulty=surrender_dc,
+        skill_name=skill_to_use
+    )
+    
+    # Construct display string
+    modifier_str_display = f"{check_result.modifier} (stat)"
+    if check_result.skill_exists:
+         modifier_str_display += f" ({check_result.skill_name or skill_to_use})"
+
+    check_roll_msg = (
+        f"{performer.combat_name} attempts to surrender ({skill_to_use.title()} check DC {surrender_dc}): "
+        f"Roll {check_result.roll} + {modifier_str_display} "
+        f"= {check_result.total} -> {check_result.outcome_desc}"
+    )
+    engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=check_roll_msg, target_display=DisplayTarget.COMBAT_LOG))
+    manager._add_to_log(check_roll_msg)
+    queued_events_this_handler = True
+    
+    current_result_detail["roll_details"] = check_result.to_dict()
+
+    if check_result.success:
+        current_result_detail.update({"success": True, "fled": True, "surrendered": True, "message": "Surrender accepted!"})
+        performer.is_active_in_combat = False 
+        
+        # Mark player as surrendered state logic handled by CM end check
+        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
+            type=DisplayEventType.APPLY_ENTITY_STATE_UPDATE,
+            content={},
+            metadata={"entity_id": performer.id, "is_active_in_combat": False}
+        ))
+    else:
+        current_result_detail.update({"success": False, "surrendered": False, "message": "Surrender rejected."})
+
+    current_result_detail["queued_events"] = queued_events_this_handler
+    return current_result_detail

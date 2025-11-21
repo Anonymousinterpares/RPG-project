@@ -1,47 +1,33 @@
-# Hybrid Skill System Implementation Report
+# REPORT: Surrender Action Implementation Logic
 
-## Executive Summary
-A comprehensive **Hybrid Skill System** has been successfully implemented, combining **Point Buy** mechanics for character creation with **Usage-Based Growth** for organic progression. This system is fully integrated into the backend engine and the frontend GUI.
+## Current State
+The `Surrender` action is implemented differently from standard combat actions (e.g., Flee, Attack, Cast Spell). It is currently handled as a **Mode Transition Request** rather than a `CombatAction` type.
 
-## Key Components Implemented
+### Key Differences:
+1.  **Action Type:**
+    *   **Standard:** Uses `ActionType` (e.g., `ActionType.FLEE`, `ActionType.ATTACK`).
+    *   **Surrender:** No `ActionType.SURRENDER` exists. It relies on string parsing ("surrender" in command text).
 
-### 1. Data & Backend (`core/stats/`)
-*   **Enhanced `Stat` Model:** The `Stat` dataclass now tracks `exp` (current experience) and `exp_to_next` (threshold for leveling).
-*   **Extended Configuration:**
-    *   `config/skills.json`: Added 15 new lore-specific skills (e.g., *Facet Logic*, *Ash Walking*, *Resonance Sensing*).
-    *   `config/character/classes.json`: Added `class_skills` lists and `skill_points_per_level` for all classes.
-*   **Logic Updates in `StatsManager`:**
-    *   `award_skill_exp(skill_name, amount)`: Handles XP accumulation and rank-up logic (exponential scaling).
-    *   `perform_skill_check(...)`: Now calculates and awards XP automatically based on Difficulty and Outcome (Failure yields 1.5x XP).
-*   **New `SkillAllocator` Class:** Manages the "Point Buy" logic:
-    *   **Class Skills:** Cost 1 Point.
-    *   **Cross-Class Skills:** Cost 2 Points.
-    *   **Origin Skills:** Start at Rank 1 (Free).
+2.  **Execution Path:**
+    *   **Standard:** `CombatManager._step_processing_player_action` -> Creates `CombatAction` -> `CombatManager._step_resolving_action_mechanics` -> `action_handler` -> `Narration`.
+    *   **Surrender:** `CombatManager._step_processing_player_action` -> `ActionType.REQUEST_MODE_TRANSITION` -> `mode_transitions._handle_transition_request` -> `_attempt_surrender_transition`.
 
-### 2. GUI Components (`gui/components/`)
-*   **New `SkillAllocationWidget`:** A dedicated widget for the creation wizard.
-    *   Lists all skills dynamically.
-    *   Highlights Class Skills (Green) and Origin Skills (Gold).
-    *   Displays real-time point costs and remaining pool.
-    *   Fully integrated with the theme manager.
-*   **Updated `SkillCheckDisplay`:** Now visualizes XP gains after a check, including a "LEVEL UP!" notification.
+3.  **Logic & Mechanics:**
+    *   **Surrender:** Checks if there are active enemies. If yes, it fails with a hardcoded message ("enemies are not willing"). If no (e.g., all enemies inactive/fled?), it succeeds.
+    *   **Flee:** Performs a `DEXTERITY` skill check against a calculated Difficulty Class (DC).
 
-### 3. Integration (`gui/dialogs/`)
-*   **Updated `CharacterCreationDialog`:**
-    *   Redesigned "Tab 3" (formerly just Stats) to be a **Split View**: "Stats & Skills".
-    *   Left Column: Attribute Allocation (STR, DEX, etc.).
-    *   Right Column: Skill Allocation (Stealth, Arcana, etc.).
-    *   Seamlessly updates available skills and points based on Race, Class, Origin, and Intelligence score changes.
-    *   Validation logic ensures all skill points are spent before creation.
+4.  **Narration & Output:**
+    *   **Standard:** Queues a `NARRATIVE_ATTEMPT` event for the orchestrator (recently fixed). Uses LLM for dynamic description of the result.
+    *   **Surrender:** Returns a static string. It bypasses the LLM and the `CombatNarrator`. It does not queue a `NARRATIVE_ATTEMPT` event, potentially leading to the same "missing feedback" issue if not handled by the transition logic's fallback output.
 
-## Usage Instructions
+## Risk Assessment
+*   **Inconsistency:** Surrender feels mechanical and less immersive than other actions because it lacks LLM narration.
+*   **Fragility:** The current implementation relies on "active enemies" check which might effectively make surrender impossible in standard combat (as enemies are usually active until dead).
+*   **Orchestration:** Because it bypasses the standard action queue, it might suffer from synchronization issues similar to the ones just fixed for `Flee`, although `mode_transitions.py` attempts to manually queue system messages.
 
-### For Players
-1.  **New Game:** Navigate to the "Stats & Skills" tab.
-2.  **Customize:** Spend your "Skill Points". Notice that skills relevant to your Class are cheaper.
-3.  **Play:** Use skills during gameplay. You will see XP gains in the result window. Use a skill enough times, and it will Rank Up automatically!
-
-### For Developers
-*   **Adding Skills:** Simply add entries to `config/skills.json`.
-*   **Tuning XP:** Modify the formula in `StatsManager.perform_skill_check`.
-*   **Tuning Costs:** Modify `SkillAllocator.get_skill_cost`.
+## Recommendation
+To fully synchronize `Surrender` with the new robust system:
+1.  Define `ActionType.SURRENDER`.
+2.  Create a proper handler in `action_handlers.py` (e.g., `_handle_surrender_action_mechanics`) that returns a standardized result dict.
+3.  Implement a mechanics check (e.g., `CHARISMA` / `Persuasion` check vs Enemy Will/Level).
+4.  Update `CombatManager` to treat it as a first-class action, ensuring `NARRATIVE_ATTEMPT` events are queued.

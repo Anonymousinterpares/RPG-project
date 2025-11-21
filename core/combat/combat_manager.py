@@ -15,7 +15,9 @@ from core.stats.combat_effects import StatusEffect, StatusEffectType
 from core.stats.modifier import ModifierSource
 from core.stats.stats_base import StatType, DerivedStatType
 from core.combat.combat_entity import CombatEntity, EntityType
-from core.combat.combat_action import AttackAction, CombatAction, ActionType, DefendAction, FleeAction, SpellAction
+from core.combat.combat_action import (
+    CombatAction, AttackAction, SpellAction, DefendAction, ItemAction, FleeAction, SurrenderAction, ActionType
+)
 from core.stats.stats_manager import StatsManager, get_stats_manager 
 from core.inventory import get_inventory_manager
 from .enums import CombatState, CombatStep
@@ -24,7 +26,8 @@ from .action_handlers import (
     _handle_spell_action,
     _handle_defend_action,
     _handle_item_action,
-    _handle_flee_action_mechanics
+    _handle_flee_action_mechanics,
+    _handle_surrender_action_mechanics
 )
 
 if TYPE_CHECKING:
@@ -1094,7 +1097,6 @@ class CombatManager:
         elif action.action_type == ActionType.SPELL: base_cost = 2.0
         elif action.action_type == ActionType.SKILL: base_cost = 10.0
         elif action.action_type == ActionType.DEFEND: base_cost = 3.0
-        elif action.action_type == ActionType.MOVE: base_cost = 2.0
         elif action.action_type == ActionType.FLEE: base_cost = 8.0
         base_cost = action.cost_stamina if action.cost_stamina > 0 else base_cost
         cost_details.append(f"Base Cost: {base_cost}")
@@ -1262,6 +1264,7 @@ class CombatManager:
                 elif action.action_type == ActionType.DEFEND: action_handler_func = _handle_defend_action 
                 elif action.action_type == ActionType.ITEM: action_handler_func = _handle_item_action   
                 elif action.action_type == ActionType.FLEE: action_handler_func = _handle_flee_action_mechanics
+                elif action.action_type == ActionType.SURRENDER: action_handler_func = _handle_surrender_action_mechanics
 
                 if action_handler_func:
                     # _last_action_result_detail is passed to be updated by the handler
@@ -1395,10 +1398,12 @@ class CombatManager:
                             description=action_request.get("description", f"Casting {normalized_skill_for_action_name}")
                         )
                     elif combat_action_type == ActionType.DEFEND:
-                         self._pending_action = DefendAction(performer_id=active_id)
+                            self._pending_action = DefendAction(performer_id=active_id)
                     elif combat_action_type == ActionType.FLEE:
-                         self._pending_action = FleeAction(performer_id=active_id)
-                    
+                            self._pending_action = FleeAction(performer_id=active_id)
+                    elif combat_action_type == ActionType.SURRENDER:
+                            self._pending_action = SurrenderAction(performer_id=active_id)
+                
                     if self._pending_action:
                         logger.info(f"NPC ({npc_entity.combat_name}) action request converted to CombatAction: {self._pending_action.name}")
                         conversion_success = True
@@ -1947,24 +1952,11 @@ class CombatManager:
                         # Bridge: infer FLEE or SURRENDER from intent/context even if LLM didn't return ideal request
                         intent_lower = (self._current_intent or "").lower()
                         context_lower = str(action_request.get("context", "")).lower()
-                        # Detect surrender intent and convert to mode transition immediately
+                        
+                        # Detect surrender intent and set ActionType
                         if any(tok in intent_lower for tok in ["surrender", "yield", "give up"]) or any(tok in context_lower for tok in ["surrender", "yield", "give up"]):
-                            from core.game_flow.mode_transitions import _handle_transition_request
-                            req = {
-                                "action": "request_mode_transition",
-                                "target_mode": "NARRATIVE",
-                                "origin_mode": "COMBAT",
-                                "reason": "surrender",
-                                "additional_context": {"original_intent": self._current_intent, "narrative_context": agent_output.get("narrative", "")},
-                            }
-                            _handle_transition_request(engine, game_state, req, player_entity.id)
-                            if game_state.current_mode != InteractionMode.COMBAT:
-                                self.current_step = CombatStep.ENDING_COMBAT
-                            else:
-                                self.current_step = CombatStep.APPLYING_STATUS_EFFECTS
-                            # Already handled as transition path
-                            self.waiting_for_display_completion = True
-                            return
+                             combat_action_type = ActionType.SURRENDER
+
                         # Detect flee intent and convert to FleeAction mechanics
                         if combat_action_type == ActionType.OTHER:
                             flee_tokens = ["flee", "escape", "run", "retreat", "disengage"]
@@ -2075,9 +2067,11 @@ class CombatManager:
                                 self._current_intent = None
                                 return
                         elif combat_action_type == ActionType.DEFEND:
-                            self._pending_action = DefendAction(performer_id=player_id)
-                        elif combat_action_type == ActionType.FLEE: # Explicit or inferred FleeAction
-                            self._pending_action = FleeAction(performer_id=player_id)
+                             self._pending_action = DefendAction(performer_id=player_id)
+                        elif combat_action_type == ActionType.FLEE:
+                             self._pending_action = FleeAction(performer_id=player_id)
+                        elif combat_action_type == ActionType.SURRENDER:
+                             self._pending_action = SurrenderAction(performer_id=player_id)
                         elif combat_action_type == ActionType.ITEM:
                             item_name_from_skill = skill_name 
                             item_id_placeholder = action_request.get("item_id", item_name_from_skill.lower().replace(" ","_")) if item_name_from_skill else "unknown_item"
