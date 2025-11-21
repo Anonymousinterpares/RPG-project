@@ -1339,6 +1339,17 @@ class GameEngine(QObject):
             # Potentially trigger UI re-enable or next game prompt if needed here.
             # For now, just unblocks further input in process_input.
 
+    def request_ui_update(self) -> None:
+        """Safely requests a refresh of the main UI."""
+        try:
+            from PySide6.QtCore import QTimer
+            if hasattr(self, 'main_window_ref') and self.main_window_ref:
+                main_window = self.main_window_ref()
+                if main_window and hasattr(main_window, '_update_ui'):
+                    QTimer.singleShot(0, main_window._update_ui)
+        except Exception as e:
+            logger.error(f"Failed to request UI update: {e}")
+
 # Convenience function (remains the same)
     
     # --- Music accessors for GUI/Server ---

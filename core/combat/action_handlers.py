@@ -1206,19 +1206,12 @@ def _handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatA
                     else:
                         distribution_log.append(f"{item.name} -> {recipient_entity.combat_name}")
 
-                # Clear Player Inventory
-                # We can use specific methods if available, or brute force clear for this prototype
-                if hasattr(inv_mgr, 'clear_inventory'):
-                    inv_mgr.clear_inventory()
+                # Clear Player Inventory and Equipment
+                # Use the .clear() method of InventoryManager which correctly resets internal state
+                if hasattr(inv_mgr, 'clear'):
+                    inv_mgr.clear()
                 else:
-                    # Fallback clear
-                    if isinstance(inv_mgr.items, dict): inv_mgr.items.clear()
-                    elif isinstance(inv_mgr.items, list): inv_mgr.items.clear()
-                
-                if hasattr(inv_mgr, 'clear_equipment'):
-                    inv_mgr.clear_equipment()
-                else:
-                    if hasattr(inv_mgr, 'equipment'): inv_mgr.equipment.clear()
+                    logger.error("InventoryManager does not have a clear() method. Equipment stripping failed.")
                 
                 # Queue system message about loss
                 loss_msg = f"You have been stripped of your belongings! ({len(items_to_transfer)} items lost)"
@@ -1239,6 +1232,9 @@ def _handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatA
             content={},
             metadata={"entity_id": performer.id, "is_active_in_combat": False}
         ))
+        
+        # Request a full UI refresh to show the empty inventory and character sheet.
+        engine.request_ui_update()
     else:
         current_result_detail["intent_clarification"] = "The player attempted to surrender, but the enemies REFUSED. The enemies continue to attack."
         current_result_detail.update({"success": False, "surrendered": False, "message": "Surrender rejected."})
