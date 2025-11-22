@@ -443,7 +443,12 @@
       "prismal",
       "crystalline_consortium",
       "interface"
-    ]
+    ],
+    "is_consumable": false,
+    "is_stackable": false,
+    "is_quest_item": false,
+    "durability": 0,
+    "dice_roll_effects": []
   },
   {
     "id": "diplomatic_credentials",

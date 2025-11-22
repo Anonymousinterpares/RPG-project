@@ -2411,47 +2411,47 @@
           "id": "divine_restoration",
           "name": "Divine Restoration",
           "description": "A powerful healing spell that mends severe injuries, regenerates damaged tissue, and restores vitality.",
-          "mana_cost": 35.0,
+          "mana_cost": 30,
           "casting_time": "5 minutes",
           "range": "touch",
           "target": "single",
           "effects": [],
           "effect_atoms": [
             {
-              "type": "heal",
-              "selector": "ally",
               "magnitude": {
                 "dice": "4d10+20"
               },
-              "source_id": "divine_restoration",
-              "tags": [
-                "healing",
-                "restoration",
-                "regeneration"
-              ]
-            },
-            {
-              "type": "buff",
               "selector": "ally",
-              "magnitude": {
-                "flat": 5.0
-              },
               "source_id": "divine_restoration",
               "tags": [
                 "healing",
                 "restoration",
                 "regeneration"
               ],
+              "type": "heal"
+            },
+            {
               "duration": {
                 "unit": "turns",
                 "value": 10
+              },
+              "magnitude": {
+                "flat": 5.0
               },
               "modifiers": [
                 {
                   "stat": "HP_REGENERATION",
                   "value": 5.0
                 }
-              ]
+              ],
+              "selector": "ally",
+              "source_id": "divine_restoration",
+              "tags": [
+                "healing",
+                "restoration",
+                "regeneration"
+              ],
+              "type": "buff"
             }
           ],
           "level": 4,
@@ -2661,6 +2661,51 @@
             "restoration",
             "enhancement",
             "recovery"
+          ],
+          "combat_role": "defensive"
+        },
+        "test_healing": {
+          "id": "test_healing",
+          "name": "Test Healing",
+          "description": "A basic healing spell for testing purposes. Heals the caster and an ally.",
+          "mana_cost": 1.0,
+          "casting_time": "1 action",
+          "range": "touch",
+          "target": "single",
+          "effects": [],
+          "effect_atoms": [
+            {
+              "magnitude": {
+                "flat": 10
+              },
+              "selector": "self",
+              "source_id": "test_healing",
+              "tags": [
+                "healing",
+                "test"
+              ],
+              "type": "heal"
+            },
+            {
+              "magnitude": {
+                "flat": 10
+              },
+              "selector": "ally",
+              "source_id": "test_healing",
+              "tags": [
+                "healing",
+                "test"
+              ],
+              "type": "heal"
+            }
+          ],
+          "level": 1,
+          "components": [
+            "verbal"
+          ],
+          "tags": [
+            "healing",
+            "test"
           ],
           "combat_role": "defensive"
         }

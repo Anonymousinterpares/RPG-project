@@ -68,7 +68,7 @@
       "additionalProperties": false
     },
     "StackingRule": { "type": "string", "enum": ["none", "stack", "refresh", "replace"] },
-    "Selector": { "type": "string", "enum": ["self", "ally", "enemy", "area"] },
+    "Selector": { "type": "string", "enum": ["self", "ally", "enemy", "area", "target", "friendly"] },
 
     "EffectAtom": {
       "type": "object",

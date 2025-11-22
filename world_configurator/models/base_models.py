@@ -450,14 +450,18 @@ class Spell(BaseModel):
                     effects.append(effect_data)
             data_copy['effects'] = effects
         # Effect atoms: accept pass-through list of dicts
-        if 'effect_atoms' in data_copy and isinstance(data_copy['effect_atoms'], list):
-            try:
-                atoms = []
-                for a in data_copy['effect_atoms']:
-                    if isinstance(a, dict):
-                        atoms.append(a)
-                data_copy['effect_atoms'] = atoms
-            except Exception:
+        if 'effect_atoms' in data_copy:
+            if isinstance(data_copy['effect_atoms'], list):
+                try:
+                    atoms = []
+                    for a in data_copy['effect_atoms']:
+                        if isinstance(a, dict):
+                            atoms.append(a)
+                    data_copy['effect_atoms'] = atoms
+                except Exception:
+                    data_copy['effect_atoms'] = []
+            else:
+                # If strictly not a list (e.g. string hallucination), force empty
                 data_copy['effect_atoms'] = []
         # Normalize combat_role if present; default to 'offensive'
         if 'combat_role' in data_copy:

@@ -2120,12 +2120,24 @@ class MagicSystemsEditor(QWidget):
         except Exception:
             # Fallback import path if packaging differs
             from ..assistant.context import AssistantContext  # type: ignore
+
+        # Load effect_atoms schema to guide the assistant
+        schema_hints = None
+        try:
+            root = get_project_root()
+            # We provide the effect_atoms schema as a hint because it's the most complex structure
+            epath = os.path.join(root, 'config', 'gameplay', 'effect_atoms.schema.json')
+            if os.path.exists(epath):
+                schema_hints = load_json(epath)
+        except Exception:
+            pass
+
         if not self.current_system:
             return AssistantContext(
                 domain="magic_systems",
                 selection_id=None,
                 content=None,
-                schema=None,
+                schema=schema_hints,
                 allowed_paths=[
                     "/name", "/description", "/origin", "/limitations",
                     "/practitioners", "/cultural_significance",
@@ -2141,7 +2153,7 @@ class MagicSystemsEditor(QWidget):
             domain="magic_systems",
             selection_id=self.current_system.id,
             content=self.current_system.to_dict(),
-            schema=None,
+            schema=schema_hints,
             allowed_paths=allowed,
         )
 
@@ -2181,7 +2193,7 @@ class MagicSystemsEditor(QWidget):
             "damage", "heal", "resource_change", "buff", "debuff",
             "status_apply", "status_remove", "cleanse", "shield"
         ]
-        refs["selectors"] = ["self", "ally", "enemy", "area"]
+        refs["selectors"] = ["self", "ally", "enemy", "area", "target", "friendly"]
         refs["resources"] = ["HEALTH", "MANA", "STAMINA", "RESOLVE"]
         refs["stacking_rules"] = ["none", "stack", "refresh", "replace"]
         refs["periodic_tags"] = ["damage_over_time", "healing_over_time", "regeneration"]
@@ -2198,10 +2210,16 @@ class MagicSystemsEditor(QWidget):
         return refs
 
     def get_domain_examples(self) -> List[Dict[str, Any]]:
-        """Return one example spell from the current system, if any, to steer create mode."""
+        """Return one example spell from the current system, if any, to steer create mode.
+        Prefer spells with effect_atoms to demonstrate modern structure.
+        """
         try:
             if self.current_system and self.current_system.spells:
-                # Take the first spell as an exemplar
+                # Prefer a spell with effect_atoms
+                for sp in self.current_system.spells.values():
+                    if getattr(sp, 'effect_atoms', None):
+                        return [sp.to_dict()]
+                # Fallback to first spell
                 first_spell = next(iter(self.current_system.spells.values()))
                 return [first_spell.to_dict()]
         except Exception:

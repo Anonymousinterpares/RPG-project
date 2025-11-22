@@ -1086,6 +1086,12 @@ class CombatManager:
     def get_current_entity_id(self) -> Optional[str]:
         return self._active_entity_id
 
+    def get_player_entity(self) -> Optional[CombatEntity]:
+        """Returns the player's CombatEntity if active in this combat, otherwise None."""
+        if self._player_entity_id and self._player_entity_id in self.entities:
+            return self.entities[self._player_entity_id]
+        return None
+
     def is_player_turn(self) -> bool:
         current_entity = self.get_current_entity()
         return current_entity is not None and current_entity.entity_type == EntityType.PLAYER
@@ -1386,7 +1392,27 @@ class CombatManager:
                     target_combat_name_req = action_request.get("target_actor_id")
                     if target_combat_name_req:
                         target_entity = self._find_entity_by_combat_name(target_combat_name_req)
-                        if target_entity: target_internal_id = target_entity.id
+                        if target_entity: 
+                            target_internal_id = target_entity.id
+                            
+                            # --- FIX: Validate Target for Enemies ---
+                            # Prevent friendly fire and self-targeting for direct attacks
+                            if active_id in self._enemy_entity_ids and combat_action_type == ActionType.ATTACK:
+                                if target_entity.id in self._enemy_entity_ids:
+                                    logger.warning(f"NPC AI ({npc_entity.combat_name}) attempted invalid target (Self/Ally: {target_entity.combat_name}). Redirecting to Player.")
+                                    # Redirect to player
+                                    if self._player_entity_id:
+                                        target_internal_id = self._player_entity_id
+                                    else:
+                                        # Find any non-enemy target?
+                                        valid_targets = [e.id for e in self.entities.values() if e.entity_type != EntityType.ENEMY and e.is_alive()]
+                                        if valid_targets:
+                                            target_internal_id = valid_targets[0]
+                                        else:
+                                            logger.warning("Could not find valid redirection target for NPC.")
+                                            target_internal_id = None
+                            # --- END FIX ---
+
                         else: engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=f"{npc_entity.combat_name} looks for '{target_combat_name_req}' but can't find them!", target_display=DisplayTarget.COMBAT_LOG))
 
                     if combat_action_type == ActionType.ATTACK and target_internal_id:

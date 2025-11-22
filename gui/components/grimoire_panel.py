@@ -543,57 +543,113 @@ class GrimoirePanelWidget(QScrollArea):
         if self._current_mode != InteractionMode.COMBAT:
             QMessageBox.information(self, "Casting", "Casting is disabled outside combat.")
             return
+
+        from core.base.engine import get_game_engine
+        engine = get_game_engine()
+        state = engine.state_manager.current_state if engine and engine.state_manager else None
+        
+        if not state or not state.combat_manager:
+            QMessageBox.information(self, "Casting", "No active combat.")
+            return
+        
+        cm = state.combat_manager
+        player_entity = cm.get_player_entity() # Get player CombatEntity
+
         try:
             from core.magic.spell_catalog import get_spell_catalog
             cat = get_spell_catalog()
             sp = cat.get_spell_by_id(sid)
-        except Exception:
-            sp = None
-        role = getattr(sp, 'combat_role', 'offensive') if sp else 'offensive'
-        state = get_state_manager().current_state if get_state_manager() else None
-        cm = getattr(state, 'combat_manager', None) if state else None
-        if not cm or not getattr(state, 'current_mode', None) == InteractionMode.COMBAT:
-            QMessageBox.information(self, "Casting", "No active combat.")
+            if not sp:
+                QMessageBox.information(self, "Casting", f"Spell '{sid}' not found in catalog.")
+                return
+        except Exception as e:
+            logger.exception(f"Failed to retrieve spell '{sid}' from catalog: {e}")
+            QMessageBox.critical(self, "Casting Error", f"Failed to retrieve spell data: {e}")
             return
-        alive_enemies = []
-        allies_or_self = []
-        try:
-            for ent in (cm.entities or {}).values():
-                if not ent.is_alive() or not getattr(ent, 'is_active_in_combat', True):
-                    continue
-                if ent.entity_type == EntityType.ENEMY:
-                    alive_enemies.append(ent)
-                else:
-                    allies_or_self.append(ent)
-        except Exception:
-            pass
-        spell_name = getattr(sp, 'name', sid) if sp else sid
+
+        # Extract spell targeting properties
+        spell_name = getattr(sp, 'name', sid)
+        spell_target_config = sp.data.get('target', 'single').lower() # "self", "single", "area", "multiple"
         
-        if role == 'offensive':
-            if len(alive_enemies) == 0:
-                QMessageBox.information(self, "Casting", "No valid enemy targets.")
+        spell_effect_selector = None
+        if sp.effect_atoms:
+            spell_effect_selector = sp.effect_atoms[0].get('selector', 'enemy').lower() # "self", "ally", "enemy"
+        
+        combat_role = sp.combat_role.lower() # "offensive", "defensive", "utility"
+
+        # --- Pre-filter entities ---
+        alive_enemies = [
+            e for e in cm.entities.values() 
+            if e.entity_type == EntityType.ENEMY and e.is_alive() and getattr(e, 'is_active_in_combat', True)
+        ]
+        
+        allies_excluding_self = [
+            e for e in cm.entities.values() 
+            if e.entity_type != EntityType.ENEMY and e.id != (player_entity.id if player_entity else None) and e.is_alive() and getattr(e, 'is_active_in_combat', True)
+        ]
+        
+        allies_and_self = []
+        if player_entity and player_entity.is_alive() and getattr(player_entity, 'is_active_in_combat', True):
+            allies_and_self.append(player_entity)
+        allies_and_self.extend(allies_excluding_self)
+        
+        from gui.dialogs.target_selection_dialog import TargetSelectionDialog
+
+        # --- Decision Logic for Target Selection ---
+
+        # Case 1: Self-Only Spells
+        if spell_target_config == 'self' or spell_effect_selector == 'self':
+            if player_entity and player_entity.is_alive():
+                self.cast_spell_requested.emit(sid, player_entity.id)
+                return
+            else:
+                QMessageBox.information(self, "Casting", "Cannot cast self-targeting spell: Player not available or not active.")
+                return
+
+        # Case 2: Area-of-Effect Spells (no specific target selection needed in UI)
+        if spell_target_config == 'area':
+            # The backend is expected to resolve "area" targeting (e.g., all enemies, all allies, or around caster)
+            # We pass None as target_id; the CombatAction will be created without explicit targets.
+            self.cast_spell_requested.emit(sid, None)
+            return
+            
+        # Case 3: Offensive Spells (and spells explicitly targeting enemies)
+        if combat_role == 'offensive' or spell_effect_selector == 'enemy':
+            if not alive_enemies:
+                QMessageBox.information(self, "Casting", "No valid enemy targets available.")
                 return
             if len(alive_enemies) == 1:
                 self.cast_spell_requested.emit(sid, alive_enemies[0].id)
                 return
-            from gui.dialogs.target_selection_dialog import TargetSelectionDialog
+            
+            # Multiple enemies: show dialog
             dialog = TargetSelectionDialog(alive_enemies, spell_name, self)
             if dialog.exec() == QDialog.Accepted:
                 target_id = dialog.get_selected_target()
                 if target_id:
                     self.cast_spell_requested.emit(sid, target_id)
-        elif role == 'defensive':
-            if len(allies_or_self) == 0:
-                QMessageBox.information(self, "Casting", "No valid allies.")
+            return
+
+        # Case 4: Defensive/Utility Spells (Ally or Self)
+        # This covers spells with combat_role 'defensive' or 'utility' and/or 'ally' selector,
+        # that are not 'self'-only or 'area'.
+        if combat_role in ('defensive', 'utility') or spell_effect_selector == 'ally':
+            if not allies_and_self:
+                QMessageBox.information(self, "Casting", "No valid allied targets (including yourself) for this spell.")
                 return
-            if len(allies_or_self) == 1:
-                self.cast_spell_requested.emit(sid, allies_or_self[0].id)
+            if len(allies_and_self) == 1:
+                self.cast_spell_requested.emit(sid, allies_and_self[0].id)
                 return
-            from gui.dialogs.target_selection_dialog import TargetSelectionDialog
-            dialog = TargetSelectionDialog(allies_or_self, spell_name, self)
+            
+            # Multiple allies/self: show dialog
+            dialog = TargetSelectionDialog(allies_and_self, spell_name, self)
             if dialog.exec() == QDialog.Accepted:
                 target_id = dialog.get_selected_target()
                 if target_id:
                     self.cast_spell_requested.emit(sid, target_id)
-        else:
-            QMessageBox.information(self, "Casting", "This spell is not available during combat.")
+            return
+        
+        # Fallback for unhandled spell types (e.g., malformed data or new categories)
+        QMessageBox.warning(self, "Casting", f"Cannot determine target for spell '{spell_name}'. Please report this issue.")
+        logger.warning(f"Unhandled spell targeting logic for '{spell_name}' (ID: {sid}). "
+                       f"Target Config: {spell_target_config}, Selector: {spell_effect_selector}, Role: {combat_role}")

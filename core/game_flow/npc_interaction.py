@@ -86,7 +86,12 @@ def get_npc_intent(engine: 'GameEngine', game_state: 'GameState', npc_id: str) -
             f"{dynamic_prompt_additions}\n"
             f"-----------------------------\n"
             f"Based on the situation, your character's likely goals, stats, and available abilities (if known), "
-            f"state the *single, specific action* you will take this turn. You MUST choose an action from the 'Affordable Actions' list and a target from the 'Valid Targets' list if applicable. Be concise and action-oriented.\n"
+            f"state the *single, specific action* you will take this turn. \n"
+            f"RULES:\n"
+            f"1. You MUST choose an action from the 'Affordable Actions' list if provided.\n"
+            f"2. You MUST choose a target from the 'Valid Targets' list if performing a targeted action.\n"
+            f"3. If you are an ENEMY, you must NEVER attack yourself or other enemies. You MUST target the Player or their Allies.\n"
+            f"Be concise and action-oriented.\n"
             f"Examples: 'Attack the player with sword', 'Cast Fireball at Qa', 'Use Healing Potion on self', 'Defend', 'Attempt to flee'.\n"
             f"Your Action Intent:" 
         )
