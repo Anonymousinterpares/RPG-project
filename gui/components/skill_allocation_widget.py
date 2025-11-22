@@ -75,9 +75,9 @@ class SkillAllocationWidget(QWidget):
         main_layout.addLayout(header_layout)
 
         # Skills List in Scroll Area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setFrameShape(QFrame.NoFrame)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.NoFrame)
         
         scroll_content = QWidget()
         self.skills_layout = QVBoxLayout(scroll_content)
@@ -85,11 +85,11 @@ class SkillAllocationWidget(QWidget):
         self.skills_layout.setContentsMargins(0, 0, 0, 0)
         self.skills_layout.addStretch() # Push items to top
         
-        scroll_area.setWidget(scroll_content)
+        self.scroll_area.setWidget(scroll_content)
         
         self.skills_group = QGroupBox("Skills")
         group_layout = QVBoxLayout(self.skills_group)
-        group_layout.addWidget(scroll_area)
+        group_layout.addWidget(self.scroll_area)
         
         main_layout.addWidget(self.skills_group)
         
@@ -203,14 +203,20 @@ class SkillAllocationWidget(QWidget):
 
     def _increase_skill(self, skill_key: str):
         if self.allocator and self.allocator.increase_skill(skill_key):
+            scroll_bar = self.scroll_area.verticalScrollBar()
+            scroll_position = scroll_bar.value()
             self._update_display()
+            scroll_bar.setValue(scroll_position)
             self.skills_changed.emit()
             if self.allocator.get_remaining_points() == 0:
                 self.allocation_complete.emit()
 
     def _decrease_skill(self, skill_key: str):
         if self.allocator and self.allocator.decrease_skill(skill_key):
+            scroll_bar = self.scroll_area.verticalScrollBar()
+            scroll_position = scroll_bar.value()
             self._update_display()
+            scroll_bar.setValue(scroll_position)
             self.skills_changed.emit()
 
     def _reset_skills(self):
