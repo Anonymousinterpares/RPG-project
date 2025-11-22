@@ -56,6 +56,20 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
 
     defense_value = target_stats_manager.get_stat_value(DerivedStatType.DEFENSE)
 
+    # --- Passive Defense from Skill ---
+    try:
+        def_skill = target_stats_manager.get_skill_value("defensive_combat")
+        if def_skill > 0:
+            # Passive bonus: +0.5 Defense per level
+            passive_def_bonus = def_skill * 0.5
+            defense_value += passive_def_bonus
+            # XP Award for being attacked (passive training)
+            target_stats_manager.award_skill_exp("defensive_combat", 5) 
+    except Exception as e:
+        # Log warning but don't crash combat
+        pass # Skill might not exist or error in lookup
+    # ----------------------------------
+
     adv = performer.has_status_effect("Advantage")
     disadv = performer.has_status_effect("Disadvantage")
     roll1 = random.randint(1, 20)
@@ -844,16 +858,54 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
 def _handle_defend_action(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict) -> Dict[str, Any]:
     """Handle the mechanics of a defend action. Queues DisplayEvents."""
     from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
+    from core.stats.modifier import StatModifier, ModifierType, ModifierSource
+    
     logger.info(f"{performer.combat_name} takes a defensive stance.")
     queued_events_this_handler = False
     
+    # Calculate defense bonus based on skill
+    base_bonus = 20
+    skill_bonus = 0
+    try:
+        skill_val = performer_stats_manager.get_skill_value("defensive_combat")
+        skill_bonus = int(skill_val) # +1 per level
+    except Exception:
+        pass
+        
+    total_bonus = base_bonus + skill_bonus
+    
     duration = 1 
-    performer_stats_manager.add_status_effect(StatusEffect(name="Defending", description="Taking a defensive stance, improving defense.", effect_type=StatusEffectType.BUFF, duration=duration))
+    
+    # Create status effect
+    defend_effect = StatusEffect(
+        name="Defending", 
+        description=f"Defensive stance (+{total_bonus} Def).", 
+        effect_type=StatusEffectType.BUFF, 
+        duration=duration
+    )
+    performer_stats_manager.add_status_effect(defend_effect)
     performer.add_status_effect("Defending", duration=duration) 
 
-    defend_msg = f"  {performer.combat_name} is now Defending."
-    # This message is usually covered by the NARRATIVE_IMPACT from CombatNarrator for defend action.
-    # If CombatNarrator doesn't provide one, or if a system message is always desired:
+    # Apply Mechanical Modifier
+    mod = StatModifier(
+        stat=DerivedStatType.DEFENSE,
+        value=total_bonus,
+        source_type=ModifierSource.CONDITION,
+        source_name="Defending",
+        modifier_type=ModifierType.TEMPORARY,
+        duration=duration
+    )
+    # Add modifier via modifier_manager
+    if hasattr(performer_stats_manager, 'modifier_manager'):
+        performer_stats_manager.modifier_manager.add_modifier(mod)
+    else:
+        # Fallback if add_modifier is directly on stats_manager (less likely but possible)
+        if hasattr(performer_stats_manager, 'add_modifier'):
+            performer_stats_manager.add_modifier(mod)
+        else:
+            logger.error("Could not find method to add modifier in _handle_defend_action")
+
+    defend_msg = f"  {performer.combat_name} takes a defensive stance (+{total_bonus} Defense)."
     engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defend_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(defend_msg)
     queued_events_this_handler = True
     

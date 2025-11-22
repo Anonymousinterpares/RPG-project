@@ -1905,6 +1905,13 @@ class CombatManager:
             else: # Process first request to form an action
                 action_request = validated_requests[0]
                 
+                # Bridge: Map generic state change for 'Defending' to a Defend skill action
+                if action_request.get("action") == "request_state_change":
+                    val = str(action_request.get("value", "")).upper()
+                    attr = str(action_request.get("attribute", "")).lower()
+                    if val == "DEFENDING" or (attr == "add_status_effect" and "defend" in val.lower()):
+                        action_request["skill_name"] = "DEFEND"
+
                 if action_request.get("action") == "request_mode_transition":
                     action_processed_this_step = True
                     logger.info(f"Player action interpreted as mode transition: {action_request}")

@@ -42,6 +42,12 @@
       "category": "SOCIAL",
       "description": "Misleading others through lies, trickery, disguises, and manipulation of truth."
     },
+    "defensive_combat": {
+      "name": "Defensive Combat",
+      "primary_stat": "DEXTERITY",
+      "category": "COMBAT",
+      "description": "Mastery of self-preservation and defensive maneuvers."
+    },
     "diplomacy": {
       "name": "Diplomacy",
       "primary_stat": "CHARISMA",
