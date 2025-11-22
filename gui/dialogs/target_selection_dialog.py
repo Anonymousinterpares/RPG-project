@@ -134,6 +134,14 @@ class TargetButton(QFrame):
             }}
         """)
 
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release to trigger click."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self.entity_id)
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
+
 class TargetSelectionDialog(QDialog):
     """Dialog for selecting a spell target with visual HP indicators."""
     
@@ -236,3 +244,14 @@ class TargetSelectionDialog(QDialog):
         cancel_layout.addWidget(self.cancel_btn)
         
         main_layout.addLayout(cancel_layout)
+
+    def _on_target_clicked(self, target_id: str):
+        """Handle target button click."""
+        self.selected_target_id = target_id
+        self.target_selected.emit(target_id)
+        self.accept()
+
+    def get_selected_target(self) -> Optional[str]:
+        """Get the selected target ID."""
+        return self.selected_target_id
+        
