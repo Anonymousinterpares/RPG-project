@@ -1372,7 +1372,16 @@ class CombatManager:
                 action_request = validated_requests[0]
                 try:
                     def normalize_action_type(action_name_str: str) -> str: return action_name_str.upper().strip().replace(' ', '_')
-                    action_type_map = {"MELEE_ATTACK": ActionType.ATTACK, "RANGED_ATTACK": ActionType.ATTACK, "UNARMED_ATTACK": ActionType.ATTACK, "SPELL_ATTACK": ActionType.SPELL, "DEFEND": ActionType.DEFEND, "FLEE": ActionType.FLEE, "USE_ITEM": ActionType.ITEM}
+                    action_type_map = {
+                        "MELEE_ATTACK": ActionType.ATTACK, 
+                        "RANGED_ATTACK": ActionType.ATTACK, 
+                        "UNARMED_ATTACK": ActionType.ATTACK, 
+                        "SPELL_ATTACK": ActionType.SPELL, 
+                        "DEFEND": ActionType.DEFEND, 
+                        "DEFENSIVE_COMBAT": ActionType.DEFEND,
+                        "FLEE": ActionType.FLEE, 
+                        "USE_ITEM": ActionType.ITEM
+                    }
                     
                     skill_name = action_request.get("skill_name") # e.g., "SPELL_ATTACK" or "Fireball"
                     combat_action_type = ActionType.OTHER
@@ -1718,12 +1727,15 @@ class CombatManager:
 
 
         # --- Decrement durations (StatsManager-managed effects) ---
+        reported_expired_names = set()
         try:
             prev = {eid: eff.name for eid, eff in stats_manager_for_actor.status_effect_manager.active_effects.items()}
-            expired_ids = stats_manager_for_actor.status_effect_manager.update_durations()
+            # Filter for 'end_turn' (default) effects only
+            expired_ids = stats_manager_for_actor.status_effect_manager.update_durations(timing_filter="end_turn")
             if expired_ids:
                 for eid in expired_ids:
                     name = prev.get(eid, "A status effect")
+                    reported_expired_names.add(name)
                     expired_msg_content = f"Status effect '{name}' has worn off {entity.combat_name}."
                     engine._combat_orchestrator.add_event_to_queue(
                         DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=expired_msg_content, target_display=DisplayTarget.COMBAT_LOG)
@@ -1733,12 +1745,16 @@ class CombatManager:
             logger.debug(f"StatsManager status duration update skipped or failed: {eff_dur_err}")
 
         # --- Decrement durations (legacy CombatEntity list) ---
-        expired_effect_names_this_turn = entity.decrement_status_effect_durations() 
+        # Exclude 'Defending' as it ticks on start_turn
+        expired_effect_names_this_turn = entity.decrement_status_effect_durations(exclude_effects=["Defending"]) 
         
         if expired_effect_names_this_turn:
             for expired_name in expired_effect_names_this_turn:
                 stats_manager_for_actor.modifier_manager.remove_modifiers_by_source(ModifierSource.CONDITION, expired_name)
                 
+                if expired_name in reported_expired_names:
+                    continue
+
                 expired_msg_content = f"Status effect '{expired_name}' has worn off {entity.combat_name}."
                 engine._combat_orchestrator.add_event_to_queue(
                     DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=expired_msg_content, target_display=DisplayTarget.COMBAT_LOG)
@@ -1977,7 +1993,16 @@ class CombatManager:
                     action_processed_this_step = True
                     try:
                         def normalize_action_type(action_name_str: str) -> str: return action_name_str.upper().strip().replace(' ', '_')
-                        action_type_map = {"MELEE_ATTACK": ActionType.ATTACK, "RANGED_ATTACK": ActionType.ATTACK, "UNARMED_ATTACK": ActionType.ATTACK, "SPELL_ATTACK": ActionType.SPELL, "DEFEND": ActionType.DEFEND, "FLEE": ActionType.FLEE, "USE_ITEM": ActionType.ITEM}
+                        action_type_map = {
+                            "MELEE_ATTACK": ActionType.ATTACK, 
+                            "RANGED_ATTACK": ActionType.ATTACK, 
+                            "UNARMED_ATTACK": ActionType.ATTACK, 
+                            "SPELL_ATTACK": ActionType.SPELL, 
+                            "DEFEND": ActionType.DEFEND, 
+                            "DEFENSIVE_COMBAT": ActionType.DEFEND,
+                            "FLEE": ActionType.FLEE, 
+                            "USE_ITEM": ActionType.ITEM
+                        }
                         
                         skill_name = action_request.get("skill_name")
                         combat_action_type = ActionType.OTHER
@@ -2371,6 +2396,46 @@ class CombatManager:
         # --- Use passed engine parameter ---
         # engine = get_state_manager().current_state.game_engine if get_state_manager().current_state else None # Get engine # REMOVE THIS LINE
         
+        # --- Start-of-Turn Status Ticks ---
+        if engine and hasattr(engine, '_combat_orchestrator'):
+            from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+            
+            # 1. StatsManager Ticks (start_turn)
+            reported_expired_start = set()
+            try:
+                stats_manager = self._get_entity_stats_manager(entity_id, quiet=True)
+                if stats_manager:
+                    prev_start = {eid: eff.name for eid, eff in stats_manager.status_effect_manager.active_effects.items()}
+                    expired_start_ids = stats_manager.status_effect_manager.update_durations(timing_filter="start_turn")
+                    if expired_start_ids:
+                        for eid in expired_start_ids:
+                            name = prev_start.get(eid, "A status effect")
+                            reported_expired_start.add(name)
+                            exp_msg = f"Status effect '{name}' has worn off {entity.combat_name}."
+                            engine._combat_orchestrator.add_event_to_queue(
+                                DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=exp_msg, target_display=DisplayTarget.COMBAT_LOG)
+                            )
+                            self._add_to_log(exp_msg)
+            except Exception as e:
+                logger.warning(f"Error processing start-of-turn effects for {entity.combat_name}: {e}")
+
+            # 2. CombatEntity Ticks (Defending manual handling)
+            # We manually tick 'Defending' here because we excluded it from end-of-turn
+            def_dur = entity.get_status_effect_duration("Defending")
+            if def_dur is not None:
+                new_dur = def_dur - 1
+                if new_dur <= 0:
+                    entity.remove_status_effect("Defending")
+                    if "Defending" not in reported_expired_start:
+                        exp_msg = f"Status effect 'Defending' has worn off {entity.combat_name}."
+                        engine._combat_orchestrator.add_event_to_queue(
+                            DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=exp_msg, target_display=DisplayTarget.COMBAT_LOG)
+                        )
+                        self._add_to_log(exp_msg)
+                else:
+                    entity.add_status_effect("Defending", new_dur)
+        # ----------------------------------
+
         if engine and hasattr(engine, '_combat_orchestrator'):
             turn_order_display_list = []
             for i, id_in_order in enumerate(self.turn_order):

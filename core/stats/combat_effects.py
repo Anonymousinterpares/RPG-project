@@ -37,7 +37,8 @@ class StatusEffect:
         duration: int,
         modifier_group: Optional[ModifierGroup] = None,
         buff_is_visible: bool = True,
-        custom_data: Optional[Dict[str, Any]] = None
+        custom_data: Optional[Dict[str, Any]] = None,
+        tick_on_turn_start: bool = False
     ):
         """
         Initialize a status effect.
@@ -50,6 +51,7 @@ class StatusEffect:
             modifier_group: Optional group of stat modifiers for this effect
             buff_is_visible: Whether this effect should be visible to the player
             custom_data: Additional custom data for unique effects
+            tick_on_turn_start: If True, duration decrements at start of turn. If False (default), at end.
         """
         self.name = name
         self.description = description
@@ -58,6 +60,7 @@ class StatusEffect:
         self.modifier_group = modifier_group
         self.buff_is_visible = buff_is_visible
         self.custom_data = custom_data or {}
+        self.tick_on_turn_start = tick_on_turn_start
         self.id = str(uuid.uuid4())
     
     def update_duration(self) -> bool:
@@ -84,7 +87,8 @@ class StatusEffect:
             "duration": self.duration,
             "modifier_group": self.modifier_group.to_dict() if self.modifier_group else None,
             "buff_is_visible": self.buff_is_visible,
-            "custom_data": self.custom_data
+            "custom_data": self.custom_data,
+            "tick_on_turn_start": self.tick_on_turn_start
         }
     
     @classmethod
@@ -97,7 +101,8 @@ class StatusEffect:
             duration=data["duration"],
             modifier_group=ModifierGroup.from_dict(data["modifier_group"]) if data.get("modifier_group") else None,
             buff_is_visible=data.get("buff_is_visible", True),
-            custom_data=data.get("custom_data", {})
+            custom_data=data.get("custom_data", {}),
+            tick_on_turn_start=data.get("tick_on_turn_start", False)
         )
         effect.id = data.get("id", effect.id)
         return effect
@@ -258,22 +263,32 @@ class StatusEffectManager:
             self.remove_effect(effect_id)
         return count
     
-    def update_durations(self) -> Set[str]:
+    def update_durations(self, timing_filter: str = None) -> Set[str]:
         """
-        Update durations for all active effects.
+        Update durations for active effects based on timing filter.
         Removes expired effects.
         
+        Args:
+            timing_filter: 'start_turn', 'end_turn', or None (all)
+            
         Returns:
             Set of IDs of expired effects that were removed
         """
         expired_ids = set()
         for effect_id, effect in list(self.active_effects.items()):
-            if not effect.update_duration():
-                self.remove_effect(effect_id)
-                expired_ids.add(effect_id)
+            should_tick = True
+            if timing_filter == "start_turn" and not getattr(effect, 'tick_on_turn_start', False):
+                should_tick = False
+            elif timing_filter == "end_turn" and getattr(effect, 'tick_on_turn_start', False):
+                should_tick = False
+            
+            if should_tick:
+                if not effect.update_duration():
+                    self.remove_effect(effect_id)
+                    expired_ids.add(effect_id)
         
         if expired_ids:
-            logger.debug(f"Removed {len(expired_ids)} expired status effects")
+            logger.debug(f"Removed {len(expired_ids)} expired status effects (Filter: {timing_filter})")
         
         return expired_ids
     

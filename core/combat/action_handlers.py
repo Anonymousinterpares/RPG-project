@@ -881,7 +881,8 @@ def _handle_defend_action(manager: 'CombatManager', action: CombatAction, perfor
         name="Defending", 
         description=f"Defensive stance (+{total_bonus} Def).", 
         effect_type=StatusEffectType.BUFF, 
-        duration=duration
+        duration=duration,
+        tick_on_turn_start=True
     )
     performer_stats_manager.add_status_effect(defend_effect)
     performer.add_status_effect("Defending", duration=duration) 

@@ -227,25 +227,32 @@ class CombatEntity:
             return self.status_effects[effect]
         return None
 
-    def decrement_status_effect_durations(self) -> List[str]:
+    def decrement_status_effect_durations(self, exclude_effects: Optional[List[str]] = None) -> List[str]:
         """
         Decrement durations of all timed status effects by 1.
+
+        Args:
+            exclude_effects: List of effect names to skip decrementing.
 
         Returns:
             List of status effects that expired and were removed.
         """
         expired_effects = []
+        exclude_set = set(exclude_effects) if exclude_effects else set()
 
         for effect, duration in list(self.status_effects.items()):
+            if effect in exclude_set:
+                continue
+                
             if duration is not None:
                 new_duration = duration - 1
                 if new_duration <= 0:
                     del self.status_effects[effect]
                     expired_effects.append(effect)
-                    logger.debug(f"Status effect '{effect}' expired for {self.name} ({self.combat_name})") # Added combat_name
+                    logger.debug(f"Status effect '{effect}' expired for {self.name} ({self.combat_name})")
                 else:
                     self.status_effects[effect] = new_duration
-                    logger.debug(f"Status effect '{effect}' has {new_duration} turns remaining for {self.name} ({self.combat_name})") # Added combat_name
+                    logger.debug(f"Status effect '{effect}' has {new_duration} turns remaining for {self.name} ({self.combat_name})")
 
         return expired_effects
 
