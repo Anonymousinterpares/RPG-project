@@ -49,6 +49,7 @@ class CombatDisplay(QWidget):
     """Widget for displaying combat status and log."""
 
     visualDisplayComplete = Signal()
+    playerActionSelected = Signal(str)
 
     def __init__(self, parent=None):
         """Initialize the combat display widget."""
@@ -225,17 +226,17 @@ class CombatDisplay(QWidget):
         combat_buttons_layout.setSpacing(20)  # 20px between buttons
         combat_buttons_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Define buttons data: image, width, height, tooltip
+        # Define buttons data: image, width, height, tooltip, command
         buttons_data = [
-            ("melee_attack_button.png", 180, 80, "Melee Attack"),
-            ("defend_button.png", 75, 80, "Defend"),
-            ("wait_button.png", 75, 80, "Wait"),
-            ("flee_button.png", 75, 80, "Flee"),
-            ("surrender_button.png", 180, 80, "Surrender")
+            ("melee_attack_button.png", 180, 80, "Melee Attack", "melee attack"),
+            ("defend_button.png", 75, 80, "Defend", "defend"),
+            ("wait_button.png", 75, 80, "Wait", "wait"),
+            ("flee_button.png", 75, 80, "Flee", "flee"),
+            ("surrender_button.png", 180, 80, "Surrender", "surrender")
         ]
 
         self.combat_buttons = []
-        for img_name, w, h, tooltip in buttons_data:
+        for img_name, w, h, tooltip, command in buttons_data:
             btn = QPushButton()
             btn.setFixedSize(w, h)
             btn.setToolTip(tooltip)
@@ -255,6 +256,8 @@ class CombatDisplay(QWidget):
                     margin-top: 4px;
                 }}
             """)
+            # Use lambda with default argument to capture current 'command' value
+            btn.clicked.connect(lambda checked=False, cmd=command: self.playerActionSelected.emit(cmd))
             combat_buttons_layout.addWidget(btn)
             self.combat_buttons.append(btn)
 

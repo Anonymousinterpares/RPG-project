@@ -352,6 +352,7 @@ class MainWindow(QMainWindow):
         self.narrative_layout.addWidget(self.game_output, 1)
         
         self.combat_display = CombatDisplay()
+        self.combat_display.playerActionSelected.connect(self._process_command)
         self.combat_display.log_text.setCursor(self.normal_cursor) # Force normal cursor
         self.combat_display.log_text.viewport().setCursor(self.normal_cursor)
         
