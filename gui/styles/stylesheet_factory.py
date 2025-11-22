@@ -342,7 +342,7 @@ def create_combat_display_style(palette: Dict[str, Any]) -> str:
             font-family: "{fonts['family_main']}";
             font-size: {fonts['size_combat_log']}pt;
             padding: 15px;
-            padding-bottom: 70px; /* Creates space for the command input overlay */
+            padding-bottom: 20px; /* Creates space for the command input overlay */
         }}
         QLabel#statusLabel, QLabel#roundLabel {{
             background-color: transparent;

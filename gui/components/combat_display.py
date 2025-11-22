@@ -11,7 +11,7 @@ import os
 from typing import Dict, Iterator, List, Any, Optional, Tuple
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QFrame, QPushButton, QGridLayout
+    QFrame, QPushButton, QGridLayout, QSpacerItem, QSizePolicy
 )
 from PySide6.QtCore import QSettings, Signal, Slot, QTimer, Qt
 from PySide6.QtGui import QColor, QTextCharFormat, QFont, QTextCursor
@@ -28,6 +28,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 CONFIG_DIR = os.path.join(project_root, "config")
 SETTINGS_FILE = os.path.join(CONFIG_DIR, "combat_display_settings.json")
 IMAGE_DIR = os.path.join(project_root, "images", "gui", "combat_display") # Path to background images
+GUI_IMAGE_DIR = os.path.join(project_root, "images", "gui")
 
 # Ensure directories exist
 os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -216,8 +217,53 @@ class CombatDisplay(QWidget):
 
         grid_layout.addLayout(status_layout, 0, 0)
         grid_layout.addLayout(sections_layout, 1, 0)
-        
-        grid_layout.setRowMinimumHeight(2, 70) 
+
+        # --- NEW BUTTONS ---
+        self.combat_buttons_container = QWidget()
+        combat_buttons_layout = QHBoxLayout(self.combat_buttons_container)
+        combat_buttons_layout.setContentsMargins(0, 0, 0, 0)  # 20px top margin
+        combat_buttons_layout.setSpacing(20)  # 20px between buttons
+        combat_buttons_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Define buttons data: image, width, height, tooltip
+        buttons_data = [
+            ("melee_attack_button.png", 180, 80, "Melee Attack"),
+            ("defend_button.png", 75, 80, "Defend"),
+            ("wait_button.png", 75, 80, "Wait"),
+            ("flee_button.png", 75, 80, "Flee"),
+            ("surrender_button.png", 180, 80, "Surrender")
+        ]
+
+        self.combat_buttons = []
+        for img_name, w, h, tooltip in buttons_data:
+            btn = QPushButton()
+            btn.setFixedSize(w, h)
+            btn.setToolTip(tooltip)
+            img_path = os.path.join(GUI_IMAGE_DIR, img_name).replace("\\", "/")
+            
+            # Styling: rounded corners, autofill image
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    border-radius: 10px;
+                    border-image: url({img_path}) 0 0 0 0 stretch stretch;
+                    border: none;
+                }}
+                QPushButton:hover {{
+                    margin-top: 2px;
+                }}
+                QPushButton:pressed {{
+                    margin-top: 4px;
+                }}
+            """)
+            combat_buttons_layout.addWidget(btn)
+            self.combat_buttons.append(btn)
+
+        grid_layout.addWidget(self.combat_buttons_container, 2, 0)
+
+        # Spacer for command input (20px margin + approx 50px for input)
+        # Reserves space at the bottom so panels don't push buttons behind the input.
+        input_spacer = QSpacerItem(1, 60, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        grid_layout.addItem(input_spacer, 3, 0)
         
         grid_layout.setRowStretch(1, 1)
 
