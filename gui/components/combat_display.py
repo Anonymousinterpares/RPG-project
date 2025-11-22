@@ -256,8 +256,11 @@ class CombatDisplay(QWidget):
                     margin-top: 4px;
                 }}
             """)
-            # Use lambda with default argument to capture current 'command' value
-            btn.clicked.connect(lambda checked=False, cmd=command: self.playerActionSelected.emit(cmd))
+            if command == "melee attack":
+                btn.clicked.connect(self._on_melee_attack_clicked)
+            else:
+                # Use lambda with default argument to capture current 'command' value
+                btn.clicked.connect(lambda checked=False, cmd=command: self.playerActionSelected.emit(cmd))
             combat_buttons_layout.addWidget(btn)
             self.combat_buttons.append(btn)
 
@@ -282,6 +285,45 @@ class CombatDisplay(QWidget):
         self._suppress_visual_complete = False
         self._init_dev_controls()
 
+    @Slot()
+    def _on_melee_attack_clicked(self):
+        """Handle melee attack button click with target selection."""
+        engine = get_game_engine()
+        state = engine.state_manager.current_state if engine and engine.state_manager else None
+        
+        if not state or not state.combat_manager:
+             # Fallback if no combat state
+             self.playerActionSelected.emit("melee attack")
+             return
+
+        cm = state.combat_manager
+        # Filter for alive enemies
+        enemies = [
+            e for e in cm.entities.values() 
+            if getattr(e, 'entity_type', EntityType.ENEMY) == EntityType.ENEMY 
+            and e.is_alive()
+            and getattr(e, 'is_active_in_combat', True)
+        ]
+        
+        if not enemies:
+             self.playerActionSelected.emit("melee attack") # Let engine handle "no targets"
+             return
+
+        if len(enemies) == 1:
+             # Auto-target the only enemy
+             target_name = enemies[0].combat_name
+             self.playerActionSelected.emit(f"melee attack {target_name}")
+             return
+
+        # Multiple enemies - show dialog
+        from gui.dialogs.target_selection_dialog import TargetSelectionDialog
+        dialog = TargetSelectionDialog(enemies, "Melee Attack", self)
+        if dialog.exec():
+             target_id = dialog.get_selected_target()
+             if target_id:
+                 target_entity = cm.entities.get(target_id)
+                 if target_entity:
+                     self.playerActionSelected.emit(f"melee attack {target_entity.combat_name}")
     def set_command_input_widget(self, command_widget: QWidget):
         """Stores a reference to the command input widget and sets its parent."""
         self.command_input_widget = command_widget
