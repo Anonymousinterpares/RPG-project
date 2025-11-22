@@ -44,8 +44,6 @@ class CharacterCreationDialog(NewGameDialog):
 
         # Set window properties from NewGameDialog if desired
         self.setWindowTitle("Create New Character")
-        self.setMinimumWidth(1000) # Increased width for split view
-        self.setMinimumHeight(650)
         
         # Load data dynamically
         self.available_races = self._load_races()
@@ -880,6 +878,15 @@ class CharacterCreationDialog(NewGameDialog):
         logger.info(f"Character data collected: { {k:v for k,v in data.items() if k != 'stats'} }") # Log non-stat data
         logger.debug(f"Character stats: {data.get('stats')}")
         return data
+
+    def showEvent(self, event):
+        """
+        Override the base showEvent to prevent it from overriding our fixed size.
+        We call the parent's showEvent first, then immediately re-apply the
+        fixed size to ensure it is respected.
+        """
+        super().showEvent(event)
+        self.setFixedSize(1200, 650)
 
     def _update_allocators(self, *args):
         """Update stat and skill allocation widgets when selections change."""
