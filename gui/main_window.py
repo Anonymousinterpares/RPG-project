@@ -1137,6 +1137,11 @@ class MainWindow(QMainWindow):
                 self.narrative_view.setVisible(True) # Ensure narrative view is visible
                 self.narrative_view.update()
                 self.mode_stacked_widget.update()
+                
+                # --- FIX: Ensure CombatDisplay knows we are no longer in combat so it can clean up ---
+                if hasattr(self, 'combat_display'):
+                     self.combat_display.update_display(state)
+                # -----------------------------------------------------------------------------------
 
 
                 if is_transitioning_to_combat: 
