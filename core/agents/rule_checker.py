@@ -139,8 +139,9 @@ If YES, this section can be brief or empty.
 ## Mode Transition Validation
 - **Contextual Sense:** Does the requested transition make sense given the current situation, location, and participants? (e.g., initiating trade during a fight is invalid).
 - **Target Validity:** For the requested mode transition, check if the target entity (if any) exists. If target entity is mentioned by name but not found in context, do not immediately reject the transition - assume the entity *could* be created dynamically for combat.
-- **Combat Fleeing:** Attempting to flee combat (`request_mode_transition` to NARRATIVE from COMBAT) is generally a valid *attempt*, but the success is determined by a later skill check. Validate the *attempt* itself (e.g., is the player prevented from moving?).  
-- **Initiating Combat:** Ensure combat is initiated against valid targets. If target is not found in current context but has a name that could be an enemy (like "goblin", "bandit", "guard", "elder", etc.), assume it's a potentially valid target that will be created dynamically. 
+- **Combat Fleeing or Surrender:** Attempting to flee combat or to surrender (`request_mode_transition` to NARRATIVE from COMBAT) are valid.  
+- **Initiating Combat:** Ensure combat is initiated against valid targets. If target is not found in current context but has a name that could be an enemy (like "goblin", "bandit", "guard", "elder", etc.), assume it's a potentially valid target that will be created dynamically.
+EXTREMELY IMPORTANT: It is also possible to initiate combat with NPC that was already fought before, as long as the NPC was not killed in previous combat. Do not block such attempts! 
 - **Initiating Trade/Social:** Ensure the target is present and capable of participating.
 
 Respond with your validation assessment of the player's proposed action.
