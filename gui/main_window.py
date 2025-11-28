@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QToolButton, QGraphicsOpacityEffect, QMessageBox, QSizePolicy,
     QMenu, QSlider, QWidgetAction, QLineEdit, QTextEdit, QPlainTextEdit, QTabBar
 )
-from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, Signal, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
+from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
 from PySide6.QtGui import QPixmap, QTextCursor, QCursor
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -41,6 +41,10 @@ from gui.dialogs.load_game_dialog import LoadGameDialog
 from gui.workers import SaveGameWorker, LoadGameWorker, NewGameWorker
 from gui.components.loading_bar import LoadingProgressBar
 
+# New Handlers
+from gui.handlers.input_handler import InputHandler
+from gui.handlers.display_handler import DisplayHandler
+
 logger = get_logger("GUI")
 
 class MainWindow(QMainWindow):
@@ -52,27 +56,23 @@ class MainWindow(QMainWindow):
         # --- CURSOR SETUP ---
         self._setup_cursors()
         self.setCursor(self.normal_cursor)
-        # --- END CURSOR SETUP ---
         
-        self._previous_mode = None # Track previous mode for transitions
+        self._previous_mode = None 
         
-        # Get resource manager
         self.resource_manager = get_resource_manager()
-        
-        # Get game engine
         self.game_engine = get_game_engine()
 
-        # Register this MainWindow with the engine so orchestrator/engine can nudge UI updates
         try:
             self.game_engine.main_window_ref = weakref.ref(self)
         except Exception:
             pass
 
-        # Set minimum size based on reasonable content size hint
-        self.setMinimumSize(1024, 700) # Set a sensible minimum size
-
-        # Store character data temporarily during animation
+        self.setMinimumSize(1024, 700) 
         self._character_data_for_new_game: Optional[Dict[str, Any]] = None
+
+        # Setup Logic Handlers
+        self.input_handler = InputHandler(self)
+        self.display_handler = DisplayHandler(self)
 
         # Set up the UI
         self._setup_ui()
@@ -80,110 +80,74 @@ class MainWindow(QMainWindow):
         self._apply_link_cursor_to_buttons()
         self._apply_text_cursor_to_text_widgets()
 
-       # --- THEME MANAGEMENT ---
         self.theme_manager = get_theme_manager()
         self.theme_manager.theme_changed.connect(self._update_theme)
-        # --- END THEME MANAGEMENT ---
 
         # Connect signals and slots
         self._connect_signals()
 
-        # Apply initial styling from the theme
         self._update_theme()
-
-        self._last_submitted_command = None
 
     def _setup_cursors(self):
         """Load custom cursors from image files."""
         try:
-            # Use .cur files as they are the standard for cursors
             normal_pixmap = QPixmap("images/gui/cursors/NORMAL.cur")
             link_pixmap = QPixmap("images/gui/cursors/LINK-SELECT.cur")
             text_pixmap = QPixmap("images/gui/cursors/TEXT.cur")
 
-            # --- NORMAL CURSOR ---
             if normal_pixmap.isNull():
-                logger.warning("Failed to load NORMAL.cur cursor, using default.")
                 self.normal_cursor = QCursor(Qt.ArrowCursor)
             else:
-                # Specify the "hot spot" - where the click actually happens.
-                # For your cursor, this looks like the top-left corner.
                 self.normal_cursor = QCursor(normal_pixmap, 0, 0)
 
-            # --- LINK CURSOR ---
             if link_pixmap.isNull():
-                logger.warning("Failed to load LINK-SELECT.cur cursor, using default.")
                 self.link_cursor = QCursor(Qt.PointingHandCursor)
             else:
                 self.link_cursor = QCursor(link_pixmap, 0, 0)
 
-            # --- TEXT CURSOR ---
             if text_pixmap.isNull():
-                logger.warning("Failed to load TEXT.cur cursor, using default.")
                 self.text_cursor = QCursor(Qt.IBeamCursor)
             else:
-                # The hot spot for a text cursor is typically in the middle.
                 self.text_cursor = QCursor(text_pixmap, int(text_pixmap.width() / 2), int(text_pixmap.height() / 2))
 
         except Exception as e:
             logger.error(f"Error setting up custom cursors: {e}")
-            # Fallback defaults
             self.normal_cursor = QCursor(Qt.ArrowCursor)
             self.link_cursor = QCursor(Qt.PointingHandCursor)
             self.text_cursor = QCursor(Qt.IBeamCursor)
     
     def _apply_link_cursor_to_buttons(self):
-        """Finds all relevant widgets and applies the link cursor."""
-        # This can be expanded to include any widget that should act like a link
-        widgets = self.findChildren(QPushButton) + \
-                  self.findChildren(QToolButton) + \
-                  self.findChildren(QTabBar)
-
+        widgets = self.findChildren(QPushButton) + self.findChildren(QToolButton) + self.findChildren(QTabBar)
         for widget in widgets:
             widget.setCursor(self.link_cursor)
 
-        logger.info(f"Applied link cursor to {len(widgets)} widgets.")
-
     def _apply_text_cursor_to_text_widgets(self):
-        """Apply the TEXT cursor to editable text widgets."""
-        # QLineEdit
         line_edits = [w for w in self.findChildren(QLineEdit) if not w.isReadOnly()]
         for widget in line_edits:
             widget.setCursor(self.text_cursor)
 
-        # QTextEdit and QPlainTextEdit
         text_areas = self.findChildren(QTextEdit) + self.findChildren(QPlainTextEdit)
         editable_text_areas = [widget for widget in text_areas if not widget.isReadOnly()]
         
         for widget in editable_text_areas:
             widget.viewport().setCursor(self.text_cursor)
 
-        # Set normal cursor on read-only text areas
         read_only_text_areas = [widget for widget in text_areas if widget.isReadOnly()]
         for widget in read_only_text_areas:
             widget.viewport().setCursor(self.normal_cursor)
 
-        logger.info(f"Applied text cursor to {len(line_edits) + len(editable_text_areas)} editable text widgets.")
-
-
     def _apply_initial_window_state(self):
-        """Apply saved window state and geometry when the window is first shown."""
         settings = QSettings("RPGGame", "Settings")
-        window_state = settings.value("display/window_state", "windowed") # Default to windowed
+        window_state = settings.value("display/window_state", "windowed") 
         
-        logger.info(f"Applying initial window state: {window_state}")
-
         if window_state == "fullscreen":
             self.showFullScreen()
         elif window_state == "maximized":
             self.showMaximized()
-        else: # windowed
-            # Load saved windowed size or default
+        else:
             default_size = QSize(1280, 720)
             windowed_size = settings.value("display/windowed_size", default_size)
-            # Ensure windowed_size is a QSize object
             if not isinstance(windowed_size, QSize):
-                # Attempt conversion if it's a tuple/list or handle potential string format
                 if isinstance(windowed_size, (tuple, list)) and len(windowed_size) == 2:
                     windowed_size = QSize(windowed_size[0], windowed_size[1])
                 elif isinstance(windowed_size, str):
@@ -191,27 +155,22 @@ class MainWindow(QMainWindow):
                          parts = windowed_size.strip('()').split(',')
                          windowed_size = QSize(int(parts[0]), int(parts[1]))
                      except Exception:
-                         windowed_size = default_size # Fallback on parse error
+                         windowed_size = default_size 
                 else:
-                    windowed_size = default_size # Fallback if type is unexpected
+                    windowed_size = default_size 
 
-            self.showNormal() # Ensure not maximized/fullscreen first
-            self.resize(windowed_size) # Apply the loaded/default size
-            # Optional: Center the window
+            self.showNormal() 
+            self.resize(windowed_size) 
             screen_geometry = self.screen().availableGeometry()
             self.move(screen_geometry.center() - self.rect().center())        
 
     def showEvent(self, event):
-        """Override showEvent to apply initial window state after the window is shown."""
         super().showEvent(event)
-        # Apply the state only once when the window is first shown
         if not hasattr(self, '_initial_state_applied') or not self._initial_state_applied:
              self._apply_initial_window_state()
              self._initial_state_applied = True
 
     def closeEvent(self, event):
-        """Handle window close event, saving window state."""
-        # Ask for confirmation
         reply = QMessageBox.question(
             self, 
             "Exit Game", 
@@ -221,26 +180,19 @@ class MainWindow(QMainWindow):
         )
         
         if reply == QMessageBox.StandardButton.Yes:
-            # --- Save Window State ---
             settings = QSettings("RPGGame", "Settings")
-            current_state_str = "windowed" # Default
+            current_state_str = "windowed" 
             if self.isFullScreen():
                 current_state_str = "fullscreen"
             elif self.isMaximized():
                 current_state_str = "maximized"
             
             settings.setValue("display/window_state", current_state_str)
-            
-            # Save the *current* size only if the state is 'windowed'
             if current_state_str == "windowed":
                  settings.setValue("display/windowed_size", self.size())
-            logger.info(f"Saved window state ({current_state_str}) and size ({self.size() if current_state_str == 'windowed' else 'N/A'}) on exit.")
-            # --- End Save Window State ---
-
-            # Stop the game engine
+            
             self.game_engine.stop()
 
-            # Stop background movie if playing
             bg_movie = self.background_label.movie()
             if bg_movie:
                 bg_movie.stop()
@@ -250,39 +202,15 @@ class MainWindow(QMainWindow):
             event.ignore()
 
     def resizeEvent(self, event):
-        """Handle window resize event to keep background and content sized correctly."""
         super().resizeEvent(event)
-        # Keep background label and content widget filling the container
-        if hasattr(self, 'background_label'): # Check if widgets exist yet
+        if hasattr(self, 'background_label'): 
              self.background_label.setGeometry(0, 0, event.size().width(), event.size().height())
         if hasattr(self, 'main_content_widget'):
              self.main_content_widget.setGeometry(0, 0, event.size().width(), event.size().height())
         if hasattr(self, 'loading_overlay'):
             self.loading_overlay.setGeometry(self.rect())
-
-    def _apply_saved_resolution(self):
-        """Apply saved resolution from settings."""
-        settings = QSettings("RPGGame", "Settings")
-        resolution = settings.value("display/resolution", (1280, 720))
-        
-        # Convert to tuple if it's a string (can happen with some QSettings implementations)
-        if isinstance(resolution, str):
-            try:
-                # Handle string format like "(1280, 720)"
-                if resolution.startswith("(") and resolution.endswith(")"):
-                    parts = resolution.strip("()").split(",")
-                    resolution = (int(parts[0].strip()), int(parts[1].strip()))
-            except:
-                # Fallback to default if parsing fails
-                resolution = (1280, 720)
-                logger.warning("Failed to parse resolution setting, using default")
-        
-        # Set window size
-        self.setFixedSize(*resolution)
-        logger.info(f"Applied saved resolution: {resolution}")
     
     def _setup_ui(self):
-        """Set up the user interface."""
         self.setWindowTitle("RPG Game")
         
         self.background_container = QWidget()
@@ -335,37 +263,21 @@ class MainWindow(QMainWindow):
         self.menu_panel = MenuPanelWidget()
         
         self.game_output = GameOutputWidget()
-        self.game_output.text_edit.setCursor(self.normal_cursor) # Force normal cursor
-        self.game_output.text_edit.viewport().setCursor(self.normal_cursor) # Force on viewport too
-
-        if hasattr(self.game_output, 'visualDisplayComplete') and hasattr(self.game_engine._combat_orchestrator, '_handle_visual_display_complete'):
-            self.game_output.visualDisplayComplete.connect(self.game_engine._combat_orchestrator._handle_visual_display_complete)
-            logger.info("Connected GameOutputWidget.visualDisplayComplete to Orchestrator.")
-        else:
-            logger.error("Failed to connect GameOutputWidget.visualDisplayComplete: Attribute or slot missing.")
+        self.game_output.text_edit.setCursor(self.normal_cursor) 
+        self.game_output.text_edit.viewport().setCursor(self.normal_cursor) 
         
         self.narrative_command_input = CommandInputWidget()
         self.narrative_command_input.setObjectName("NarrativeCommandInput")
-        
-        # Place the command input inside the game output widget
         self.game_output.set_command_input_widget(self.narrative_command_input)
         self.narrative_layout.addWidget(self.game_output, 1)
         
         self.combat_display = CombatDisplay()
-        self.combat_display.playerActionSelected.connect(self._process_command)
-        self.combat_display.log_text.setCursor(self.normal_cursor) # Force normal cursor
+        self.combat_display.playerActionSelected.connect(self.input_handler.process_command)
+        self.combat_display.log_text.setCursor(self.normal_cursor) 
         self.combat_display.log_text.viewport().setCursor(self.normal_cursor)
         
-        if hasattr(self.combat_display, 'visualDisplayComplete') and hasattr(self.game_engine._combat_orchestrator, '_handle_visual_display_complete'):
-            self.combat_display.visualDisplayComplete.connect(self.game_engine._combat_orchestrator._handle_visual_display_complete)
-            logger.info("Connected CombatDisplay.visualDisplayComplete to Orchestrator.")
-        else:
-            logger.error("Failed to connect CombatDisplay.visualDisplayComplete: Attribute or slot missing.")
-
         self.combat_command_input = CommandInputWidget()
         self.combat_command_input.setObjectName("CombatCommandInput")
-        
-        # Place the combat command input inside the combat display widget as an overlay
         self.combat_display.set_command_input_widget(self.combat_command_input)
         self.combat_layout.addWidget(self.combat_display, 1)
         
@@ -381,9 +293,9 @@ class MainWindow(QMainWindow):
         
         self.right_panel = CollapsibleRightPanel()
         
-        self.content_layout.addWidget(self.menu_panel, 0) # Stretch factor 0 for menu_panel
-        self.content_layout.addWidget(self.center_widget, 1) # Stretch factor 1 for center_widget
-        self.content_layout.addWidget(self.right_panel, 0) # Stretch factor 0 for right_panel
+        self.content_layout.addWidget(self.menu_panel, 0) 
+        self.content_layout.addWidget(self.center_widget, 1) 
+        self.content_layout.addWidget(self.right_panel, 0) 
         
         self.main_layout.addLayout(self.content_layout, 1)
         
@@ -393,7 +305,6 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
 
         self._load_and_apply_initial_background()
-
         self._initialize_panel_effects() 
         
         self.center_widget.setVisible(True) 
@@ -420,7 +331,6 @@ class MainWindow(QMainWindow):
         loading_layout.setAlignment(Qt.AlignCenter)
         loading_layout.setSpacing(20)
 
-        # Video Player Setup
         self.video_widget = QVideoWidget(self.loading_overlay)
         self.video_widget.setFixedSize(720, 720)
         self.player = QMediaPlayer()
@@ -428,13 +338,11 @@ class MainWindow(QMainWindow):
         self.player.setAudioOutput(self.audio_output)
         self.player.setVideoOutput(self.video_widget)
         self.player.setLoops(QMediaPlayer.Loops.Infinite)
-        self.audio_output.setVolume(0) # Muted by default
+        self.audio_output.setVolume(0) 
 
-        # Fallback Progress Bar
         self.fallback_loading_bar = LoadingProgressBar(self.loading_overlay)
         self.fallback_loading_bar.setFixedSize(720, 20)
 
-        # Loading Text Label
         self.loading_label = QLabel("Loading...", self.loading_overlay)
         self.loading_label.setStyleSheet("color: white; font-size: 24px; background-color: transparent;")
         self.loading_label.setAlignment(Qt.AlignCenter)
@@ -443,20 +351,16 @@ class MainWindow(QMainWindow):
         loading_layout.addWidget(self.fallback_loading_bar, 0, Qt.AlignCenter)
         self.loading_overlay.hide()
 
-        # Opacity effect for fade animations
         self.loading_opacity_effect = QGraphicsOpacityEffect(self.loading_overlay)
         self.loading_overlay.setGraphicsEffect(self.loading_opacity_effect)
         self.loading_opacity_effect.setOpacity(0.0)
 
     def _create_music_controls(self):
-        """Create music control widgets."""
-        # Create a widget for the music controls
         music_widget = QWidget()
         music_layout = QHBoxLayout(music_widget)
         music_layout.setContentsMargins(0, 0, 0, 0)
         music_layout.setSpacing(5)
         
-        # Create music control buttons
         play_pause_button = QPushButton()
         play_pause_button.setIcon(self.resource_manager.get_icon("music_play"))
         play_pause_button.setIconSize(QSize(24, 24))
@@ -487,21 +391,17 @@ class MainWindow(QMainWindow):
         volume_button.setFixedSize(32, 32)
         volume_button.setStyleSheet(play_pause_button.styleSheet())
         
-        # Add buttons to layout
         music_layout.addWidget(play_pause_button)
         music_layout.addWidget(next_button)
         music_layout.addWidget(volume_button)
         
-        # Add music controls to the top-right corner
         self.main_layout.insertWidget(0, music_widget, 0, Qt.AlignRight)
         
-        # Wire button actions to MusicDirector: play/pause acts as mute toggle; next triggers next track; volume opens quick slider
         try:
             self._btn_music_play_pause = play_pause_button
             self._btn_music_next = next_button
             self._btn_music_volume = volume_button
 
-            # Toggle mute based on the CURRENT director state (not just QSettings)
             def _on_play_pause():
                 try:
                     s = QSettings("RPGGame", "Settings")
@@ -509,42 +409,21 @@ class MainWindow(QMainWindow):
                     if director:
                         currently_muted = bool(getattr(director, '_muted', False))
                         director.set_muted(not currently_muted)
-                        s.setValue("sound/enabled", not (not currently_muted))  # enabled = not muted
+                        s.setValue("sound/enabled", not (not currently_muted)) 
                         s.sync()
-                        # Dev logging
-                        if bool(s.value("dev/enabled", False, type=bool)):
-                            logger.info(f"[DEV][MUSIC] GUI toggle: muted(before)={currently_muted} -> muted(after)={not currently_muted}")
-                except Exception as e:
-                    try:
-                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                            logger.warning(f"[DEV][MUSIC] GUI toggle failed: {e}")
-                    except Exception:
-                        pass
+                except Exception:
+                    pass
             play_pause_button.clicked.connect(_on_play_pause)
 
-            # Next track
             def _on_next():
                 try:
                     director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                     if director:
                         director.next_track("user_skip_gui")
-                        # Dev logging
-                        s = QSettings("RPGGame", "Settings")
-                        if bool(s.value("dev/enabled", False, type=bool)):
-                            try:
-                                cur = getattr(director, '_current_track', None)
-                                logger.info(f"[DEV][MUSIC] GUI next-track requested. New candidate track (last known): {os.path.basename(cur) if cur else 'Unknown'}")
-                            except Exception:
-                                logger.info("[DEV][MUSIC] GUI next-track requested.")
-                except Exception as e:
-                    try:
-                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                            logger.warning(f"[DEV][MUSIC] GUI next-track failed: {e}")
-                    except Exception:
-                        pass
+                except Exception:
+                    pass
             next_button.clicked.connect(_on_next)
 
-            # Build a small volume slider popover (QMenu with QWidgetAction)
             self._music_volume_menu = QMenu(self)
             vol_container = QWidget(self._music_volume_menu)
             vol_layout = QHBoxLayout(vol_container)
@@ -565,12 +444,10 @@ class MainWindow(QMainWindow):
             vol_action.setDefaultWidget(vol_container)
             self._music_volume_menu.addAction(vol_action)
 
-            # Add a separator and an action to open full Sound settings
             self._music_volume_menu.addSeparator()
             open_settings_action = self._music_volume_menu.addAction("Open Sound Settings…")
             open_settings_action.triggered.connect(self._show_settings_dialog)
 
-            # Connect slider changes to MusicDirector and persist to QSettings
             def _apply_master_volume(value: int):
                 try:
                     self._music_slider_value_label.setText(f"{int(value)}%")
@@ -583,114 +460,51 @@ class MainWindow(QMainWindow):
                         director.set_volumes(master, music, effects)
                     s.setValue("sound/master_volume", master)
                     s.sync()
-                except Exception as e:
-                    try:
-                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                            logger.warning(f"[DEV][MUSIC] Applying master volume failed: {e}")
-                    except Exception:
-                        pass
+                except Exception:
+                    pass
             self._music_slider.valueChanged.connect(_apply_master_volume)
 
-            # Volume button -> show the quick slider menu near the button
             def _on_open_volume_menu():
                 s = QSettings("RPGGame", "Settings")
                 try:
                     current_master = int(s.value("sound/master_volume", 100))
                 except Exception:
                     current_master = 100
-                # Initialize slider position without emitting change
                 self._music_slider.blockSignals(True)
                 self._music_slider.setValue(current_master)
                 self._music_slider_value_label.setText(f"{current_master}%")
                 self._music_slider.blockSignals(False)
-                # Position the menu just below the button
                 pos = volume_button.mapToGlobal(QPoint(0, volume_button.height()))
-                # Prefer a blocking exec to ensure visibility; fallback to popup
                 try:
                     self._music_volume_menu.exec(pos)
                 except Exception:
                     self._music_volume_menu.popup(pos)
             volume_button.clicked.connect(_on_open_volume_menu)
-        except Exception as e:
-            try:
-                if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                    logger.warning(f"[DEV][MUSIC] Wiring music control buttons failed: {e}")
-            except Exception:
-                pass
+        except Exception:
+            pass
 
-        # Return the widget for reference
         return music_widget
     
-    @Slot()
-    def _handle_combat_display_complete(self):
-        """Slot for CombatDisplay completion signal. Filters based on active event target."""
-        try:
-            orch = getattr(self.game_engine, '_combat_orchestrator', None)
-            if orch and orch.is_processing_event and orch.current_event:
-                # Only forward if the current event is targeting the Combat Log
-                # (or if the event type implies combat log usage)
-                from core.orchestration.events import DisplayTarget
-                if orch.current_event.target_display == DisplayTarget.COMBAT_LOG:
-                    logger.debug(f"[GUI] MainWindow: Forwarding combat display completion to orchestrator for event {orch.current_event.event_id}")
-                    orch._handle_visual_display_complete()
-                else:
-                    logger.debug(f"[GUI] MainWindow: Ignoring combat display completion for event {orch.current_event.event_id} (Target: {orch.current_event.target_display})")
-        except Exception as e:
-            logger.error(f"Error in _handle_combat_display_complete: {e}")
-
-    @Slot()
-    def _handle_narrative_display_complete(self):
-        """Slot for GameOutputWidget completion signal. Filters based on active event target."""
-        try:
-            orch = getattr(self.game_engine, '_combat_orchestrator', None)
-            if orch and orch.is_processing_event and orch.current_event:
-                # Only forward if the current event is targeting the Main Output
-                from core.orchestration.events import DisplayTarget
-                if orch.current_event.target_display == DisplayTarget.MAIN_GAME_OUTPUT:
-                    logger.debug(f"[GUI] MainWindow: Forwarding narrative display completion to orchestrator for event {orch.current_event.event_id}")
-                    orch._handle_visual_display_complete()
-                else:
-                    logger.debug(f"[GUI] MainWindow: Ignoring narrative display completion for event {orch.current_event.event_id} (Target: {orch.current_event.target_display})")
-        except Exception as e:
-            logger.error(f"Error in _handle_narrative_display_complete: {e}")
-
     def _connect_signals(self):
-        """Connect signals and slots."""
-        self.narrative_command_input.command_submitted.connect(self._process_command)
-        self.combat_command_input.command_submitted.connect(self._process_command)
+        """Connect signals and slots using specific handlers."""
+        # Input Handler
+        self.narrative_command_input.command_submitted.connect(self.input_handler.process_command)
+        self.combat_command_input.command_submitted.connect(self.input_handler.process_command)
 
-        logger.info("Connecting GameEngine.orchestrated_event_to_ui signal to MainWindow.process_orchestrated_display_event")
-        try:
-            self.game_engine.orchestrated_event_to_ui.connect(self.process_orchestrated_display_event)
-            logger.info("Successfully connected orchestrated_event_to_ui signal")
-        except Exception as e:
-            logger.error(f"Failed to connect orchestrated_event_to_ui signal: {e}")
+        # Display Handler
+        self.game_engine.orchestrated_event_to_ui.connect(self.display_handler.process_event)
+        self.game_engine.output_generated.connect(self.display_handler.handle_game_output)
         
-        logger.info("Connecting game engine output_generated signal to _handle_game_output (for non-orchestrated events)")
+        # Display Handler (Visual Completion Signals)
+        # Disconnect old logic if present just in case
         try:
-            self.game_engine.output_generated.connect(self._handle_game_output)
-            logger.info("Successfully connected engine.output_generated signal")
-        except Exception as e:
-            logger.error(f"Failed to connect output_generated signal: {e}")
+            self.combat_display.visualDisplayComplete.disconnect()
+            self.game_output.visualDisplayComplete.disconnect()
+        except Exception: pass
+        self.combat_display.visualDisplayComplete.connect(self.display_handler.on_combat_display_complete)
+        self.game_output.visualDisplayComplete.connect(self.display_handler.on_narrative_display_complete)
 
-        # --- ECFA FIX: Filtered connections for visual completion ---
-        try:
-            # Disconnect any previous direct connections if they exist (safe to try)
-            try:
-                self.combat_display.visualDisplayComplete.disconnect()
-            except Exception: pass
-            try:
-                self.game_output.visualDisplayComplete.disconnect()
-            except Exception: pass
-            
-            # Connect to the new filtered slots
-            self.combat_display.visualDisplayComplete.connect(self._handle_combat_display_complete)
-            self.game_output.visualDisplayComplete.connect(self._handle_narrative_display_complete)
-            logger.info("[GUI] MainWindow: Connected visualDisplayComplete signals to filtered handlers.")
-        except Exception as e:
-             logger.error(f"[GUI] MainWindow: Failed to connect visualDisplayComplete signals: {e}")
-        # --- End ECFA FIX ---
-
+        # UI Navigation Signals
         self.menu_panel.new_game_requested.connect(self._show_new_game_dialog)
         self.menu_panel.save_game_requested.connect(self._show_save_game_dialog)
         self.menu_panel.load_game_requested.connect(self._show_load_game_dialog)
@@ -700,332 +514,202 @@ class MainWindow(QMainWindow):
 
         self.right_panel.tab_changed.connect(self._handle_tab_change)
 
+        # Action Signals
         if hasattr(self.right_panel, 'inventory_panel'):
             self.right_panel.inventory_panel.item_use_requested.connect(self._handle_item_use_requested)
             self.right_panel.inventory_panel.item_examine_requested.connect(self._handle_item_examine_requested)
             self.right_panel.inventory_panel.item_equip_requested.connect(self._handle_item_equip_requested)
             self.right_panel.inventory_panel.item_unequip_requested.connect(self._handle_item_unequip_requested)
             self.right_panel.inventory_panel.item_drop_requested.connect(self._handle_item_drop_requested)
-            logger.info("[GUI] MainWindow: Connected signals from InventoryPanelWidget (via right_panel).")
-        else:
-            logger.error("[GUI] MainWindow: CRITICAL - self.right_panel.inventory_panel not found during signal connection.")
 
-        # Connect signals from GrimoirePanelWidget
         if hasattr(self.right_panel, 'grimoire_panel'):
             try:
                 self.right_panel.grimoire_panel.cast_spell_requested.disconnect(self._handle_cast_spell_requested)
-            except Exception:
-                pass
+            except Exception: pass
             self.right_panel.grimoire_panel.cast_spell_requested.connect(self._handle_cast_spell_requested)
-            logger.info("[GUI] MainWindow: Connected signals from GrimoirePanelWidget (via right_panel).")
 
-        # Connect signals from CharacterSheetWidget (via right_panel)
         if hasattr(self.right_panel, 'character_sheet'):
             self.right_panel.character_sheet.item_unequip_from_slot_requested.connect(self._handle_item_unequip_from_slot_requested)
-            self.right_panel.character_sheet.item_examine_requested.connect(self._handle_item_examine_requested) # Can reuse the same handler
+            self.right_panel.character_sheet.item_examine_requested.connect(self._handle_item_examine_requested)
             self.right_panel.character_sheet.item_drop_from_slot_requested.connect(self._handle_item_drop_from_slot_requested)
-            logger.info("[GUI] MainWindow: Connected signals from CharacterSheetWidget (via right_panel).")
-        else:
-            logger.error("[GUI] MainWindow: CRITICAL - self.right_panel.character_sheet not found for signal connection.")
-
 
         if self.game_engine.state_manager.stats_manager:
             try:
                 self.game_engine.state_manager.stats_manager.stats_changed.disconnect(self._handle_stats_update)
             except (TypeError, RuntimeError): pass 
             self.game_engine.state_manager.stats_manager.stats_changed.connect(self._handle_stats_update)
-            logger.info("Connected StatsManager stats_changed signal to MainWindow handler.")
-        else:
-            logger.warning("StatsManager not available at signal connection time in MainWindow.")
         
         if hasattr(self.game_engine._combat_orchestrator, 'resume_combat_manager') and hasattr(self.game_engine, 'on_orchestrator_idle_and_combat_manager_resumed'):
              self.game_engine._combat_orchestrator.resume_combat_manager.connect(self.game_engine.on_orchestrator_idle_and_combat_manager_resumed)
-             logger.info("Connected orchestrator's resume_combat_manager to engine's handler for post-closing-narrative.")
-        else:
-             logger.error("Could not connect orchestrator's resume signal to engine.")
 
-    def _setup_stats_refresh(self):
-        """Set up player command tracking and direct signal connections instead of timer-based refresh."""
-        # Store the last command submitted by the player to prevent echo
-        self._last_submitted_command: Optional[str] = None
-        
-        # We don't need timer-based stats refresh anymore since we'll use direct signal connections
-    
-    # The _refresh_stats method is removed since we're using direct signal connections now
-    
     def _handle_tab_change(self, index):
-        """Handle tab change event."""
-        # Update the active tab content
         if index == 0:  # Character tab
             self.right_panel.update_character()
         elif index == 1:  # Inventory tab
             if self.game_engine.state_manager.current_state:
-                # Get inventory manager instance
-                from core.inventory import get_inventory_manager
                 inventory_manager = get_inventory_manager()
-                
                 if inventory_manager:
                     self.right_panel.update_inventory(inventory_manager)
-                else:
-                    logger.warning("No inventory manager available")
         elif index == 2:  # Journal tab
             if self.game_engine.state_manager.current_state:
-                # Check if journal data exists, create it if not
                 if not hasattr(self.game_engine.state_manager.current_state, "journal"):
                     self.game_engine.state_manager.current_state.journal = {
-                        "character": "",
-                        "quests": {},
-                        "notes": []
+                        "character": "", "quests": {}, "notes": []
                     }
-                
-                self.right_panel.update_journal(
-                    self.game_engine.state_manager.current_state.journal
-                )
+                self.right_panel.update_journal(self.game_engine.state_manager.current_state.journal)
         elif index == 3:  # Grimoire tab
             self.right_panel.update_grimoire()
     
-    # Define a worker for running commands in a separate thread
-    class CommandWorker(QObject):
-        finished = Signal()
-        error = Signal(str)
-        processing = Signal(bool)  # Signal to show/hide processing indicator
-        
-        def __init__(self, game_engine, command):
-            super().__init__()
-            self.game_engine = game_engine
-            self.command = command
-        
-        def run(self):
-            try:
-                self.processing.emit(True)
-                # Process input in the worker thread using the new InputRouter-based approach
-                command_result = self.game_engine.process_input(self.command) # Original call
-                
-                # NEW: Process commands returned by LLM
-                if command_result.data and "commands" in command_result.data:
-                    llm_commands: List[Tuple[str, str]] = command_result.data["commands"]
-                    if llm_commands:
-                        logger.info(f"CommandWorker: Processing {len(llm_commands)} commands from LLM response: {llm_commands}")
-                        # Ensure current_state is available
-                        current_game_state = self.game_engine._state_manager.current_state
-                        if not current_game_state:
-                            logger.error("CommandWorker: Cannot process LLM commands, current_game_state is None.")
-                        else:
-                            for cmd, args_str in llm_commands:
-                                try:
-                                    # We need to call the central LLM command processor
-                                    # command_handlers.process_llm_command takes (engine, command, args_list, game_state)
-                                    # The args_str from the tuple is a single string, so wrap it in a list.
-                                    logger.debug(f"CommandWorker: Executing LLM command '{cmd}' with args '{args_str}'")
-                                    # Import locally if not already available or pass engine components if needed
-                                    from core.game_flow.command_handlers import process_llm_command
-                                    
-                                    # process_llm_command itself might call engine._output, which triggers _update_ui.
-                                    # This is fine, as _update_ui will reflect the state *after* each command.
-                                    cmd_exec_result = process_llm_command(self.game_engine, cmd, [args_str], current_game_state)
-                                    logger.info(f"CommandWorker: LLM command '{cmd}' execution result: {cmd_exec_result.message if cmd_exec_result else 'No result'}")
-                                    if cmd_exec_result and not cmd_exec_result.is_success and cmd_exec_result.message:
-                                        # If an LLM command itself fails, output its error message
-                                        self.game_engine._output("system", f"Error processing internal command '{cmd}': {cmd_exec_result.message}")
+    # --- Action Handlers (Inventory / Spell) ---
+    
+    @Slot(str)
+    def _handle_item_use_requested(self, item_id: str):
+        self.game_output.append_system_message(f"Attempting to use item: {item_id} (Handler not fully implemented).")
+        self.input_handler.process_command(f"use {item_id}")
 
-                                except Exception as e_cmd:
-                                    logger.error(f"CommandWorker: Error processing extracted LLM command '{cmd}': {e_cmd}", exc_info=True)
-                                    self.game_engine._output("system", f"System error processing internal command '{cmd}'.")
-                
-                self.finished.emit()
-            except Exception as e:
-                logger.error(f"Error processing input: {e}", exc_info=True)
-                self.error.emit(str(e))
-            finally:
-                self.processing.emit(False)
-                
-    def _process_command(self, command: str):
-        """Process a command using the game engine in a separate thread."""
-        if not command.strip():
+    @Slot(str)
+    def _handle_item_examine_requested(self, item_id: str):
+        inventory_manager = get_inventory_manager()
+        item = inventory_manager.get_item_details_for_dialog(item_id)
+        if item:
+            from gui.dialogs.item_info_dialog import ItemInfoDialog 
+            dialog = ItemInfoDialog(item, parent=self)
+            dialog.exec()
+        else:
+            self.game_output.append_system_message(f"Could not find details for item ID: {item_id}", gradual=False)
+        self._update_ui()
+
+    @Slot(str) 
+    def _handle_item_unequip_requested(self, item_identifier: str): 
+        inventory_manager = get_inventory_manager()
+        item_to_unequip = inventory_manager.get_item(item_identifier) 
+        if not item_to_unequip: 
+            self._update_ui()
             return
         
-        # --- ECFA Change: Check if waiting for closing narrative ---
-        if self.game_engine._waiting_for_closing_narrative_display:
-            self.game_output.append_system_message("Please wait, concluding previous actions...", gradual=False)
-            # Re-enable input field as this input is being ignored.
-            if self.mode_stacked_widget.currentWidget() == self.narrative_view:
-                self.narrative_command_input.setEnabled(True)
-                self.narrative_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
+        slot_found: Optional[EquipmentSlot] = None
+        for slot_enum_loop, item_obj_loop in inventory_manager.equipment.items(): 
+            if item_obj_loop and isinstance(item_obj_loop, Item) and item_obj_loop.id == item_to_unequip.id:
+                slot_found = slot_enum_loop
+                break
+        
+        if slot_found:
+            inventory_manager.unequip_item(slot_found)
+        self._update_ui()
+
+    @Slot(str)
+    def _handle_item_drop_requested(self, item_id: str):
+        inventory_manager = get_inventory_manager()
+        item = inventory_manager.get_item(item_id)
+        if not item:
+            self._update_ui()
+            return
+
+        if inventory_manager.is_item_equipped(item_id):
+            reply = QMessageBox.question(
+                self, "Confirm Drop Equipped Item",
+                f"'{item.name}' is currently equipped. Are you sure you want to drop it?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.No:
+                return 
+
+            slot_to_unequip: Optional[EquipmentSlot] = None
+            for slot_enum, equipped_item_obj in inventory_manager.equipment.items(): 
+                if equipped_item_obj and isinstance(equipped_item_obj, Item) and equipped_item_obj.id == item_id:
+                    slot_to_unequip = slot_enum
+                    break
+            if slot_to_unequip:
+                inventory_manager.unequip_item(slot_to_unequip)
+                self._update_ui() 
             else:
-                self.combat_command_input.setEnabled(True)
-                self.combat_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
-            return
-        # --- End ECFA Change ---
+                return
+        self.input_handler.process_command(f"drop {item_id}") 
 
-        # Check if this command is UI-generated and should not be echoed as player input
-        is_ui_generated_command = False
-        try:
-            parts = command.split(maxsplit=1)
-            if len(parts) > 0 and parts[0].lower() in ["examine", "equip", "unequip", "drop", "use"]:
-                if len(parts) > 1 and '-' in parts[1] and len(parts[1]) > 10: # Basic UUID-like check
-                    is_ui_generated_command = True
-        except Exception:
-            pass
+    @Slot(str) 
+    def _handle_item_equip_requested(self, item_id: str): 
+        inventory_manager = get_inventory_manager()
+        item = inventory_manager.get_item(item_id)
+        if item and item.is_equippable:
+            inventory_manager.equip_item(item.id)
+        self._update_ui()
 
-        # Echo player input only in narrative mode; suppress in combat mode
+    @Slot(EquipmentSlot)
+    def _handle_item_unequip_from_slot_requested(self, slot_to_unequip: EquipmentSlot):
+        get_inventory_manager().unequip_item(slot_to_unequip)
+        self._update_ui()
+
+    @Slot(str, object)
+    def _handle_cast_spell_requested(self, spell_id: str, target_id: object):
         try:
             state = self.game_engine.state_manager.current_state
-            if not is_ui_generated_command and (not state or state.current_mode != InteractionMode.COMBAT):
-                self.game_output.append_player_message(command)
-            else:
-                logger.info("Suppressing player echo in GameOutputWidget (combat mode or UI-generated command).")
-        except Exception:
-            if not is_ui_generated_command:
-                self.game_output.append_player_message(command)
-            
-        self._last_submitted_command = command # Still store it to prevent potential echoes from engine if it's re-output
-        
-        active_command_input = self.narrative_command_input if self.mode_stacked_widget.currentWidget() == self.narrative_view else self.combat_command_input
-        active_command_input.clear()
-        active_command_input.setEnabled(False)
-        active_command_input.command_edit.setPlaceholderText("Processing...")
-        
-        self.status_bar.showMessage("Processing command...", 0)
-        
-        self.worker_thread = QThread()
-        self.worker = self.CommandWorker(self.game_engine, command)
-        self.worker.moveToThread(self.worker_thread)
-        
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self._on_command_processed)
-        self.worker.error.connect(self._on_command_error)
-        self.worker.processing.connect(self._set_processing_state) 
-        self.worker.finished.connect(self.worker_thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-        
-        self.worker_thread.start()
-
-    def _on_command_processed(self):
-        """Handle completion of command processing."""
-        # Update UI components
-        self._update_ui()
-        self.status_bar.clearMessage()
-        self.narrative_command_input.setEnabled(True)
-        self.combat_command_input.setEnabled(True)
-        self.narrative_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
-        self.combat_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
-    
-    def _on_command_error(self, error_msg):
-        """Handle error in command processing."""
-        self.game_output.append_system_message(f"Error: {error_msg}")
-        self.status_bar.clearMessage()
-        self.narrative_command_input.setEnabled(True)
-        self.combat_command_input.setEnabled(True)
-        self.narrative_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
-        self.combat_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
-
-    def _complete_if_same_event(self, event_id: str) -> None:
-        """If the orchestrator is still waiting on this exact event, complete it.
-        This guards against UI paths that failed to emit completion and prevents stalls.
-        """
-        try:
-            orch = getattr(self.game_engine, '_combat_orchestrator', None)
-            if orch is None:
+            if not state or state.current_mode != InteractionMode.COMBAT or not getattr(state, 'combat_manager', None):
+                self.game_output.append_system_message("Casting is only available during combat.", gradual=False)
                 return
-            # Only complete if we are still on the same event and waiting for visual
-            if getattr(orch, 'is_processing_event', False) and getattr(orch, 'is_waiting_for_visual', False):
-                current_id = getattr(orch, 'current_event_id_for_signals', None)
-                if current_id == event_id:
-                    logger.warning(f"Safety net: Completing UI_BAR_UPDATE event {event_id} to avoid stall.")
-                    try:
-                        orch._handle_visual_display_complete()
-                    except Exception:
-                        pass
-        except Exception as e:
-            logger.debug(f"_complete_if_same_event guard failed: {e}")
-    
-    def _set_processing_state(self, is_processing):
-        """Update UI to show processing state."""
-        if is_processing:
-            self.status_bar.showMessage("Processing command...")
-            self.narrative_command_input.command_edit.setPlaceholderText("Processing...")
-            self.combat_command_input.command_edit.setPlaceholderText("Processing...")
-        else:
-            self.status_bar.clearMessage()
-            self.narrative_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
-            self.combat_command_input.command_edit.setPlaceholderText("Enter command or type 'help'...")
-            self.narrative_command_input.setEnabled(True)
-            self.combat_command_input.setEnabled(True)
-    
-    def _handle_game_output(self, role: str, content: str):
-        """
-        Handle non-orchestrated output from the game engine.
-        Orchestrated events are handled by `process_orchestrated_display_event`.
-        This method is now for general system messages or direct player echoes
-        that are NOT part of the CombatOutputOrchestrator's flow.
-        """
-        logger.info(f"[LEGACY_OUTPUT] Received: role='{role}', content='{content[:200]}...'")
-        
-        # Special logging for reintroductory narrative debugging
-        if role == "gm" and ("night air" in content.lower() or "find yourself" in content.lower()):
-            logger.info(f"LIFECYCLE_DEBUG: _handle_game_output - This appears to be reintroductory narrative")
-            logger.info(f"LIFECYCLE_DEBUG: Content length: {len(content)}")
-            logger.info(f"LIFECYCLE_DEBUG: About to route to GameOutputWidget")
-        
-        # Prevent echoing the player's command if it somehow comes through this path
-        # This also handles the case where UI-generated commands might be echoed by the engine.
-        is_ui_generated_command_pattern = False
-        try:
-            parts = content.split(maxsplit=1)
-            if len(parts) > 0 and parts[0].lower() in ["examine", "equip", "unequip", "drop", "use"]:
-                if len(parts) > 1 and '-' in parts[1] and len(parts[1]) > 10:
-                    is_ui_generated_command_pattern = True
-        except: # pylint: disable=bare-except
-            pass
-
-        if role == "player" and ( (self._last_submitted_command is not None and content == self._last_submitted_command) or is_ui_generated_command_pattern ):
-            logger.warning(f"Skipping potential echo of last command or UI-generated command via _handle_game_output: role='{role}', content='{content[:50]}...'")
-            if self._last_submitted_command == content: # Clear only if it was an exact match of last submitted
-                 self._last_submitted_command = None 
-            return
-            
-        # Clear last submitted command if this output is different, to allow next player input to be echoed
-        if self._last_submitted_command is not None and content != self._last_submitted_command:
-             self._last_submitted_command = None
-
-        # Route to GameOutputWidget. The append_text method now takes 'gradual'
-        # For non-orchestrated output, usually display immediately (gradual=False)
-        if role == "system":
-            logger.info(f"LIFECYCLE_DEBUG: Routing system message to game_output.append_system_message")
-            self.game_output.append_system_message(content, gradual=False)
-        elif role == "gm":
-            # General GM messages not part of orchestrated combat flow
-            logger.info(f"LIFECYCLE_DEBUG: Routing GM message to game_output.append_gm_message with gradual=True")
-            self.game_output.append_gm_message(content, gradual=True) # Allow GM narrative to be gradual
-        elif role == "player":
-            # Do not echo player messages to narrative output while in COMBAT
+            cm = state.combat_manager
+            if cm.current_step != CombatStep.AWAITING_PLAYER_INPUT:
+                self.game_output.append_system_message("Please wait until your turn to act.", gradual=False)
+                return
+            performer_id = getattr(cm, '_player_entity_id', None)
+            if not performer_id:
+                self.game_output.append_system_message("Cannot cast: player entity not set in combat.", gradual=False)
+                return
             try:
-                state = self.game_engine.state_manager.current_state
-                if state and state.current_mode == InteractionMode.COMBAT:
-                    logger.info("Skipping player role output to GameOutputWidget because we're in COMBAT mode.")
-                    return
+                from core.magic.spell_catalog import get_spell_catalog
+                cat = get_spell_catalog()
+                sp = cat.get_spell_by_id(spell_id)
+                data = getattr(sp, 'data', {}) if sp else {}
+                cost_mp = float(data.get('mana_cost', data.get('cost', 0)) or 0)
             except Exception:
-                pass
-            # This path should be rare now, as player input is directly echoed then processed.
-            # This will only catch player output if it's *not* the last submitted command.
-            self.game_output.append_player_message(content, gradual=False)
-        else:
-            self.game_output.append_text(f"[{role}] {content}", gradual=False)
-                      
-        self._update_ui() # Still update UI for general status, etc.
-        
+                cost_mp = 0.0
+            from core.combat.combat_action import SpellAction
+            action = SpellAction(
+                performer_id=performer_id, spell_name=str(spell_id),
+                target_ids=[str(target_id)] if target_id else [],
+                cost_mp=cost_mp, dice_notation="", description=f"Casting {spell_id}"
+            )
+            cm._pending_action = action
+            cm.current_step = CombatStep.RESOLVING_ACTION_MECHANICS
+            cm.process_combat_step(self.game_engine)
+        except Exception as e:
+            logger.error(f"Failed to handle UI cast for {spell_id}: {e}", exc_info=True)
+            self.game_output.append_system_message("System error preparing spell cast.", gradual=False)
+
+    @Slot(EquipmentSlot, str)
+    def _handle_item_drop_from_slot_requested(self, slot_to_unequip: EquipmentSlot, item_id_to_drop: str):
+        inventory_manager = get_inventory_manager()
+        item = inventory_manager.get_item(item_id_to_drop)
+        item_name = item.name if item else "the item"
+
+        reply = QMessageBox.question(
+            self, "Confirm Drop",
+            f"Are you sure you want to drop the equipped item '{item_name}' from your {slot_to_unequip.value.replace('_',' ')}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            if inventory_manager.unequip_item(slot_to_unequip):
+                self.input_handler.process_command(f"drop {item_id_to_drop}") 
+        self._update_ui()
+
+    @Slot(dict)
+    def _handle_stats_update(self, stats_data: dict):
+        state = self.game_engine.state_manager.current_state
+        if state:
+            if self.right_panel:
+                self.right_panel.update_character(state.player)
+            if state.current_mode == InteractionMode.COMBAT:
+                self.combat_display.update_display(state) 
+
     def _update_ui(self):
             """Update UI components based on the current game state."""
             state = self.game_engine.state_manager.current_state
             if not state:
-                logger.debug("MainWindow._update_ui: No game state to update UI from.")
                 self.status_bar.update_status(location="Not in game", game_time="", calendar="", mode="N/A")
                 if hasattr(self.right_panel, 'character_sheet') and self.right_panel.character_sheet: 
                     self.right_panel.character_sheet._clear_stat_displays() 
                 
                 inventory_manager_for_clear = get_inventory_manager() 
-                logger.info(f"MainWindow._update_ui (no game state): Using InventoryManager instance ID: {getattr(inventory_manager_for_clear, 'instance_id_for_debug', 'UNKNOWN_INSTANCE')}")
                 if hasattr(self.right_panel, 'update_inventory'): self.right_panel.update_inventory(inventory_manager_for_clear) 
                 return
 
@@ -1040,10 +724,9 @@ class MainWindow(QMainWindow):
                         from core.stats.stats_base import DerivedStatType
                         player_hp = stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
                         if player_hp <= 0: game_over = True
-                except Exception as e: logger.error(f"MainWindow._update_ui: Error checking player HP for game over: {e}", exc_info=True)
+                except Exception: pass
 
             if game_over and not hasattr(self, '_game_over_dialog_shown'):
-                logger.info("MainWindow._update_ui: Player defeat detected. Showing Game Over dialog.")
                 self._game_over_dialog_shown = True 
                 self.narrative_command_input.setEnabled(False)
                 self.combat_command_input.setEnabled(False)
@@ -1062,7 +745,6 @@ class MainWindow(QMainWindow):
             
             current_mode_enum = state.current_mode
             current_mode_name = current_mode_enum.name if hasattr(current_mode_enum, 'name') else str(current_mode_enum)
-            logger.info(f"MainWindow._update_ui: Updating UI. Target mode: {current_mode_name}. Current QStackedWidget widget: {self.mode_stacked_widget.currentWidget().objectName() if self.mode_stacked_widget.currentWidget() else 'None'}")
 
             is_transitioning_to_combat = getattr(state, 'is_transitioning_to_combat', False)
             combat_narrative_buffer = getattr(state, 'combat_narrative_buffer', [])
@@ -1070,31 +752,19 @@ class MainWindow(QMainWindow):
             if current_mode_name == "COMBAT":
                 view_switched_this_call = False
                 if self.mode_stacked_widget.currentWidget() != self.combat_view:
-                    logger.info(f"MainWindow._update_ui: Switching to combat_view.")
                     self.mode_stacked_widget.setCurrentWidget(self.combat_view)
                     view_switched_this_call = True
-                else:
-                    logger.info("MainWindow._update_ui: combat_view is already the current widget.")
 
-                # Ensure combat_view is visible and updated, regardless of whether it was just switched.
-                self.combat_view.setVisible(True) # Explicitly ensure visibility
-                self.combat_view.update() # Request a repaint of the combat_view
-                self.mode_stacked_widget.update() # Request a repaint of the QStackedWidget
+                self.combat_view.setVisible(True) 
+                self.combat_view.update() 
+                self.mode_stacked_widget.update() 
                 
                 if view_switched_this_call:
-                    current_widget_after_switch = self.mode_stacked_widget.currentWidget()
-                    if current_widget_after_switch == self.combat_view:
-                        logger.info(f"MainWindow._update_ui: Successfully set combat_view as current widget in QStackedWidget.")
-                    else:
-                        logger.error(f"MainWindow._update_ui: FAILED to set combat_view. Current widget is still: {current_widget_after_switch.objectName() if current_widget_after_switch else 'None'}")
-                    
                     if hasattr(self.right_panel, 'tab_widget'): 
                         self.right_panel.tab_widget.setCurrentIndex(0)
 
                 if is_transitioning_to_combat and combat_narrative_buffer:
-                    logger.info(f"MainWindow._update_ui: Combat transition: Queuing {len(combat_narrative_buffer)} buffered messages with Orchestrator.")
                     from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
-                    
                     buffer_event = DisplayEvent(
                         type=DisplayEventType.BUFFER_FLUSH,
                         content=list(combat_narrative_buffer), 
@@ -1104,13 +774,9 @@ class MainWindow(QMainWindow):
                         tts_eligible=True
                     )
                     self.game_engine._combat_orchestrator.add_event_to_queue(buffer_event)
-                    
                     state.combat_narrative_buffer.clear() 
                     state.is_transitioning_to_combat = False 
-                    logger.debug("MainWindow._update_ui: Cleared combat_narrative_buffer and reset is_transitioning_to_combat flag.")
                 
-                # Call combat_display.update_display to refresh its content
-                logger.info("MainWindow._update_ui (COMBAT mode): Calling combat_display.update_display.")
                 self.combat_display.update_display(state) 
                 
                 if state.player and hasattr(self.right_panel, 'update_character'): self.right_panel.update_character(state.player) 
@@ -1118,37 +784,22 @@ class MainWindow(QMainWindow):
                 combat_manager = state.combat_manager 
                 if view_switched_this_call and combat_manager and combat_manager.current_step == CombatStep.STARTING_COMBAT:
                     if not self.game_engine._combat_orchestrator.is_processing_event and not self.game_engine._combat_orchestrator.event_queue:
-                        logger.info(f"MainWindow._update_ui (view switched to COMBAT this call) triggering initial CombatManager.process_combat_step() as Orchestrator is idle.")
                         QTimer.singleShot(10, lambda cm=combat_manager, eng=self.game_engine: cm.process_combat_step(eng))
-                elif combat_manager and combat_manager.current_step == CombatStep.AWAITING_PLAYER_INPUT:
-                     logger.debug("MainWindow._update_ui: CombatManager is AWAITING_PLAYER_INPUT. No nudge needed.")
 
-
-            else: # Not in Combat mode
+            else: 
                 if self.mode_stacked_widget.currentWidget() != self.narrative_view:
-                    logger.info(f"MainWindow._update_ui: Switching to narrative_view.")
                     self.mode_stacked_widget.setCurrentWidget(self.narrative_view)
-                    current_widget_after_switch = self.mode_stacked_widget.currentWidget()
-                    if current_widget_after_switch == self.narrative_view:
-                        logger.info(f"MainWindow._update_ui: Successfully set narrative_view as current widget.")
-                    else:
-                        logger.error(f"MainWindow._update_ui: FAILED to set narrative_view. Current widget is still: {current_widget_after_switch.objectName() if current_widget_after_switch else 'None'}")
                 
-                self.narrative_view.setVisible(True) # Ensure narrative view is visible
+                self.narrative_view.setVisible(True) 
                 self.narrative_view.update()
                 self.mode_stacked_widget.update()
                 
-                # --- FIX: Ensure CombatDisplay knows we are no longer in combat so it can clean up ---
                 if hasattr(self, 'combat_display'):
                      self.combat_display.update_display(state)
-                # -----------------------------------------------------------------------------------
-
 
                 if is_transitioning_to_combat: 
-                    logger.warning("MainWindow._update_ui: Was transitioning to combat, but now in narrative. Resetting transition flag.")
                     state.is_transitioning_to_combat = False 
                     state.combat_narrative_buffer.clear()
-
 
             if current_mode_enum == InteractionMode.TRADE and \
                (self._previous_mode is None or self._previous_mode != InteractionMode.TRADE):
@@ -1163,13 +814,11 @@ class MainWindow(QMainWindow):
             if state.player and hasattr(self.right_panel, 'update_character'): self.right_panel.update_character(state.player)
 
             inventory_manager = get_inventory_manager() 
-            logger.info(f"MainWindow._update_ui: Using InventoryManager instance ID: {getattr(inventory_manager, 'instance_id_for_debug', 'UNKNOWN_INSTANCE')}")
             if hasattr(self.right_panel, 'update_inventory'): self.right_panel.update_inventory(inventory_manager)
             
             journal_data = getattr(state, "journal", None)
             if journal_data is not None and hasattr(self.right_panel, 'update_journal'): self.right_panel.update_journal(journal_data)
 
-            # Update grimoire (known spells and cast enable state)
             if hasattr(self.right_panel, 'update_grimoire'):
                 self.right_panel.update_grimoire()
 
@@ -1186,22 +835,31 @@ class MainWindow(QMainWindow):
                 pass
 
     def _show_new_game_dialog(self):
-        """Show dialog for creating a new game."""
         from gui.dialogs.character_creation_dialog import CharacterCreationDialog
         dialog = CharacterCreationDialog(parent=self)
         if dialog.exec():
             character_data = dialog.get_character_data()
             if not character_data: 
-                logger.warning("New game character creation cancelled or failed validation in dialog.")
                 return
-
-            logger.info(f"Character data received from dialog. Preparing to start panel animations.")
             self._start_panel_animations(character_data)
-        else:
-            logger.info("New game dialog cancelled by user.")
+
+    def _initialize_panel_effects(self):
+        if not hasattr(self, 'center_opacity_effect'):
+            self.center_opacity_effect = QGraphicsOpacityEffect(self.center_widget)
+            self.center_widget.setGraphicsEffect(self.center_opacity_effect)
+            self.center_opacity_effect.setOpacity(0.0)
+
+        if not hasattr(self, 'right_panel_opacity_effect'):
+            self.right_panel_opacity_effect = QGraphicsOpacityEffect(self.right_panel)
+            self.right_panel.setGraphicsEffect(self.right_panel_opacity_effect)
+            self.right_panel_opacity_effect.setOpacity(0.0)
+
+        if not hasattr(self, 'status_bar_opacity_effect'):
+            self.status_bar_opacity_effect = QGraphicsOpacityEffect(self.status_bar)
+            self.status_bar.setGraphicsEffect(self.status_bar_opacity_effect)
+            self.status_bar_opacity_effect.setOpacity(0.0)
 
     def _start_panel_animations(self, character_data: dict):
-        """Fade in the main game panels after character creation."""
         self._initialize_panel_effects()
         
         self.center_widget.setVisible(True)
@@ -1210,7 +868,6 @@ class MainWindow(QMainWindow):
 
         self.anim_group = QParallelAnimationGroup(self)
         
-        # Center widget animation
         anim_center = QPropertyAnimation(self.center_opacity_effect, b"opacity")
         anim_center.setDuration(1500)
         anim_center.setStartValue(0.0)
@@ -1218,7 +875,6 @@ class MainWindow(QMainWindow):
         anim_center.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self.anim_group.addAnimation(anim_center)
         
-        # Right panel animation
         anim_right = QPropertyAnimation(self.right_panel_opacity_effect, b"opacity")
         anim_right.setDuration(1500)
         anim_right.setStartValue(0.0)
@@ -1226,50 +882,30 @@ class MainWindow(QMainWindow):
         anim_right.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self.anim_group.addAnimation(anim_right)
 
-        # Status bar animation
         anim_status = QPropertyAnimation(self.status_bar_opacity_effect, b"opacity")
-        anim_status.setDuration(1000) # Faster
+        anim_status.setDuration(1000) 
         anim_status.setStartValue(0.0)
         anim_status.setEndValue(1.0)
         self.anim_group.addAnimation(anim_status)
 
-        # Connect the finished signal to the next step in the game flow
         self.anim_group.finished.connect(lambda: self._on_panel_animations_finished(character_data))
         self.anim_group.start()
 
     def _on_panel_animations_finished(self, character_data: dict):
-        """Callback for when the initial panel animations are finished."""
         self.center_widget.setEnabled(True)
         self.right_panel.setEnabled(True)
         self.status_bar.setEnabled(True)
-        logger.info("Center widget and Right panel enabled after fade-in.")
-        logger.info("Status bar enabled after fade-in.")
-        
         self.start_new_game(character_data)
 
     def start_new_game(self, character_data: dict):
-        """Initiates the new game process in a worker thread."""
-        logger.info("All panel animations complete. Starting game engine flow.")
         self.game_output.clear()
         
-        # Create a copy of the data to avoid modifying the original dict
         worker_character_data = character_data.copy()
-
-        # Extract character stats from the StatAllocation instance and put the resulting dict in the worker data
         stats_instance = worker_character_data.get("stats")
         if hasattr(stats_instance, 'get_base_stats'):
             character_stats = stats_instance.get_base_stats()
             worker_character_data['stats'] = character_stats
-            logger.debug(f"Character stats for worker: {character_stats}")
-        elif isinstance(stats_instance, dict):
-             # If it's already a dict, just use it
-             logger.debug(f"Character stats for worker (already a dict): {stats_instance}")
-        else:
-            logger.error("Could not find valid stats in character data!")
-            QMessageBox.critical(self, "Error", "Could not find character stats to start the game.")
-            return
-            
-        logger.info(f"Character data received for new game: {worker_character_data['name']}")
+        
         self._show_loading_overlay("Starting new game...", origin_id=worker_character_data.get('origin_id'))
 
         self.new_game_thread = QThread()
@@ -1283,21 +919,46 @@ class MainWindow(QMainWindow):
         self.new_game_thread.finished.connect(self.new_game_thread.deleteLater)
         self.new_game_thread.start()
 
+    def _on_new_game_finished(self, initial_narration: str):
+        self._hide_loading_overlay()
+        if initial_narration:
+            self.game_output.append_gm_message(initial_narration, gradual=True)
+        else:
+            self.game_output.append_system_message("A new world awaits...", gradual=False)
+        self._update_ui()
+    
+    def _on_new_game_error(self, error_msg):
+        self._hide_loading_overlay()
+        QMessageBox.critical(self, "New Game Failed", f"Failed to start new game: {error_msg}")
+        self._reset_ui_after_error()
+
+    def _reset_ui_after_error(self):
+        self.center_widget.setVisible(False)
+        self.center_widget.setEnabled(False)
+        if hasattr(self, 'center_opacity_effect'): self.center_opacity_effect.setOpacity(0.0)
+        
+        self.right_panel.setVisible(False)
+        self.right_panel.setEnabled(False)
+        if hasattr(self, 'right_panel_opacity_effect'): self.right_panel_opacity_effect.setOpacity(0.0)
+
+        self.status_bar.setVisible(False)
+        self.status_bar.setEnabled(False)
+        if hasattr(self, 'status_bar_opacity_effect'): self.status_bar_opacity_effect.setOpacity(0.0)
+
     def _show_save_game_dialog(self):
-        """Show dialog for saving the game."""
+        if not self.game_engine.state_manager.current_state:
+            QMessageBox.warning(self, "Cannot Save", "There is no active game to save.")
+            return
+
         from gui.dialogs.save_game_dialog import SaveGameDialog
         dialog = SaveGameDialog(parent=self)
         if dialog.exec():
             save_name = dialog.save_name_edit.text()
-            
-            origin_id = None
-            try:
-                if self.game_engine.state_manager.current_state and self.game_engine.state_manager.current_state.player:
-                    origin_id = self.game_engine.state_manager.current_state.player.origin
-            except Exception as e:
-                logger.warning(f"Could not determine origin_id for save loading screen: {e}")
+            if not save_name:
+                QMessageBox.warning(self, "Invalid Name", "Save name cannot be empty.")
+                return
 
-            self._show_loading_overlay(f"Saving game: {save_name}...", origin_id=origin_id)
+            self._show_loading_overlay(f"Saving game: {save_name}...")
 
             self.save_thread = QThread()
             self.save_worker = SaveGameWorker(self.game_engine, save_name)
@@ -1315,7 +976,6 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Game Saved", f"Game saved successfully to {saved_path}")
 
     def _show_load_game_dialog(self):
-        """Show the load game dialog."""
         dialog = LoadGameDialog(parent=self)
         if dialog.exec():
             save_filename = dialog.selected_save
@@ -1342,44 +1002,32 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Game Loaded", "Game loaded successfully.")
 
     def _show_game_panels_for_loaded_game(self):
-        """Make game panels visible and enabled when loading a saved game."""
         self._initialize_panel_effects()
         
-        # Make center widget visible and enabled
         self.center_widget.setVisible(True)
         self.center_widget.setEnabled(True)
         if hasattr(self, 'center_opacity_effect'):
             self.center_opacity_effect.setOpacity(1.0)
         
-        # Make right panel visible and enabled
         self.right_panel.setVisible(True)
         self.right_panel.setEnabled(True)
         if hasattr(self, 'right_panel_opacity_effect'):
             self.right_panel_opacity_effect.setOpacity(1.0)
-        # Ensure right panel is in expanded state for loaded games
         if not self.right_panel.isExpanded():
             self.right_panel.setExpanded(True)
         
-        # Make status bar visible and enabled
         self.status_bar.setVisible(True)
         self.status_bar.setEnabled(True)
         if hasattr(self, 'status_bar_opacity_effect'):
             self.status_bar_opacity_effect.setOpacity(1.0)
-        
-        logger.info("Game panels made visible and enabled for loaded game")
 
     def _load_and_apply_initial_background(self):
-        """Load the saved background filename from settings and apply it.
-        If no valid setting is found, use the first available background alphabetically.
-        """
         settings = QSettings("RPGGame", "Settings")
-        # Read the full filename setting
         saved_filename = settings.value("style/background_filename", None)
 
-        available_backgrounds = self.resource_manager.list_background_names() # Gets list of (name, ext)
+        available_backgrounds = self.resource_manager.list_background_names() 
         final_filename = None
 
-        # Check if saved filename exists in the available list
         if saved_filename:
             found = False
             for name, ext in available_backgrounds:
@@ -1387,40 +1035,26 @@ class MainWindow(QMainWindow):
                     final_filename = saved_filename
                     found = True
                     break
-            if found:
-                logger.info(f"Using saved background: {final_filename}")
-            else:
-                logger.warning(f"Saved background '{saved_filename}' not found in available list.")
-                saved_filename = None # Treat as not found
+            if not found:
+                saved_filename = None 
 
-        # If no valid saved name, use the first available background
         if not final_filename and available_backgrounds:
-            first_name, first_ext = available_backgrounds[0] # Use first alphabetically
+            first_name, first_ext = available_backgrounds[0] 
             final_filename = f"{first_name}{first_ext}"
-            logger.info(f"No valid saved background found. Using first available: {final_filename}")
-        elif not final_filename:
-             logger.warning("No saved background setting found and no backgrounds available in images/gui/background/. Applying fallback color.")
-             # update_background will handle the fallback color if name is None
 
-        self.update_background(final_filename) # Pass None if no background is available
+        self.update_background(final_filename) 
 
+    @Slot(str)
     def update_background(self, filename: Optional[str]):
-        """Load and apply a new background image or GIF to the main window."""
-        logger.info(f"Attempting to update background to: {filename}")
-
-        # Stop and clear any existing movie/pixmap
         current_movie = self.background_label.movie()
         if current_movie:
             current_movie.stop()
             self.background_label.setMovie(None)
         self.background_label.setPixmap(QPixmap())
-        # Reset palette to default in case previous was PNG
-        self.background_container.setAutoFillBackground(False) # Important! Don't let palette fill container
-        self.background_label.setProperty("current_background", None) # Store current bg filename
+        self.background_container.setAutoFillBackground(False) 
+        self.background_label.setProperty("current_background", None) 
 
         if not filename:
-            logger.warning("No background filename provided, clearing background.")
-            # Optionally set a default color on the label if needed
             self.background_label.setStyleSheet("background-color: #1E1E1E;")
             return
 
@@ -1430,12 +1064,10 @@ class MainWindow(QMainWindow):
         if ext_lower == ".png":
             pixmap = self.resource_manager.get_background_pixmap(name)
             if not pixmap.isNull():
-                self.background_label.setPixmap(pixmap) # Label scales content
-                self.background_label.setStyleSheet("") # Clear any fallback color
+                self.background_label.setPixmap(pixmap) 
+                self.background_label.setStyleSheet("") 
                 self.background_label.setProperty("current_background", filename)
-                logger.info(f"Successfully applied PNG background: {filename}")
             else:
-                logger.warning(f"Failed to load PNG background '{filename}', applying fallback color.")
                 self.background_label.setStyleSheet("background-color: #1E1E1E;")
 
         elif ext_lower == ".gif":
@@ -1443,95 +1075,22 @@ class MainWindow(QMainWindow):
             if movie.isValid():
                 self.background_label.setMovie(movie)
                 movie.start()
-                self.background_label.setStyleSheet("") # Clear any fallback color
+                self.background_label.setStyleSheet("") 
                 self.background_label.setProperty("current_background", filename)
-                logger.info(f"Successfully applied GIF background: {filename}")
             else:
-                logger.warning(f"Failed to load GIF background '{filename}', applying fallback color.")
                 self.background_label.setStyleSheet("background-color: #1E1E1E;")
         else:
-            logger.error(f"Unsupported background file type: {filename}")
-            self.background_label.setStyleSheet("background-color: #1E1E1E;") # Fallback color
-
-    def _on_new_game_finished(self, initial_narration: str):
-        """Handle successful new game creation."""
-        logger.info("[SUCCESS] New game flow complete. Initial narration received.")
-        self._hide_loading_overlay()
-        if initial_narration:
-            self.game_output.append_gm_message(initial_narration, gradual=True)
-        else:
-            logger.warning("New game finished but no initial narration was provided.")
-            self.game_output.append_system_message("A new world awaits...", gradual=False)
-        
-        # Final UI update to switch to the correct view (NARRATIVE) and refresh all panels.
-        self._update_ui()
+            self.background_label.setStyleSheet("background-color: #1E1E1E;") 
 
     def _on_worker_error(self, error_message: str, context: str = "unknown"):
-        """Handle errors from worker threads with context."""
         logger.error(f"Worker error (context: {context}): {error_message}")
         if context in ["save", "load"]:
-            self._on_save_load_worker_error(error_message)
+            self._hide_loading_overlay()
+            QMessageBox.warning(self, "Operation Failed", f"The operation failed: {error_message}")
         else:
-            # Default to the more drastic reset for critical failures like new game
             self._hide_loading_overlay()
             QMessageBox.critical(self, "Error", f"A critical error occurred: {error_message}")
-            self._reset_ui_for_new_session()
-            logger.info("UI panels have been reset after a worker error.")
-
-    def _on_save_load_worker_error(self, error_message: str):
-        """Gentle error handler for save/load operations that doesn't reset the UI."""
-        self._hide_loading_overlay()
-        QMessageBox.warning(self, "Operation Failed", f"The operation failed: {error_message}")
-        logger.info("Displayed save/load error without resetting UI panels.")
-
-    def _show_save_game_dialog(self):
-        """Show the custom save game dialog."""
-        if not self.game_engine.state_manager.current_state:
-            QMessageBox.warning(self, "Cannot Save", "There is no active game to save.")
-            return
-
-        from gui.dialogs.save_game_dialog import SaveGameDialog
-        dialog = SaveGameDialog(parent=self)
-        
-        if dialog.exec():
-            save_name = dialog.save_name_edit.text()
-            if not save_name:
-                QMessageBox.warning(self, "Invalid Name", "Save name cannot be empty.")
-                return
-
-            self._show_loading_overlay(f"Saving game: {save_name}...")
-
-            self.save_thread = QThread()
-            # The worker expects just the filename, not the full path.
-            self.save_worker = SaveGameWorker(self.game_engine, save_name)
-            self.save_worker.moveToThread(self.save_thread)
-            self.save_thread.started.connect(self.save_worker.run)
-            self.save_worker.finished.connect(self._on_save_finished)
-            self.save_worker.error.connect(lambda msg: self._on_worker_error(msg, context="save"))
-            self.save_worker.finished.connect(self.save_thread.quit)
-            self.save_worker.finished.connect(self.save_worker.deleteLater)
-            self.save_thread.finished.connect(self.save_thread.deleteLater)
-            self.save_thread.start()
-
-    def _on_new_game_error(self, error_msg):
-        self._hide_loading_overlay()
-        QMessageBox.critical(self, "New Game Failed", f"Failed to start new game: {error_msg}")
-        self._reset_ui_after_error()
-
-    def _reset_ui_after_error(self):
-        """Resets the main panels to a hidden state after a critical failure like new game creation."""
-        self.center_widget.setVisible(False)
-        self.center_widget.setEnabled(False)
-        if hasattr(self, 'center_opacity_effect'): self.center_opacity_effect.setOpacity(0.0)
-        
-        self.right_panel.setVisible(False)
-        self.right_panel.setEnabled(False)
-        if hasattr(self, 'right_panel_opacity_effect'): self.right_panel_opacity_effect.setOpacity(0.0)
-
-        self.status_bar.setVisible(False)
-        self.status_bar.setEnabled(False)
-        if hasattr(self, 'status_bar_opacity_effect'): self.status_bar_opacity_effect.setOpacity(0.0)
-        logger.info("UI panels have been reset after a worker error.")
+            self._reset_ui_after_error()
 
     def _show_loading_overlay(self, text: str, origin_id: Optional[str] = None):
         self.loading_label.setText(text)
@@ -1539,10 +1098,8 @@ class MainWindow(QMainWindow):
 
         video_path_abs = ""
         if origin_id:
-            # Convert to absolute path and use QUrl for reliability
             video_path_rel = os.path.join("images", "gui", f"{origin_id}_loading.mp4")
             video_path_abs = os.path.abspath(video_path_rel)
-            logger.info(f"Attempting to load origin-specific loading video from absolute path: {video_path_abs}")
 
         if origin_id and os.path.exists(video_path_abs):
             self.video_widget.setVisible(True)
@@ -1552,12 +1109,7 @@ class MainWindow(QMainWindow):
             from PySide6.QtCore import QUrl
             self.player.setSource(QUrl.fromLocalFile(video_path_abs))
             self.player.play()
-            logger.info(f"Playing loading video: {video_path_rel}")
         else:
-            if origin_id:
-                logger.warning(f"Loading video not found at '{video_path_abs}'. Using fallback progress bar.")
-            else:
-                logger.info("No origin_id provided. Using fallback progress bar for loading.")
             self.video_widget.setVisible(False)
             self.fallback_loading_bar.setVisible(True)
             self.fallback_loading_bar.start_animation()
@@ -1566,7 +1118,6 @@ class MainWindow(QMainWindow):
         self.loading_overlay.show()
         self.loading_overlay.raise_()
 
-        # Fade in animation
         self.fade_in_anim = QPropertyAnimation(self.loading_opacity_effect, b"opacity")
         self.fade_in_anim.setDuration(300)
         self.fade_in_anim.setStartValue(0.0)
@@ -1578,7 +1129,6 @@ class MainWindow(QMainWindow):
         self.player.stop()
         self.fallback_loading_bar.stop_animation()
         
-        # Fade out animation
         self.fade_out_anim = QPropertyAnimation(self.loading_opacity_effect, b"opacity")
         self.fade_out_anim.setDuration(300)
         self.fade_out_anim.setStartValue(1.0)
@@ -1588,55 +1138,34 @@ class MainWindow(QMainWindow):
         self.fade_out_anim.start(QPropertyAnimation.DeleteWhenStopped)
 
     def _show_settings_dialog(self):
-        """Show dialog for game settings."""
         if not hasattr(self, '_settings_dialog'):
             self._settings_dialog = SettingsDialog(parent=self)
-            logger.info("SettingsDialog instance created on-demand.")
 
         dialog = self._settings_dialog
         
-        logger.info("Attempting to show SettingsDialog...") # Log entry
-        logger.info("Imported SettingsDialog.") # Log import success
-        
-        # Connect the background preview signal from the BackgroundTab within the SettingsDialog
         connected = False
         if hasattr(dialog, 'background_tab') and hasattr(dialog.background_tab, 'preview_background_changed'):
             try:
-                # Connect the signal that now emits the full filename
                 dialog.background_tab.preview_background_changed.connect(self.update_background)
                 connected = True
-                logger.info("Connected background_preview_changed signal for live preview.")
-            except Exception as e:
-                 logger.error(f"Error connecting background_preview_changed signal: {e}")
-        else:
-            logger.warning("Could not find background_tab or preview_background_changed signal in SettingsDialog.")
+            except Exception: pass
 
         saved = False
         try:
-            logger.info("Attempting to execute SettingsDialog...") # Log before exec
-            # Execute the dialog
             result = dialog.exec()
-            logger.info(f"SettingsDialog execution finished with result: {result}") # Log after exec
-            if result == QDialog.Accepted: # Check result code
+            if result == QDialog.Accepted: 
                 saved = True
         except Exception as e:
-             logger.error(f"Error EXECUTING SettingsDialog: {e}", exc_info=True)
              QMessageBox.critical(self, "Error", f"Failed to execute settings dialog:\n{e}")
         finally:
-            # Disconnect signal after dialog is closed
             if connected:
                 try:
                     dialog.background_tab.preview_background_changed.disconnect(self.update_background)
-                    logger.info("Disconnected background_preview_changed signal.")
-                except Exception as e:
-                     logger.warning(f"Failed to disconnect background_preview_changed signal: {e}")
+                except Exception: pass
 
-        if saved: # Process saved settings only if dialog was accepted
-            logger.info("Settings dialog accepted. Applying settings...") # Log applying settings
-            # Apply new settings
-            settings = SettingsDialog.get_settings() # Re-fetch to be sure
+        if saved: 
+            settings = SettingsDialog.get_settings() 
 
-            # Update dev controls visibility immediately after settings change
             try:
                 q_settings = QSettings("RPGGame", "Settings")
                 dev_enabled = q_settings.value("dev/enabled", False, type=bool)
@@ -1644,786 +1173,136 @@ class MainWindow(QMainWindow):
                     self.combat_display.dev_controls_container.setVisible(bool(dev_enabled))
                 if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'set_dev_context_tab_enabled'):
                     self.right_panel.set_dev_context_tab_enabled(bool(dev_enabled))
-                # Also toggle orchestrator step mode to match dev setting default (off until user toggles)
                 if hasattr(self.game_engine, '_combat_orchestrator') and hasattr(self.game_engine._combat_orchestrator, 'toggle_dev_step_mode'):
                     self.game_engine._combat_orchestrator.toggle_dev_step_mode(False)
-            except Exception as e:
-                logger.warning(f"Failed to update dev controls visibility post settings: {e}")
+            except Exception: pass
 
-            # Update resolution if needed
-            resolution = settings["display"]["windowed_size"] # Use windowed_size now
+            resolution = settings["display"]["windowed_size"] 
             current_state = settings["display"]["window_state"]
 
-            logger.info(f"Applying settings - State: {current_state}, Windowed Size: {resolution}")
-
-            # Apply window state changes
             if current_state == "fullscreen":
                 if not self.isFullScreen(): self.showFullScreen()
             elif current_state == "maximized":
                  if not self.isMaximized(): self.showMaximized()
-            else: # windowed
+            else: 
                  if self.isFullScreen() or self.isMaximized(): self.showNormal()
-                 # Check if size actually needs changing
                  if QSize(resolution[0], resolution[1]) != self.size():
-                     self.resize(resolution[0], resolution[1]) # Use tuple values
+                     self.resize(resolution[0], resolution[1]) 
 
-            # Update styling (includes non-background styles)
             self._update_theme()
 
-            # Explicitly apply the *saved* background setting after dialog closes
             q_settings = QSettings("RPGGame", "Settings")
             saved_filename = q_settings.value("style/background_filename", None)
             if saved_filename:
-                 logger.info(f"Applying saved background from QSettings: {saved_filename}")
                  self.update_background(saved_filename)
-            else:
-                 logger.warning("Could not read saved background filename after settings dialog closed.")
 
-            # Reload autosave settings (turn-based) in the engine
             try:
                 if hasattr(self.game_engine, 'reload_autosave_settings'):
                     self.game_engine.reload_autosave_settings()
-            except Exception as e:
-                logger.warning(f"Failed to reload autosave settings after saving: {e}")
+            except Exception: pass
 
-            # Update MusicDirector volumes/mute immediately
             try:
-                from PySide6.QtCore import QSettings
-                s = QSettings("RPGGame", "Settings")
-                master = int(s.value("sound/master_volume", 100))
-                music  = int(s.value("sound/music_volume", 100))
-                effects= int(s.value("sound/effects_volume", 100))
-                enabled= s.value("sound/enabled", True, type=bool)
+                master = int(q_settings.value("sound/master_volume", 100))
+                music  = int(q_settings.value("sound/music_volume", 100))
+                effects= int(q_settings.value("sound/effects_volume", 100))
+                enabled= q_settings.value("sound/enabled", True, type=bool)
                 director = getattr(self.game_engine, 'get_music_director', lambda: None)()
                 if director:
                     director.set_volumes(master, music, effects)
                     director.set_muted(not bool(enabled))
-            except Exception as e:
-                logger.warning(f"Failed to apply sound settings to MusicDirector: {e}")
+            except Exception: pass
 
-            # Apply stats_manager logging visibility immediately without restart
-            try:
-                q_settings = QSettings("RPGGame", "Settings")
-                dev_enabled = bool(q_settings.value("dev/enabled", False, type=bool))
-                show_stats_logs = bool(q_settings.value("dev/show_stats_manager_logs", False, type=bool))
-                stats_logger = logger.getLogger("core.stats.stats_manager")
-                if dev_enabled and show_stats_logs:
-                    stats_logger.setLevel(logger.DEBUG)
-                else:
-                    stats_logger.setLevel(logger.WARNING)
-            except Exception as e:
-                logger.warning(f"Failed to apply stats_manager logging setting: {e}")
-
-            # Show confirmation
             self.game_output.append_system_message("Settings saved successfully.")
-            logger.info("Settings applied successfully.")
-        else:
-             logger.info("Settings dialog cancelled or closed without saving.")
 
     def _show_llm_settings_dialog(self):
-        """Show dialog for LLM settings."""
         if not hasattr(self, '_llm_settings_dialog'):
             self._llm_settings_dialog = LLMSettingsDialog(parent=self)
             self._llm_settings_dialog.settings_saved.connect(self._on_llm_settings_saved)
-            logger.info("LLMSettingsDialog instance created on-demand.")
-        
         self._llm_settings_dialog.exec()
     
     def _on_llm_settings_saved(self):
-        """Handle LLM settings saved event."""
-        # Update UI elements that depend on LLM settings
         is_llm_enabled = self.game_engine._use_llm
-        
-        # Add UI feedback to show LLM status when explicitly changed through settings
         if is_llm_enabled:
             self.game_output.append_system_message("LLM processing is now enabled.")
         else:
             self.game_output.append_system_message("LLM processing is now disabled.")
 
     def _load_last_save(self):
-        """Loads the most recent non-auto save file."""
-        logger.info("Attempting to load last save.")
-        from core.utils.save_manager import SaveManager # Local import
+        from core.utils.save_manager import SaveManager
         save_manager = SaveManager()
         try:
-            # Get recent saves, excluding backups and auto-saves initially
-            saves = save_manager.get_recent_saves(count=10, include_backups=False) # Get a few recent ones
+            saves = save_manager.get_recent_saves(count=10, include_backups=False) 
             last_manual_save = None
             for save in saves:
                  if not save.auto_save:
                       last_manual_save = save
-                      break # Found the most recent manual save
+                      break 
 
             if last_manual_save:
-                save_filename = f"{last_manual_save.save_id}/{SaveManager.STATE_FILENAME}" # Need correct path format if StateManager expects full path or just ID
-                save_id = last_manual_save.save_id # Use the ID for loading
-                logger.info(f"Found last manual save: {last_manual_save.save_name} (ID: {save_id})")
+                save_filename = f"{last_manual_save.save_id}/{SaveManager.STATE_FILENAME}" 
+                save_id = last_manual_save.save_id 
 
-                # Clear any previous UI content and pending orchestrator events BEFORE loading
                 try:
                     if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator:
                         self.game_engine._combat_orchestrator.clear_queue_and_reset_flags()
-                except Exception as e:
-                    logger.warning(f"Failed to clear orchestrator state before load: {e}")
+                except Exception: pass
                 
                 try:
                     self.game_output.clear()
-                except Exception as e:
-                    logger.warning(f"Failed to clear GameOutputWidget before load: {e}")
-                
-                try:
                     self.combat_display.clear_display()
-                except Exception as e:
-                    logger.warning(f"Failed to clear CombatDisplay before load: {e}")
+                except Exception: pass
                 
-                # Also clear right panel content to avoid stale state
                 try:
-                    if hasattr(self.right_panel, 'journal_panel'):
-                        self.right_panel.journal_panel.clear_all()
-                    if hasattr(self.right_panel, 'inventory_panel') and hasattr(self.right_panel.inventory_panel, 'clear'):
-                        try:
-                            self.right_panel.inventory_panel.clear()
-                        except Exception:
-                            pass
-                    if hasattr(self.right_panel, 'character_sheet') and hasattr(self.right_panel.character_sheet, '_clear_stat_displays'):
-                        self.right_panel.character_sheet._clear_stat_displays()
-                except Exception as e:
-                    logger.warning(f"Failed to clear right panel widgets before load: {e}")
+                    if hasattr(self.right_panel, 'journal_panel'): self.right_panel.journal_panel.clear_all()
+                    if hasattr(self.right_panel, 'inventory_panel'): self.right_panel.inventory_panel.clear()
+                    if hasattr(self.right_panel, 'character_sheet'): self.right_panel.character_sheet._clear_stat_displays()
+                except Exception: pass
                 
-                self._last_submitted_command = None
+                self.input_handler.last_submitted_command = None
                 
-                # Call engine's load_game method
-                loaded_state = self.game_engine.load_game(save_id) # Pass save_id
+                loaded_state = self.game_engine.load_game(save_id) 
 
                 if loaded_state:
-                    # Ensure journal exists (similar to _show_load_game_dialog)
                     if not hasattr(self.game_engine.state_manager.current_state, "journal"):
                         self.game_engine.state_manager.current_state.journal = {
                             "character": getattr(self.game_engine.state_manager.current_state.player, 'background', ''),
-                            "quests": {},
-                            "notes": []
+                            "quests": {}, "notes": []
                         }
                     self.game_engine.state_manager.ensure_stats_manager_initialized()
 
-                    # Make game panels visible and enabled for loaded games
                     self._show_game_panels_for_loaded_game()
-                    
-                    self._update_ui() # Update UI after load
+                    self._update_ui() 
 
-                    # Bind orchestrator to loaded CombatManager if save is in COMBAT
                     try:
                         state = self.game_engine.state_manager.current_state
                         if state and state.current_mode.name == 'COMBAT' and getattr(state, 'combat_manager', None):
                             if hasattr(self.game_engine, '_combat_orchestrator'):
                                 self.game_engine._combat_orchestrator.set_combat_manager(state.combat_manager)
-                                logger.info("Bound loaded CombatManager to Orchestrator in MainWindow (load last save).")
-                    except Exception as e:
-                        logger.warning(f"Failed to bind CombatManager after loading last save: {e}")
+                    except Exception: pass
 
-                    # Emit consolidated stats_changed to refresh UI listeners
                     try:
                         sm = self.game_engine.state_manager.stats_manager
                         if sm and hasattr(sm, 'stats_changed'):
                             sm.stats_changed.emit(sm.get_all_stats())
-                            logger.info("Emitted consolidated stats_changed after loading last save.")
-                    except Exception as e:
-                        logger.warning(f"Failed to emit stats_changed after loading last save: {e}")
+                    except Exception: pass
 
                     if self.game_engine.state_manager.current_state and self.game_engine.state_manager.current_state.player:
                         self.right_panel.update_character(self.game_engine.state_manager.current_state.player)
                     self.game_output.append_system_message(f"Loaded last save: {last_manual_save.save_name}")
                 else:
                     QMessageBox.warning(self, "Load Failed", f"Failed to load last save: {last_manual_save.save_name}")
-                    # If last save fails, open the regular load dialog
                     self._show_load_game_dialog()
             else:
-                logger.warning("No manual saves found to load.")
                 QMessageBox.information(self, "No Last Save", "No manual save file found. Please load manually or start a new game.")
-                # Open the regular load dialog as fallback
                 self._show_load_game_dialog()
         except Exception as e:
             logger.error(f"Error loading last save: {e}", exc_info=True)
             QMessageBox.critical(self, "Error", f"An error occurred while trying to load the last save:\n{e}")
-            self._show_load_game_dialog() # Fallback to regular load dialog
-
-    @Slot(object) 
-    def process_orchestrated_display_event(self, event):
-        """
-        Handles DisplayEvents routed from the CombatOutputOrchestrator via the GameEngine.
-        This method sends the content to the appropriate UI display widget.
-        """
-        from core.orchestration.events import DisplayEvent, DisplayTarget, DisplayEventType 
-        if not isinstance(event, DisplayEvent):
-            logger.error(f"MainWindow received non-DisplayEvent object: {type(event)}")
-            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                self.game_engine._combat_orchestrator._handle_visual_display_complete()
-            return
-
-        logger.info(f"MainWindow processing orchestrated event: {event}")
-        state = self.game_engine.state_manager.current_state
-
-        # --- AP System: Handle AP_UPDATE event ---
-        if event.type == DisplayEventType.AP_UPDATE:
-            metadata = event.metadata or {}
-            entity_id = metadata.get("entity_id")
-            
-            player_id = None
-            if state and state.player:
-                player_id = getattr(state.player, 'id', getattr(state.player, 'stats_manager_id', None))
-
-            # --- DIAGNOSTIC LOGGING ---
-            logger.info(f"[AP_UPDATE] Handling event for entity {entity_id}. Player ID is {player_id}.")
-
-            if entity_id == player_id:
-                if self.right_panel and self.right_panel.character_sheet:
-                    current_ap = metadata.get("current_ap", 0.0)
-                    max_ap = metadata.get("max_ap", 0.0)
-                    logger.info(f"[AP_UPDATE] IDs MATCH. Calling update_ap_display with current_ap={current_ap}, max_ap={max_ap}.")
-                    self.right_panel.character_sheet.update_ap_display(current_ap, max_ap)
-                else:
-                    logger.error("[AP_UPDATE] IDs matched, but self.right_panel.character_sheet reference is broken!")
-            else:
-                logger.info(f"[AP_UPDATE] IDs MISMATCH. This event is not for the player character.")
-            
-            # TODO: Update AP display for other entities in CombatDisplay if implemented
-
-            # This is a UI-only update, signal completion immediately
-            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
-            return
-        # --- End AP System ---
-
-        target_widget = None
-        # Determine primary target widget
-        if event.target_display == DisplayTarget.COMBAT_LOG:
-            target_widget = self.combat_display
-        elif event.target_display == DisplayTarget.MAIN_GAME_OUTPUT:
-            target_widget = self.game_output
-            # Ensure the narrative view is visible if routing to MAIN_GAME_OUTPUT AND we are not currently in COMBAT mode
-            try:
-                state_for_switch = self.game_engine.state_manager.current_state
-                if state_for_switch and state_for_switch.current_mode != InteractionMode.COMBAT:
-                    if self.mode_stacked_widget.currentWidget() != self.narrative_view:
-                        logger.info("MainWindow: MAIN_GAME_OUTPUT event and current mode not COMBAT. Switching to narrative_view.")
-                        self.mode_stacked_widget.setCurrentWidget(self.narrative_view)
-                        self.narrative_view.setVisible(True)
-                        self.mode_stacked_widget.update()
-            except Exception as e:
-                logger.warning(f"Failed conditional switch to narrative_view on MAIN_GAME_OUTPUT event: {e}")
-        else: # Default based on mode if target not explicit
-            if state and state.current_mode == InteractionMode.COMBAT:
-                target_widget = self.combat_display
-            else:
-                target_widget = self.game_output
-        
-        if not target_widget and event.type not in [DisplayEventType.TURN_ORDER_UPDATE, DisplayEventType.UI_BAR_UPDATE_PHASE1, DisplayEventType.UI_BAR_UPDATE_PHASE2, DisplayEventType.COMBAT_LOG_REBUILD]: # These might not have a primary text widget
-            logger.error(f"No target widget found for orchestrated event: {event} and not a special UI event.")
-            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                self.game_engine._combat_orchestrator._handle_visual_display_complete() 
-            return
-
-        # Handle event types
-        if event.type == DisplayEventType.COMBAT_LOG_REBUILD:
-            if self.combat_display and isinstance(event.content, list):
-                self.combat_display.rebuild_log_from_history(event.content)
-            else:
-                logger.error(f"Invalid content or target for COMBAT_LOG_REBUILD: {type(event.content)}")
-            # The rebuild is synchronous, so we can signal completion immediately.
-            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
-
-        elif event.type == DisplayEventType.BUFFER_FLUSH:
-            if isinstance(event.content, list) and target_widget == self.combat_display:
-                # New: perfect fidelity replay with role per line, batched to a single completion
-                try:
-                    # Suppress per-line completion during batch
-                    if hasattr(self.combat_display, '_suppress_visual_complete'):
-                        self.combat_display._suppress_visual_complete = True
-                    for item in event.content:
-                        if isinstance(item, dict) and 'text' in item:
-                            line_text = str(item.get('text', ''))
-                            line_role = item.get('role', event.role or 'gm')
-                            if line_text:
-                                self.combat_display.append_orchestrated_event_content(line_text, line_role, is_gradual=False)
-                        else:
-                            # Fallback: treat as plain string
-                            self.combat_display.append_orchestrated_event_content(str(item), event.role or 'gm', is_gradual=False)
-                except Exception as e:
-                    logger.error(f"Error during BUFFER_FLUSH replay: {e}", exc_info=True)
-                finally:
-                    if hasattr(self.combat_display, '_suppress_visual_complete'):
-                        self.combat_display._suppress_visual_complete = False
-                # Signal completion once for the whole batch (async to avoid re-entrancy)
-                if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                    try:
-                        QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
-                    except Exception:
-                        # Fallback to direct call if QTimer not available
-                        self.game_engine._combat_orchestrator._handle_visual_display_complete()
-            else:
-                logger.error(f"Invalid content type or target for BUFFER_FLUSH event: {type(event.content)}, target: {target_widget}")
-                if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                    self.game_engine._combat_orchestrator._handle_visual_display_complete()
-
-        elif event.type == DisplayEventType.UI_BAR_UPDATE_PHASE1 or event.type == DisplayEventType.UI_BAR_UPDATE_PHASE2:
-            logger.debug(f"Handling UI_BAR_UPDATE event: {event.metadata}")
-            entity_id = event.metadata.get("entity_id")
-            bar_type = event.metadata.get("bar_type") 
-            
-            # Diagnostic: player mapping and widget presence
-            player_id_diag = None
-            state_for_diag = self.game_engine.state_manager.current_state
-            if state_for_diag and state_for_diag.player:
-                player_id_diag = getattr(state_for_diag.player, 'id', getattr(state_for_diag.player, 'stats_manager_id', None))
-            logger.info(f"UI_BAR_UPDATE {event.type.name}: bar={bar_type}, entity={entity_id}, is_player={(entity_id==player_id_diag)}")
-            
-            # Update CharacterSheet if it's the player (do this first to align visual timing with CombatDisplay)
-            player_id = None
-            if state and state.player:
-                 player_id = getattr(state.player, 'id', getattr(state.player, 'stats_manager_id', None))
-
-            player_bar_updated = False
-            if entity_id == player_id and self.right_panel and self.right_panel.character_sheet:
-                try:
-                    if event.type == DisplayEventType.UI_BAR_UPDATE_PHASE1:
-                        self.right_panel.character_sheet.player_resource_bar_update_phase1(bar_type, event.metadata)
-                        player_bar_updated = True
-                    elif event.type == DisplayEventType.UI_BAR_UPDATE_PHASE2:
-                        self.right_panel.character_sheet.player_resource_bar_update_phase2(bar_type, event.metadata)
-                        player_bar_updated = True
-                except Exception as e:
-                    logger.error(f"Error updating CharacterSheet for player bar update: {e}", exc_info=True)
-
-            # --- FIX: Find the target widget by checking both allies and enemies panels ---
-            entity_widget_combat_display = None
-            if hasattr(self.combat_display, 'allies_panel') and entity_id in self.combat_display.allies_panel.entity_widgets:
-                entity_widget_combat_display = self.combat_display.allies_panel.entity_widgets.get(entity_id)
-            elif hasattr(self.combat_display, 'enemies_panel') and entity_id in self.combat_display.enemies_panel.entity_widgets:
-                entity_widget_combat_display = self.combat_display.enemies_panel.entity_widgets.get(entity_id)
-            # --- END FIX ---
-
-            logger.info(f"CombatDisplay widget exists for entity? {bool(entity_widget_combat_display)}")
-            animation_invoked = False
-            if entity_widget_combat_display:
-                method_name = f"animate_{event.type.name.lower()}"
-                try:
-                    if hasattr(entity_widget_combat_display, method_name):
-                        getattr(entity_widget_combat_display, method_name)(event.metadata)
-                        animation_invoked = True
-                    else:
-                        logger.warning(f"CombatEntityWidget missing method {method_name} for entity {entity_id}. Will complete event to prevent stall.")
-                except Exception as e:
-                    logger.error(f"Error invoking {method_name} on CombatEntityWidget for entity {entity_id}: {e}", exc_info=True)
-
-            # If no animation method was invoked, or if widget is missing, proactively complete to avoid stall
-            if (not entity_widget_combat_display) or (not animation_invoked):
-                 if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                    try:
-                        QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
-                    except Exception:
-                        self.game_engine._combat_orchestrator._handle_visual_display_complete()
-                 if not entity_widget_combat_display:
-                     logger.warning(f"UI_BAR_UPDATE for entity {entity_id} but no CombatEntityWidget found. Signalled completion to avoid stall.")
-                 else:
-                     logger.info(f"UI_BAR_UPDATE fallback completion invoked (no animation) for entity {entity_id}.")
-
-            # Final safety net: if the orchestrator is still processing this same event shortly after, complete it
-            try:
-                QTimer.singleShot(10, lambda ev_id=event.event_id: self._complete_if_same_event(ev_id))
-            except Exception:
-                pass
-
-
-        elif event.type == DisplayEventType.TURN_ORDER_UPDATE:
-            if self.right_panel and self.right_panel.character_sheet and hasattr(self.right_panel.character_sheet, 'handle_turn_order_update'):
-                self.right_panel.character_sheet.handle_turn_order_update(event.content) # event.content is the data dict
-            # This event is primarily for CharacterSheet, CombatDisplay updates turn order itself.
-            # Signal completion immediately as CharacterSheet update is synchronous.
-            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                 QTimer.singleShot(0, self.game_engine._combat_orchestrator._handle_visual_display_complete)
-
-
-        elif event.type == DisplayEventType.COMBAT_LOG_SET_HTML:
-            # Directly set Combat Log HTML for instant rehydration
-            try:
-                if target_widget == self.combat_display and isinstance(event.content, str):
-                    # Freeze updates for fast set
-                    self.combat_display.log_text.setUpdatesEnabled(False)
-                    self.combat_display.log_text.setHtml(event.content)
-                    # Move caret to end and ensure visible using correct API
-                    self.combat_display.log_text.moveCursor(QTextCursor.MoveOperation.End)
-                    self.combat_display.log_text.ensureCursorVisible()
-                    self.combat_display.log_text.setUpdatesEnabled(True)
-                else:
-                    logger.error(f"COMBAT_LOG_SET_HTML received but target or content invalid: {target_widget}, {type(event.content)}")
-            except Exception as e:
-                logger.error(f"Error applying COMBAT_LOG_SET_HTML: {e}", exc_info=True)
-            # No need to explicitly call visual completion; orchestrator doesn't wait for this type
-        elif isinstance(event.content, str): # For NARRATIVE_*, SYSTEM_MESSAGE
-            if target_widget == self.combat_display:
-                # Log event routing for diagnostics
-                logger.info(f"MainWindow: Routing string event to CombatDisplay id={event.event_id} type={event.type.name} gradual={bool(event.gradual_visual_display)}")
-                self.combat_display.append_orchestrated_event_content(
-                    event_content=event.content,
-                    event_role=event.role or "system",
-                    is_gradual=event.gradual_visual_display,
-                    event_id=event.event_id
-                )
-            elif target_widget == self.game_output:
-                text_format = None 
-                if event.role == "system": text_format = self.game_output.system_format
-                elif event.role == "gm": text_format = self.game_output.gm_format
-                elif event.role == "player": text_format = self.game_output.player_format
-                # Hide [DEV] messages unless dev mode is enabled
-                try:
-                    if isinstance(event.content, str) and event.content.strip().startswith("[DEV]"):
-                        q_settings = QSettings("RPGGame", "Settings")
-                        if not q_settings.value("dev/enabled", False, type=bool):
-                            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                                self.game_engine._combat_orchestrator._handle_visual_display_complete()
-                            return
-                except Exception:
-                    pass
-                self.game_output.append_text(event.content, text_format, event.gradual_visual_display)
-            elif target_widget is None and event.type == DisplayEventType.TURN_ORDER_UPDATE:
-                 # This was already handled above, but log if it falls through
-                 logger.debug("TURN_ORDER_UPDATE already handled for CharacterSheet, no primary text widget needed.")
-            else:
-                logger.error(f"Unhandled target widget for orchestrated string event: {target_widget}")
-                if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                    self.game_engine._combat_orchestrator._handle_visual_display_complete()
-        else:
-            logger.error(f"Orchestrated event has non-string content and is not a known special type: {event}")
-            if hasattr(self.game_engine, '_combat_orchestrator') and self.game_engine._combat_orchestrator.is_waiting_for_visual:
-                self.game_engine._combat_orchestrator._handle_visual_display_complete()
-
-    def _initialize_panel_effects(self):
-        """Initialize QGraphicsOpacityEffect for panels that will be animated."""
-        if not hasattr(self, 'center_opacity_effect'):
-            self.center_opacity_effect = QGraphicsOpacityEffect(self.center_widget)
-            self.center_widget.setGraphicsEffect(self.center_opacity_effect)
-            self.center_opacity_effect.setOpacity(0.0)
-
-        if not hasattr(self, 'right_panel_opacity_effect'):
-            self.right_panel_opacity_effect = QGraphicsOpacityEffect(self.right_panel)
-            self.right_panel.setGraphicsEffect(self.right_panel_opacity_effect)
-            self.right_panel_opacity_effect.setOpacity(0.0)
-
-        if not hasattr(self, 'status_bar_opacity_effect'):
-            self.status_bar_opacity_effect = QGraphicsOpacityEffect(self.status_bar)
-            self.status_bar.setGraphicsEffect(self.status_bar_opacity_effect)
-            self.status_bar_opacity_effect.setOpacity(0.0)
-
-    def _start_panel_animations(self, character_data: dict):
-        """Fade in the main game panels after character creation."""
-        self._initialize_panel_effects()
-        
-        self.center_widget.setVisible(True)
-        self.right_panel.setVisible(True)
-        self.status_bar.setVisible(True)
-
-        self.anim_group = QParallelAnimationGroup(self)
-        
-        # Center widget animation
-        anim_center = QPropertyAnimation(self.center_opacity_effect, b"opacity")
-        anim_center.setDuration(1500)
-        anim_center.setStartValue(0.0)
-        anim_center.setEndValue(1.0)
-        anim_center.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        self.anim_group.addAnimation(anim_center)
-        
-        # Right panel animation
-        anim_right = QPropertyAnimation(self.right_panel_opacity_effect, b"opacity")
-        anim_right.setDuration(1500)
-        anim_right.setStartValue(0.0)
-        anim_right.setEndValue(1.0)
-        anim_right.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        self.anim_group.addAnimation(anim_right)
-
-        # Status bar animation
-        anim_status = QPropertyAnimation(self.status_bar_opacity_effect, b"opacity")
-        anim_status.setDuration(1000) # Faster
-        anim_status.setStartValue(0.0)
-        anim_status.setEndValue(1.0)
-        self.anim_group.addAnimation(anim_status)
-
-        # Connect the finished signal to the next step in the game flow
-        self.anim_group.finished.connect(lambda: self._on_panel_animations_finished(character_data))
-        self.anim_group.start()
-
-    def _on_panel_animations_finished(self, character_data: dict):
-        """Callback for when the initial panel animations are finished."""
-        self.center_widget.setEnabled(True)
-        self.right_panel.setEnabled(True)
-        self.status_bar.setEnabled(True)
-        logger.info("Center widget and Right panel enabled after fade-in.")
-        logger.info("Status bar enabled after fade-in.")
-        
-        self.start_new_game(character_data)
-
-    @Slot(str)
-    def _handle_item_use_requested(self, item_id: str):
-        """Handle item use request from inventory panel."""
-        logger.info(f"[GUI] MainWindow: Item use requested for ID: {item_id}")
-        # Placeholder: Implement logic to use the item via InventoryManager or GameEngine
-        # For example, this might involve checking if the item is consumable,
-        # applying its effects, and removing it from inventory.
-        # This could also involve a command like "use <item_id>"
-        
-        # Example:
-        # result = self.game_engine.process_command(f"use {item_id}")
-        # self._update_ui() # Update UI after action
-        self.game_output.append_system_message(f"Attempting to use item: {item_id} (Handler not fully implemented).")
-        # This should ideally go through the command processing loop if 'use' is a player command
-        self._process_command(f"use {item_id}")
-
-    @Slot(str)
-    def _handle_item_examine_requested(self, item_id: str):
-        """Handle item examine request from inventory panel."""
-        logger.info(f"[GUI] MainWindow: Item examine requested for ID: {item_id}")
-        
-        inventory_manager = get_inventory_manager()
-        item = inventory_manager.get_item_details_for_dialog(item_id)
-
-        if item:
-            from gui.dialogs.item_info_dialog import ItemInfoDialog # Local import
-            dialog = ItemInfoDialog(item, parent=self)
-            dialog.exec()
-        else:
-            self.game_output.append_system_message(f"Could not find details for item ID: {item_id}", gradual=False)
-            logger.error(f"Could not get item details for ID: {item_id} to show dialog.")
-        
-        self._update_ui() # Update UI in case item properties were discovered
-
-    @Slot(str) 
-    def _handle_item_unequip_requested(self, item_identifier: str): 
-        """Handle item unequip request from inventory panel. This is now fully mechanical.
-           item_identifier is expected to be an item_id from InventoryPanel.
-        """
-        logger.info(f"[GUI] MainWindow: Mechanical item unequip requested for ITEM_ID: {item_identifier}")
-        inventory_manager = get_inventory_manager()
-        
-        item_to_unequip = inventory_manager.get_item(item_identifier) 
-        if not item_to_unequip: 
-            logger.error(f"Cannot unequip: Item ID '{item_identifier}' not found.")
-            self._update_ui()
-            return
-        
-        slot_found: Optional[EquipmentSlot] = None
-        # inventory_manager.equipment is Dict[EquipmentSlot, Optional[Item]]
-        for slot_enum_loop, item_obj_loop in inventory_manager.equipment.items(): 
-            if item_obj_loop and isinstance(item_obj_loop, Item) and item_obj_loop.id == item_to_unequip.id:
-                slot_found = slot_enum_loop
-                break
-        
-        if not slot_found:
-            logger.info(f"{item_to_unequip.name} is not currently equipped (triggered by ID from InventoryPanel).")
-            self._update_ui()
-            return
-        
-        item_name_unequipped = item_to_unequip.name
-        slot_unequipped_from_str = slot_found.value.replace("_", " ")
-
-        if inventory_manager.unequip_item(slot_found): # unequip_item takes slot
-            logger.info(f"Successfully unequipped {item_name_unequipped} from {slot_unequipped_from_str}.")
-        else:
-            logger.warning(f"Failed to unequip {item_name_unequipped} (Identifier: {item_identifier}).")
-
-        self._update_ui()
-
-    @Slot(str)
-    def _handle_item_drop_requested(self, item_id: str):
-        """Handle item drop request from inventory panel."""
-        logger.info(f"[GUI] MainWindow: Item drop requested for ID: {item_id}")
-        inventory_manager = get_inventory_manager()
-        item = inventory_manager.get_item(item_id)
-
-        if not item:
-            logger.error(f"Drop requested for non-existent item ID: {item_id}")
-            self._update_ui()
-            return
-
-        if inventory_manager.is_item_equipped(item_id):
-            reply = QMessageBox.question(
-                self,
-                "Confirm Drop Equipped Item",
-                f"'{item.name}' is currently equipped. Are you sure you want to drop it?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.No:
-                logger.info(f"Drop cancelled by user for equipped item: {item.name}")
-                return 
-
-            slot_to_unequip: Optional[EquipmentSlot] = None
-            for slot_enum, equipped_item_obj in inventory_manager.equipment.items(): 
-                if equipped_item_obj and isinstance(equipped_item_obj, Item) and equipped_item_obj.id == item_id: # Check type
-                    slot_to_unequip = slot_enum
-                    break
-            if slot_to_unequip:
-                inventory_manager.unequip_item(slot_to_unequip)
-                logger.info(f"Unequipped '{item.name}' from {slot_to_unequip.value} prior to dropping.")
-                self._update_ui() 
-            else:
-                logger.error(f"Could not find slot for equipped item '{item.name}' to unequip before dropping.")
-                return
-        
-        logger.info(f"Processing drop command for item ID: {item_id} via LLM.")
-        self._process_command(f"drop {item_id}") 
-
-    @Slot(str) 
-    def _handle_item_equip_requested(self, item_id: str): 
-        """Handle item equip request from inventory panel. This is now fully mechanical."""
-        logger.info(f"[GUI] MainWindow: Mechanical item equip requested for ID: {item_id}")
-        inventory_manager = get_inventory_manager()
-        item = inventory_manager.get_item(item_id)
-
-        if not item:
-            # self.game_output.append_system_message(f"Cannot equip: Item ID {item_id} not found.", gradual=False)
-            logger.error(f"Failed to equip item {item_id}: Not found in InventoryManager.")
-            self._update_ui() # Update UI to reflect potential state changes even on error
-            return
-
-        if not item.is_equippable:
-            # self.game_output.append_system_message(f"Cannot equip {item.name}: It is not equippable.", gradual=False)
-            logger.info(f"Cannot equip {item.name}: It is not equippable.")
-            self._update_ui()
-            return
-
-        if inventory_manager.equip_item(item.id): # Preferred slot logic is inside equip_item
-            equipped_slot_str = "a suitable slot"
-            for slot_enum, equipped_item_id in inventory_manager.equipment.items():
-                if equipped_item_id == item.id:
-                    equipped_slot_str = slot_enum.value.replace("_", " ")
-                    break
-            logger.info(f"Successfully equipped {item.name} to {equipped_slot_str}.")
-            # No direct output to GameOutputWidget here for mechanical actions
-        else:
-            # self.game_output.append_system_message(f"Could not equip {item.name}. No suitable slot available or other restriction.", gradual=False)
-            logger.warning(f"Failed to equip {item.name} (ID: {item.id}). InventoryManager.equip_item returned false.")
-
-        self._update_ui()
-
-    @Slot(EquipmentSlot)
-    def _handle_item_unequip_from_slot_requested(self, slot_to_unequip: EquipmentSlot):
-        """Handles unequip request specifically from a known slot (e.g., CharacterSheet)."""
-        logger.info(f"[GUI] MainWindow: Mechanical item unequip from slot requested: {slot_to_unequip.value}")
-        inventory_manager = get_inventory_manager()
-        
-        item_obj_in_slot = inventory_manager.equipment.get(slot_to_unequip) # This is an Item object or None
-        item_name = "Item"
-        if item_obj_in_slot and isinstance(item_obj_in_slot, Item): # Check type
-            item_name = item_obj_in_slot.name
-        
-        if inventory_manager.unequip_item(slot_to_unequip):
-            logger.info(f"Successfully unequipped {item_name} from {slot_to_unequip.value}.")
-        else:
-            logger.warning(f"Failed to unequip item from slot: {slot_to_unequip.value}")
-        
-        self._update_ui()
-
-    @Slot(str, object)
-    def _handle_cast_spell_requested(self, spell_id: str, target_id: object):
-        """Handle deterministic cast request from Grimoire UI.
-        Builds a SpellAction and drives CombatManager into mechanics resolution.
-        """
-        try:
-            state = self.game_engine.state_manager.current_state
-            if not state or state.current_mode != InteractionMode.COMBAT or not getattr(state, 'combat_manager', None):
-                self.game_output.append_system_message("Casting is only available during combat.", gradual=False)
-                return
-            cm = state.combat_manager
-            # Ensure it's player's turn / awaiting input
-            if cm.current_step != CombatStep.AWAITING_PLAYER_INPUT:
-                self.game_output.append_system_message("Please wait until your turn to act.", gradual=False)
-                return
-            # Resolve performer id (player)
-            performer_id = getattr(cm, '_player_entity_id', None)
-            if not performer_id:
-                self.game_output.append_system_message("Cannot cast: player entity not set in combat.", gradual=False)
-                return
-            # Fetch spell data for cost
-            try:
-                from core.magic.spell_catalog import get_spell_catalog
-                cat = get_spell_catalog()
-                sp = cat.get_spell_by_id(spell_id)
-                data = getattr(sp, 'data', {}) if sp else {}
-                cost_mp = float(data.get('mana_cost', data.get('cost', 0)) or 0)
-            except Exception:
-                cost_mp = 0.0
-            from core.combat.combat_action import SpellAction
-            action = SpellAction(
-                performer_id=performer_id,
-                spell_name=str(spell_id),
-                target_ids=[str(target_id)] if target_id else [],
-                cost_mp=cost_mp,
-                dice_notation="",
-                description=f"Casting {spell_id}"
-            )
-            cm._pending_action = action  # Intentional direct set per deterministic UI path
-            cm.current_step = CombatStep.RESOLVING_ACTION_MECHANICS
-            cm.process_combat_step(self.game_engine)
-        except Exception as e:
-            logger.error(f"Failed to handle UI cast for {spell_id}: {e}", exc_info=True)
-            self.game_output.append_system_message("System error preparing spell cast.", gradual=False)
-
-    @Slot(EquipmentSlot, str)
-    def _handle_item_drop_from_slot_requested(self, slot_to_unequip: EquipmentSlot, item_id_to_drop: str):
-        """Handles drop request for an item currently equipped in a slot."""
-        logger.info(f"[GUI] MainWindow: Item drop from slot requested. Slot: {slot_to_unequip.value}, Item ID: {item_id_to_drop}")
-        inventory_manager = get_inventory_manager()
-        item = inventory_manager.get_item(item_id_to_drop)
-        item_name = item.name if item else "the item"
-
-        reply = QMessageBox.question(
-            self,
-            "Confirm Drop",
-            f"Are you sure you want to drop the equipped item '{item_name}' from your {slot_to_unequip.value.replace('_',' ')}?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            if inventory_manager.unequip_item(slot_to_unequip):
-                logger.info(f"Unequipped {item_name} from {slot_to_unequip.value} prior to dropping.")
-                self._process_command(f"drop {item_id_to_drop}") 
-            else:
-                logger.error(f"Failed to unequip {item_name} (ID: {item_id_to_drop}) from slot {slot_to_unequip.value} before dropping.")
-        else:
-            logger.info(f"Drop cancelled for item {item_name} from slot {slot_to_unequip.value}.")
-        
-        self._update_ui()
-
-    @Slot(dict)
-    def _handle_stats_update(self, stats_data: dict):
-        """Handle updates received directly from StatsManager."""
-        logger.debug("Received stats update signal in MainWindow")
-        state = self.game_engine.state_manager.current_state
-        if state:
-            # Update Character Sheet (Right Panel)
-            # This ensures character sheet gets all data including combat status
-            if self.right_panel and hasattr(self.right_panel, 'update_character'):
-                self.right_panel.update_character(state.player) # Pass player state for full context
-                logger.debug("Updated CharacterSheet (RightPanel) from stats signal.")
-
-            # Update Combat Display if in Combat Mode
-            if state.current_mode == InteractionMode.COMBAT:
-                logger.debug("Updating CombatDisplay from stats signal")
-                self.combat_display.update_display(state) 
-            
-            # Any other UI elements that need to react to general stats changes can be updated here.
+            self._show_load_game_dialog() 
 
     @Slot()
     def _update_theme(self):
-        """Update UI styling based on the current theme palette."""
         self.palette = self.theme_manager.get_current_palette()
-        
-        # Update game output styling and formats which depend on the theme
         if hasattr(self, 'game_output'):
             self.game_output._update_formats()
             self.game_output._setup_background()
-        
-        # CommandInputWidget now handles its own theme updates via a signal,
-        # so no need to apply its stylesheet from here.
-        
-        logger.info("Main window theme updated.")
