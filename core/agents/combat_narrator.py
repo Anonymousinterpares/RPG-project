@@ -6,14 +6,15 @@ Combat Narrator agent for handling combat interactions.
 import re
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
-from core.combat.combat_manager import CombatManager
 from core.utils.logging_config import get_logger
 from core.agents.base_agent import BaseAgent, AgentContext
-from core.interaction.structured_requests import AgentOutput, SkillCheckRequest, StateChangeRequest
-from core.interaction.enums import InteractionMode
-from core.stats.stats_base import Skill
+from core.interaction.structured_requests import AgentOutput
+
+# Use TYPE_CHECKING to avoid circular import with CombatManager
+if TYPE_CHECKING:
+    from core.combat.combat_manager import CombatManager
 
 logger = get_logger("AGENT")
 
@@ -191,10 +192,6 @@ class CombatNarratorAgent(BaseAgent):
         ## REMEMBER: YOUR ENTIRE RESPONSE MUST BE A SINGLE VALID JSON OBJECT. USE ONLY **COMBAT NAMES** FOR IDs.
         """
         return system_prompt
-
-    # TODO: Add method CombatNarratorAgent.narrate_outcome(action_result, combat_manager)
-    # This method would take the result dictionary from perform_action and generate narrative.
-    # It would need its own system prompt focused on describing outcomes.
 
     def _format_combat_context(self, context: AgentContext) -> str:
         """ Formats the combat specific context """
@@ -406,7 +403,7 @@ class CombatNarratorAgent(BaseAgent):
         # Combat Narrator doesn't handle direct commands, only interprets intent
         return False
 
-    def _generate_outcome_narration_prompt(self, action_result: Dict, combat_manager: CombatManager) -> str:
+    def _generate_outcome_narration_prompt(self, action_result: Dict, combat_manager: 'CombatManager') -> str:
         """Generates the prompt for narrating an action's outcome, focusing on the result dict."""
 
         prompt = f"""You are the Combat Narrator AI. Describe the outcome of the combat action based *only* on the following JSON results. Be concise and vivid. Focus on what happened, not the mechanics.
@@ -419,7 +416,7 @@ class CombatNarratorAgent(BaseAgent):
         Describe the outcome:"""
         return prompt
 
-    def narrate_outcome(self, action_result: Dict, combat_manager: CombatManager) -> Optional[str]:
+    def narrate_outcome(self, action_result: Dict, combat_manager: 'CombatManager') -> Optional[str]:
         """Generates narrative describing the outcome of a resolved action."""
         if not action_result:
             logger.warning("narrate_outcome called with no action_result.")

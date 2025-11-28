@@ -66,7 +66,6 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
             # XP Award for being attacked (passive training)
             target_stats_manager.award_skill_exp("defensive_combat", 5) 
     except Exception as e:
-        # Log warning but don't crash combat
         pass # Skill might not exist or error in lookup
     # ----------------------------------
 
@@ -94,9 +93,9 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
 
     roll_msg_content = (f"{performer.combat_name} attacks {target.combat_name} with {action.name}: "
                         f"Roll {hit_roll_total_modified}{roll_type_str} (Dice:{adv_rolls_str_display} + Bonus:{attack_bonus}) vs Def {int(defense_value)}")
-    event_roll_msg = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=roll_msg_content, target_display=DisplayTarget.COMBAT_LOG)
-    engine._combat_orchestrator.add_event_to_queue(event_roll_msg)
-    manager._add_to_log(roll_msg_content) 
+    
+    # Use _log_and_dispatch_event instead of direct queue + _add_to_log
+    manager._log_and_dispatch_event(roll_msg_content, DisplayEventType.SYSTEM_MESSAGE)
     queued_events_this_handler = True
 
     # Apply and display resource costs (stamina/mana) after roll line
@@ -116,7 +115,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                 type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
                 metadata={"entity_id": performer.id, "bar_type": "stamina", "final_new_value": new_stam, "max_value": performer.max_stamina}
             ))
-            manager._add_to_log(f"{performer.combat_name} spent {stamina_spent:.1f} stamina. Rem: {new_stam:.1f}")
+            manager._log_and_dispatch_event(f"{performer.combat_name} spent {stamina_spent:.1f} stamina. Rem: {new_stam:.1f}", DisplayEventType.SYSTEM_MESSAGE)
         if mana_spent and mana_spent > 0:
             prev_mp = performer_stats_manager.get_current_stat_value(DerivedStatType.MANA)
             new_mp = max(0, prev_mp - mana_spent)
@@ -130,7 +129,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                 type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
                 metadata={"entity_id": performer.id, "bar_type": "mana", "final_new_value": new_mp, "max_value": performer.max_mp}
             ))
-            manager._add_to_log(f"{performer.combat_name} spent {mana_spent:.1f} mana. Rem: {new_mp:.1f}")
+            manager._log_and_dispatch_event(f"{performer.combat_name} spent {mana_spent:.1f} mana. Rem: {new_mp:.1f}", DisplayEventType.SYSTEM_MESSAGE)
     except Exception as e_cost:
         logger.warning(f"Failed to apply/display resource costs after roll: {e_cost}")
 
@@ -163,8 +162,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                 crit_damage_roll_obj = roll_dice_notation(damage_dice) 
                 base_damage_from_dice += crit_damage_roll_obj["total"]
                 damage_rolls_str += f" + {crit_damage_roll_obj['rolls_str']} (Crit!)"
-                crit_msg_event = DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content="  Critical Hit!", target_display=DisplayTarget.COMBAT_LOG)
-                engine._combat_orchestrator.add_event_to_queue(crit_msg_event); manager._add_to_log("  Critical Hit!")
+                manager._log_and_dispatch_event("  Critical Hit!", DisplayEventType.SYSTEM_MESSAGE)
                 queued_events_this_handler = True
             
             current_result_detail["damage_rolls_desc"] = damage_rolls_str
@@ -172,7 +170,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
             total_raw_damage = base_damage_from_dice + damage_stat_mod_value
             
             raw_damage_msg = f"  Raw Damage: {total_raw_damage:.0f} ({damage_rolls_str} + {damage_stat_mod_value} mod)"
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=raw_damage_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(raw_damage_msg)
+            manager._log_and_dispatch_event(raw_damage_msg, DisplayEventType.SYSTEM_MESSAGE)
             queued_events_this_handler = True
             
             damage_reduction = target_stats_manager.get_stat_value(DerivedStatType.DAMAGE_REDUCTION)
@@ -180,7 +178,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
             final_damage_dealt = round(after_flat)
             
             mitigation_msg = f"  Mitigation: DR {damage_reduction:.0f}. After DR: {after_flat:.0f}"
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=mitigation_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(mitigation_msg)
+            manager._log_and_dispatch_event(mitigation_msg, DisplayEventType.SYSTEM_MESSAGE)
             queued_events_this_handler = True
             
             # Apply typed resistance
@@ -192,7 +190,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                 after_type = max(0, after_flat * (1 - typed_resist / 100.0))
                 final_damage_dealt = round(after_type)
                 type_msg = f"  Type Resistance ({damage_type}): {typed_resist:.0f}% -> Final Damage: {final_damage_dealt}"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=type_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(type_msg)
+                manager._log_and_dispatch_event(type_msg, DisplayEventType.SYSTEM_MESSAGE)
                 queued_events_this_handler = True
 
             target_hp_before_actual_deduction = target_stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
@@ -214,14 +212,14 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                         target_stats_manager.add_status_effect(StatusEffect(name=status_name, description=f"From {action.name}", effect_type=StatusEffectType.SPECIAL, duration=int(dur)))
                         target.add_status_effect(status_name, duration=int(dur))
                         status_msg = f"  {target.combat_name} is now {status_name} due to {action.name}!"
-                        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=status_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(status_msg)
+                        manager._log_and_dispatch_event(status_msg, DisplayEventType.SYSTEM_MESSAGE)
                         queued_events_this_handler = True
             except Exception as rider_err:
                 logger.debug(f"Typed rider application failed or skipped: {rider_err}")
             
             # STRICT ORDER: announce damage before any bar change
             damage_taken_log_msg = f"  {target.combat_name} takes {final_damage_dealt:.0f} {current_result_detail['damage_type']} damage! (HP: {int(target_hp_after_damage_preview)}/{int(target.max_hp)})"
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=damage_taken_log_msg, target_display=DisplayTarget.COMBAT_LOG, gradual_visual_display=True)); manager._add_to_log(damage_taken_log_msg)
+            manager._log_and_dispatch_event(damage_taken_log_msg, DisplayEventType.SYSTEM_MESSAGE, gradual=True)
             queued_events_this_handler = True
 
             # Apply model update AFTER the outcome text is displayed, then animate
@@ -239,7 +237,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
 
             if target_hp_after_damage_preview <= 0:
                 defeat_msg = f"{target.combat_name} is defeated!"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(defeat_msg)
+                manager._log_and_dispatch_event(defeat_msg, DisplayEventType.SYSTEM_MESSAGE)
                 queued_events_this_handler = True
                 current_result_detail["target_defeated"] = True
 
@@ -269,7 +267,6 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                         manager.state = CombatState.PLAYER_DEFEAT
                         manager.current_step = CombatStep.ENDING_COMBAT
                         manager.waiting_for_display_completion = True
-# Removed pause/finalize events; CM will end via state/step change
                     else:
                         remaining_enemies = [e for e in manager.entities.values() if e.entity_type == EntityType.ENEMY and e.is_active_in_combat and e.is_alive()]
                         if len(remaining_enemies) == 0:
@@ -277,7 +274,6 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
                             manager.state = CombatState.PLAYER_VICTORY
                             manager.current_step = CombatStep.ENDING_COMBAT
                             manager.waiting_for_display_completion = True
-# Removed pause/finalize events; CM will end via state/step change
                 except Exception:
                     pass
         except Exception as dmg_err:
@@ -287,7 +283,7 @@ def _handle_attack_action(manager: 'CombatManager', action: CombatAction, perfor
 
     else: 
         miss_log_msg = "  Fumble! Attack misses wildly." if is_fumble else "  Attack misses."
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=miss_log_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(miss_log_msg)
+        manager._log_and_dispatch_event(miss_log_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
         current_result_detail["success"] = False 
         current_result_detail["message"] = "Attack missed."
@@ -402,7 +398,7 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                 type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
                 metadata={"entity_id": performer.id, "bar_type": "stamina", "final_new_value": new_stam, "max_value": performer.max_stamina}
             ))
-            manager._add_to_log(f"{performer.combat_name} spent {stamina_spent:.1f} stamina. Rem: {new_stam:.1f}")
+            manager._log_and_dispatch_event(f"{performer.combat_name} spent {stamina_spent:.1f} stamina. Rem: {new_stam:.1f}", DisplayEventType.SYSTEM_MESSAGE)
         if mana_spent and mana_spent > 0:
             prev_mp = performer_stats_manager.get_current_stat_value(DerivedStatType.MANA)
             new_mp = max(0, prev_mp - mana_spent)
@@ -419,7 +415,7 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                 type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
                 metadata={"entity_id": performer.id, "bar_type": "mana", "final_new_value": new_mp, "max_value": performer.max_mp}
             ))
-            manager._add_to_log(f"{performer.combat_name} spent {mana_spent:.1f} mana. Rem: {new_mp:.1f}")
+            manager._log_and_dispatch_event(f"{performer.combat_name} spent {mana_spent:.1f} mana. Rem: {new_mp:.1f}", DisplayEventType.SYSTEM_MESSAGE)
     except Exception as e_cost:
         logger.warning(f"Failed to apply/display resource costs after spell cast: {e_cost}")
     
@@ -462,10 +458,7 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
         # Queue effect messages
         spell_name = getattr(spell_obj, 'name', action.name)
         cast_msg = f"{performer.combat_name} casts {spell_name}!"
-        engine._combat_orchestrator.add_event_to_queue(
-            DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=cast_msg, target_display=DisplayTarget.COMBAT_LOG)
-        )
-        manager._add_to_log(cast_msg)
+        manager._log_and_dispatch_event(cast_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
         
         # Display effect results (summarize per atom)
@@ -487,10 +480,8 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                     msg = f"  {tn}: {name} applied."
                 else:
                     msg = f"  {atom_type.capitalize()} applied to {tn}."
-                engine._combat_orchestrator.add_event_to_queue(
-                    DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=msg, target_display=DisplayTarget.COMBAT_LOG)
-                )
-                manager._add_to_log(msg)
+                
+                manager._log_and_dispatch_event(msg, DisplayEventType.SYSTEM_MESSAGE)
                 queued_events_this_handler = True
             except Exception:
                 pass
@@ -555,10 +546,7 @@ def _handle_spell_with_effects_engine(manager: 'CombatManager', action: CombatAc
                 target_entity = manager.entities.get(target_ctx.id)
                 target_name = getattr(target_entity, 'combat_name', target_ctx.name or 'Target') if target_entity else (target_ctx.name or 'Target')
                 defeat_msg = f"{target_name} is defeated by {getattr(spell_obj, 'name', action.name)}!"
-                engine._combat_orchestrator.add_event_to_queue(
-                    DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)
-                )
-                manager._add_to_log(defeat_msg)
+                manager._log_and_dispatch_event(defeat_msg, DisplayEventType.SYSTEM_MESSAGE)
                 # Mark inactive in combat
                 engine._combat_orchestrator.add_event_to_queue(DisplayEvent(
                     type=DisplayEventType.APPLY_ENTITY_STATE_UPDATE,
@@ -692,7 +680,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
                         type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
                         metadata={"entity_id": performer.id, "bar_type": "stamina", "final_new_value": new_stam, "max_value": performer.max_stamina}
                     ))
-                    manager._add_to_log(f"{performer.combat_name} spent {stamina_spent:.1f} stamina. Rem: {new_stam:.1f}")
+                    manager._log_and_dispatch_event(f"{performer.combat_name} spent {stamina_spent:.1f} stamina. Rem: {new_stam:.1f}", DisplayEventType.SYSTEM_MESSAGE)
                 if mana_spent and mana_spent > 0:
                     prev_mp = performer_stats_manager.get_current_stat_value(DerivedStatType.MANA)
                     new_mp = max(0, prev_mp - mana_spent)
@@ -710,7 +698,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
                         type=DisplayEventType.UI_BAR_UPDATE_PHASE2, content={},
                         metadata={"entity_id": performer.id, "bar_type": "mana", "final_new_value": new_mp, "max_value": performer.max_mp}
                     ))
-                    manager._add_to_log(f"{performer.combat_name} spent {mana_spent:.1f} mana. Rem: {new_mp:.1f}")
+                    manager._log_and_dispatch_event(f"{performer.combat_name} spent {mana_spent:.1f} mana. Rem: {new_mp:.1f}", DisplayEventType.SYSTEM_MESSAGE)
             except Exception as e_cost:
                 logger.warning(f"Failed to apply/display resource costs after spell roll: {e_cost}")
             base_damage = base_damage_result["total"]
@@ -722,7 +710,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
 
             total_raw_damage = base_damage + spell_stat_modifier
             raw_dmg_msg = f"  {action.name} raw damage on {target.combat_name}: {total_raw_damage:.0f} ({damage_rolls_str} + {spell_stat_modifier} mod)"
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=raw_dmg_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(raw_dmg_msg)
+            manager._log_and_dispatch_event(raw_dmg_msg, DisplayEventType.SYSTEM_MESSAGE)
             queued_events_this_handler = True
 
             magic_defense_val = target_stats_manager.get_stat_value(DerivedStatType.MAGIC_DEFENSE)
@@ -730,7 +718,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
             final_damage = round(after_flat)
             
             mitigation_msg = f"  {target.combat_name} resists ({magic_defense_val:.0f} M.Def). After M.Def: {after_flat:.0f}"
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=mitigation_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(mitigation_msg)
+            manager._log_and_dispatch_event(mitigation_msg, DisplayEventType.SYSTEM_MESSAGE)
             queued_events_this_handler = True
             
             # Determine damage type for spell (default arcane)
@@ -752,7 +740,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
                 after_type = max(0, after_flat * (1 - typed_resist / 100.0))
                 final_damage = round(after_type)
                 type_msg = f"  Type Resistance ({dmg_type}): {typed_resist:.0f}% -> Final Damage: {final_damage}"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=type_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(type_msg)
+                manager._log_and_dispatch_event(type_msg, DisplayEventType.SYSTEM_MESSAGE)
                 queued_events_this_handler = True
 
             if final_damage > 0:
@@ -773,14 +761,14 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
                             target_stats_manager.add_status_effect(StatusEffect(name=status_name, description=f"From {action.name}", effect_type=StatusEffectType.SPECIAL, duration=int(dur)))
                             target.add_status_effect(status_name, duration=int(dur))
                             status_msg = f"  {target.combat_name} is now {status_name} due to {action.name}!"
-                            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=status_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(status_msg)
+                            manager._log_and_dispatch_event(status_msg, DisplayEventType.SYSTEM_MESSAGE)
                             queued_events_this_handler = True
                 except Exception as rider_err:
                     logger.debug(f"Typed rider (spell) failed or skipped: {rider_err}")
                 
                 # STRICT ORDER: announce damage before bar changes
                 damage_taken_msg = f"  {target.combat_name} takes {final_damage:.0f} {dmg_type} damage from {action.name}! (HP: {int(target_hp_preview)}/{int(target.max_hp)})"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=damage_taken_msg, target_display=DisplayTarget.COMBAT_LOG, gradual_visual_display=True)); manager._add_to_log(damage_taken_msg)
+                manager._log_and_dispatch_event(damage_taken_msg, DisplayEventType.SYSTEM_MESSAGE, gradual=True)
                 queued_events_this_handler = True
 
                 # Apply model update AFTER the outcome text is displayed, then animate
@@ -796,7 +784,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
 
                 if target_hp_preview <= 0:
                     defeat_msg = f"{target.combat_name} is defeated by {action.name}!"
-                    engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defeat_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(defeat_msg)
+                    manager._log_and_dispatch_event(defeat_msg, DisplayEventType.SYSTEM_MESSAGE)
                     queued_events_this_handler = True
                     target_processing_summary["defeated"] = True
                     # Delay removing the entity from active combat until after defeat text
@@ -835,7 +823,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
                 
                 duration_text = f" for {status_duration} turns" if status_duration is not None else ""
                 status_msg = f"  {target.combat_name} is now {status_to_apply}{duration_text} due to {action.name}!"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=status_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(status_msg)
+                manager._log_and_dispatch_event(status_msg, DisplayEventType.SYSTEM_MESSAGE)
                 queued_events_this_handler = True
                 target_processing_summary["effects_applied"].append(status_to_apply)
         
@@ -848,7 +836,7 @@ def _handle_spell_legacy_dice(manager: 'CombatManager', action: CombatAction, pe
         current_result_detail["success"] = False
         current_result_detail["message"] = f"{action.name} had no effect or no valid targets."
         no_effect_msg = f"{action.name} is cast by {performer.combat_name}, but has no discernible effect."
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=no_effect_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(no_effect_msg)
+        manager._log_and_dispatch_event(no_effect_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
 
 
@@ -907,7 +895,7 @@ def _handle_defend_action(manager: 'CombatManager', action: CombatAction, perfor
             logger.error("Could not find method to add modifier in _handle_defend_action")
 
     defend_msg = f"  {performer.combat_name} takes a defensive stance (+{total_bonus} Defense)."
-    engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=defend_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(defend_msg)
+    manager._log_and_dispatch_event(defend_msg, DisplayEventType.SYSTEM_MESSAGE)
     queued_events_this_handler = True
     
     current_result_detail.update({
@@ -971,7 +959,7 @@ def _handle_item_action(manager: 'CombatManager', action: CombatAction, performe
             if actual_healed > 0:
                 # STRICT ORDER: announce heal before bar changes
                 heal_msg = f"  {target.combat_name} is healed for {actual_healed:.0f} HP by {item_name_from_action}! (HP: {int(target_hp_preview)}/{int(target.max_hp)})"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=heal_msg, target_display=DisplayTarget.COMBAT_LOG, gradual_visual_display=True)); manager._add_to_log(heal_msg)
+                manager._log_and_dispatch_event(heal_msg, DisplayEventType.SYSTEM_MESSAGE, gradual=True)
                 queued_events_this_handler = True
                 
                 # Apply model update AFTER heal message is displayed
@@ -986,7 +974,7 @@ def _handle_item_action(manager: 'CombatManager', action: CombatAction, performe
                 target_processing_summary["healing_done"] = actual_healed
             else:
                 no_heal_msg = f"  {item_name_from_action} has no further healing effect on {target.combat_name} (already at/near full health)."
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=no_heal_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(no_heal_msg)
+                manager._log_and_dispatch_event(no_heal_msg, DisplayEventType.SYSTEM_MESSAGE)
                 queued_events_this_handler = True
         
         if item_effects.get("apply_status"):
@@ -999,7 +987,7 @@ def _handle_item_action(manager: 'CombatManager', action: CombatAction, performe
             
             duration_text = f" for {status_duration} turns" if status_duration is not None else ""
             status_msg = f"  {target.combat_name} is now {status_to_apply}{duration_text} from {item_name_from_action}!"
-            engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=status_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(status_msg)
+            manager._log_and_dispatch_event(status_msg, DisplayEventType.SYSTEM_MESSAGE)
             queued_events_this_handler = True
             target_processing_summary["effects_applied"].append(status_to_apply)
             
@@ -1012,7 +1000,7 @@ def _handle_item_action(manager: 'CombatManager', action: CombatAction, performe
         current_result_detail["success"] = True 
         current_result_detail["message"] = f"{item_name_from_action} was used, but had no immediate combat effects."
         no_effect_msg = f"{performer.combat_name} uses {item_name_from_action}, but it seems to have no immediate effect."
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=no_effect_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(no_effect_msg)
+        manager._log_and_dispatch_event(no_effect_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
         
     current_result_detail["queued_events"] = queued_events_this_handler
@@ -1022,7 +1010,6 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
     """Handles the mechanics of a flee action attempt. Queues DisplayEvents."""
     from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
     from core.game_flow.mode_transitions import _determine_flee_parameters 
-
     # Populate standard result fields for the bridge/narrator
     current_result_detail.update({
         "performer_name": performer.combat_name,
@@ -1035,7 +1022,7 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
 
     if performer.has_status_effect("Immobilized"):
         immobilized_msg = f"  {performer.combat_name} cannot flee, they are immobilized!"
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=immobilized_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(immobilized_msg)
+        manager._log_and_dispatch_event(immobilized_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
         current_result_detail["message"] = "Cannot flee while immobilized."
         current_result_detail["success"] = False
@@ -1046,7 +1033,7 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
     enemy_entities = [e for e in manager.entities.values() if e.entity_type == EntityType.ENEMY and e.is_alive() and getattr(e, 'is_active_in_combat', True)]
     if not enemy_entities:
         no_enemies_msg = f"{performer.combat_name} looks around... there are no active enemies to flee from. Combat ends."
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=no_enemies_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(no_enemies_msg)
+        manager._log_and_dispatch_event(no_enemies_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
         # This signals success, but not "fled from danger".
         # CombatManager's main loop (_advance_turn -> _check_combat_state) will set player victory.
@@ -1105,7 +1092,7 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
             f"= {check_result.total} -> {check_result.outcome_desc}"
             f"{' (Crit!)' if check_result.critical else ''}"
         )
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=check_roll_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(check_roll_msg)
+        manager._log_and_dispatch_event(check_roll_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
 
         flee_succeeded_mechanically = check_result.success
@@ -1132,13 +1119,13 @@ def _handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction
     except ImportError as ie:
         logger.error(f"ImportError during flee check for {performer.combat_name}: {ie}.")
         err_msg = "System Error performing flee check: Module loading issue."
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=err_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(err_msg)
+        manager._log_and_dispatch_event(err_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
         current_result_detail["message"] = err_msg
     except Exception as e:
         logger.exception(f"Error during flee check mechanics for {performer.combat_name}: {e}")
         err_msg = f"System Error performing flee check: {e}"
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=err_msg, target_display=DisplayTarget.COMBAT_LOG)); manager._add_to_log(err_msg)
+        manager._log_and_dispatch_event(err_msg, DisplayEventType.SYSTEM_MESSAGE)
         queued_events_this_handler = True
         current_result_detail["message"] = err_msg
         
@@ -1168,8 +1155,7 @@ def _handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatA
     
     if not enemies:
         no_enemies_msg = f"{performer.combat_name} lays down arms... but there is no one to surrender to. Combat ends."
-        engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=no_enemies_msg, target_display=DisplayTarget.COMBAT_LOG))
-        manager._add_to_log(no_enemies_msg)
+        manager._log_and_dispatch_event(no_enemies_msg, DisplayEventType.SYSTEM_MESSAGE)
         current_result_detail.update({"success": True, "surrendered": True, "message": "No enemies to surrender to."})
         current_result_detail["queued_events"] = True
         return current_result_detail
@@ -1206,8 +1192,7 @@ def _handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatA
         f"Roll {check_result.roll} + {modifier_str_display} "
         f"= {check_result.total} -> {check_result.outcome_desc}"
     )
-    engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=check_roll_msg, target_display=DisplayTarget.COMBAT_LOG))
-    manager._add_to_log(check_roll_msg)
+    manager._log_and_dispatch_event(check_roll_msg, DisplayEventType.SYSTEM_MESSAGE)
     queued_events_this_handler = True
     
     current_result_detail["roll_details"] = check_result.to_dict()
@@ -1268,8 +1253,7 @@ def _handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatA
                 
                 # Queue system message about loss
                 loss_msg = f"You have been stripped of your belongings! ({len(items_to_transfer)} items lost)"
-                engine._combat_orchestrator.add_event_to_queue(DisplayEvent(type=DisplayEventType.SYSTEM_MESSAGE, content=loss_msg, target_display=DisplayTarget.COMBAT_LOG))
-                manager._add_to_log(loss_msg)
+                manager._log_and_dispatch_event(loss_msg, DisplayEventType.SYSTEM_MESSAGE)
                 current_result_detail["consequences"] = f"Player lost {len(items_to_transfer)} items to enemies."
 
         except Exception as e:

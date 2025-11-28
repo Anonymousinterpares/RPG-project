@@ -586,6 +586,13 @@ def _generate_reintroductory_narrative_content(engine: 'GameEngine', game_state:
     Returns:
         The generated narrative content, or None if generation failed.
     """
+    from core.interaction.enums import InteractionMode # Ensure import
+    if game_state.current_mode == InteractionMode.COMBAT:
+        logger.info("Loaded game is in COMBAT mode. Skipping standard reintroductory narrative.")
+        # Optional: Queue a simple "Battle Resumes" message
+        if hasattr(engine, '_output'):
+            engine._output("system", "The battle resumes!")
+        return
     try:
         # Build contextual prompt for reintroduction
         player = game_state.player

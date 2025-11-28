@@ -6,22 +6,23 @@ This module provides developer commands for testing and debugging the combat sys
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, TYPE_CHECKING
 import uuid
 
 from core.base.commands import CommandProcessor, CommandResult
 from core.base.state import GameState, get_state_manager
 from core.interaction.enums import InteractionMode
 from core.utils.logging_config import get_logger
-from core.combat.combat_manager import CombatManager
 from core.combat.combat_entity import CombatEntity, EntityType
 from core.combat.combat_action import CombatAction, ActionType, AttackAction
 from core.combat.enums import CombatStep
 from core.character.npc_system import NPCSystem
-from core.stats.stats_base import StatType, DerivedStatType # Import specific types
+from core.stats.stats_base import StatType, DerivedStatType
 from core.stats.stats_manager import get_stats_manager
-# Import trigger_combat_narration from the new npc_interaction module
 from core.game_flow.npc_interaction import trigger_combat_narration
+
+if TYPE_CHECKING:
+    from core.combat.combat_manager import CombatManager
 
 # Get the module logger
 logger = get_logger("GAME")
@@ -136,12 +137,11 @@ def create_enemy_combat_entity(npc, combat_name: str) -> CombatEntity:
 
     current_hp = stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
     current_mp = stats_manager.get_current_stat_value(DerivedStatType.MANA)
-    # --- Corrected line for current_stamina ---
     current_stamina = stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
 
     current_hp = min(current_hp, max_hp)
     current_mp = min(current_mp, max_mp)
-    current_stamina = min(current_stamina, max_stamina) # Ensure current stamina doesn't exceed max
+    current_stamina = min(current_stamina, max_stamina)
 
     all_stats_dict = {stat_enum: stats_manager.get_stat_value(stat_enum) for stat_enum in stats_manager.stats}
     all_stats_dict.update({stat_enum: stats_manager.get_stat_value(stat_enum) for stat_enum in stats_manager.derived_stats})
@@ -406,6 +406,9 @@ def dev_start_combat(game_state: GameState, args: List[str]) -> CommandResult:
     """
     Initiates combat mode with specified enemies.
     """
+    # IMPORT HERE TO AVOID CIRCULAR DEPENDENCY
+    from core.combat.combat_manager import CombatManager
+
     if game_state.current_mode == InteractionMode.COMBAT:
         return CommandResult.failure("Already in combat.")
 
@@ -500,6 +503,17 @@ def dev_start_combat(game_state: GameState, args: List[str]) -> CommandResult:
 
         # --- Initialize Combat Manager ---
         combat_manager = CombatManager()
+        
+        # --- FIX: Explicitly Register StatsManagers for Dynamic NPCs ---
+        for i, enemy_entity in enumerate(enemy_entities):
+            npc_obj = temp_enemy_npcs[i] # Correspondence maintained by list order
+            if hasattr(npc_obj, 'stats_manager'):
+                combat_manager.register_stats_manager(enemy_entity.id, npc_obj.stats_manager)
+                logger.info(f"Registered StatsManager for dynamic enemy: {enemy_entity.combat_name} ({enemy_entity.id})")
+            else:
+                logger.warning(f"Dynamic NPC {enemy_entity.combat_name} has no stats_manager!")
+        # -----------------------------------------------------------------
+
         # Pass entities that *now have combat_name assigned*
         combat_manager.start_combat(player_entity, enemy_entities)
 

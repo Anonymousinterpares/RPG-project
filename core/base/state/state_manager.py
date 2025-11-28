@@ -109,15 +109,6 @@ class StateManager:
         
     def get_npc_system(self) -> Optional['NPCSystem']:
         """Get the NPC system instance."""
-        if self._npc_system is None:
-            # Try to initialize NPC system if needed
-            try:
-                from core.character.npc_system import NPCSystem
-                self._npc_system = NPCSystem()
-                logger.info("NPC system initialized")
-            except Exception as e:
-                logger.error(f"Failed to initialize NPC system: {e}")
-        
         return self._npc_system
         
     def set_npc_system(self, npc_system: 'NPCSystem') -> None:

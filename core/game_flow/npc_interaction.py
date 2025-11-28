@@ -35,13 +35,15 @@ def get_npc_intent(engine: 'GameEngine', game_state: 'GameState', npc_id: str) -
     Returns:
         A string describing the NPC's intended action, or None if failed.
     """
+    npc_name = engine._npc_system.get_npc_by_id(npc_id)
+
     if not engine._use_llm or engine._agent_manager is None:
         logger.warning(f"LLM disabled or AgentManager not available. Cannot get intent for NPC {npc_id}.")
         if game_state.current_mode == InteractionMode.COMBAT:
             logger.info(f"Using fallback combat intent for NPC {npc_id}: 'Attack the player'")
             return "Attack the player"
         return None
-
+    
     current_mode = game_state.current_mode
     logger.debug(f"Building context for NPC {npc_id} in mode {current_mode.name}")
     try:
@@ -52,20 +54,24 @@ def get_npc_intent(engine: 'GameEngine', game_state: 'GameState', npc_id: str) -
         dynamic_prompt_additions = ""
         if current_mode == InteractionMode.COMBAT and game_state.combat_manager:
             combat_manager = game_state.combat_manager
-            npc_entity = combat_manager.entities.get(npc_id)
-
-            # 1. Determine Valid Targets
-            valid_targets = []
-            is_npc_hostile = npc_id in combat_manager._enemy_entity_ids
-            for entity_id, entity in combat_manager.entities.items():
-                if not entity.is_alive():
-                    continue
-                is_entity_hostile = entity_id in combat_manager._enemy_entity_ids
-                if is_npc_hostile != is_entity_hostile: # Add if they are on opposing sides
-                    valid_targets.append(entity.combat_name)
+            # Determine hostiles/allies relative to this NPC
+            is_npc_enemy = npc_id in combat_manager._enemy_entity_ids
+            logger.debug(f"NPC {npc_id} is_enemy: {is_npc_enemy}")
             
+            valid_targets = []
+            for entity_id, entity in combat_manager.entities.items():
+                if not entity.is_alive(): continue
+                
+                is_target_enemy = entity_id in combat_manager._enemy_entity_ids
+                
+                if is_npc_enemy != is_target_enemy:
+                    valid_targets.append(entity.combat_name)                
+                    logger.debug(f"NPC {npc_name} / {npc_id} can target entity {entity_id} ({entity.combat_name})")
+
             if valid_targets:
-                dynamic_prompt_additions += f"\n- Valid Targets: {valid_targets}"
+                dynamic_prompt_additions += f"\n- Valid Targets (CHOOSE ONE OF THESE ONLY): {valid_targets}"
+            else:
+                dynamic_prompt_additions += "\n- Valid Targets: None (Combat ending?)"
 
             # 2. Determine Affordable Actions
             ap_config = getattr(combat_manager, '_ap_config', {})

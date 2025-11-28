@@ -100,20 +100,11 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
         provided_display_name = None
         provided_classification = None
 
-    # Get NPC System (Ensuring it exists or creating fallback)
-    npc_system = None
     state_manager = get_state_manager()
-    try:
-        npc_system = state_manager.get_npc_system()
-        if not npc_system:
-            logger.warning("NPCSystem not found in StateManager. Creating a new instance.")
-            from core.character.npc_system import NPCSystem
-            npc_system = NPCSystem()
-            state_manager.set_npc_system(npc_system)
-    except (AttributeError, Exception) as e:
-        logger.error(f"Error accessing NPCSystem via state manager: {e}")
-        from core.character.npc_system import NPCSystem
-        npc_system = NPCSystem()
+    npc_system = state_manager.get_npc_system()
+    if not npc_system:
+        logger.critical("CRITICAL: NPCSystem not available from StateManager during combat creation.")
+        return [], "System Error: NPC subsystem is not available."
 
     # Helper: compute canonical family id from enums with validation/fallback
     def _canonical_family_id(actor_type: str, threat_tier: str) -> str:

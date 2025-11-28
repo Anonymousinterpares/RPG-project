@@ -38,7 +38,7 @@
       "item": 1,
       "flee": 4,
       "move": 2,
-      "pass": 0
+      "wait": 0
     }
   },
   
