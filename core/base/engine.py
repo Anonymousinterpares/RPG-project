@@ -6,10 +6,7 @@ This module provides the central GameEngine class that coordinates
 between state management, command processing, and game loop components.
 """
 
-
 import time
-import json
-import os
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QObject, Signal, Slot
 from core.combat.enums import CombatStep, CombatState
@@ -17,7 +14,6 @@ from core.interaction.enums import InteractionMode
 from core.orchestration.events import DisplayEventType
 from core.utils.logging_config import get_logger
 from core.base.state import StateManager, GameState
-from core.context.game_context import GameContext, canonicalize_context, enrich_context_from_location
 from core.base.commands import CommandProcessor, CommandResult
 from core.base.game_loop import GameLoop, GameSpeed
 from core.base.config import get_config
@@ -34,6 +30,11 @@ from core.game_flow import lifecycle
 from core.game_flow import command_router
 from core.game_flow.input_router import get_input_router
 
+# Import Refactored Subsystems
+from core.base.context_controller import GameContextController
+from core.base.audio_controller import GameAudioController
+from core.game_flow.spell_handler import execute_cast_spell as _execute_cast_spell_logic
+
 logger = get_logger("GAME_ENGINE") 
 
 class GameEngine(QObject): 
@@ -47,11 +48,10 @@ class GameEngine(QObject):
     
     _instance = None
     orchestrated_event_to_ui = Signal(object)
-    # Emitted when GameContext changes (payload is dict)
+    
+    # Signals delegated from subsystems (re-emitted for API compatibility)
     context_updated = Signal(object)
-    # Emitted when music/SFX playback state changes (list of display strings)
     playback_updated = Signal(object)
-                # Emitted with full MusicDirector state (dict) when music changes
     music_state_updated = Signal(object)
     
     def __new__(cls, *args, **kwargs):
@@ -74,6 +74,15 @@ class GameEngine(QObject):
         self._command_processor = CommandProcessor()
         self._game_loop = GameLoop()
         
+        # Initialize Sub-Controllers
+        self.context_controller = GameContextController(self)
+        self.audio_controller = GameAudioController(self)
+        
+        # Connect sub-controller signals to engine signals
+        self.context_controller.context_updated.connect(self.context_updated)
+        self.audio_controller.playback_updated.connect(self.playback_updated)
+        self.audio_controller.music_state_updated.connect(self.music_state_updated)
+
         # Parallel initialization of managers
         import concurrent.futures
         from core.character.npc_system import NPCSystem
@@ -117,9 +126,6 @@ class GameEngine(QObject):
         self._running = False
         self._auto_save_timer = 0
 
-        logger.info(f"Combat narrator agent initialized: {self._combat_narrator_agent is not None}")
-        logger.info(f"Combat narrator has narrate_outcome: {hasattr(self._combat_narrator_agent, 'narrate_outcome')}")
-
         from core.orchestration.combat_orchestrator import CombatOutputOrchestrator
         from core.audio.tts_manager import TTSManager 
         self._combat_orchestrator = CombatOutputOrchestrator(self) 
@@ -138,13 +144,12 @@ class GameEngine(QObject):
         except Exception as e:
             logger.warning(f"Failed to load autosave settings: {e}")
 
-        # Apply QSettings gameplay values (difficulty, encounter_size) into config if present
+        # Apply QSettings gameplay values
         try:
             from PySide6.QtCore import QSettings
             s = QSettings("RPGGame", "Settings")
             diff_ui = s.value("gameplay/difficulty", None)
             enc_ui = s.value("gameplay/encounter_size", None)
-            # Map UI values to tokens used by generator
             diff_map = {"Story": "story", "Normal": "normal", "Hard": "hard", "Expert": "expert"}
             enc_map = {"Solo": "solo", "Pack": "pack", "Mixed": "mixed"}
             if diff_ui:
@@ -159,93 +164,32 @@ class GameEngine(QObject):
         register_inventory_commands()
         
         self._input_router = get_input_router()
-        
         self._use_llm = True  
-        self._waiting_for_closing_narrative_display: bool = False # New flag for ECFA
-        self._post_combat_finalization_in_progress: bool = False  # Prevent duplicate auto-finalization
+        self._waiting_for_closing_narrative_display: bool = False
+        self._post_combat_finalization_in_progress: bool = False
 
-        # Initialize extended GameContext (engine-authoritative)
-        self._game_context: GameContext = GameContext()
-        
-        # Music Director and SFX Manager are now initialized above in parallel
-        self._playing_snapshot: list[str] = []
-        self._last_music_item: Optional[str] = None
-        self._last_sfx_items: list[str] = []
-        self.sfx_play = None # Will be set in init_audio_backend
+        self.sfx_play = None # Will be set by audio_controller via init_audio_backend
 
         self._initialized = True
         logger.info("GameEngine initialized")
 
     def init_audio_backend(self):
-        """Initialize the audio backend. This should be called after QApplication is created."""
-        try:
-            import os as _os
-            web_mode = str(_os.environ.get("RPG_WEB_MODE", "0")) == "1"
-            if not web_mode:
-                # Desktop/GUI: use QtMultimedia backend
-                from PySide6.QtCore import QSettings
-                from core.music.backend_qt import QtMultimediaBackend
-                self._music_backend = QtMultimediaBackend()
-                self._music_director.set_backend(self._music_backend)
-                self._sfx_manager.set_backend(self._music_backend)
+        """Delegate to AudioController."""
+        self.audio_controller.init_audio_backend()
 
-                # Subscribe to playback updates
-                self._music_director.add_state_listener(self._on_music_state)
-                self._sfx_manager.add_listener(self._on_sfx_update)
-
-                # Apply QSettings sound immediately
-                s = QSettings("RPGGame", "Settings")
-                master = int(s.value("sound/master_volume", 100))
-                music  = int(s.value("sound/music_volume", 100))
-                effects= int(s.value("sound/effects_volume", 100))
-                enabled= s.value("sound/enabled", True, type=bool)
-                muted = not bool(enabled)
-                self._music_director.set_volumes(master, music, effects)
-                self._music_director.set_muted(muted)
-                logger.info(f"Music/SFX system initialized (QtMultimedia backend, enabled={bool(enabled)}, master={master}, music={music}, effects={effects})")
-                self.sfx_play = getattr(self._sfx_manager, 'play_one_shot', None)
-            else:
-                # Web/server mode: no desktop audio backend; state is emitted to clients for WebAudio playback
-                logger.info("Music/SFX system initialized in WEB mode (no desktop audio backend)")
-        except Exception as e:
-            logger.warning(f"Failed to initialize music/SFX system: {e}")
-
-    
     # Compatibility properties and methods for web server integration
     @property
     def state_manager(self):
-        """Compatibility property for web server."""
         return self._state_manager
     
     @property
     def game_loop(self):
-        """Compatibility property for web server."""
         return self._game_loop
     
     def initialize(self, new_game=True, player_name="Player", race="Human", 
                    path="Wanderer", background="Commoner", sex="Male",
                    character_image=None, use_llm=True, 
-                   origin_id: Optional[str] = None): # Added origin_id
-        """
-        Initialize the game engine with a new or loaded game.
-        
-        This is a compatibility method for the web server integration.
-        
-        Args:
-            new_game: Whether to start a new game or not.
-            player_name: The name of the player character (for new games).
-            race: The race of the player character (for new games).
-            path: The class/path of the player character (for new games).
-            background: The background of the player character (for new games).
-            sex: The sex/gender of the player character (for new games).
-            character_image: Path to character image (for new games).
-            use_llm: Whether to enable LLM functionality.
-            origin_id: The ID of the player's chosen origin (for new games).
-        
-        Returns:
-            The game state.
-        """
-        # First, handle game initialization
+                   origin_id: Optional[str] = None):
         game_state = None
         if new_game:
             game_state = self.start_new_game(
@@ -255,12 +199,11 @@ class GameEngine(QObject):
                 background=background,
                 sex=sex,
                 character_image=character_image,
-                origin_id=origin_id # Pass origin_id
+                origin_id=origin_id
             )
         else:
             game_state = self._state_manager.current_state
         
-        # Then, configure LLM as requested
         if use_llm != self._use_llm:
             self.set_llm_enabled(use_llm)
         
@@ -272,43 +215,19 @@ class GameEngine(QObject):
                         stats: Optional[Dict[str, int]] = None,
                         skills: Optional[Dict[str, int]] = None,
                         origin_id: Optional[str] = None) -> GameState:
-        """
-        Start a new game.
-        
-        This method properly handles starting a new game regardless of the current state.
-        If there's an ongoing game, it will be properly cleaned up first.
-        
-        Args:
-            player_name: The name of the player character.
-            race: The race of the player character.
-            path: The class/path of the player character.
-            background: The background of the player character.
-            sex: The sex/gender of the player character.
-            character_image: Path to character image.
-            stats: Optional dictionary of starting stats.
-            skills: Optional dictionary of starting skill ranks.
-            origin_id: The ID of the player's chosen origin.
-        
-        Returns:
-            The new game state.
-        """
         logger.info(f"Starting new game for player {player_name}")
         
-        # Clean up existing game if present
         if self._state_manager.current_state is not None:
             logger.info("Cleaning up existing game before starting new one")
-            # Stop the game loop if it's running
             if self._game_loop.is_running:
                 self._game_loop.pause()
-                
-            # Reset agent state if LLM is enabled
             if self._agent_manager is not None and self._use_llm:
                 try:
                     self._agent_manager.reset_state()
                 except Exception as e:
                     logger.warning(f"Error resetting agent state: {e}")
         
-        # Reset any lingering post-combat flags and orchestrator state prior to creating the new game state
+        # Reset orchestrator and NPC system
         try:
             self._waiting_for_closing_narrative_display = False
             self._post_combat_finalization_in_progress = False
@@ -318,7 +237,6 @@ class GameEngine(QObject):
                 except Exception:
                     pass
                 self._combat_orchestrator.clear_queue_and_reset_flags()
-                # Explicitly clear Combat Log UI to avoid any stale content from prior session
                 try:
                     from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
                     clear_event = DisplayEvent(
@@ -333,7 +251,6 @@ class GameEngine(QObject):
                     self._combat_orchestrator.add_event_to_queue(clear_event)
                 except Exception:
                     pass
-            # Clear NPCSystem memory so name-based lookups (e.g., 'wolf_1') do not reuse stale NPCs from previous session
             try:
                 if hasattr(self, '_npc_system') and self._npc_system:
                     self._npc_system.clear_all_npcs()
@@ -343,8 +260,6 @@ class GameEngine(QObject):
         except Exception as e:
             logger.warning(f"Error resetting orchestrator/flags before new game: {e}")
 
-        # Create new game state - this will be passed to lifecycle.start_new_game
-        # We don't want to create a new one there as well
         game_state = self._state_manager.create_new_game(
             player_name=player_name,
             race=race,
@@ -353,16 +268,15 @@ class GameEngine(QObject):
             sex=sex,
             character_image=character_image,
             stats=stats,
-            skills=skills, # Pass skills
-            origin_id=origin_id # Pass origin_id
+            skills=skills,
+            origin_id=origin_id
         )
-        if background: # background from params is the origin description
-            game_state.player.background = background # Ensure it's set if not already set by StateManager
+        if background:
+            game_state.player.background = background
 
-        # Start initial ambient music (non-blocking). Context will be initialized after lifecycle sets origin/time.
+        # Autoplay music setup
         try:
             if hasattr(self, '_music_director') and self._music_director:
-                # Determine initial autoplay intensity (ensure audible floor)
                 try:
                     from PySide6.QtCore import QSettings
                     s = QSettings("RPGGame", "Settings")
@@ -375,64 +289,40 @@ class GameEngine(QObject):
                 except Exception:
                     autoplay_i = 0.6
                 self._music_director.hard_set("ambient", intensity=autoplay_i, reason="new_game")
-                # Dev logging for autoplay
-                try:
-                    from PySide6.QtCore import QSettings
-                    if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                        logger.info(f"[DEV][MUSIC] Autoplay requested on new game: mood=ambient, intensity={autoplay_i}")
-                except Exception:
-                    pass
         except Exception:
             pass
 
-        gs = lifecycle.start_new_game_with_state(
-            self, game_state
-        )
-        # Fire a game_start event SFX (best-effort)
+        gs = lifecycle.start_new_game_with_state(self, game_state)
+        
         try:
             if hasattr(self, '_sfx_manager') and self._sfx_manager:
                 self._sfx_manager.play_one_shot('event','game_start')
         except Exception:
             pass
-        # GameContext is initialized inside lifecycle; return state
+        
         return gs
     
     def load_game(self, filename: str) -> Optional[GameState]:
-        """
-        Load a game from a save file.
-        
-        This method handles loading a game state with proper initialization of
-        all systems, including LLM integration if enabled.
-        
-        Args:
-            filename: The name of the save file.
-        
-        Returns:
-            The loaded game state, or None if the load failed.
-        """
-        # Delegate to the lifecycle module
         loaded_state = lifecycle.load_game(self, filename)
-        # Ensure music/context are active after load (fallbacks if absent)
+        # Ensure music/context active
         try:
             md = getattr(self, 'get_music_director', lambda: None)()
             if loaded_state:
-                # Restore context from saved state if available; else infer best-effort
                 try:
                     saved_ctx = getattr(loaded_state, 'game_context', None)
                     if isinstance(saved_ctx, dict) and saved_ctx:
                         self.set_game_context(saved_ctx, source="load_game")
                     else:
                         loc_name = getattr(getattr(loaded_state, 'world', None), 'current_location', None) or getattr(getattr(loaded_state, 'player', None), 'current_location', '')
-                        loc_major = self.get_location_major()
+                        loc_major = self.context_controller.get_location_major()
                         tod = getattr(getattr(loaded_state, 'world', None), 'time_of_day', None)
                         self.set_game_context({"location": {"name": str(loc_name or ""), "major": loc_major}, "time_of_day": tod})
                 except Exception:
                     pass
             if md and loaded_state:
-                # Attempt to read saved mood/intensity if present on state; otherwise fallback
+                # Restore music mood
                 mood = getattr(loaded_state, 'music_mood', None)
                 intensity = getattr(loaded_state, 'music_intensity', None)
-                # Read a minimum audible floor for autoplay
                 try:
                     from PySide6.QtCore import QSettings
                     s = QSettings("RPGGame", "Settings")
@@ -453,23 +343,11 @@ class GameEngine(QObject):
                     except Exception:
                         final_i = min_i
                     md.hard_set(mood, intensity=final_i, reason="load_game")
-                    try:
-                        from PySide6.QtCore import QSettings
-                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                            logger.info(f"[DEV][MUSIC] Autoplay on load: mood={mood}, intensity={final_i}")
-                    except Exception:
-                        pass
                 else:
                     md.hard_set("ambient", intensity=min_i, reason="load_game_fallback")
-                    try:
-                        from PySide6.QtCore import QSettings
-                        if bool(QSettings("RPGGame", "Settings").value("dev/enabled", False, type=bool)):
-                            logger.info(f"[DEV][MUSIC] Autoplay on load (fallback): mood=ambient, intensity={min_i}")
-                    except Exception:
-                        pass
         except Exception:
             pass
-        # Play a short game start/load cue after successful load (best-effort)
+        
         try:
             if loaded_state and hasattr(self, '_sfx_manager') and self._sfx_manager:
                 self._sfx_manager.play_one_shot('event', 'game_start')
@@ -477,25 +355,14 @@ class GameEngine(QObject):
             pass
         return loaded_state
 
-    
     def save_game(self, filename: Optional[str] = None, 
                  auto_save: bool = False) -> Optional[str]:
-        """
-        Save the current game.
-        
-        Args:
-            filename: The name of the save file. If None, generates a name.
-            auto_save: Whether this is an auto-save.
-        
-        Returns:
-            The path to the save file, or None if the save failed.
-        """
         if self._state_manager.current_state is None:
             logger.error("Cannot save: No current game state")
             self._output("system", "Cannot save: No game in progress")
             return None
 
-        # Capture current music and context state into GameState before saving
+        # Capture music/context into state before save
         try:
             md = getattr(self, 'get_music_director', lambda: None)()
             st = self._state_manager.current_state
@@ -513,14 +380,13 @@ class GameEngine(QObject):
         except Exception:
             pass
 
-        # --- Generate Summaries using LLM ---
+        # Generate Summaries using LLM (logic delegated to lifecycle via state manager hook)
+        # Note: logic remains largely in lifecycle/engine currently for prompt gen.
         background_summary = None
         last_events_summary = None
         
         if self._use_llm and self._agent_manager:
             state = self._state_manager.current_state
-            
-            # 1. Summarize Background
             try:
                 if state.player and state.player.background:
                     prompt = (
@@ -532,37 +398,28 @@ class GameEngine(QObject):
                     response = self._agent_manager._narrator_agent._llm_manager.get_completion(messages, max_tokens=100)
                     if response and response.content:
                         background_summary = response.content.strip()
-                        logger.info("Generated background summary for save file.")
-            except Exception as e:
-                logger.error(f"Failed to generate background summary for save: {e}")
+            except Exception:
+                pass
 
-            # 2. Summarize Last Events
             try:
                 if state.conversation_history:
-                    # Get the last 10 entries for context
                     recent_history = state.conversation_history[-10:]
                     formatted_history = "\n".join([f"{entry['role']}: {entry['content']}" for entry in recent_history])
                     prompt = (
                         f"Based on the following recent conversation log, write a brief, one-paragraph summary "
-                        f"of the player's most recent activities and current situation. This is for a 'Last Events' "
-                        f"section in a game save file to remind the player what they were doing.\n\n"
+                        f"of the player's most recent activities and current situation.\n\n"
                         f"RECENT LOG:\n{formatted_history}"
                     )
                     messages = [{"role": "user", "content": prompt}]
                     response = self._agent_manager._narrator_agent._llm_manager.get_completion(messages, max_tokens=150)
                     if response and response.content:
                         last_events_summary = response.content.strip()
-                        logger.info("Generated last events summary for save file.")
-            except Exception as e:
-                logger.error(f"Failed to generate last events summary for save: {e}")
+            except Exception:
+                pass
 
-        # --- Pass summaries to StateManager's save_game method ---
         return lifecycle.save_game(self, filename, auto_save, background_summary, last_events_summary)
 
     def reload_autosave_settings(self) -> None:
-        """Reload autosave settings from QSettings. Uses turn-based interval.
-        gameplay/autosave_interval: integer number of narrative turns between auto-saves. 0 means Off.
-        """
         try:
             from PySide6.QtCore import QSettings
             s = QSettings("RPGGame", "Settings")
@@ -570,24 +427,18 @@ class GameEngine(QObject):
             if turns is None:
                 turns = 0
             self._autosave_turns = max(0, int(turns))
-            # Reset counter when changing policy to avoid immediate autosave on change
             self._turns_since_autosave = 0
             logger.info(f"Reloaded autosave setting: {self._autosave_turns} turns (0=off)")
         except Exception as e:
             logger.warning(f"Could not reload autosave settings: {e}")
     
     def _maybe_autosave_after_narrative(self) -> None:
-        """Increment narrative turn counter and autosave if threshold reached.
-        Robustly re-reads the current setting from QSettings to respect runtime changes (OFF/turns).
-        """
         try:
-            # Re-read current setting to ensure immediate effect when user toggles OFF
             try:
                 from PySide6.QtCore import QSettings
                 turns = QSettings("RPGGame", "Settings").value("gameplay/autosave_interval", 0, int)
                 self._autosave_turns = max(0, int(turns or 0))
             except Exception:
-                # keep previous value if QSettings not available
                 pass
             
             if self._autosave_turns and self._autosave_turns > 0:
@@ -603,252 +454,31 @@ class GameEngine(QObject):
             logger.warning(f"Autosave counter error: {e}")
     
     def process_command(self, command_text: str) -> CommandResult:
-        """
-        Process a command.
-        
-        This method delegates to the CommandProcessor or AgentManager to handle the command,
-        then processes any side effects (like exiting the game).
-        
-        Args:
-            command_text: The command text to process.
-        
-        Returns:
-            The result of executing the command.
-        """
-        # Delegate command processing to the command router module
         return command_router.route_command(self, command_text)
         
     def execute_cast_spell(self, spell_id: str, target_id: Optional[str] = None, enforce_known_spells: bool = True) -> CommandResult:
-        """Execute a spell by id using the minimal effects interpreter.
-
-        This is additive and safe: it resolves atoms from the SpellCatalog and applies them deterministically.
-        It does not directly call any UI methods; callers may enqueue DisplayEvents if desired.
-        
-        Args:
-            spell_id: The spell ID to cast
-            target_id: Optional target entity ID
-            enforce_known_spells: Whether to enforce known_spells gating (dev mode can disable)
-        """
-        try:
-            game_state = self._state_manager.current_state
-            if not game_state:
-                return CommandResult.error("No game in progress.")
-
-            # Load spell catalog
-            from core.magic.spell_catalog import get_spell_catalog
-            catalog = get_spell_catalog()
-            spell = catalog.get_spell_by_id(spell_id)
-            if not spell:
-                return CommandResult.error(f"Spell not found: {spell_id}")
-
-            # Check if spell has effect atoms
-            atoms = spell.effect_atoms
-            if not atoms:
-                return CommandResult.error(f"Spell '{spell_id}' has no effect atoms to apply.")
-
-            # Enforce known spells gating (release behavior)
-            if enforce_known_spells:
-                known_spells = game_state.player.list_known_spells()
-                if spell_id not in known_spells:
-                    return CommandResult.error(f"You do not know the spell '{spell.name}'.")
-
-            # Build caster context (player for now)
-            from core.stats.stats_manager import get_stats_manager
-            from core.effects.effects_engine import apply_effects, TargetContext
-            from core.stats.stats_base import DerivedStatType
-            
-            caster_sm = get_stats_manager()
-            caster_ctx = TargetContext(id=getattr(game_state.player, 'id', 'player'), name=getattr(game_state.player, 'name', 'Player'), stats_manager=caster_sm)
-
-            # Validate and deduct mana cost
-            mana_cost = spell.data.get('mana_cost', 0)
-            if mana_cost > 0:
-                current_mana = caster_sm.get_current_stat_value(DerivedStatType.MANA)
-                if current_mana < mana_cost:
-                    # SFX: magic failed (insufficient mana)
-                    try:
-                        if hasattr(self, '_sfx_manager') and self._sfx_manager:
-                            self._sfx_manager.play_magic_cast(getattr(spell, 'system_id', None), getattr(spell, 'combat_role', None), getattr(spell, 'id', None), failed=True)
-                    except Exception:
-                        pass
-                    return CommandResult.error(f"Insufficient mana. Need {mana_cost}, have {current_mana:.1f}.")
-                
-                # Deduct mana cost
-                new_mana = max(0, current_mana - mana_cost)
-                caster_sm.set_current_stat(DerivedStatType.MANA, new_mana)
-                logger.info(f"Deducted {mana_cost} mana for spell '{spell.name}'. Remaining: {new_mana:.1f}")
-
-            # Resolve targets based on spell combat role and selector
-            targets: List[TargetContext] = self._resolve_spell_targets(spell, target_id, game_state, caster_ctx)
-            if not targets:
-                return CommandResult.error(f"No valid targets found for spell '{spell.name}'.")
-
-            # SFX: play magic cast
-            try:
-                if hasattr(self, '_sfx_manager') and self._sfx_manager and spell:
-                    self._sfx_manager.play_magic_cast(getattr(spell, 'system_id', None), getattr(spell, 'combat_role', None), getattr(spell, 'id', None), failed=False)
-            except Exception:
-                pass
-            # Apply effects
-            effect_result = apply_effects(atoms=atoms, caster=caster_ctx, targets=targets)
-            
-            # Emit DisplayEvents if we have a combat orchestrator
-            if hasattr(self, '_combat_orchestrator') and self._combat_orchestrator:
-                from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
-                
-                # Emit spell casting message
-                cast_msg = f"{caster_ctx.name} casts {spell.name}!"
-                if mana_cost > 0:
-                    cast_msg += f" (Cost: {mana_cost} mana)"
-                    
-                self._combat_orchestrator.add_event_to_queue(
-                    DisplayEvent(
-                        type=DisplayEventType.SYSTEM_MESSAGE,
-                        content=cast_msg,
-                        target_display=DisplayTarget.COMBAT_LOG
-                    )
-                )
-                
-                # Emit effect results
-                for applied_effect in effect_result.applied:
-                    effect_msg = f"  {applied_effect.get('description', 'Effect applied')}"
-                    self._combat_orchestrator.add_event_to_queue(
-                        DisplayEvent(
-                            type=DisplayEventType.SYSTEM_MESSAGE,
-                            content=effect_msg,
-                            target_display=DisplayTarget.COMBAT_LOG
-                        )
-                    )
-            
-            if effect_result.success:
-                return CommandResult.success(f"Spell '{spell.name}' executed. Applied {len(effect_result.applied)} effect(s).")
-            else:
-                # Partial failures are surfaced as an error string with details
-                details = "; ".join(effect_result.errors) if effect_result.errors else "Unknown error"
-                return CommandResult.error(f"Spell '{spell.name}' applied with errors: {details}")
-                
-        except Exception as e:
-            logger.error(f"execute_cast_spell failed: {e}", exc_info=True)
-            return CommandResult.error(f"Spell execution failed: {e}")
-    
-    def _resolve_spell_targets(self, spell, target_id: Optional[str], game_state, caster_ctx) -> List:
-        """Resolve spell targets based on combat role and selector.
-        
-        Args:
-            spell: Spell object with combat_role property
-            target_id: Optional specific target ID
-            game_state: Current game state
-            caster_ctx: Caster target context
-        
-        Returns:
-            List of TargetContext objects
-        """
-        from core.effects.effects_engine import TargetContext
-        from core.combat.combat_entity import EntityType
-        import random
-        
-        targets = []
-        combat_role = spell.combat_role
-        
-        # If in combat, use combat-specific targeting
-        if hasattr(game_state, 'combat_manager') and game_state.combat_manager:
-            combat_manager = game_state.combat_manager
-            
-            if combat_role == 'offensive':
-                # Target enemies - user should select, fallback to random if unspecified
-                if target_id:
-                    # Specific target requested by user
-                    entity = combat_manager.get_entity_by_id(target_id)
-                    if entity and entity.entity_type == EntityType.ENEMY and entity.is_alive():
-                        stats_manager = combat_manager._get_entity_stats_manager(target_id)
-                        if stats_manager:
-                            targets.append(TargetContext(
-                                id=entity.id,
-                                name=getattr(entity, 'combat_name', entity.id),
-                                stats_manager=stats_manager
-                            ))
-                else:
-                    # Fallback: if one enemy, target it; if multiple, pick random alive enemy
-                    # NOTE: UI should present enemy selection before this fallback is reached
-                    alive_enemies = [e for e in combat_manager.entities.values() 
-                                   if e.entity_type == EntityType.ENEMY and e.is_alive()]
-                    if len(alive_enemies) == 1:
-                        # Only one enemy - safe to auto-target
-                        enemy = alive_enemies[0]
-                        stats_manager = combat_manager._get_entity_stats_manager(enemy.id)
-                        if stats_manager:
-                            targets.append(TargetContext(
-                                id=enemy.id,
-                                name=getattr(enemy, 'combat_name', enemy.id),
-                                stats_manager=stats_manager
-                            ))
-                    elif len(alive_enemies) > 1:
-                        # Multiple enemies - fallback to random (UI should handle selection)
-                        # This is only reached when target selection wasn't handled by UI
-                        enemy = random.choice(alive_enemies)
-                        stats_manager = combat_manager._get_entity_stats_manager(enemy.id)
-                        if stats_manager:
-                            targets.append(TargetContext(
-                                id=enemy.id,
-                                name=getattr(enemy, 'combat_name', enemy.id),
-                                stats_manager=stats_manager
-                            ))
-                            
-            elif combat_role in ['defensive', 'utility']:
-                # Target self or ally
-                if target_id:
-                    # Specific target requested (could be self or ally)
-                    entity = combat_manager.get_entity_by_id(target_id)
-                    if entity and entity.entity_type == EntityType.PLAYER and entity.is_alive():
-                        stats_manager = combat_manager._get_entity_stats_manager(target_id)
-                        if stats_manager:
-                            targets.append(TargetContext(
-                                id=entity.id,
-                                name=getattr(entity, 'combat_name', entity.id),
-                                stats_manager=stats_manager
-                            ))
-                else:
-                    # Default to self-targeting for defensive spells
-                    targets.append(caster_ctx)
-        else:
-            # Non-combat context: generally allow self-targeting or specific targets
-            if target_id:
-                # Try to find the specific target (for future expansion)
-                targets.append(caster_ctx)  # For now, fallback to self
-            else:
-                # Default to self
-                targets.append(caster_ctx)
-                
-        return targets
+        """Delegate spell casting to the new spell handler."""
+        return _execute_cast_spell_logic(self, spell_id, target_id, enforce_known_spells)
 
     def process_input(self, command_text: str) -> CommandResult:
         """
         Process player input. Checks for combat end state first.
-
-        Args:
-            command_text: The text input from the player.
-
-        Returns:
-            The result of processing the input.
         """
         game_state = self._state_manager.current_state
         if not game_state:
-            logger.warning("Cannot process input: No current game state")
             return CommandResult.error("No game in progress.")
 
-        # If waiting for closing narrative, don't process new input
         if self._waiting_for_closing_narrative_display:
             logger.info("Input received while waiting for closing narrative display. Ignoring.")
             return CommandResult.error("Please wait for the current action to complete.")
 
-        # --- Check for Combat End State First ---
+        # Check Combat End State
         if game_state.current_mode == InteractionMode.COMBAT:
             combat_manager = game_state.combat_manager
             if combat_manager and combat_manager.current_step == CombatStep.COMBAT_ENDED:
                 logger.info("CombatManager step is COMBAT_ENDED. Transitioning to NARRATIVE mode.")
                 
                 game_state.set_interaction_mode(InteractionMode.NARRATIVE)
-                # Advance a default 5 minutes to capture combat duration immersively
                 try:
                     if getattr(game_state, 'world', None):
                         from core.time.time_controller import get_time_controller
@@ -857,21 +487,17 @@ class GameEngine(QObject):
                     pass
                 final_combat_outcome = combat_manager.state.name if combat_manager.state else "Unknown"
                 
-                # Clear combat manager from game state and orchestrator
                 game_state.combat_manager = None 
                 if hasattr(self, '_combat_orchestrator'):
                     self._combat_orchestrator.set_combat_manager(None)
-                    self._combat_orchestrator.clear_queue_and_reset_flags() # Clear any pending combat events
+                    self._combat_orchestrator.clear_queue_and_reset_flags()
 
-                # Queue system message for "Combat has concluded" via orchestrator for MAIN_GAME_OUTPUT
-                # This assumes the orchestrator might be used for NARRATIVE mode outputs too, or a similar one exists.
-                # For now, we'll make the orchestrator handle this specific post-combat sequence.
                 from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
                 
                 system_end_event = DisplayEvent(
                     type=DisplayEventType.SYSTEM_MESSAGE,
                     content=f"Combat has concluded. Outcome: {final_combat_outcome}.",
-                    target_display=DisplayTarget.MAIN_GAME_OUTPUT, # Important: To GameOutputWidget
+                    target_display=DisplayTarget.MAIN_GAME_OUTPUT,
                     gradual_visual_display=False,
                     tts_eligible=False 
                 )
@@ -879,16 +505,8 @@ class GameEngine(QObject):
 
                 if self._use_llm:
                     closing_prompt = f"The combat has just ended. The outcome was: {final_combat_outcome}. Provide a brief, immersive closing narrative (1-2 sentences) describing the aftermath for the player."
-                    
-                    # This needs to be handled carefully. We need the LLM call to happen,
-                    # then its result queued with the orchestrator.
-                    # The actual input processing (command_text) should wait until this whole sequence is done.
-                    
-                    # For now, let's set a flag and the orchestrator will handle the LLM call after the system message.
-                    # This is complex. Simpler: GameEngine makes LLM call, then queues result.
-                    self._waiting_for_closing_narrative_display = True # Block further input
+                    self._waiting_for_closing_narrative_display = True
 
-                    # Perform LLM call for closing narrative (can be async or in a separate thread later)
                     try:
                         from core.game_flow.interaction_core import _build_interaction_context, _get_agent_response
                         logger.info(f"Requesting closing combat narrative with prompt: {closing_prompt}")
@@ -907,24 +525,20 @@ class GameEngine(QObject):
                             self._combat_orchestrator.add_event_to_queue(closing_narrative_event)
                             logger.info(f"Queued closing combat narrative. Waiting for display.")
                         else:
-                            logger.warning("Failed to generate closing combat narrative from LLM.")
-                            self._waiting_for_closing_narrative_display = False # Allow input if LLM fails
+                            self._waiting_for_closing_narrative_display = False
                             
                     except Exception as e:
                         logger.error(f"Error generating closing combat narrative: {e}", exc_info=True)
-                        self._waiting_for_closing_narrative_display = False # Allow input on error
+                        self._waiting_for_closing_narrative_display = False
 
-                else: # LLM disabled, just log conclusion
+                else:
                     logger.info(f"LLM disabled. Combat concluded ({final_combat_outcome}).")
 
-                # If not waiting for LLM narrative (or it failed), allow new input.
-                # Otherwise, return "processing" to block further input until narrative displays.
                 if not self._waiting_for_closing_narrative_display:
                     logger.info(f"Mode transitioned to NARRATIVE. Now processing initial input: '{command_text}'")
-                    # Fall through to process the current command_text in NARRATIVE mode
                 else:
                     logger.info("Waiting for closing combat narrative to display before processing new input.")
-                    return CommandResult.success("Concluding combat...") # Indicate processing
+                    return CommandResult.success("Concluding combat...")
 
             elif not combat_manager and game_state.current_mode == InteractionMode.COMBAT:
                 logger.error("In COMBAT mode but CombatManager is None. Resetting to NARRATIVE.")
@@ -932,41 +546,30 @@ class GameEngine(QObject):
                 if hasattr(self, '_combat_orchestrator'):
                     self._combat_orchestrator.set_combat_manager(None)
 
-
-        # --- Proceed with Input Routing (using the potentially updated mode) ---
         return self._input_router.route_input(self, command_text)
 
     def _finalize_combat_transition_if_needed(self) -> None:
-        """Automatically transition to NARRATIVE and queue post-combat output when combat ends successfully.
-        This is invoked by the Orchestrator when it becomes idle after the final combat event.
-        It intentionally does nothing for PLAYER_DEFEAT because Game Over is handled elsewhere in the GUI.
-        """
+        """Automatically transition to NARRATIVE and queue post-combat output when combat ends successfully."""
         try:
             game_state = self._state_manager.current_state
             if not game_state:
                 return
-            # Only react if currently in COMBAT mode
             if game_state.current_mode != InteractionMode.COMBAT:
                 return
             combat_manager = getattr(game_state, 'combat_manager', None)
             if not combat_manager:
                 return
-            # Only proceed when CombatManager signaled the end of combat
             if combat_manager.current_step != CombatStep.COMBAT_ENDED:
                 return
-            # Skip auto-transition on player defeat (Game Over flow handles this)
             if getattr(combat_manager, 'state', None) == CombatState.PLAYER_DEFEAT:
-                logger.info("Auto finalize skipped: PLAYER_DEFEAT handled by Game Over flow.")
                 return
 
             if self._post_combat_finalization_in_progress:
-                # Avoid duplicate invocations
                 return
             self._post_combat_finalization_in_progress = True
 
             # Transition mode and detach combat manager
             game_state.set_interaction_mode(InteractionMode.NARRATIVE)
-            # Advance a default 5 minutes to capture combat duration immersively
             try:
                 if getattr(game_state, 'world', None):
                     from core.time.time_controller import get_time_controller
@@ -974,50 +577,35 @@ class GameEngine(QObject):
             except Exception:
                 pass
             final_combat_outcome = combat_manager.state.name if getattr(combat_manager, 'state', None) else "Unknown"
-            # Victory/defeat/flee/surrender SFX (best-effort)
+            
             try:
                 if hasattr(self, '_sfx_manager') and self._sfx_manager:
                     st = getattr(combat_manager, 'state', None)
                     if st == CombatState.PLAYER_DEFEAT:
                         self._sfx_manager.play_one_shot('event','defeat')
                     elif st == CombatState.FLED:
-                        # Distinguish flee vs surrender not tracked in enum; prefer flee if CM marked FLED
                         self._sfx_manager.play_one_shot('event','flee')
                     else:
                         self._sfx_manager.play_one_shot('event','victory')
             except Exception:
                 pass
 
-            # --- Add high-level combat summary to conversation history for save context ---
             try:
-                # Gather participants
                 participants = []
                 if combat_manager.entities:
                     for entity in combat_manager.entities.values():
                         participants.append(f"{entity.name} ({entity.entity_type.name})")
-                
-                # Get the closing narrative we just generated (if any)
-                # We need to capture the result of the LLM call below, or pre-generate it here?
-                # The LLM call happens *after* this block in the original code.
-                # Let's move the LLM generation *up* or add a placeholder summary now.
-                # Ideally, we wait for the closing narrative. 
-                # But _finalize... runs before the orchestrator processes the queue.
-                
-                # Simple summary for now:
                 summary_text = f"[COMBAT ENDED] Outcome: {final_combat_outcome}. Participants: {', '.join(participants)}."
                 game_state.add_conversation_entry("system", summary_text)
-                
             except Exception as e:
                 logger.warning(f"Failed to add combat summary to history: {e}")
 
             game_state.combat_manager = None
 
-            # Reset orchestrator for post-combat messages
             if hasattr(self, '_combat_orchestrator') and self._combat_orchestrator:
                 self._combat_orchestrator.set_combat_manager(None)
                 self._combat_orchestrator.clear_queue_and_reset_flags()
 
-            # Ensure UI reflects the mode change promptly
             try:
                 from PySide6.QtCore import QTimer
                 if hasattr(self, 'main_window_ref') and self.main_window_ref:
@@ -1027,20 +615,17 @@ class GameEngine(QObject):
             except Exception:
                 pass
 
-            # Restore pre-combat mood if available
             try:
                 md = getattr(self, 'get_music_director', lambda: None)()
                 prev_mood = getattr(self, '_pre_combat_mood', None)
                 prev_i = getattr(self, '_pre_combat_intensity', None)
                 if md and prev_mood:
                     md.hard_set(prev_mood, intensity=prev_i if isinstance(prev_i, (int, float)) else None, reason="return_from_combat")
-                # Clear stored mood once applied
                 self._pre_combat_mood = None
                 self._pre_combat_intensity = None
             except Exception:
                 pass
 
-            # Queue post-combat system message and closing narrative via orchestrator
             try:
                 from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
                 system_end_event = DisplayEvent(
@@ -1054,7 +639,6 @@ class GameEngine(QObject):
                     self._combat_orchestrator.add_event_to_queue(system_end_event)
 
                 if self._use_llm and hasattr(self, '_combat_orchestrator') and self._combat_orchestrator:
-                    # Request a short closing narrative
                     self._waiting_for_closing_narrative_display = True
                     try:
                         from core.game_flow.interaction_core import process_with_llm
@@ -1076,7 +660,6 @@ class GameEngine(QObject):
                             self._combat_orchestrator.add_event_to_queue(closing_narrative_event)
                             logger.info("Queued closing combat narrative after auto-finalize.")
                         else:
-                            logger.warning("Failed to generate closing combat narrative after auto-finalize.")
                             self._waiting_for_closing_narrative_display = False
                     except Exception as e:
                         logger.error(f"Error generating closing combat narrative after auto-finalize: {e}", exc_info=True)
@@ -1087,23 +670,12 @@ class GameEngine(QObject):
             self._post_combat_finalization_in_progress = False
 
     def set_llm_enabled(self, enabled: bool) -> None:
-        """
-        Enable or disable the LLM system.
-
-        Args:
-            enabled: Whether to enable the LLM system.
-        """
         self._use_llm = enabled
         logger.info(f"LLM system {'enabled' if enabled else 'disabled'}")
         if hasattr(self, '_initialized') and self._initialized and not enabled:
             self._output("system", f"LLM system disabled")
 
     def reload_llm_settings(self) -> None:
-        """
-        Reload LLM-related agent settings at runtime so provider/model changes
-        take effect immediately (including during ongoing combat).
-        """
-        # Reload LLMManager and ProviderManager first to get the latest provider configs
         try:
             from core.llm.llm_manager import get_llm_manager
             llm_manager = get_llm_manager()
@@ -1113,11 +685,9 @@ class GameEngine(QObject):
         except Exception as e:
             logger.warning(f"Error reloading LLMManager/ProviderManager settings: {e}")
 
-        # Reload AgentManager-managed agents
         try:
             if hasattr(self, '_agent_manager') and self._agent_manager is not None:
                 self._agent_manager.reload_settings()
-                # After reloading settings, fully reset agent state to reinitialize any cached clients/models
                 try:
                     self._agent_manager.reset_state()
                 except Exception as e_reset:
@@ -1126,7 +696,6 @@ class GameEngine(QObject):
         except Exception as e:
             logger.warning(f"Error reloading AgentManager settings: {e}")
         
-        # Reload Combat Narrator agent (owned by GameEngine)
         try:
             if hasattr(self, '_combat_narrator_agent') and self._combat_narrator_agent is not None:
                 self._combat_narrator_agent.reload_settings()
@@ -1134,48 +703,25 @@ class GameEngine(QObject):
         except Exception as e:
             logger.warning(f"Error reloading CombatNarratorAgent settings: {e}")
         
-        # Optional: Provide user feedback in UI
         try:
             self._output("system", "LLM settings reloaded.")
         except Exception:
-            # Avoid failing if UI is not connected yet
             pass
 
     def _output(self, role: str, content: str) -> None:
         """
         Output a message by emitting the output_generated signal.
-        This method is now simplified. The primary responsibility is to add to
-        conversation history (if applicable) and emit the signal.
-        Buffering and complex routing are handled by MainWindow and Orchestrator
-        based on DisplayEvents.
-        Args:
-            role: The role of the speaker (e.g., "system", "gm", "player").
-            content: The content of the message.
         """
         logger.info(f"ENGINE._output called with role='{role}', content='{content[:50]}...'")
         
-        # Special logging for reintroductory narrative debugging
-        if role == "gm" and ("night air" in content or "find yourself" in content):
-            logger.info(f"LIFECYCLE_DEBUG: ENGINE._output - This appears to be reintroductory narrative")
-            logger.info(f"LIFECYCLE_DEBUG: Full content length: {len(content)}")
-            logger.info(f"LIFECYCLE_DEBUG: Content preview: '{content[:300]}...'")
-        
         if self._state_manager.current_state is not None and role != "system":
             self._state_manager.current_state.add_conversation_entry(role, content)
-            logger.debug(f"Added to conversation history: role='{role}'")
 
         try:
-            logger.debug(f"Emitting output_generated signal with role='{role}', content (type: {type(content).__name__})")
-            logger.info(f"LIFECYCLE_DEBUG: About to emit output_generated signal to GUI")
-            self.output_generated.emit(role, content) # MainWindow will handle DisplayEvent objects if content is one
-            logger.debug("Signal emission successful")
-            logger.info(f"LIFECYCLE_DEBUG: output_generated signal emitted successfully")
-        except RuntimeError as e:
-            logger.error(f"RuntimeError emitting output_generated signal: {e}", exc_info=True)
+            self.output_generated.emit(role, content) 
         except Exception as e:
             logger.error(f"Error emitting output_generated signal: {e}", exc_info=True)
         
-        # After emitting, handle turn-based autosave on narrative outputs (NARRATIVE mode only)
         try:
             state = self._state_manager.current_state
             if role == "gm" and state is not None:
@@ -1184,64 +730,22 @@ class GameEngine(QObject):
                     if getattr(state, 'current_mode', None) == _IM.NARRATIVE:
                         self._maybe_autosave_after_narrative()
                 except Exception:
-                    # Fallback: if enum import fails, attempt name check
                     mode = getattr(getattr(state, 'current_mode', None), 'name', '')
                     if mode == 'NARRATIVE':
                         self._maybe_autosave_after_narrative()
-        except Exception as e:
-            logger.debug(f"Turn-based autosave check skipped due to error: {e}")
-
-        # Dev-only time audit log after narrative outputs (disabled by default)
-        try:
-            state = self._state_manager.current_state
-            if role == "gm" and state is not None:
-                mode_name = getattr(getattr(state, 'current_mode', None), 'name', '')
-                if mode_name == 'NARRATIVE':
-                    from core.base.config import get_config as _get_cfg
-                    cfg = _get_cfg()
-                    # Default ON via game domain if not explicitly set
-                    val_debug = cfg.get('debug.time_audit_log_enabled', None)
-                    val_system = cfg.get('system.debug.time_audit_log_enabled', None)
-                    val_game = cfg.get('game.debug.time_audit_log_enabled', None)
-                    enabled = bool(
-                        (val_debug is True) or (val_system is True) or (val_game if val_game is not None else True)
-                    )
-                    if enabled:
-                        w = getattr(state, 'world', None)
-                        if w is not None:
-                            payload = {
-                                'ts': int(time.time()),
-                                'mode': mode_name,
-                                'game_time_s': float(getattr(w, 'game_time', 0.0) or 0.0),
-                                'calendar_compact': getattr(w, 'calendar_compact', None),
-                                'period': getattr(w, 'time_of_day', None),
-                            }
-                            try:
-                                from core.utils.logging_config import get_logger as _gl
-                                _gl('TIME_AUDIT').info(json.dumps(payload, ensure_ascii=False))
-                            except Exception:
-                                pass
         except Exception:
-            # Never let audit logging break gameplay
             pass
 
     def _handle_tick_callback(self, elapsed_game_time: float) -> None:
-        """Callback for game loop tick, delegates to lifecycle module."""
         lifecycle.handle_tick(self, elapsed_game_time)
 
     def run(self, target_fps: int = 30) -> None:
-        """
-        Run the game loop.
-        (Kept in Engine as it manages the loop state)
-        Args:
-            target_fps: The target frames per second.
-        """
         logger.warning(f"Engine.run() invoked with target FPS: {target_fps}. Time advancement is DISABLED (Phase 1).")
         self._running = True
         self._game_loop.unpause()
         try:
             while self._running:
-                self._game_loop.tick()  # no-op advancement
+                self._game_loop.tick()
                 time.sleep(1.0 / target_fps)
         except KeyboardInterrupt:
             logger.info("Game engine interrupted")
@@ -1252,35 +756,20 @@ class GameEngine(QObject):
             logger.info("Game engine stopped")
 
     def stop(self) -> None:
-        """Stop the game engine."""
         logger.info("Stopping game engine")
         self._running = False
         self._game_loop.pause()
-        # No autosave scheduler to stop (turn-based autosave only)
         try:
             self._turns_since_autosave = 0
         except Exception:
             pass
 
     def set_game_speed(self, speed: GameSpeed) -> None:
-        """
-        Set the game speed.
-        (Kept in Engine as it controls the game loop)
-        Args:
-            speed: The new game speed.
-        """
         self._game_loop.speed = speed
         logger.info(f"Game speed set to {speed.name}")
-        logger.warning("Note: Phase 1 – Time advancement is disabled; speed affects no time progression.")
         self._output("system", f"Game speed set to {speed.name.lower()} (no time progression in Phase 1)")
 
     def toggle_pause(self) -> bool:
-        """
-        Toggle the game pause state.
-        (Kept in Engine as it controls the game loop)
-        Returns:
-            The new pause state (True if paused, False if unpaused).
-        """
         paused = self._game_loop.toggle_pause()
         if paused:
             self._output("system", "Game paused")
@@ -1288,62 +777,29 @@ class GameEngine(QObject):
             self._output("system", "Game unpaused")
         return paused
     
-    # --- ECFA Change: New method for MainWindow to call ---
-    @Slot(object) # Use object for DisplayEvent type hint if DisplayEvent is complex
-    def main_window_handle_orchestrated_event(self, display_event): # game_state is implicit via self._state_manager
+    @Slot(object)
+    def main_window_handle_orchestrated_event(self, display_event):
         """
         Called by the CombatOutputOrchestrator to route a DisplayEvent's
         content to the MainWindow's _handle_game_output method.
-        This decouples Orchestrator from directly knowing MainWindow.
         """
-        from core.orchestration.events import DisplayEvent # Local import for type check
+        from core.orchestration.events import DisplayEvent
         if not isinstance(display_event, DisplayEvent):
             logger.error(f"Engine received non-DisplayEvent object: {type(display_event)}")
             return
 
-        logger.debug(f"Engine routing orchestrated event to MainWindow: {display_event}")
-        
-        # MainWindow's _handle_game_output will now need to understand DisplayEvent or its parts
-        # It's better if _handle_game_output is adapted or a new method is called.
-        # For now, we pass DisplayEvent directly and expect MainWindow to adapt.
-        
-        # We emit a new signal or call a direct method on MainWindow.
-        # Let's assume MainWindow has a slot `handle_orchestrated_display_event(DisplayEvent)`
-        
-        # To avoid direct MainWindow dependency here, GameEngine can emit a specific signal
-        # that MainWindow listens to, or MainWindow can connect to a slot on the engine.
-        # For simplicity with current structure, assuming GameEngine's output_generated
-        # is caught by MainWindow which then checks if the content is a DisplayEvent.
-        # This is not ideal. A more direct call/signal is better.
-
-        # Alternative: Add a new signal on GameEngine for orchestrated events
-        # class GameEngine(QObject):
-        #     orchestrated_event_for_main_window = Signal(DisplayEvent) # Define this signal
-
-        # Then emit it:
-        # self.orchestrated_event_for_main_window.emit(display_event)
-
-        # For now, re-using _output with a special role or by passing the event itself.
-        # Let's modify _output slightly or add a new way for MainWindow to get this.
-
-        # The simplest for now is to call MainWindow's handler directly if MainWindow ref is stored.
-        # Assuming MainWindow is accessible via engine for this example, though this creates coupling.
-        # A better way is a new signal from engine that MainWindow connects to.
-        if hasattr(self, 'main_window_ref') and self.main_window_ref: # Assuming MainWindow registers itself
+        if hasattr(self, 'main_window_ref') and self.main_window_ref:
             main_window = self.main_window_ref()
             if main_window:
-                # MainWindow needs a method to handle this, e.g., process_display_event_from_orchestrator
                 if hasattr(main_window, 'process_orchestrated_display_event'):
                     main_window.process_orchestrated_display_event(display_event)
                 else:
-                    # Fallback: use existing _output, MainWindow's _handle_game_output must adapt
+                    # Fallback
                     if isinstance(display_event.content, str):
                         self._output(display_event.role or "system", display_event.content)
                     elif isinstance(display_event.content, list) and display_event.type == DisplayEventType.BUFFER_FLUSH:
                         for line in display_event.content:
-                             self._output(display_event.role or "gm", line) # Assume buffer is GM narrative
-                    else:
-                        logger.warning(f"Orchestrated event content type not directly printable: {type(display_event.content)}")
+                             self._output(display_event.role or "gm", line)
             else:
                 logger.error("MainWindow reference lost in GameEngine.")
         else:
@@ -1351,19 +807,11 @@ class GameEngine(QObject):
 
     @Slot()
     def on_orchestrator_idle_and_combat_manager_resumed(self):
-        """
-        Called by the orchestrator when it's idle AND after it has signaled
-        CombatManager to resume (if CM was waiting).
-        This specifically handles the post-combat closing narrative.
-        """
         if self._waiting_for_closing_narrative_display:
-            logger.info("Orchestrator idle and CM resumed (or was not waiting). Closing narrative display should be complete.")
+            logger.info("Orchestrator idle and CM resumed. Closing narrative display should be complete.")
             self._waiting_for_closing_narrative_display = False
-            # Potentially trigger UI re-enable or next game prompt if needed here.
-            # For now, just unblocks further input in process_input.
 
     def request_ui_update(self) -> None:
-        """Safely requests a refresh of the main UI."""
         try:
             from PySide6.QtCore import QTimer
             if hasattr(self, 'main_window_ref') and self.main_window_ref:
@@ -1373,250 +821,22 @@ class GameEngine(QObject):
         except Exception as e:
             logger.error(f"Failed to request UI update: {e}")
 
-# Convenience function (remains the same)
-    
-    # --- Music accessors for GUI/Server ---
+    # --- Delegated Music Accessors ---
     def get_music_director(self):
         return getattr(self, '_music_director', None)
 
     def get_playback_snapshot(self) -> list[str]:
-        try:
-            return list(self._playing_snapshot)
-        except Exception:
-            return []
+        return self.audio_controller.get_playback_snapshot()
 
-    # --- GameContext accessors ---
+    # --- Delegated Context Accessors ---
     def get_game_context(self) -> Dict[str, Any]:
-        try:
-            return self._game_context.to_dict()
-        except Exception:
-            return {}
+        return self.context_controller.get_game_context()
 
     def set_game_context(self, ctx: Optional[Dict[str, Any]] = None, source: Optional[str] = None, **kwargs) -> None:
-        """Set or update the engine's GameContext with canonicalization and notify listeners.
-        Accepts a nested dict (ctx) and/or keyword fields; merges and canonicalizes.
-        Also forwards location_major (and other hints) to MusicDirector for selection bias.
-        Missing fields in the incoming payload DO NOT overwrite previous values (unchanged fallback).
-        """
-        try:
-            incoming: Dict[str, Any] = {}
-            if isinstance(ctx, dict):
-                incoming.update(ctx)
-            if kwargs:
-                incoming.update(kwargs)
-            logger = get_logger("GAME")
-            logger.info("LOCATION_MGMT: set_game_context incoming=%s", str(incoming))
+        self.context_controller.set_game_context(ctx, source, **kwargs)
 
-            # Canonicalize only the provided fields
-            new_gc, warn = canonicalize_context(incoming)
-
-            # Start from previous context and only update fields that were explicitly provided
-            prev_gc: GameContext = getattr(self, '_game_context', None) or GameContext()
-            merged_gc: GameContext = GameContext(
-                location_name=prev_gc.location_name,
-                location_major=prev_gc.location_major,
-                location_venue=prev_gc.location_venue,
-                weather_type=prev_gc.weather_type,
-                time_of_day=prev_gc.time_of_day,
-                biome=prev_gc.biome,
-                region=prev_gc.region,
-                interior=prev_gc.interior,
-                underground=prev_gc.underground,
-                crowd_level=prev_gc.crowd_level,
-                danger_level=prev_gc.danger_level,
-            )
-
-            loc_in = (incoming.get('location') or {}) if isinstance(incoming.get('location'), dict) else {}
-            # Location name/major/venue
-            if ('location_name' in incoming) or ('name' in loc_in):
-                merged_gc.location_name = new_gc.location_name
-            if ('location_major' in incoming) or ('major' in loc_in):
-                merged_gc.location_major = new_gc.location_major
-            if ('location_venue' in incoming) or ('venue' in loc_in):
-                merged_gc.location_venue = new_gc.location_venue
-
-            # Weather.type
-            weather_in = incoming.get('weather') if isinstance(incoming.get('weather'), dict) else None
-            if ('weather_type' in incoming) or (isinstance(weather_in, dict) and ('type' in weather_in)):
-                merged_gc.weather_type = new_gc.weather_type
-
-            # Simple top-level fields: apply only if explicitly present
-            for key in ('time_of_day','biome','region','interior','underground','crowd_level','danger_level'):
-                if key in incoming:
-                    setattr(merged_gc, key if key not in ('time_of_day',) else 'time_of_day', getattr(new_gc, key))
-
-            # Enrichment guard for explicit clears (e.g., venue=None)
-            explicit_venue_provided = (('location_venue' in incoming) or ('venue' in loc_in))
-            venue_provided_as_none = False
-            try:
-                v_raw = loc_in.get('venue') if isinstance(loc_in, dict) else None
-                if (v_raw is None) or (isinstance(v_raw, str) and v_raw.strip().lower() in ('', 'none', 'null', 'n/a')):
-                    venue_provided_as_none = ('venue' in loc_in)
-                if incoming.get('location_venue', '___MISSING___') is None:
-                    venue_provided_as_none = True
-            except Exception:
-                pass
-
-            # Enrich from mapping by location name/id if available (non-overwriting)
-            try:
-                # Extract optional location id from incoming
-                loc_id = None
-                try:
-                    loc_id = incoming.get('location_id') or (loc_in or {}).get('id')
-                except Exception:
-                    loc_id = None
-                loc_name = merged_gc.to_dict().get('location', {}).get('name')
-                merged_gc = enrich_context_from_location(merged_gc, location_name=loc_name, location_id=loc_id)
-                # If venue was explicitly provided as None, keep it None and do NOT let enrichment repopulate it
-                if explicit_venue_provided and venue_provided_as_none:
-                    merged_gc.location_venue = None
-            except Exception:
-                pass
-
-            self._game_context = merged_gc
-            logger.info("LOCATION_MGMT: canonicalized=%s", str(merged_gc.to_dict()))
-            # Structured telemetry: JSON line with diffs
-            try:
-                from core.utils.logging_config import get_logger as _gl
-                prev_d = prev_gc.to_dict()
-                new_d = merged_gc.to_dict()
-                changed_keys = []
-                # compare flattened keys of interest
-                def _get(d, path_list):
-                    cur = d
-                    for p in path_list:
-                        cur = cur.get(p, None) if isinstance(cur, dict) else None
-                    return cur
-                candidates = [
-                    ("location.name", ["location","name"]),
-                    ("location.major", ["location","major"]),
-                    ("location.venue", ["location","venue"]),
-                    ("weather.type", ["weather","type"]),
-                    ("time_of_day", ["time_of_day"]),
-                    ("biome", ["biome"]),
-                    ("region", ["region"]),
-                    ("interior", ["interior"]),
-                    ("underground", ["underground"]),
-                    ("crowd_level", ["crowd_level"]),
-                    ("danger_level", ["danger_level"]),
-                ]
-                for k, path in candidates:
-                    if _get(prev_d, path) != _get(new_d, path):
-                        changed_keys.append(k)
-                _gl("CONTEXT").info(json.dumps({
-                    "event": "ContextUpdate",
-                    "source": source or "unknown",
-                    "changed_keys": changed_keys,
-                    "warnings": warn,
-                    "prev": prev_d,
-                    "new": new_d,
-                }, ensure_ascii=False))
-            except Exception:
-                pass
-            # Sync world current_location with location.name for consistency
-            try:
-                if self._state_manager and self._state_manager.current_state:
-                    name = merged_gc.to_dict().get("location", {}).get("name") or ""
-                    self._state_manager.current_state.world.current_location = name
-                    self._state_manager.current_state.player.current_location = name
-            except Exception:
-                pass
-            # Forward to MusicDirector (best-effort)
-            try:
-                md = getattr(self, 'get_music_director', lambda: None)()
-                if md and hasattr(md, 'set_context'):
-                    d = merged_gc.to_dict()
-                    loc = d.get("location", {}) or {}
-                    md.set_context(location_major=loc.get("major"), location_venue=loc.get("venue"), weather_type=d.get("weather", {}).get("type"), time_of_day=d.get("time_of_day"), biome=d.get("biome"), region=d.get("region"), interior=d.get("interior"), underground=d.get("underground"), crowd_level=d.get("crowd_level"), danger_level=d.get("danger_level"))
-            except Exception:
-                pass
-            # Trigger SFX based on changed categories
-            try:
-                if hasattr(self, '_sfx_manager') and self._sfx_manager:
-                    self._sfx_manager.apply_context(merged_gc.to_dict(), changed_keys)
-            except Exception:
-                pass
-            # Emit signal for web/server or GUI dev panels
-            try:
-                payload = merged_gc.to_dict()
-                # include a timestamp for clients that want ordering
-                import time as _t
-                payload["ts"] = int(_t.time())
-                payload["source"] = source or "unknown"
-                self.context_updated.emit(payload)
-            except Exception:
-                pass
-        except Exception as e:
-            logger.warning(f"set_game_context failed: {e}")
-
-    # Phase A: derive a coarse location_major from current state (best-effort)
     def get_location_major(self) -> Optional[str]:
-        try:
-            st = self._state_manager.current_state
-            loc = (getattr(getattr(st, 'world', None), 'current_location', None) or getattr(getattr(st, 'player', None), 'current_location', None))
-            if not loc:
-                return None
-            s = str(loc).strip().lower()
-            # Heuristic mapping
-            checks = [
-                ("city", "city"), ("camp", "camp"), ("forest", "forest"),
-                ("harbor", "port"), ("harbour", "port"), ("docks", "port"), ("port", "port"),
-                ("seaside", "seaside"), ("coast", "seaside"), ("beach", "seaside"), ("shore", "seaside"),
-                ("desert", "desert"), ("mountain", "mountain"), ("peak", "mountain"), ("ridge", "mountain"),
-                ("swamp", "swamp"), ("marsh", "swamp"), ("castle", "castle"), ("keep", "castle"),
-                ("dungeon", "dungeon"), ("cavern", "dungeon"), ("cave", "dungeon"), ("village", "village"), ("hamlet", "village"),
-            ]
-            for token, tag in checks:
-                if token in s:
-                    return tag
-            return None
-        except Exception:
-            return None
+        return self.context_controller.get_location_major()
 
-    # --- Playback aggregation ---
-    def _on_music_state(self, payload: dict) -> None:
-        try:
-            track = payload.get('track') or ''
-            if track:
-                self._last_music_item = f"music: {track}"
-            # Emit detailed music state for interested UI (e.g., Context tab mood control)
-            try:
-                self.music_state_updated.emit(dict(payload))
-            except Exception:
-                pass
-            self._emit_playback()
-        except Exception:
-            pass
-
-    def _on_sfx_update(self, payload: dict) -> None:
-        try:
-            loops = payload.get('loops', {}) if isinstance(payload, dict) else {}
-            ones = payload.get('oneshots', []) if isinstance(payload, dict) else []
-            items: list[str] = []
-            for ch, path in loops.items():
-                base = os.path.basename(path)
-                items.append(f"sfx:{ch}: {base}")
-            for p in ones:
-                items.append(f"sfx:oneshot: {os.path.basename(p)}")
-            self._last_sfx_items = items
-            self._emit_playback()
-        except Exception:
-            pass
-
-    def _emit_playback(self) -> None:
-        try:
-            items: list[str] = []
-            if self._last_music_item:
-                items.append(self._last_music_item)
-            if self._last_sfx_items:
-                items.extend(self._last_sfx_items)
-            # Trim and store
-            self._playing_snapshot = items[:5]
-            self.playback_updated.emit(list(self._playing_snapshot))
-        except Exception:
-            pass
-
-# Convenience function (remains the same)
 def get_game_engine() -> GameEngine:
-    """Get the game engine instance."""
     return GameEngine()
