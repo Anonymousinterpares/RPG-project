@@ -8,10 +8,8 @@ and a CommandResult dataclass for representing command execution results.
 """
 
 import re
-import inspect
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple, Callable, Union
-import logging
+from typing import Any, Dict, List, Optional, Tuple, Callable
 from enum import Enum, auto
 
 from core.utils.logging_config import get_logger
@@ -878,7 +876,7 @@ def get_command_processor() -> CommandProcessor:
 # Example usage (this would be filled in during the Command Handlers phase)
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.DEBUG)
+    get_logger.basicConfig(level=get_logger.DEBUG)
     
     # Get the command processor - commands are now registered automatically
     processor = get_command_processor()

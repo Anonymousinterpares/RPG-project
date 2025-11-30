@@ -7,12 +7,8 @@ game context, identifies relevant memories, calculates importance scores,
 and suggests potential actions to the player.
 """
 
-import os
 import re
-import json
-import math
-from typing import Dict, List, Optional, Any, Tuple, Set
-import logging
+from typing import Dict, List, Optional, Any, Tuple
 
 from core.utils.logging_config import get_logger
 from core.agents.base_agent import BaseAgent, AgentContext, AgentResponse
@@ -457,7 +453,7 @@ def get_context_evaluator_agent() -> ContextEvaluatorAgent:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    get_logger.basicConfig(level=get_logger.INFO)
     
     # Create the context evaluator agent
     context_evaluator = get_context_evaluator_agent()

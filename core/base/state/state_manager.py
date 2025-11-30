@@ -10,7 +10,6 @@ import datetime
 import json
 from typing import Dict, List, Optional, Any
 from core.stats.stats_base import StatType
-from PySide6.QtCore import QTimer
 from core.base.state.game_state import GameState
 from core.base.state.player_state import PlayerState
 from core.base.state.world_state import WorldState
@@ -464,39 +463,47 @@ class StateManager:
                     self._stats_manager = get_stats_manager()
                     # Load saved stats into the singleton instance
                     if isinstance(data['character_stats'], dict):
-                        # Restore primary stats
-                        for stat_type, stat_dict in data['character_stats'].get('stats', {}).items():
+                        # Restore primary stats BULK UPDATE
+                        primary_stats_to_set = {}
+                        for stat_type_str, stat_dict in data['character_stats'].get('stats', {}).items():
                             if 'base_value' in stat_dict:
                                 try:
-                                    self._stats_manager.set_base_stat(stat_type, stat_dict['base_value'])
+                                    # Resolve stat type
+                                    from core.stats.registry import resolve_stat_enum
+                                    enum_val = resolve_stat_enum(stat_type_str)
+                                    if isinstance(enum_val, StatType):
+                                        primary_stats_to_set[enum_val] = stat_dict['base_value']
+                                    else:
+                                        # Fallback
+                                        stat_type = StatType.from_string(stat_type_str)
+                                        primary_stats_to_set[stat_type] = stat_dict['base_value']
                                 except Exception as e:
-                                    logger.warning(f"Failed to restore stat {stat_type}: {e}")
+                                    logger.warning(f"Failed to parse stat {stat_type_str} for bulk restore: {e}")
                         
-                        # Restore skills
+                        # Apply bulk update if we have stats
+                        if primary_stats_to_set:
+                            self._stats_manager.set_base_stats_bulk(primary_stats_to_set)
+                            logger.info(f"Bulk restored {len(primary_stats_to_set)} primary stats from save.")
+                        
+                        # Restore skills (keeping existing logic as skills don't trigger derived recalc usually)
                         skills_data = data['character_stats'].get('skills', {})
                         if skills_data:
                             for skill_key, skill_dict in skills_data.items():
                                 try:
-                                    # Normalize skill key
                                     normalized_key = skill_key.lower().replace(" ", "_")
-                                    
-                                    # Get existing skill object
                                     if normalized_key in self._stats_manager.skills:
                                         skill_stat = self._stats_manager.skills[normalized_key]
-                                        # Update fields
                                         skill_stat.base_value = float(skill_dict.get('base_value', 0.0))
                                         skill_stat.exp = float(skill_dict.get('exp', 0.0))
                                         skill_stat.exp_to_next = float(skill_dict.get('exp_to_next', 100.0))
                                     else:
-                                        # If skill doesn't exist in manager, try to create it
                                         from core.stats.stats_base import Stat
                                         self._stats_manager.skills[normalized_key] = Stat.from_dict(skill_dict)
-                                        
                                 except Exception as e:
                                     logger.warning(f"Failed to restore skill {skill_key}: {e}")
                             logger.info(f"Restored {len(skills_data)} skills from save")
 
-                    # Make sure to recalculate derived stats and emit signal
+                    # Recalculate derived stats once after all loading
                     self._stats_manager._recalculate_derived_stats()
                     logger.info("Recalculated derived stats and emitted stats_changed signal")
                     logger.info("Restored character stats data from save")
@@ -559,6 +566,7 @@ class StateManager:
                    getattr(self._current_state, 'combat_manager', None):
                     cm = self._current_state.combat_manager
                     cm.game_state = self._current_state
+                    
                     # Ensure NPC StatsManagers are available/linked by loading NPC system state and prepping NPCs
                     try:
                         npc_system = self.get_npc_system()
@@ -568,23 +576,46 @@ class StateManager:
                                 npc_system.load_state()
                             except Exception as e_load_npcs:
                                 logger.warning(f"NPCSystem.load_state failed during load_game: {e_load_npcs}")
-                            # Prepare each non-player entity for combat to guarantee StatsManagers exist (fallback by name)
+                            
+                            # --- CRITICAL FIX: Reconstruct Missing NPCs ---
+                            # Iterate combat entities. If an enemy doesn't exist in NPCSystem (because it was dynamic/unsaved),
+                            # reconstruct it so systems like Surrender can find it.
                             try:
+                                from core.character.npc_base import NPC, NPCType
                                 player_id = getattr(self._current_state.player, 'id', None) or getattr(self._current_state.player, 'stats_manager_id', None)
+                                
                                 for entity_id, entity in getattr(cm, 'entities', {}).items():
                                     if entity_id != player_id:
+                                        # Check if NPC exists in system
+                                        existing_npc = npc_system.get_npc_by_id(entity_id)
+                                        
+                                        if not existing_npc:
+                                            logger.info(f"Reconstructing transient NPC for combat entity: {entity.name} ({entity_id})")
+                                            # Create basic NPC shell
+                                            reconstructed_npc = NPC(
+                                                id=entity_id,
+                                                name=entity.name,
+                                                npc_type=NPCType.ENEMY, # Assume enemy for combatants
+                                                is_persistent=False     # Default to false, surrender system will promote if needed
+                                            )
+                                            # Register into system
+                                            npc_system.register_npc(reconstructed_npc)
+                                            
+                                        # Prepare for interaction (ensure stats sync)
                                         try:
                                             npc_system.prepare_npc_for_interaction(
                                                 getattr(entity, 'name', None) or getattr(entity, 'combat_name', ''),
                                                 NPCInteractionType.COMBAT
                                             )
                                         except Exception:
-                                            # Best-effort per-entity; continue on errors
                                             continue
-                            except Exception as e_prep:
-                                logger.warning(f"Error preparing NPCs for combat after load: {e_prep}")
+                            except Exception as e_recon:
+                                logger.warning(f"Error reconstructing NPCs during load: {e_recon}")
+                            # --- END CRITICAL FIX ---
+
                     except Exception as e_link:
                         logger.warning(f"NPC StatsManager linkage step failed: {e_link}")
+                    
                     # Sync StatsManagers to saved CombatEntity values
                     try:
                         cm.sync_stats_with_managers_from_entities()

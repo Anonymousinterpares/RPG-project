@@ -10,10 +10,9 @@ in the game world and executing scheduled events.
 import time
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Any, Union, Callable
-from enum import Enum, auto
+from typing import Dict, List, Optional, Any, Callable
+from enum import Enum
 import datetime
-import logging
 
 from core.utils.logging_config import get_logger
 from core.base.state import WorldState
@@ -523,7 +522,7 @@ def get_game_loop() -> GameLoop:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.DEBUG)
+    get_logger.basicConfig(level=get_logger.DEBUG)
     
     # Create a game loop
     loop = get_game_loop()

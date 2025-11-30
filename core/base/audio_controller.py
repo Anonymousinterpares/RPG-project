@@ -1,9 +1,10 @@
 import os
-import logging
-from typing import Optional, List
+from typing import Optional
 from PySide6.QtCore import QObject, Signal, QSettings
 
-logger = logging.getLogger("AUDIO_CTRL")
+from core.utils.logging_config import get_logger
+
+logger = get_logger("AUDIO_CTRL")
 
 class GameAudioController(QObject):
     """

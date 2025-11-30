@@ -5,12 +5,11 @@ This module provides commands that allow LLM agents to request specific game dat
 only when needed instead of including all data in every context.
 """
 
-from typing import Dict, List, Optional, Any, Tuple
-import logging
+from typing import Dict, List, Any
 
 from core.utils.logging_config import get_logger
 from core.base.state import GameState
-from core.inventory import get_inventory_manager, Item # Added Item import
+from core.inventory import get_inventory_manager
 
 # Get module logger
 logger = get_logger("DATA_RETRIEVAL")

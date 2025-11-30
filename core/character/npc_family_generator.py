@@ -13,7 +13,6 @@ in a controlled manner (via system.npc_generation_mode = "families").
 """
 from __future__ import annotations
 
-import logging
 import random
 import re
 from typing import Any, Dict, Optional, Tuple
@@ -22,9 +21,9 @@ from core.base.config import get_config
 from core.character.npc_base import NPC, NPCType, NPCRelationship
 from core.stats.stats_manager import StatsManager
 from core.stats.stats_base import StatType, DerivedStatType
-from core.stats.derived_stats import get_modifier_from_stat
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NPCFamilyGenerator:
@@ -349,12 +348,16 @@ class NPCFamilyGenerator:
         # Create StatsManager and apply primary stats
         sm = StatsManager()
         sm.set_level(max(1, int(level)))
-        sm.set_base_stat(StatType.STRENGTH, float(str_score))
-        sm.set_base_stat(StatType.DEXTERITY, float(dex_score))
-        sm.set_base_stat(StatType.CONSTITUTION, float(con_score))
-        sm.set_base_stat(StatType.INTELLIGENCE, float(int_score))
-        sm.set_base_stat(StatType.WISDOM, float(wis_score))
-        sm.set_base_stat(StatType.CHARISMA, float(cha_score))
+        
+        # USE BULK UPDATE HERE
+        sm.set_base_stats_bulk({
+            StatType.STRENGTH: float(str_score),
+            StatType.DEXTERITY: float(dex_score),
+            StatType.CONSTITUTION: float(con_score),
+            StatType.INTELLIGENCE: float(int_score),
+            StatType.WISDOM: float(wis_score),
+            StatType.CHARISMA: float(cha_score)
+        })
 
         # After derived stats computed, adjust current resources
         # Set current HP to min(target_hp, MAX_HEALTH). Keep at least 1.
@@ -610,13 +613,16 @@ class NPCFamilyGenerator:
 
         sm = StatsManager()
         sm.set_level(max(1, int(level)))
-        sm.set_base_stat(StatType.STRENGTH, float(str_score))
-        sm.set_base_stat(StatType.DEXTERITY, float(dex_score))
-        sm.set_base_stat(StatType.CONSTITUTION, float(con_score))
-        sm.set_base_stat(StatType.INTELLIGENCE, float(int_score))
-        sm.set_base_stat(StatType.WISDOM, float(wis_score))
-        sm.set_base_stat(StatType.CHARISMA, float(cha_score))
-
+        
+        # USE BULK UPDATE HERE
+        sm.set_base_stats_bulk({
+            StatType.STRENGTH: float(str_score),
+            StatType.DEXTERITY: float(dex_score),
+            StatType.CONSTITUTION: float(con_score),
+            StatType.INTELLIGENCE: float(int_score),
+            StatType.WISDOM: float(wis_score),
+            StatType.CHARISMA: float(cha_score)
+        })
         try:
             max_hp = sm.get_stat_value(DerivedStatType.MAX_HEALTH)
         except Exception:

@@ -10,7 +10,6 @@ import os
 import json
 import datetime
 from typing import Dict, List, Optional, Any, Tuple, Union
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -479,7 +478,7 @@ class TestAgent(BaseAgent):
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    get_logger.basicConfig(level=get_logger.INFO)
     
     # Create a test agent
     test_agent = TestAgent()

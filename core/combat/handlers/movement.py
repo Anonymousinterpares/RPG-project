@@ -1,17 +1,19 @@
-import logging
 from typing import Dict, Any, TYPE_CHECKING
 from core.combat.combat_entity import CombatEntity, EntityType
 from core.combat.combat_action import CombatAction
+from core.game_flow.surrender_system import process_surrender_consequences
 from core.orchestration.events import DisplayEvent, DisplayEventType
 from core.stats.stats_base import StatType
 from core.game_flow.mode_transitions import _determine_flee_parameters
+from core.utils.logging_config import get_logger
 
 if TYPE_CHECKING:
     from core.combat.combat_manager import CombatManager
     from core.stats.stats_manager import StatsManager
     from core.base.engine import GameEngine
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 
 def handle_flee_action_mechanics(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict) -> Dict[str, Any]:
     """Handles the mechanics of a flee action attempt."""
@@ -177,50 +179,24 @@ def handle_surrender_action_mechanics(manager: 'CombatManager', action: CombatAc
 
     if check_result.success:
         current_result_detail["intent_clarification"] = (
-            "The player's surrender was ACCEPTED by the enemies. "
-            "The player lays down their arms and submits. "
-            "The enemies DO NOT surrender; they have won by forcing the player to submit. "
-            "The player is stripped of all equipment as a consequence."
+            "The player's surrender was ACCEPTED. "
+            "The player submits and is stripped of all belongings. "
+            "The items are taken by the enemies."
         )
         
         try:
-            from core.inventory import get_inventory_manager
-            import random
-            inv_mgr = get_inventory_manager()
+            # --- DELEGATED TO SURRENDER SYSTEM ---
+            outcome = process_surrender_consequences(engine, manager, performer)
             
-            items_to_transfer = []
-            if hasattr(inv_mgr, 'items'):
-                if isinstance(inv_mgr.items, dict):
-                    items_to_transfer.extend(list(inv_mgr.items.values()))
-                elif isinstance(inv_mgr.items, list):
-                    items_to_transfer.extend(inv_mgr.items)
+            count = outcome.get("items_lost", 0)
+            taker = outcome.get("recipient_name", "the enemy")
             
-            if hasattr(inv_mgr, 'equipment') and isinstance(inv_mgr.equipment, dict):
-                for item in inv_mgr.equipment.values():
-                    if item: items_to_transfer.append(item)
-            
-            if items_to_transfer and enemies:
-                npc_system = engine.state_manager.get_npc_system()
-                for item in items_to_transfer:
-                    recipient_entity = random.choice(enemies)
-                    if npc_system:
-                        npc_obj = npc_system.get_npc_by_id(recipient_entity.id)
-                        if npc_obj:
-                            if not hasattr(npc_obj, 'inventory'):
-                                npc_obj.inventory = []
-                            npc_obj.inventory.append(item.to_dict() if hasattr(item, 'to_dict') else str(item))
-
-                if hasattr(inv_mgr, 'clear'):
-                    inv_mgr.clear()
-                else:
-                    logger.error("InventoryManager does not have a clear() method. Equipment stripping failed.")
-                
-                loss_msg = f"You have been stripped of your belongings! ({len(items_to_transfer)} items lost)"
-                manager._log_and_dispatch_event(loss_msg, DisplayEventType.SYSTEM_MESSAGE)
-                current_result_detail["consequences"] = f"Player lost {len(items_to_transfer)} items to enemies."
+            loss_msg = f"You have been stripped of your belongings! ({count} items taken by {taker})"
+            manager._log_and_dispatch_event(loss_msg, DisplayEventType.SYSTEM_MESSAGE)
+            current_result_detail["consequences"] = f"Player lost {count} items to {taker}."
 
         except Exception as e:
-            logger.error(f"Error stripping player equipment: {e}", exc_info=True)
+            logger.error(f"Error processing surrender consequences: {e}", exc_info=True)
             current_result_detail["consequences_error"] = f"Error handling equipment loss: {e}"
 
         current_result_detail.update({"success": True, "fled": True, "surrendered": True, "message": "Surrender accepted!"})

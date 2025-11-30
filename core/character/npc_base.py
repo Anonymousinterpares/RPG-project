@@ -5,16 +5,17 @@ Base classes for NPC data structures and types.
 
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Set, Union
+from typing import Dict, List, Any, Optional, Union
 import uuid
-import logging
 from datetime import datetime
 
+from core.inventory.equipment_manager import EquipmentManager
 from core.stats.stats_base import StatType, DerivedStatType
 from core.stats.stats_manager import StatsManager
-from core.interaction.social_effects import StatusEffectData # Import StatusEffectData
+from core.interaction.social_effects import StatusEffectData
+from core.utils.logging_config import get_logger # Import StatusEffectData
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NPCType(Enum):

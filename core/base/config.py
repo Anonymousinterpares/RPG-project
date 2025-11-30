@@ -7,8 +7,7 @@ configuration data from JSON files.
 """
 
 import os
-import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple
 import json
 
 from core.utils.json_utils import load_json, save_json
@@ -503,7 +502,7 @@ def get_config() -> GameConfig:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging for example run
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    get_logger.basicConfig(level=get_logger.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     print("--- Initializing Config ---")
     config = get_config()

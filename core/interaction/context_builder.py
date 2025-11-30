@@ -142,23 +142,74 @@ class ContextBuilder:
             }
 
         # World/Environment Info
+        # Determine location object, falling back to player if world is missing
+        location_obj = None
         if world_state:
-            location = getattr(world_state, 'current_location', None) # May be a string or an object
-            if location:
-                if isinstance(location, str):
-                    context['location'] = {
-                        'name': location,
-                        'description': '',
-                        'tags': []
-                    }
-                else:
-                    context['location'] = {
-                        'name': getattr(location, 'name', 'Unknown Area'),
-                        'description': getattr(location, 'description', ''),
-                        'tags': getattr(location, 'tags', []),
-                    }
-            # Use enhanced time description instead of clock time
-            context['time_of_day'] = world_state.time_of_day if hasattr(world_state, 'time_of_day') else 'Unknown'
+            location_obj = getattr(world_state, 'current_location', None)
+        
+        if not location_obj and player_state:
+            location_obj = getattr(player_state, 'current_location', None)
+
+        if location_obj:
+            if isinstance(location_obj, str):
+                context['location'] = {
+                    'name': location_obj,
+                    'description': '',
+                    'tags': []
+                }
+            else:
+                context['location'] = {
+                    'name': getattr(location_obj, 'name', 'Unknown Area'),
+                    'description': getattr(location_obj, 'description', ''),
+                    'tags': getattr(location_obj, 'tags', []),
+                }
+        else:
+             context['location'] = {'name': 'Unknown Location'}
+
+        # Use enhanced time description instead of clock time
+        context['time_of_day'] = world_state.time_of_day if world_state and hasattr(world_state, 'time_of_day') else 'Unknown'
+        
+        # --- NEW: NPC Presence Context ---
+        # Expose specific NPCs at the location to the LLM, highlighting those with loot.
+        current_loc_id = getattr(game_state.player, 'current_location', None)
+        if current_loc_id:
+            try:
+                from core.character.npc_system import get_npc_system
+                sys = get_npc_system()
+                visible_npcs = sys.get_npcs_by_location(current_loc_id)
+                
+                npc_context_list = []
+                for npc in visible_npcs:
+                    # Skip if dead (check stats if available)
+                    is_dead = False
+                    if npc.has_stats() and npc.stats_manager:
+                        try:
+                            from core.stats.stats_base import DerivedStatType
+                            hp = npc.stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
+                            if hp <= 0: is_dead = True
+                        except: pass
+                    
+                    if is_dead: continue
+
+                    # Check for player loot
+                    has_loot = False
+                    if hasattr(npc, 'inventory') and npc.inventory:
+                        has_loot = True
+                    
+                    desc = f"{npc.name}"
+                    if has_loot:
+                        desc += " (Holding your items)"
+                    elif npc.npc_type.name == "ENEMY":
+                        desc += " (Hostile)"
+                    
+                    npc_context_list.append(desc)
+                
+                if npc_context_list:
+                    context['present_npcs'] = npc_context_list
+                    
+            except Exception as e:
+                # Non-fatal error in context building
+                pass
 
         # Recent Events
         event_log = getattr(world_state, 'event_log', None) # Placeholder

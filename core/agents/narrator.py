@@ -9,16 +9,13 @@ by the player's natural language input and outputs them in a
 structured format.
 """
 
-import os
 import re
 import json
-from typing import Dict, List, Optional, Any, Tuple, Union
-import logging
+from typing import Dict, List, Optional
 
 from core.utils.logging_config import get_logger
 from core.agents.base_agent import BaseAgent, AgentContext # Keep AgentContext, remove AgentResponse if not used
-from core.interaction.structured_requests import AgentOutput, SkillCheckRequest, StateChangeRequest
-from core.interaction.enums import InteractionMode
+from core.interaction.structured_requests import AgentOutput
 
 # Get the module logger
 logger = get_logger("AGENT")
@@ -496,8 +493,13 @@ class NarratorAgent(BaseAgent):
             return "\n".join(lines)
 
         # Basic location information
-        lines.append(f"- Location: {location_info.get('current_location', 'Unknown')}")
-        lines.append(f"- District/Area: {location_info.get('current_district', 'Unknown')}")
+        loc_name = location_info.get('current_location')
+        if loc_name is None: loc_name = "Unknown"
+        lines.append(f"- Location: {loc_name}")
+        
+        district = location_info.get('current_district')
+        if district is None: district = "Unknown"
+        lines.append(f"- District/Area: {district}")
 
         # Time and weather information
         # Format game time
@@ -522,6 +524,13 @@ class NarratorAgent(BaseAgent):
             for entity in nearby:
                  lines.append(f"- {entity.get('name', 'Unknown Entity')} ({entity.get('type', 'object')})")
 
+        # Add Present NPCs from ContextBuilder ---
+        # This data comes from context['present_npcs'] injected by ContextBuilder
+        present_npcs = context.additional_context.get("present_npcs", []) if context.additional_context else []
+        if present_npcs:
+            lines.append("### NPCs Present (Visible)")
+            for npc_desc in present_npcs:
+                lines.append(f"- {npc_desc}")
 
         return "\n".join(lines)
 
@@ -704,78 +713,74 @@ class NarratorAgent(BaseAgent):
             # --- Enhanced JSON Parsing ---
             parsed_output = None
             cleaned_response = llm_response_content
+            
+            # 1. Remove markdown fences
+            cleaned_response = re.sub(r'^```(?:json)?\s*|\s*```$', '', cleaned_response, flags=re.MULTILINE).strip()
+            
+            # 2. Extract JSON if embedded in text
+            # Look for object {...} or list [...]
+            json_match = re.search(r'({[\s\S]*})|(\[[\s\S]*\])', cleaned_response)
+            
+            extracted_json_str = None
+            extracted_narrative = None
+            
+            if json_match:
+                extracted_json_str = json_match.group(0)
+                # If there is text BEFORE the JSON, treat it as narrative
+                if json_match.start() > 0:
+                    extracted_narrative = cleaned_response[:json_match.start()].strip()
+            else:
+                # Try parsing the whole thing
+                extracted_json_str = cleaned_response
+
             try:
-                 # 1. Remove potential markdown fences first
-                cleaned_response = re.sub(r'^```(?:json)?\s*|\s*```$', '', cleaned_response, flags=re.MULTILINE).strip()
-
-                # 2. Try direct parsing
-                parsed_output = json.loads(cleaned_response)
-                logger.debug("Successfully parsed JSON directly.")
-
-            except json.JSONDecodeError as e:
-                logger.warning(f"Narrator initial JSON parsing failed: {e}. Trying to extract JSON object...")
-                # 3. If direct parsing fails, try to find the first '{' and last '}'
-                start_index = cleaned_response.find('{')
-                end_index = cleaned_response.rfind('}')
-                if start_index != -1 and end_index != -1 and start_index < end_index:
-                    json_substring = cleaned_response[start_index : end_index + 1]
-                    try:
-                        parsed_output = json.loads(json_substring)
-                        logger.info("Successfully parsed extracted JSON substring from Narrator response.")
-                    except json.JSONDecodeError as e_inner:
-                        logger.error(f"Narrator failed to parse extracted JSON substring: {e_inner}")
-                        logger.error(f"Substring attempted: ```\n{json_substring}\n```")
-                        parsed_output = None
+                parsed_data = json.loads(extracted_json_str)
+                
+                # --- FIX: Handle List vs Object ---
+                # If LLM returned a list of requests [ {...} ], wrap it
+                if isinstance(parsed_data, list):
+                    logger.warning("Narrator returned JSON List instead of Object. Auto-wrapping.")
+                    agent_output = {
+                        "narrative": extracted_narrative if extracted_narrative else "Action processed.",
+                        "requests": parsed_data
+                    }
+                elif isinstance(parsed_data, dict):
+                    # Normal object path
+                    # If narrative was outside JSON, prioritize it over JSON 'narrative' field if empty
+                    if extracted_narrative and not parsed_data.get("narrative"):
+                        parsed_data["narrative"] = extracted_narrative
+                    
+                    # Validate keys
+                    agent_output = {
+                        "narrative": parsed_data.get("narrative", extracted_narrative or "Action processed."),
+                        "requests": parsed_data.get("requests", [])
+                    }
                 else:
-                    logger.error("Narrator could not find valid JSON object markers '{' and '}' in the response.")
-                    parsed_output = None
+                    raise ValueError("Parsed JSON was neither Dict nor List.")
 
-            # --- Validate Structure and Build Output ---
-            if (isinstance(parsed_output, dict) and
-                "narrative" in parsed_output and
-                "requests" in parsed_output and
-                isinstance(parsed_output["requests"], list)):
-
-                # Validate requests format (basic check)
+                # Basic validation of request structures
                 validated_requests = []
-                for req in parsed_output["requests"]:
+                for req in agent_output["requests"]:
                     if isinstance(req, dict) and "action" in req:
                         validated_requests.append(req)
-                    else:
-                        logger.warning(f"Narrator skipping invalid request structure: {req}")
+                agent_output["requests"] = validated_requests
+                
+                logger.info(f"Narrator successfully parsed JSON. Requests: {len(validated_requests)}")
 
+            except json.JSONDecodeError as e:
+                logger.warning(f"Narrator: JSON decode failed; using raw text as narrative. Error: {e}")
                 agent_output = {
-                    "narrative": parsed_output["narrative"],
-                    "requests": validated_requests
+                    "narrative": llm_response_content.strip(), # Fallback to full text
+                    "requests": []
                 }
-                narrative_snippet = parsed_output["narrative"][:100]
-                logger.info(f"Narrator successfully parsed valid JSON. Narrative: '{narrative_snippet}...', Requests: {len(validated_requests)}")
-
-            else: # Parsing failed or structure invalid
-                logger.error("Narrator failed to parse LLM response as valid JSON AgentOutput.")
-                # Fallback: Treat the whole response as narrative if parsing fails
-                agent_output = {
-                    "narrative": llm_response_content, # Use the raw content as narrative
-                    "requests": [] # No requests could be parsed
-                }
-                logger.warning("Narrator using raw response as narrative due to JSON parsing failure.")
-
 
         except Exception as e:
-            logger.exception(f"Error during NarratorAgent processing or LLM call: {e}")
-            # Fallback: Provide an error narrative
+            # ... existing error handling ...
+            logger.exception(f"Error during NarratorAgent processing: {e}")
             agent_output = {
-                "narrative": f"[Narrator Error: An unexpected error occurred: {e}]",
+                "narrative": f"[Narrator Error: {e}]",
                 "requests": []
             }
-
-        # Log final decision
-        if agent_output:
-             logger.info(f"Narrator final output generated with {len(agent_output['requests'])} requests.")
-        else:
-             # This case should ideally not be reached due to fallbacks, but log just in case
-             logger.error("Narrator failed to generate any output structure.")
-             agent_output = { "narrative": "[System Error: Narrator failed completely.]", "requests": [] }
 
         return agent_output
 

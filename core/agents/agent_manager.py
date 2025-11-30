@@ -6,11 +6,7 @@ and manages interactions between different agent types, including
 context evaluation, rule checking, and narrative generation.
 """
 
-import os
-import json
-import time
-from typing import Dict, List, Optional, Any, Tuple, Union
-import logging
+from typing import List, Optional, Any, Tuple
 
 from core.interaction.enums import InteractionMode
 from core.stats.stats_base import DerivedStatType
@@ -18,7 +14,7 @@ from core.stats.stats_manager import get_stats_manager
 from core.utils.logging_config import get_logger
 from core.base.state import GameState
 from core.base.commands import get_command_processor
-from core.inventory import get_narrative_item_manager, get_inventory_manager
+from core.inventory import get_narrative_item_manager
 from core.agents.base_agent import AgentContext, AgentResponse
 from core.agents.narrator import get_narrator_agent
 from core.agents.rule_checker import get_rule_checker_agent
@@ -380,7 +376,8 @@ class AgentManager:
     
     def _create_agent_context(self, game_state: GameState, player_input: str) -> AgentContext:
         """
-        Create an agent context from the game state and player input.
+        Create an agent context from the game state and player input using the ContextBuilder.
+        This ensures deep context (like present NPCs, environment tags) is included.
         
         Args:
             game_state: The current game state.
@@ -389,56 +386,61 @@ class AgentManager:
         Returns:
             An AgentContext object.
         """
-        # Extract game state information
-        game_state_dict = {}
-        player_state_dict = {}
-        world_state_dict = {}
-        additional_context_for_agent = {} # For specific notes like low stamina
-
-        if game_state:
-            # Convert game state to dictionary
-            game_state_dict = {
-                "session_id": game_state.session_id,
-                "created_at": game_state.created_at,
-                "last_saved_at": game_state.last_saved_at,
-                "game_version": game_state.game_version,
-                "last_command": game_state.last_command,
-                "mode": game_state.current_mode.name if hasattr(game_state, 'current_mode') else "NARRATIVE"
-            }
-            
-            # Extract player state
-            if game_state.player:
-                player_state_dict = game_state.player.to_dict()
-
-                # Add note for out-of-combat stamina regeneration consideration
-                # Access StatsManager via get_stats_manager() singleton
-                player_stats_manager = get_stats_manager()
-                if game_state.current_mode == InteractionMode.NARRATIVE and player_stats_manager:
-                    try:
-                        current_stamina = player_stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
-                        max_stamina = player_stats_manager.get_stat_value(DerivedStatType.MAX_STAMINA)
-                        if current_stamina < max_stamina:
-                            additional_context_for_agent["player_stamina_status"] = (
-                                f"Player stamina is {current_stamina:.0f}/{max_stamina:.0f}. "
-                                f"Consider if regeneration is appropriate based on recent actions and time passed."
-                            )
-                            logger.debug(f"Stamina note added to agent context: {additional_context_for_agent['player_stamina_status']}")
-                    except Exception as e:
-                        logger.warning(f"Could not get player stamina for agent context note: {e}")
-            
-            # Extract world state
-            if game_state.world:
-                world_state_dict = game_state.world.to_dict()
+        # Import locally to avoid circular dependencies
+        from core.interaction.context_builder import ContextBuilder
         
+        # Determine current mode
+        current_mode = getattr(game_state, 'current_mode', InteractionMode.NARRATIVE)
+        
+        # Build rich context using the builder (this fetches NPCs, rich location data, etc.)
+        builder = ContextBuilder()
+        player_id = getattr(game_state.player, 'id', getattr(game_state.player, 'stats_manager_id', 'player'))
+        
+        # Generate the structured context dictionary
+        rich_context = builder.build_context(game_state, current_mode, actor_id=player_id)
+        
+        # Extract/Construct specific state dicts for AgentContext compatibility
+        game_state_dict = {
+            "session_id": game_state.session_id,
+            "created_at": game_state.created_at,
+            "last_saved_at": game_state.last_saved_at,
+            "game_version": game_state.game_version,
+            "last_command": game_state.last_command,
+            "mode": current_mode.name if hasattr(current_mode, 'name') else str(current_mode)
+        }
+        
+        # Add dynamic stamina regeneration note if applicable (NARRATIVE mode only)
+        if current_mode == InteractionMode.NARRATIVE:
+            player_stats_manager = get_stats_manager()
+            if player_stats_manager:
+                try:
+                    current_stamina = player_stats_manager.get_current_stat_value(DerivedStatType.STAMINA)
+                    max_stamina = player_stats_manager.get_stat_value(DerivedStatType.MAX_STAMINA)
+                    if current_stamina < max_stamina:
+                        rich_context["player_stamina_status"] = (
+                            f"Player stamina is {current_stamina:.0f}/{max_stamina:.0f}. "
+                            f"Consider if regeneration is appropriate based on recent actions and time passed."
+                        )
+                        logger.debug(f"Stamina note added to rich context: {rich_context['player_stamina_status']}")
+                except Exception as e:
+                    logger.warning(f"Could not get player stamina for agent context note: {e}")
+
         # Create agent context
+        # We pass 'rich_context' as additional_context so the NarratorAgent can access keys 
+        # like 'present_npcs', 'environment', 'inventory' which are populated by ContextBuilder.
         context = AgentContext(
             game_state=game_state_dict,
-            player_state=player_state_dict,
-            world_state=world_state_dict,
+            player_state=rich_context.get('player', {}),
+            world_state={
+                'location': rich_context.get('location', {}),
+                'time_of_day': rich_context.get('time_of_day', 'Unknown'),
+                'weather': rich_context.get('weather', {}),
+                'environment': rich_context.get('environment', [])
+            },
             player_input=player_input,
             conversation_history=game_state.conversation_history if game_state else [],
-            relevant_memories=[],  # Will be populated by context evaluator
-            additional_context=additional_context_for_agent if additional_context_for_agent else None
+            relevant_memories=[],  # Will be populated by context evaluator if enabled
+            additional_context=rich_context
         )
         
         return context
@@ -808,7 +810,7 @@ def get_agent_manager() -> AgentManager:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    get_logger.basicConfig(level=get_logger.INFO)
     
     # Create an agent manager
     manager = get_agent_manager()

@@ -5,15 +5,14 @@ Social Conflict agent for handling non-combat confrontations.
 
 import re
 import json
-import logging
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from core.utils.logging_config import get_logger
 from core.agents.base_agent import BaseAgent, AgentContext
-from core.interaction.structured_requests import AgentOutput, SkillCheckRequest, StateChangeRequest
-from core.interaction.enums import InteractionMode, SocialStatusEffect # Make sure SocialStatusEffect is imported
+from core.interaction.structured_requests import AgentOutput
+from core.interaction.social_effects import SocialStatusEffect # Make sure SocialStatusEffect is imported
 from core.stats.stats_base import Skill # Corrected: Import Skill from stats_base
-
+get_logger
 logger = get_logger("AGENT")
 
 class SocialConflictAgent(BaseAgent):

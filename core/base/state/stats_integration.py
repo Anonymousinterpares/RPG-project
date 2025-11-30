@@ -5,15 +5,14 @@ This module provides functionality to integrate the stats system with the GUI,
 ensuring that the stats tab in the GUI is always up to date.
 """
 
-import logging
-from typing import Dict, Any, Optional, Callable
-from PySide6.QtCore import QObject, Signal, Slot
+from typing import Dict, Any, Callable
+from PySide6.QtCore import QObject, Signal
 
-from core.base.state.state_manager import StateManager, get_state_manager
-from core.stats.stats_base import StatType, DerivedStatType, Stat
+from core.base.state.state_manager import get_state_manager
+from core.utils.logging_config import get_logger
 
 # Get module logger
-logger = logging.getLogger("STATS_INTEGRATION")
+logger = get_logger("STATS_INTEGRATION")
 
 class StatsIntegration(QObject):
     """

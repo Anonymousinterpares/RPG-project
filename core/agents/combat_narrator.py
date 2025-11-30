@@ -5,8 +5,7 @@ Combat Narrator agent for handling combat interactions.
 
 import re
 import json
-import logging
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import List, Dict, Optional, TYPE_CHECKING
 
 from core.utils.logging_config import get_logger
 from core.agents.base_agent import BaseAgent, AgentContext

@@ -6,8 +6,7 @@ This module provides functionality for generating and enhancing character backgr
 using LLM technology based on character attributes.
 """
 
-import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from core.utils.logging_config import get_logger, LogCategory
 from core.llm.llm_manager import get_llm_manager, LLMRole
@@ -188,7 +187,7 @@ def get_background_generator() -> BackgroundGenerator:
 
 # Example usage
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    get_logger.basicConfig(level=get_logger.INFO)
     
     generator = get_background_generator()
     

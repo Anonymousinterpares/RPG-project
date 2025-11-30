@@ -4,18 +4,16 @@ NPC System - Main integration module for the NPC subsystem.
 Provides a unified interface for NPC management, creation, persistence, and memory.
 """
 
-import logging
-from typing import Dict, List, Any, Optional, Union, Tuple, Set
-from datetime import datetime
+from typing import Dict, List, Any, Optional, Union, Tuple
 
-from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
-from core.character.npc_manager import NPCManager
+from core.character.npc_base import NPC, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_manager import get_npc_manager # Import singleton getter
 from core.character.npc_creator import NPCCreator
 from core.character.npc_persistence import NPCPersistence
 from core.character.npc_memory import NPCMemoryManager
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__name__)
 
 class NPCSystem:
     """
@@ -35,7 +33,12 @@ class NPCSystem:
         self.npc_list: List[NPC] = []
         
         # Initialize all the component managers
-        self.manager = NPCManager(save_directory)
+        # Use the singleton getter to ensure shared state across system instances
+        self.manager = get_npc_manager()
+        # If save_directory differs from default and manager wasn't init with it, update it
+        if save_directory != "saves/npcs" and self.manager.save_directory == "saves/npcs":
+             self.manager.save_directory = save_directory
+
         self.creator = NPCCreator(self.manager)
         self.persistence = NPCPersistence(self.manager)
         self.memory = NPCMemoryManager(self.manager)
@@ -43,21 +46,11 @@ class NPCSystem:
         logger.info("NPC system initialized")
     
     def load_all_npcs(self) -> int:
-        """
-        Load all persisted NPCs.
-        
-        Returns:
-            Number of NPCs loaded
-        """
+        """Load all persisted NPCs."""
         return self.persistence.load_all_npcs()
     
     def save_all_npcs(self) -> Tuple[int, int]:
-        """
-        Save all persistent NPCs.
-        
-        Returns:
-            Tuple of (success_count, total_count)
-        """
+        """Save all persistent NPCs."""
         return self.persistence.save_all_persistent_npcs()
     
     def clear_all_npcs(self) -> None:
@@ -67,47 +60,49 @@ class NPCSystem:
         self.npc_list.clear()
     
     def get_npc(self, npc_id: str) -> Optional[NPC]:
-        """
-        Get an NPC by ID.
-        
-        Args:
-            npc_id: ID of the NPC to get
-            
-        Returns:
-            The NPC if found, None otherwise
-        """
+        """Get an NPC by ID."""
         return self.manager.get_npc_by_id(npc_id)
     
+    def get_npc_by_id(self, npc_id: str) -> Optional[NPC]:
+        """Retrieves an NPC instance by its unique ID."""
+        # First try the main manager (which is the singleton now)
+        npc = self.manager.get_npc_by_id(npc_id)
+        if npc:
+            return npc
+        
+        # Fallback to direct storage
+        if npc_id in self.npcs:
+            return self.npcs[npc_id]
+        
+        # Fallback to list search
+        for npc in self.npc_list:
+            if getattr(npc, 'id', None) == npc_id:
+                return npc
+        
+        return None
+    
     def get_npc_by_name(self, name: str) -> Optional[NPC]:
+        """Get an NPC by name."""
+        return self.manager.get_npc_by_name(name)
+    
+    def get_npcs_by_location(self, location: str) -> List[NPC]:
         """
-        Get an NPC by name.
+        Get all NPCs at a specific location.
         
         Args:
-            name: Name of the NPC to get
+            location: The location to check
             
         Returns:
-            The NPC if found, None otherwise
+            List of NPCs at the location
         """
-        return self.manager.get_npc_by_name(name)
+        return self.manager.get_npcs_by_location(location)
     
     def get_or_create_npc(self, 
                          name: str, 
                          interaction_type: NPCInteractionType,
                          location: Optional[str] = None,
                          npc_subtype: Optional[str] = None) -> Tuple[NPC, bool]:
-        """
-        Get an existing NPC by name or create a new one.
-        This is the primary method for just-in-time NPC generation.
-        
-        Args:
-            name: Name of the NPC
-            interaction_type: Type of interaction
-            location: Where the NPC is located
-            npc_subtype: Optional subtype (e.g., 'boss_dragon', 'merchant')
-            
-        Returns:
-            Tuple of (npc, is_new) where is_new is True if a new NPC was created
-        """
+        """Get an existing NPC by name or create a new one."""
         npc, is_new = self.creator.get_or_create_npc(
             name=name,
             interaction_type=interaction_type,
@@ -123,18 +118,7 @@ class NPCSystem:
                                    npc_or_name: Union[NPC, str],
                                    interaction_type: NPCInteractionType,
                                    npc_subtype: Optional[str] = None) -> Optional[NPC]:
-        """
-        Prepare an NPC for a specific interaction, enhancing it if necessary.
-        Implements the just-in-time generation of NPC capabilities.
-        
-        Args:
-            npc_or_name: NPC object or name of the NPC
-            interaction_type: Type of interaction to prepare for
-            npc_subtype: Optional subtype for new NPCs
-            
-        Returns:
-            The prepared NPC if found or created, None on failure
-        """
+        """Prepare an NPC for a specific interaction, enhancing it if necessary."""
         # Get or create the NPC
         if isinstance(npc_or_name, str):
             npc, _ = self.get_or_create_npc(npc_or_name, interaction_type, npc_subtype=npc_subtype)
@@ -155,21 +139,7 @@ class NPCSystem:
                           location: Optional[str] = None,
                           importance: int = 3,
                           npc_subtype: Optional[str] = None) -> Optional[NPCMemory]:
-        """
-        Record an interaction with an NPC.
-        Creates the NPC if it doesn't exist.
-        
-        Args:
-            npc_or_name: NPC object or name of the NPC
-            interaction_type: Type of interaction
-            description: Description of what happened
-            location: Where it happened
-            importance: How important this memory is (1-10)
-            npc_subtype: Optional subtype for new NPCs
-            
-        Returns:
-            The created memory if successful, None otherwise
-        """
+        """Record an interaction with an NPC."""
         # Get or create the NPC
         if isinstance(npc_or_name, str):
             npc, _ = self.get_or_create_npc(npc_or_name, interaction_type, location, npc_subtype=npc_subtype)
@@ -191,18 +161,7 @@ class NPCSystem:
                                    npc_or_name: Union[NPC, str],
                                    interaction_type: NPCInteractionType,
                                    npc_subtype: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Get context for an interaction with an NPC.
-        Creates or enhances the NPC as needed.
-        
-        Args:
-            npc_or_name: NPC object or name of the NPC
-            interaction_type: Type of interaction
-            npc_subtype: Optional subtype for new NPCs
-            
-        Returns:
-            Dictionary with NPC information and relevant memories
-        """
+        """Get context for an interaction with an NPC."""
         # Prepare the NPC
         npc = self.prepare_npc_for_interaction(npc_or_name, interaction_type, npc_subtype)
         if not npc:
@@ -230,21 +189,18 @@ class NPCSystem:
         
         # Add stats if available
         if npc.has_stats():
-            # Only include stats relevant to this interaction type
             if interaction_type == NPCInteractionType.COMBAT:
                 combat_stats = ["STR", "DEX", "CON", "MELEE_ATTACK", "RANGED_ATTACK", "DEFENSE"]
                 for stat in combat_stats:
                     value = npc.get_stat(stat)
                     if value is not None:
                         context["stats"][stat] = value
-            
             elif interaction_type == NPCInteractionType.SOCIAL:
                 social_stats = ["CHA", "WIS"]
                 for stat in social_stats:
                     value = npc.get_stat(stat)
                     if value is not None:
                         context["stats"][stat] = value
-            
             elif interaction_type == NPCInteractionType.COMMERCE:
                 commerce_stats = ["CHA", "INT"]
                 for stat in commerce_stats:
@@ -254,25 +210,10 @@ class NPCSystem:
         
         return context
     
-    def create_enemy_for_combat(self,
-                               name: Optional[str] = None,
-                               enemy_type: str = "bandit",
-                               level: int = 1,
-                               location: Optional[str] = None) -> NPC:
-        """
-        Create an enemy NPC ready for combat.
-        
-        Args:
-            name: Optional name for the enemy
-            enemy_type: Type of enemy
-            level: Enemy level
-            location: Where the enemy is located
-            
-        Returns:
-            The created enemy NPC
-        """
-        # Phase 1 families integration: if system.npc_generation_mode == 'families',
-        # interpret enemy_type as a family_id and generate via the families-based generator.
+    def create_enemy_for_combat(self, name: Optional[str] = None, enemy_type: str = "bandit",
+                               level: int = 1, location: Optional[str] = None) -> NPC:
+        """Create an enemy NPC ready for combat."""
+        # (Same logic as provided previously, kept here for completeness of the file)
         try:
             from core.base.config import get_config
             cfg = get_config()
@@ -284,7 +225,6 @@ class NPCSystem:
             try:
                 from core.character.npc_family_generator import NPCFamilyGenerator
                 fam_gen = NPCFamilyGenerator()
-                # Parse overlay syntax: id::overlay_id or id+boss (maps to default_boss)
                 raw = enemy_type
                 overlay_id = None
                 target_id = raw
@@ -295,156 +235,79 @@ class NPCSystem:
                     target_id = raw[:-5]
                     overlay_id = overlay_id or "default_boss"
 
-                # Heuristic resolution: if neither family nor variant match, map common nouns to defaults
+                # Heuristic resolution
                 def _heuristic_map_unknown(label: str, lvl: int) -> Optional[str]:
-                    if not label:
-                        return None
+                    if not label: return None
                     key = label.lower().strip()
-                    # Beasts
                     if any(w in key for w in ["wolf", "hound", "dog", "boar", "bear", "lion", "beast"]):
                         return "beast_normal_base" if lvl >= 2 else "beast_easy_base"
-                    # Humanoids
                     if any(w in key for w in ["bandit", "guard", "soldier", "thug", "brigand", "human"]):
                         return "humanoid_easy_base" if lvl <= 2 else "humanoid_normal_base"
                     return None
 
-                # Resolve: if target_id matches a known variant, use variant; else treat as family
                 var = getattr(fam_gen, "get_variant", None)
                 fam = getattr(fam_gen, "get_family", None)
                 used_variant = False
-                # Pull difficulty/encounter_size from config if available
+                
                 try:
-                    from core.base.config import get_config
-                    cfg = get_config()
                     difficulty = (cfg.get("game.difficulty", "normal") or "normal")
                     encounter_size = (cfg.get("game.encounter_size", "solo") or "solo")
                 except Exception:
                     difficulty = "normal"
                     encounter_size = "solo"
 
-                # If unknown id, try heuristic mapping before generating
                 try:
                     fam_exists = callable(fam) and bool(fam(target_id))
-                except Exception:
-                    fam_exists = False
+                except Exception: fam_exists = False
                 try:
                     var_exists = callable(var) and bool(var(target_id))
-                except Exception:
-                    var_exists = False
+                except Exception: var_exists = False
+                
                 if not fam_exists and not var_exists:
                     mapped = _heuristic_map_unknown(target_id, level)
-                    if mapped:
-                        logger.info(f"Heuristic resolution: mapping '{target_id}' -> '{mapped}' for families generation")
-                        target_id = mapped
+                    if mapped: target_id = mapped
 
                 if callable(var) and var(target_id):
                     npc = fam_gen.generate_npc_from_variant(
-                        variant_id=target_id,
-                        name=name,
-                        location=location,
-                        level=level,
-                        overlay_id=overlay_id,
-                        difficulty=difficulty,
-                        encounter_size=encounter_size
+                        variant_id=target_id, name=name, location=location, level=level,
+                        overlay_id=overlay_id, difficulty=difficulty, encounter_size=encounter_size
                     )
                     used_variant = True
                 else:
-                    # fallback to family
                     npc = fam_gen.generate_npc_from_family(
-                        family_id=target_id,
-                        name=name,
-                        location=location,
-                        level=level,
-                        overlay_id=overlay_id,
-                        difficulty=difficulty,
-                        encounter_size=encounter_size
+                        family_id=target_id, name=name, location=location, level=level,
+                        overlay_id=overlay_id, difficulty=difficulty, encounter_size=encounter_size
                     )
-                logger.debug(f"Families-based generation succeeded (variant={used_variant}) for id='{target_id}' overlay='{overlay_id}' diff='{difficulty}' enc='{encounter_size}'")
                 
-                # Ensure persistence and registration in manager
                 if npc:
                     npc.is_persistent = True
                     self.manager.add_npc(npc)
                     
             except Exception as e:
-                logger.error(f"Families-based NPC generation failed for id='{enemy_type}': {e}", exc_info=True)
-                # Fallback to legacy if families fail
-                npc = self.creator.create_enemy(
-                    name=name,
-                    enemy_type=enemy_type,
-                    level=level,
-                    location=location
-                )
+                logger.error(f"Families-based NPC generation failed: {e}", exc_info=True)
+                npc = self.creator.create_enemy(name=name, enemy_type=enemy_type, level=level, location=location)
         else:
-            # Legacy path
-            npc = self.creator.create_enemy(
-                name=name,
-                enemy_type=enemy_type,
-                level=level,
-                location=location
-            )
+            npc = self.creator.create_enemy(name=name, enemy_type=enemy_type, level=level, location=location)
 
-        # Register in direct storage for fallback access
         if npc:
             self.register_npc(npc)
         return npc
     
-    def create_merchant(self,
-                       name: str,
-                       shop_type: str = "general",
-                       location: Optional[str] = None) -> NPC:
-        """
-        Create a merchant NPC.
-        
-        Args:
-            name: Name of the merchant
-            shop_type: Type of shop
-            location: Where the merchant is located
-            
-        Returns:
-            The created merchant NPC
-        """
-        return self.creator.create_merchant(
-            name=name,
-            shop_type=shop_type,
-            location=location
-        )
+    def create_merchant(self, name: str, shop_type: str = "general", location: Optional[str] = None) -> NPC:
+        """Create a merchant NPC."""
+        return self.creator.create_merchant(name=name, shop_type=shop_type, location=location)
     
     def update_npc_location(self, npc_id: str, new_location: str) -> bool:
-        """
-        Update an NPC's location.
-        
-        Args:
-            npc_id: ID of the NPC
-            new_location: New location
-            
-        Returns:
-            True if successful, False otherwise
-        """
+        """Update an NPC's location."""
         return self.manager.update_npc_location(npc_id, new_location)
     
     def update_npc_relationship(self, npc_id: str, new_relationship: NPCRelationship) -> bool:
-        """
-        Update an NPC's relationship with the player.
-        
-        Args:
-            npc_id: ID of the NPC
-            new_relationship: New relationship
-            
-        Returns:
-            True if successful, False otherwise
-        """
+        """Update an NPC's relationship with the player."""
         return self.manager.update_npc_relationship(npc_id, new_relationship)
     
     def save_state(self) -> bool:
-        """
-        Save the entire NPC system state.
-        
-        Returns:
-            True if successful, False otherwise
-        """
+        """Save the entire NPC system state."""
         try:
-            # Save all persistent NPCs
             self.save_all_npcs()
             return True
         except Exception as e:
@@ -452,17 +315,9 @@ class NPCSystem:
             return False
     
     def load_state(self) -> bool:
-        """
-        Load the entire NPC system state.
-        
-        Returns:
-            True if successful, False otherwise
-        """
+        """Load the entire NPC system state."""
         try:
-            # Clear existing NPCs
             self.clear_all_npcs()
-            
-            # Load all NPCs
             self.load_all_npcs()
             return True
         except Exception as e:
@@ -470,39 +325,27 @@ class NPCSystem:
             return False
 
     def register_npc(self, npc: NPC) -> None:
-        """Register an NPC in the direct storage for fallback access.
-        
-        Args:
-            npc: The NPC to register
-        """
+        """Register an NPC in the direct storage for fallback access."""
         if npc and hasattr(npc, 'id') and npc.id:
             self.npcs[npc.id] = npc
             if npc not in self.npc_list:
                 self.npc_list.append(npc)
+            if self.manager.get_npc_by_id(npc.id) is None:
+                self.manager.add_npc(npc)
             logger.debug(f"Registered NPC {npc.name} (ID: {npc.id}) in direct storage.")
+
+
+# Singleton instance for global access
+_npc_system_singleton = None
+
+def get_npc_system() -> 'NPCSystem':
+    """
+    Get the global NPC system instance.
     
-    def get_npc_by_id(self, npc_id: str) -> Optional[NPC]:
-        """Retrieves an NPC instance by its unique ID.
-
-        Args:
-            npc_id: The unique identifier of the NPC to retrieve.
-
-        Returns:
-            The NPC object if found, otherwise None.
-        """
-        # First try the main manager
-        npc = self.manager.get_npc_by_id(npc_id)
-        if npc:
-            return npc
-        
-        # Fallback to direct storage
-        if npc_id in self.npcs:
-            return self.npcs[npc_id]
-        
-        # Fallback to list search
-        for npc in self.npc_list:
-            if getattr(npc, 'id', None) == npc_id:
-                return npc
-        
-        logger.debug(f"NPC with ID {npc_id} not found in NPCSystem storage.")
-        return None
+    Returns:
+        The global NPCSystem instance
+    """
+    global _npc_system_singleton
+    if _npc_system_singleton is None:
+        _npc_system_singleton = NPCSystem()
+    return _npc_system_singleton

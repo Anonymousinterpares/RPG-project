@@ -5,12 +5,11 @@ This script initializes and runs the GUI interface.
 """
 
 import sys
-import logging
 from PySide6.QtWidgets import QApplication
 
 from gui.main_window import MainWindow
 from core.base.engine import get_game_engine
-from core.utils.logging_config import setup_logging
+from core.utils.logging_config import get_logger, setup_logging
 from gui.utils.init_settings import init_default_settings
 from core.base.init_modules import init_modules
 
@@ -18,7 +17,7 @@ def run_gui():
     """Initialize and run the GUI application."""
     # Set up logging
     setup_logging()
-    logger = logging.getLogger("GUI")
+    logger = get_logger("GUI")
     logger.info("Initializing GUI application")
     
     try:
@@ -57,11 +56,11 @@ def run_gui():
             s = QSettings("RPGGame", "Settings")
             dev_enabled = bool(s.value("dev/enabled", False, type=bool))
             show_stats_logs = bool(s.value("dev/show_stats_manager_logs", False, type=bool))
-            stats_logger = logging.getLogger("core.stats.stats_manager")
+            stats_logger = get_logger("core.stats.stats_manager")
             if dev_enabled and show_stats_logs:
-                stats_logger.setLevel(logging.DEBUG)
+                stats_logger.setLevel(get_logger.DEBUG)
             else:
-                stats_logger.setLevel(logging.WARNING)
+                stats_logger.setLevel(get_logger.WARNING)
         except Exception:
             # Never fail GUI startup due to settings/logging application
             pass

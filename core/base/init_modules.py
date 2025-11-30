@@ -4,7 +4,6 @@ Module initialization for the RPG game.
 This module imports all necessary modules to ensure they are initialized properly.
 """
 
-import logging
 from core.utils.logging_config import get_logger
 
 # Get the module logger

@@ -6,12 +6,9 @@ This module provides a RuleCheckerAgent class that validates player
 actions against game rules, prevents cheating, and ensures game fairness.
 """
 
-import os
 import re
-import json
 import hashlib
 from typing import Dict, List, Optional, Any, Tuple, Set
-import logging
 
 from core.utils.logging_config import get_logger
 from core.agents.base_agent import BaseAgent, AgentContext, AgentResponse
@@ -142,6 +139,8 @@ If YES, this section can be brief or empty.
 - **Combat Fleeing or Surrender:** Attempting to flee combat or to surrender (`request_mode_transition` to NARRATIVE from COMBAT) are valid.  
 - **Initiating Combat:** Ensure combat is initiated against valid targets. If target is not found in current context but has a name that could be an enemy (like "goblin", "bandit", "guard", "elder", etc.), assume it's a potentially valid target that will be created dynamically.
 EXTREMELY IMPORTANT: It is also possible to initiate combat with NPC that was already fought before, as long as the NPC was not killed in previous combat. Do not block such attempts! 
+- **SPECIAL HANDLING FOR COMBAT AFTER SURRENDER ACTION -> If the player previously surrendered to an NPC, and then attempts to initiate combat against that same NPC, ALLOW the combat initiation. The NPC may have grudges or other motivations for renewed hostilities.
+ALSO, THAT ENEMY WILL POSESS ANY LOOT THAT WAS TAKEN FROM THE PLAYER DURING SURRENDER. DO NOT BLOCK LOOTING OR COMBAT AGAINST THAT NPC.
 - **Initiating Trade/Social:** Ensure the target is present and capable of participating.
 
 Respond with your validation assessment of the player's proposed action.
@@ -683,7 +682,7 @@ def get_rule_checker_agent() -> RuleCheckerAgent:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    get_logger.basicConfig(level=get_logger.INFO)
     
     # Create the rule checker agent
     rule_checker = get_rule_checker_agent()

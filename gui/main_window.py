@@ -702,137 +702,138 @@ class MainWindow(QMainWindow):
                 self.combat_display.update_display(state) 
 
     def _update_ui(self):
-            """Update UI components based on the current game state."""
-            state = self.game_engine.state_manager.current_state
-            if not state:
-                self.status_bar.update_status(location="Not in game", game_time="", calendar="", mode="N/A")
-                if hasattr(self.right_panel, 'character_sheet') and self.right_panel.character_sheet: 
-                    self.right_panel.character_sheet._clear_stat_displays() 
-                
-                inventory_manager_for_clear = get_inventory_manager() 
-                if hasattr(self.right_panel, 'update_inventory'): self.right_panel.update_inventory(inventory_manager_for_clear) 
-                return
-
-            game_over = False
-            if state.current_mode == InteractionMode.COMBAT and state.combat_manager:
-                if state.combat_manager.state == CombatState.PLAYER_DEFEAT:
-                    game_over = True
-            elif state.current_mode != InteractionMode.COMBAT: 
-                try:
-                    stats_manager = self.game_engine._stats_manager
-                    if stats_manager:
-                        from core.stats.stats_base import DerivedStatType
-                        player_hp = stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
-                        if player_hp <= 0: game_over = True
-                except Exception: pass
-
-            if game_over and not hasattr(self, '_game_over_dialog_shown'):
-                self._game_over_dialog_shown = True 
-                self.narrative_command_input.setEnabled(False)
-                self.combat_command_input.setEnabled(False)
-
-                dialog = GameOverDialog(parent=self)
-                dialog.set_reason("You have been defeated!") 
-                dialog.new_game_requested.connect(self._show_new_game_dialog)
-                dialog.load_game_requested.connect(self._show_load_game_dialog)
-                dialog.load_last_save_requested.connect(self._load_last_save)
-                dialog.exec()
-                self.narrative_command_input.setEnabled(True)
-                self.combat_command_input.setEnabled(True)
-                if hasattr(self, '_game_over_dialog_shown'): 
-                    delattr(self, '_game_over_dialog_shown') 
-                return 
+        """Update UI components based on the current game state."""
+        state = self.game_engine.state_manager.current_state
+        if not state:
+            self.status_bar.update_status(location="Not in game", game_time="", calendar="", mode="N/A")
+            if hasattr(self.right_panel, 'character_sheet') and self.right_panel.character_sheet: 
+                self.right_panel.character_sheet._clear_stat_displays() 
             
-            current_mode_enum = state.current_mode
-            current_mode_name = current_mode_enum.name if hasattr(current_mode_enum, 'name') else str(current_mode_enum)
+            inventory_manager_for_clear = get_inventory_manager() 
+            if hasattr(self.right_panel, 'update_inventory'): self.right_panel.update_inventory(inventory_manager_for_clear) 
+            return
 
-            is_transitioning_to_combat = getattr(state, 'is_transitioning_to_combat', False)
-            combat_narrative_buffer = getattr(state, 'combat_narrative_buffer', [])
-
-            if current_mode_name == "COMBAT":
-                view_switched_this_call = False
-                if self.mode_stacked_widget.currentWidget() != self.combat_view:
-                    self.mode_stacked_widget.setCurrentWidget(self.combat_view)
-                    view_switched_this_call = True
-
-                self.combat_view.setVisible(True) 
-                self.combat_view.update() 
-                self.mode_stacked_widget.update() 
-                
-                if view_switched_this_call:
-                    if hasattr(self.right_panel, 'tab_widget'): 
-                        self.right_panel.tab_widget.setCurrentIndex(0)
-
-                if is_transitioning_to_combat and combat_narrative_buffer:
-                    from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
-                    buffer_event = DisplayEvent(
-                        type=DisplayEventType.BUFFER_FLUSH,
-                        content=list(combat_narrative_buffer), 
-                        role="gm", 
-                        target_display=DisplayTarget.COMBAT_LOG,
-                        gradual_visual_display=True,
-                        tts_eligible=True
-                    )
-                    self.game_engine._combat_orchestrator.add_event_to_queue(buffer_event)
-                    state.combat_narrative_buffer.clear() 
-                    state.is_transitioning_to_combat = False 
-                
-                self.combat_display.update_display(state) 
-                
-                if state.player and hasattr(self.right_panel, 'update_character'): self.right_panel.update_character(state.player) 
-
-                combat_manager = state.combat_manager 
-                if view_switched_this_call and combat_manager and combat_manager.current_step == CombatStep.STARTING_COMBAT:
-                    if not self.game_engine._combat_orchestrator.is_processing_event and not self.game_engine._combat_orchestrator.event_queue:
-                        QTimer.singleShot(10, lambda cm=combat_manager, eng=self.game_engine: cm.process_combat_step(eng))
-
-            else: 
-                if self.mode_stacked_widget.currentWidget() != self.narrative_view:
-                    self.mode_stacked_widget.setCurrentWidget(self.narrative_view)
-                
-                self.narrative_view.setVisible(True) 
-                self.narrative_view.update()
-                self.mode_stacked_widget.update()
-                
-                if hasattr(self, 'combat_display'):
-                     self.combat_display.update_display(state)
-
-                if is_transitioning_to_combat: 
-                    state.is_transitioning_to_combat = False 
-                    state.combat_narrative_buffer.clear()
-
-            if current_mode_enum == InteractionMode.TRADE and \
-               (self._previous_mode is None or self._previous_mode != InteractionMode.TRADE):
-                partner_id = getattr(state, 'current_trade_partner_id', None)
-                partner_name = "Unknown NPC"
-                if partner_id and state.world: 
-                    partner_obj = getattr(state.world, 'get_character', lambda pid: None)(partner_id)
-                    if partner_obj: partner_name = getattr(partner_obj, 'name', "Unknown NPC")
-                self.game_output.append_system_message(f"Trade started with {partner_name}.", gradual=False)
-
-            self._previous_mode = current_mode_enum
-            if state.player and hasattr(self.right_panel, 'update_character'): self.right_panel.update_character(state.player)
-
-            inventory_manager = get_inventory_manager() 
-            if hasattr(self.right_panel, 'update_inventory'): self.right_panel.update_inventory(inventory_manager)
-            
-            journal_data = getattr(state, "journal", None)
-            if journal_data is not None and hasattr(self.right_panel, 'update_journal'): self.right_panel.update_journal(journal_data)
-
-            if hasattr(self.right_panel, 'update_grimoire'):
-                self.right_panel.update_grimoire()
-
-            self.status_bar.update_status(
-                location=getattr(state.player, 'current_location', 'Unknown') if state.player else 'N/A',
-                game_time=getattr(state.world, 'time_of_day', ''),
-                calendar=getattr(state.world, 'calendar_string', ''),
-                mode=current_mode_name 
-            )
+        game_over = False
+        if state.current_mode == InteractionMode.COMBAT and state.combat_manager:
+            if state.combat_manager.state == CombatState.PLAYER_DEFEAT:
+                game_over = True
+        elif state.current_mode != InteractionMode.COMBAT: 
             try:
-                ctx_payload = self.game_engine.get_game_context() if hasattr(self.game_engine, 'get_game_context') else {}
-                self.status_bar.update_context(ctx_payload)
-            except Exception:
-                pass
+                stats_manager = self.game_engine._stats_manager
+                if stats_manager:
+                    from core.stats.stats_base import DerivedStatType
+                    player_hp = stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
+                    if player_hp <= 0: game_over = True
+            except Exception: pass
+
+        if game_over and not hasattr(self, '_game_over_dialog_shown'):
+            self._game_over_dialog_shown = True 
+            self.narrative_command_input.setEnabled(False)
+            self.combat_command_input.setEnabled(False)
+
+            dialog = GameOverDialog(parent=self)
+            dialog.set_reason("You have been defeated!") 
+            dialog.new_game_requested.connect(self._show_new_game_dialog)
+            dialog.load_game_requested.connect(self._show_load_game_dialog)
+            dialog.load_last_save_requested.connect(self._load_last_save)
+            dialog.exec()
+            self.narrative_command_input.setEnabled(True)
+            self.combat_command_input.setEnabled(True)
+            if hasattr(self, '_game_over_dialog_shown'): 
+                delattr(self, '_game_over_dialog_shown') 
+            return 
+        
+        current_mode_enum = state.current_mode
+        current_mode_name = current_mode_enum.name if hasattr(current_mode_enum, 'name') else str(current_mode_enum)
+
+        is_transitioning_to_combat = getattr(state, 'is_transitioning_to_combat', False)
+        combat_narrative_buffer = getattr(state, 'combat_narrative_buffer', [])
+
+        if current_mode_name == "COMBAT":
+            view_switched_this_call = False
+            if self.mode_stacked_widget.currentWidget() != self.combat_view:
+                self.mode_stacked_widget.setCurrentWidget(self.combat_view)
+                view_switched_this_call = True
+
+            self.combat_view.setVisible(True) 
+            self.combat_view.update() 
+            self.mode_stacked_widget.update() 
+            
+            if view_switched_this_call:
+                if hasattr(self.right_panel, 'tab_widget'): 
+                    self.right_panel.tab_widget.setCurrentIndex(0)
+
+            if is_transitioning_to_combat and combat_narrative_buffer:
+                from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget 
+                buffer_event = DisplayEvent(
+                    type=DisplayEventType.BUFFER_FLUSH,
+                    content=list(combat_narrative_buffer), 
+                    role="gm", 
+                    target_display=DisplayTarget.COMBAT_LOG,
+                    gradual_visual_display=True,
+                    tts_eligible=True
+                )
+                self.game_engine._combat_orchestrator.add_event_to_queue(buffer_event)
+                state.combat_narrative_buffer.clear() 
+                state.is_transitioning_to_combat = False 
+            
+            self.combat_display.update_display(state) 
+            
+            if state.player and hasattr(self.right_panel, 'update_character'): self.right_panel.update_character(state.player) 
+
+            combat_manager = state.combat_manager 
+            if view_switched_this_call and combat_manager and combat_manager.current_step == CombatStep.STARTING_COMBAT:
+                if not self.game_engine._combat_orchestrator.is_processing_event and not self.game_engine._combat_orchestrator.event_queue:
+                    QTimer.singleShot(10, lambda cm=combat_manager, eng=self.game_engine: cm.process_combat_step(eng))
+
+        else: 
+            if self.mode_stacked_widget.currentWidget() != self.narrative_view:
+                self.mode_stacked_widget.setCurrentWidget(self.narrative_view)
+            
+            self.narrative_view.setVisible(True) 
+            self.narrative_view.update()
+            self.mode_stacked_widget.update()
+            
+            # Removed: self.combat_display.update_display(state)
+            # Optimization: Do not update combat display when in Narrative mode.
+            # This prevents errors if combat state is cleared or partial.
+
+            if is_transitioning_to_combat: 
+                state.is_transitioning_to_combat = False 
+                state.combat_narrative_buffer.clear()
+
+        if current_mode_enum == InteractionMode.TRADE and \
+            (self._previous_mode is None or self._previous_mode != InteractionMode.TRADE):
+            partner_id = getattr(state, 'current_trade_partner_id', None)
+            partner_name = "Unknown NPC"
+            if partner_id and state.world: 
+                partner_obj = getattr(state.world, 'get_character', lambda pid: None)(partner_id)
+                if partner_obj: partner_name = getattr(partner_obj, 'name', "Unknown NPC")
+            self.game_output.append_system_message(f"Trade started with {partner_name}.", gradual=False)
+
+        self._previous_mode = current_mode_enum
+        if state.player and hasattr(self.right_panel, 'update_character'): self.right_panel.update_character(state.player)
+
+        inventory_manager = get_inventory_manager() 
+        if hasattr(self.right_panel, 'update_inventory'): self.right_panel.update_inventory(inventory_manager)
+        
+        journal_data = getattr(state, "journal", None)
+        if journal_data is not None and hasattr(self.right_panel, 'update_journal'): self.right_panel.update_journal(journal_data)
+
+        if hasattr(self.right_panel, 'update_grimoire'):
+            self.right_panel.update_grimoire()
+
+        self.status_bar.update_status(
+            location=getattr(state.player, 'current_location', 'Unknown') if state.player else 'N/A',
+            game_time=getattr(state.world, 'time_of_day', ''),
+            calendar=getattr(state.world, 'calendar_string', ''),
+            mode=current_mode_name 
+        )
+        try:
+            ctx_payload = self.game_engine.get_game_context() if hasattr(self.game_engine, 'get_game_context') else {}
+            self.status_bar.update_context(ctx_payload)
+        except Exception:
+            pass
 
     def _show_new_game_dialog(self):
         from gui.dialogs.character_creation_dialog import CharacterCreationDialog

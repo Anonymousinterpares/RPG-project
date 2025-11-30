@@ -1,5 +1,4 @@
 import random
-import logging
 from typing import Dict, Any, TYPE_CHECKING
 
 from core.stats.combat_effects import StatusEffect, StatusEffectType
@@ -12,6 +11,7 @@ from core.combat.combat_action import CombatAction
 from core.combat.enums import CombatState, CombatStep
 from core.base.config import get_config
 from core.orchestration.events import DisplayEvent, DisplayEventType
+from core.utils.logging_config import get_logger
 
 from .resource_utils import apply_and_display_costs
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from core.stats.stats_manager import StatsManager
     from core.base.engine import GameEngine
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def handle_attack_action(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict) -> Dict[str, Any]:
     """Handle the mechanics of an attack action."""

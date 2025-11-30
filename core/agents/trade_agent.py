@@ -5,12 +5,11 @@ Trade agent for handling buying, selling, and bartering interactions.
 
 import re
 import json
-import logging
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from core.utils.logging_config import get_logger
 from core.agents.base_agent import BaseAgent, AgentContext
-from core.interaction.structured_requests import AgentOutput, SkillCheckRequest, StateChangeRequest
+from core.interaction.structured_requests import AgentOutput
 from core.interaction.enums import InteractionMode
 
 logger = get_logger("AGENT")

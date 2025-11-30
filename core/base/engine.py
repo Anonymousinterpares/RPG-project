@@ -83,30 +83,30 @@ class GameEngine(QObject):
         self.audio_controller.playback_updated.connect(self.playback_updated)
         self.audio_controller.music_state_updated.connect(self.music_state_updated)
 
-        # Parallel initialization of managers
-        import concurrent.futures
+        # Sequential initialization of managers to avoid singleton race conditions
         from core.character.npc_system import NPCSystem
+        import core.character.npc_system # Import module to set singleton
+        from core.agents.agent_manager import get_agent_manager 
+        from core.character.npc_manager import get_npc_manager as get_entity_manager 
+        from core.inventory.item_manager import get_inventory_manager as get_item_manager 
+        from core.stats.stats_manager import get_stats_manager 
+        from core.agents.combat_narrator import get_combat_narrator_agent 
         from core.music.director import get_music_director
         from core.audio.sfx_manager import SFXManager
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_npc_system = executor.submit(NPCSystem)
-            future_agent_manager = executor.submit(get_agent_manager)
-            future_entity_manager = executor.submit(get_entity_manager)
-            future_item_manager = executor.submit(get_item_manager)
-            future_stats_manager = executor.submit(get_stats_manager)
-            future_combat_narrator = executor.submit(get_combat_narrator_agent)
-            future_music_director = executor.submit(get_music_director, project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
-            future_sfx_manager = executor.submit(SFXManager, project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
-
-            self._npc_system = future_npc_system.result()
-            self._agent_manager = future_agent_manager.result()
-            self._entity_manager = future_entity_manager.result()
-            self._item_manager = future_item_manager.result()
-            self._stats_manager = future_stats_manager.result()
-            self._combat_narrator_agent = future_combat_narrator.result()
-            self._music_director = future_music_director.result()
-            self._sfx_manager = future_sfx_manager.result()
+        # Initialize NPC System and enforce global singleton
+        # This ensures ContextBuilder.get_npc_system() returns THIS instance with the correct data
+        self._npc_system = NPCSystem()
+        core.character.npc_system._npc_system_singleton = self._npc_system
+        
+        # Initialize other managers
+        self._agent_manager = get_agent_manager()
+        self._entity_manager = get_entity_manager()
+        self._item_manager = get_item_manager()
+        self._stats_manager = get_stats_manager()
+        self._combat_narrator_agent = get_combat_narrator_agent()
+        self._music_director = get_music_director(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
+        self._sfx_manager = SFXManager(project_root=self._config.project_root if hasattr(self._config, 'project_root') else None)
 
         self._state_manager.set_npc_system(self._npc_system)
         logger.info("All managers initialized and ready.")
@@ -817,7 +817,7 @@ class GameEngine(QObject):
             if hasattr(self, 'main_window_ref') and self.main_window_ref:
                 main_window = self.main_window_ref()
                 if main_window and hasattr(main_window, '_update_ui'):
-                    QTimer.singleShot(0, main_window._update_ui)
+                    QTimer.singleShot(0, main_window, main_window._update_ui)
         except Exception as e:
             logger.error(f"Failed to request UI update: {e}")
 

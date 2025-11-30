@@ -66,13 +66,9 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
     """Creates CombatEntity objects for enemies based on the request.
 
     Enhancements:
-    - Accepts optional per-enemy specification via request['enemies'] (list), where each
-      item may include 'name', 'count', 'level', 'spawn_hints' (with 'actor_type',
-      'threat_tier', 'species_tags', 'is_boss', 'overlay', 'classification'), or a direct
-      'classification' dict. Each enemy spec is handled independently so that mixed groups
-      (e.g., 1 Wolf beast_easy + 1 Ogre beast_normal) are generated distinctly.
-    - Supports spawn_hints.name and spawn_hints.classification even when a single enemy
-      is requested via the legacy top-level fields.
+    - Prioritizes existing persistent NPCs at the current location if they match the request.
+    - Accepts optional per-enemy specification via request['enemies'].
+    - Supports spawn_hints and dynamic creation fallback.
     """
     enemy_entities = []
     target_entity_id_or_name = request.get("target_entity_id")  # Keep original request value
@@ -82,6 +78,7 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
 
     # Optional compact spawn hints (from NarratorAgent)
     spawn_hints = request.get("spawn_hints") or {}
+    
     # Normalize keys (single-enemy path)
     if isinstance(spawn_hints, dict):
         actor_type_hint = str(spawn_hints.get("actor_type", "")).lower() or None
@@ -115,51 +112,32 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
         from core.character.npc_system import NPCSystem
         npc_system = NPCSystem()
 
-    # Helper: compute canonical family id from enums with validation/fallback
+    # --- Helper functions for template resolution ---
     def _canonical_family_id(actor_type: str, threat_tier: str) -> str:
         try:
             from core.base.config import get_config
             cfg_local = get_config()
             fams = cfg_local.get("npc_families.families") or {}
-            if not isinstance(fams, dict):
-                fams = {}
-        except Exception:
-            fams = {}
+            if not isinstance(fams, dict): fams = {}
+        except Exception: fams = {}
         at = (actor_type or "").lower()
         tt = (threat_tier or "").lower()
-        if at not in {"beast", "humanoid", "undead", "construct", "elemental", "spirit"}:
-            at = "beast"
-        if tt not in {"harmless", "easy", "normal", "dangerous", "ferocious", "mythic"}:
-            tt = "normal"
+        if at not in {"beast", "humanoid", "undead", "construct", "elemental", "spirit"}: at = "beast"
+        if tt not in {"harmless", "easy", "normal", "dangerous", "ferocious", "mythic"}: tt = "normal"
         candidate = f"{at}_{tt}_base"
-        if candidate in fams:
-            return candidate
-        # Nearest-tier fallback for humanoid_harmless (missing today)
+        if candidate in fams: return candidate
         if at == "humanoid" and tt == "harmless":
             fallback = "humanoid_easy_base"
             return fallback if fallback in fams else (next(iter(fams.keys())) if fams else "beast_normal_base")
-        # If actor type family missing, degrade to beast at same tier
         beast_candidate = f"beast_{tt}_base"
-        if beast_candidate in fams:
-            return beast_candidate
-        # Final resort
+        if beast_candidate in fams: return beast_candidate
         return next(iter(fams.keys())) if fams else "beast_normal_base"
 
-    # Helper: compute template id from a spec (variant/family/actor_type+tier) and overlay
     def _compute_template_id(spec: Dict[str, Any], display_name: Optional[str] = None, narrative_hint: Optional[str] = None) -> str:
-        """Return final enemy_type id string for NPCSystem.
-        Rules:
-        - Ignore any LLM-provided family_id string. Only accept a known variant_id.
-        - Prefer enums (actor_type, threat_tier) to build family_id.
-        - If enums are missing, ask the EntityClassifierAgent with name/context.
-        - Overlay is applied via ::overlay.
-        """
-        # Normalize overlay/boss
         overlay = spec.get("overlay") or (spec.get("spawn_hints", {}) or {}).get("overlay")
         is_boss = bool(spec.get("is_boss") or (spec.get("spawn_hints", {}) or {}).get("is_boss", False))
         overlay_id = overlay or ("default_boss" if is_boss else None)
 
-        # 1) Variant id (validate)
         variant_id = None
         classification = spec.get("classification") if isinstance(spec.get("classification"), dict) else None
         if not classification:
@@ -173,39 +151,25 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
                     variants = (get_config().get("npc_variants.variants") or {})
                     if isinstance(variants, dict) and cand_variant in variants:
                         variant_id = cand_variant
-                except Exception:
-                    variant_id = None
+                except Exception: variant_id = None
 
-        # If we have a valid variant id, use it now (overlay applied later)
         if variant_id:
             base_id = variant_id
         else:
-            # 2) Try enums from hints/classification
             atype = (spec.get("actor_type") or (spec.get("spawn_hints", {}) or {}).get("actor_type") or (classification or {}).get("actor_type") or "").lower()
             tier = (spec.get("threat_tier") or (spec.get("spawn_hints", {}) or {}).get("threat_tier") or (classification or {}).get("threat_tier") or "").lower()
             if not (atype and tier):
-                # 3) Ask classifier LLM (name + short context)
                 try:
                     from core.agents.entity_classifier import get_entity_classifier_agent
                     from core.agents.base_agent import AgentContext
                     agent = get_entity_classifier_agent()
-                    # Build compact prompt input
                     nm = display_name or spec.get("name") or (spec.get("spawn_hints", {}) or {}).get("name") or "Unknown"
                     species_tags = spec.get("species_tags") or (spec.get("spawn_hints", {}) or {}).get("species_tags") or []
                     intent = narrative_hint or ("; ").join([str(nm), f"tags={species_tags}"])
-                    ctx = AgentContext(
-                        game_state={"mode": "CLASSIFY"},
-                        player_state={},
-                        world_state={},
-                        player_input=intent,
-                        conversation_history=[],
-                        relevant_memories=[],
-                        additional_context={}
-                    )
+                    ctx = AgentContext(game_state={"mode": "CLASSIFY"}, player_state={}, world_state={}, player_input=intent, conversation_history=[], relevant_memories=[], additional_context={})
                     out = agent.process(ctx) or {}
                     atype = str(out.get("actor_type", "beast"))
                     tier = str(out.get("threat_tier", "normal"))
-                    # Optional: if classifier suggested a valid variant_id, prefer it
                     v = out.get("variant_id")
                     if isinstance(v, str):
                         try:
@@ -213,75 +177,110 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
                             variants = (get_config().get("npc_variants.variants") or {})
                             if isinstance(variants, dict) and v in variants:
                                 variant_id = v
-                        except Exception:
-                            pass
-                except Exception as e:
+                        except Exception: pass
+                except Exception:
                     atype = atype or "beast"
                     tier = tier or "normal"
-            if variant_id:
-                base_id = variant_id
-            else:
-                base_id = _canonical_family_id(atype, tier)
+            if variant_id: base_id = variant_id
+            else: base_id = _canonical_family_id(atype, tier)
 
-        # Apply overlay syntax if needed
         return f"{base_id}::{overlay_id}" if overlay_id and base_id else (base_id or "beast_normal_base")
 
-    # Helper: compute a human-readable name for a spec
     def _compute_display_name(spec: Dict[str, Any]) -> Optional[str]:
-        # Direct name field wins
         nm = spec.get("name")
         if not nm:
-            # Nested under spawn_hints
             sh = spec.get("spawn_hints") if isinstance(spec.get("spawn_hints"), dict) else {}
             nm = sh.get("name")
-        if nm:
-            return str(nm)
-        # Species tag fallback
+        if nm: return str(nm)
         sp = None
         sh = spec.get("spawn_hints") if isinstance(spec.get("spawn_hints"), dict) else {}
         stags = spec.get("species_tags") or sh.get("species_tags")
-        if isinstance(stags, list) and stags:
-            sp = str(stags[0])
-        if sp:
-            return sp.title()
-        # As last resort derive from id
+        if isinstance(stags, list) and stags: sp = str(stags[0])
+        if sp: return sp.title()
         tid = _compute_template_id(spec)
         base_label = tid.replace("_base", "").replace("_", " ") if tid else "enemy"
         return base_label.title()
 
+    # --- SCAN FOR EXISTING PERSISTENT NPCs ---
+    existing_candidates = []
+    player_loc = getattr(game_state.player, 'current_location', None)
+    
+    if player_loc and npc_system:
+        loc_npcs = npc_system.get_npcs_by_location(player_loc)
+        
+        for npc in loc_npcs:
+            # We must consider persistent NPCs (like those with loot)
+            if not npc.is_persistent: continue 
+            
+            is_match = False
+            
+            # --- MODIFIED MATCHING LOGIC ---
+            target_str = (target_entity_id_or_name or "").lower()
+            npc_name = npc.name.lower()
+            
+            # 1. Exact ID match or Exact Name match
+            if target_str and (npc.id == target_entity_id_or_name or npc_name == target_str):
+                is_match = True
+            
+            # 2. Template match (if template provided)
+            elif enemy_template:
+                ki = getattr(npc, 'known_information', {})
+                npc_fam = ki.get('family_id')
+                npc_var = ki.get('variant_id')
+                if npc_fam == enemy_template or npc_var == enemy_template:
+                    is_match = True
+                elif enemy_template.lower() in (npc_fam or "").lower():
+                    is_match = True
+            
+            # 3. Fuzzy Name match (Bidirectional containment for "Wolf" vs "Wolf_1")
+            elif target_str:
+                 # Check if request "wolf_1" contains real name "wolf" OR real name "Wolf" contains request "wolf"
+                 if target_str in npc_name or npc_name in target_str:
+                     is_match = True
+            
+            # 4. Nemesis Check (Loot Holder) - High Priority Override
+            # If the NPC holds loot, we assume they are a prime target if there's ANY name/type correlation
+            # or if the player just said "attack" (target_str empty/generic).
+            if not is_match and npc.inventory:
+                 # If user specified a name, only match if it's remotely similar (e.g. "wolf" in "wolf_1")
+                 # If user specified nothing (just "attack"), assume they mean the loot holder.
+                 if not target_str or (target_str in npc_name or npc_name in target_str):
+                     logger.info(f"Nemesis Match: Matched NPC {npc.name} holding loot.")
+                     is_match = True
 
-    # --- Resolve Target NPC ---
-    target_npc = None
+            if is_match:
+                # Verify alive
+                hp = 1
+                if npc.has_stats() and npc.stats_manager:
+                    from core.stats.stats_base import DerivedStatType
+                    hp = npc.stats_manager.get_current_stat_value(DerivedStatType.HEALTH)
+                if hp > 0:
+                    existing_candidates.append(npc)
 
-    # Multi-enemy specification (preferred when provided): request['enemies']
+    # --- PROCESSING ---
+    npcs_to_process = []
     enemies_spec = request.get("enemies") if isinstance(request.get("enemies"), list) else []
 
-    # If a list of enemies is provided, skip single-target/template resolution and build per-spec
-    created_npcs: List[Any] = []
+    # A. Multi-enemy spec (request['enemies'])
     if enemies_spec:
         logger.info(f"Creating enemies from 'enemies' array (count={len(enemies_spec)}).")
         try:
-            player_location = getattr(game_state.player, 'current_location', 'unknown_location')
-            if not player_location:
-                player_location = 'unknown_location'
+            player_location = getattr(game_state.player, 'current_location', 'unknown_location') or 'unknown_location'
         except Exception:
             player_location = 'unknown_location'
 
-        # Track local name counts for numbering duplicates across specs
         local_name_counts: Dict[str, int] = {}
 
         for idx, spec in enumerate(enemies_spec):
             try:
-                # Normalized view combining top-level spec and nested spawn_hints for convenience
                 merged: Dict[str, Any] = {}
                 if isinstance(spec, dict):
                     merged.update(spec)
                     if isinstance(spec.get('spawn_hints'), dict):
-                        # Copy select keys up for easier access if not present
                         for k in ["actor_type", "threat_tier", "species_tags", "is_boss", "overlay", "name", "classification"]:
                             if k not in merged and k in spec['spawn_hints']:
                                 merged[k] = spec['spawn_hints'][k]
-                # Compute template id and display name
+                
                 display_name = _compute_display_name(merged)
                 narrative_hint = (request.get("additional_context", {}) or {}).get("original_intent") or request.get("reason")
                 template_id = _compute_template_id(merged, display_name=display_name, narrative_hint=narrative_hint)
@@ -291,7 +290,6 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
                 logger.debug(f"Enemy spec[{idx}] -> template='{template_id}', name='{display_name}', count={count}, level={level}")
 
                 for j in range(max(1, count)):
-                    # Unique-ish names prior to CombatEntity naming to avoid Manager renames
                     base_name = display_name or "Enemy"
                     n = local_name_counts.get(base_name, 0) + 1
                     local_name_counts[base_name] = n
@@ -304,91 +302,50 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
                         location=player_location
                     )
                     if enemy_npc and hasattr(enemy_npc, 'id'):
-                        created_npcs.append(enemy_npc)
-                        logger.debug(f"Created enemy NPC '{final_name}' (ID: {enemy_npc.id}, template: {template_id})")
+                        npcs_to_process.append(enemy_npc)
                     else:
                         logger.error(f"Failed to create enemy NPC from spec[{idx}] named '{final_name}'.")
             except Exception as ex:
                 logger.error(f"Error processing enemy spec[{idx}]: {ex}", exc_info=True)
 
-        if not created_npcs:
+        if not npcs_to_process:
             return [], "System Error: Failed to create enemies from 'enemies' specification."
 
-        # If we built specific enemies, skip the rest of the single-enemy path
-        npcs_to_process = created_npcs
-    if not enemies_spec:
+    # B. Single Target / Template Logic (with persistence check)
+    else:
+        needed = enemy_count
+        
+        # 1. Prioritize Specific Existing Match
         if target_entity_id_or_name:
-            # Try finding by ID/Name using the utility function first
-            participant = get_participant_by_id(game_state, target_entity_id_or_name)
-            if participant and getattr(participant, 'entity_type', None) != EntityType.PLAYER:
-                target_npc = participant
-                logger.info(f"Found target NPC '{getattr(target_npc, 'name', 'Unknown')}' via get_participant_by_id.")
-            else:
-                # If not found by utility, try NPCSystem directly
-                logger.warning(f"Participant '{target_entity_id_or_name}' not found via standard lookup. Trying NPCSystem directly.")
-                if npc_system:
-                     # Try by ID first if it looks like one
-                    if len(target_entity_id_or_name) > 10 and '-' in target_entity_id_or_name: # Basic UUID check
-                        if hasattr(npc_system, 'get_npc_by_id'):
-                            target_npc = npc_system.get_npc_by_id(target_entity_id_or_name)
-                    # If not found by ID or doesn't look like ID, try by name
-                    if not target_npc and hasattr(npc_system, 'get_npc_by_name'):
-                        target_npc = npc_system.get_npc_by_name(target_entity_id_or_name)
+            # Try exact ID match first
+            specific_match = next((n for n in existing_candidates if n.id == target_entity_id_or_name), None)
+            
+            # If no ID match, try looser name matching (contains/contained-by)
+            if not specific_match:
+                target_lower = target_entity_id_or_name.lower()
+                specific_match = next((n for n in existing_candidates if n.name.lower() == target_lower or n.name.lower() in target_lower or target_lower in n.name.lower()), None)
 
-                if target_npc:
-                    logger.info(f"Found target NPC '{getattr(target_npc, 'name', 'Unknown')}' via NPCSystem lookup.")
-                else:
-                    # --- MODIFICATION: Attempt Dynamic Creation HERE ---
-                    logger.warning(f"Provided target '{target_entity_id_or_name}' not found via NPCSystem either.")
-                    # Only attempt creation if no template was provided and we have a name
-                    if not enemy_template and target_entity_id_or_name and npc_system:
-                        logger.info(f"Attempting dynamic creation of '{target_entity_id_or_name}' within _create_combat_enemies.")
-                        try:
-                            # Determine type/level dynamically using the existing function
-                            dynamic_enemy_type, dynamic_level = _determine_dynamic_enemy_details(request, target_entity_id_or_name)
-                            player_location = getattr(game_state.player, 'current_location', 'unknown_location')
-                            target_npc = npc_system.create_enemy_for_combat(
-                                name=target_entity_id_or_name,  # Use the requested name
-                                enemy_type=dynamic_enemy_type,
-                                level=dynamic_level,
-                                location=player_location
-                            )
-                            if target_npc:
-                                logger.info(f"Successfully created dynamic NPC: {target_npc.name} (ID: {target_npc.id})")
-                                # The newly created NPC is now assigned to target_npc
-                            else:
-                                 logger.error(f"Dynamic creation failed for '{target_entity_id_or_name}'.")
-                                 target_entity_id_or_name = None  # Mark as invalid if creation failed
-                        except Exception as fallback_creation_error:
-                             logger.error(f"Error during dynamic NPC creation: {fallback_creation_error}", exc_info=True)
-                             target_entity_id_or_name = None  # Mark as invalid
-                    else:
-                         # If we had a template or no name, clear the invalid target name
-                         target_entity_id_or_name = None
-                     # --- END MODIFICATION ---
+            if specific_match:
+                npcs_to_process.append(specific_match)
+                needed -= 1
+                existing_candidates.remove(specific_match)
+        
+        # 2. Fill remainder from other candidates (e.g. loot holders that didn't match specific name but matched "Nemesis" logic)
+        while needed > 0 and existing_candidates:
+            npc = existing_candidates.pop(0)
+            npcs_to_process.append(npc)
+            needed -= 1
+            logger.info(f"Reusing existing persistent NPC for combat: {npc.name} ({npc.id})")
 
-
-        # --- Check if we have a target or template AFTER potential dynamic creation ---
-        if not target_npc and not enemy_template:
-            logger.error("Combat initiation request missing valid target_entity_id/name or enemy_template.")
-            return [], "System Error: Combat initiation request is incomplete (missing target or template)."
-
-        # --- Create list of NPCs to process ---
-        npcs_to_process = []
-        if target_npc:  # If we found or created the target NPC
-            npcs_to_process.append(target_npc)
-            logger.info(f"Targeting NPC '{getattr(target_npc, 'name', 'Unknown')}' for combat.")
-        elif enemy_template and npc_system:  # If we didn't have a target, but have a template
-            # Validate provided template; if invalid, resolve universally via classifier/hints
-            try:
-                from core.base.config import get_config
-                cfg = get_config()
-                families = cfg.get("npc_families.families") or {}
-                variants = cfg.get("npc_variants.variants") or {}
-            except Exception:
-                families, variants = {}, {}
-            base_id = enemy_template.split("::", 1)[0]
-            if not (isinstance(variants, dict) and base_id in variants) and not (isinstance(families, dict) and base_id in families):
+        # 3. Generate fresh if still needed
+        if needed > 0:
+            # Fallback dynamic determination
+            if not enemy_template and target_entity_id_or_name:
+                 d_type, d_lvl = _determine_dynamic_enemy_details(request, target_entity_id_or_name)
+                 enemy_template = d_type
+            
+            # Final fallback resolution
+            if not enemy_template:
                 narrative_hint = (request.get("additional_context", {}) or {}).get("original_intent") or request.get("reason")
                 spec_for_compute = {
                     "actor_type": actor_type_hint,
@@ -398,34 +355,30 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
                     "species_tags": species_tags,
                 }
                 resolved_id = _compute_template_id(spec_for_compute, display_name=provided_display_name, narrative_hint=narrative_hint)
-                logger.info(f"Template '{enemy_template}' invalid; resolved universally to '{resolved_id}'.")
                 enemy_template = resolved_id
 
-            logger.info(f"Creating {enemy_count} enemies from template '{enemy_template}' (Level {enemy_level})")
-            for i in range(enemy_count):
-                # Choose a readable name: prefer provided name/species, else derive from template id
+            logger.info(f"Generating {needed} fresh enemies from template '{enemy_template}' (Level {enemy_level})")
+            
+            for i in range(needed):
                 base_name = provided_display_name or (species_tags[0].title() if species_tags else enemy_template.replace("_base", "").replace("_", " ").title())
-                enemy_name = f"{base_name} {i+1}" if enemy_count > 1 else base_name
+                if not base_name and target_entity_id_or_name: base_name = target_entity_id_or_name
+                
+                # Numbering logic for fresh spawns
+                enemy_name = f"{base_name} {i+1}" if needed > 1 else base_name
+                
                 try:
                     player_location = getattr(game_state.player, 'current_location', 'unknown_location')
-                    if not player_location:
-                        logger.warning("Player location not found, using 'unknown_location' for enemy creation.")
-                        player_location = 'unknown_location'
+                    if not player_location: player_location = 'unknown_location'
 
                     enemy_npc = npc_system.create_enemy_for_combat(
                         name=enemy_name, enemy_type=enemy_template, level=enemy_level, location=player_location
                     )
                     if enemy_npc and hasattr(enemy_npc, 'id'):
                         npcs_to_process.append(enemy_npc)
-                        logger.debug(f"Successfully created enemy NPC '{enemy_name}' (ID: {enemy_npc.id})")
                     else:
-                        logger.error(f"Failed to create or get ID for enemy NPC: {enemy_name}")
+                        logger.error(f"Failed to create fresh NPC: {enemy_name}")
                 except Exception as creation_error:
-                    logger.error(f"Error creating enemy NPC '{enemy_name}': {creation_error}", exc_info=True)
-    else:
-        # Already populated from 'enemies' list above
-        npcs_to_process = created_npcs
-
+                    logger.error(f"Error creating fresh NPC '{enemy_name}': {creation_error}", exc_info=True)
 
     if not npcs_to_process:
         logger.error("No enemy NPCs were identified or created for combat initiation.")
@@ -455,6 +408,7 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
              final_name = f"{combat_name}_{temp_count}"
 
         try:
+            from core.combat.dev_commands import create_enemy_combat_entity
             enemy_entity = create_enemy_combat_entity(npc, final_name)
             enemy_entities.append(enemy_entity)
         except TypeError as te:
@@ -464,7 +418,7 @@ def _create_combat_enemies(game_state: 'GameState', request: Dict[str, Any]) -> 
             logger.error(f"Failed to create combat entity for {npc.name} ({final_name}): {e}", exc_info=True)
             return [], f"System Error: Failed to prepare enemy for combat ({e})"
 
-    return enemy_entities, None # Return list and no error message if successful
+    return enemy_entities, None
 
 def _determine_dynamic_enemy_details(request: Dict[str, Any], target_entity_id: str) -> Tuple[str, int]:
     """Determines enemy type and level from context for dynamic creation."""

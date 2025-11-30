@@ -7,7 +7,7 @@ for Item objects, handling conversions between Item objects and
 dictionaries suitable for JSON storage.
 """
 
-from typing import Dict, List, Any, Optional, Set, Union
+from typing import Dict, List, Any
 import json
 import uuid
 

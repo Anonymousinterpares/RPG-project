@@ -3,16 +3,16 @@
 NPC Creator module focused on creating and generating NPCs for various interactions.
 """
 
-import logging
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Optional, Tuple
 from datetime import datetime
 
-from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
-from core.character.npc_generator import NPCGenerator
+from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType
 from core.character.npc_manager import NPCManager
 from core.base.config import get_config
+from core.stats.stats_base import DerivedStatType
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NPCCreator:

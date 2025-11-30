@@ -2,11 +2,12 @@
 Handles the execution of specific direct commands (e.g., /save, /quit, mode changes).
 """
 
-import logging
+from collections import Counter
 from typing import List, TYPE_CHECKING, Optional
 
 from core.base.commands import CommandResult
 from core.interaction.enums import InteractionMode
+from core.inventory.item_serialization import dict_to_item
 from core.utils.logging_config import get_logger
 from core.inventory import get_inventory_manager, EquipmentSlot, get_item_factory # Added EquipmentSlot, get_item_factory
 
@@ -18,6 +19,49 @@ if TYPE_CHECKING:
 logger = get_logger("COMMAND_HANDLERS")
 
 # --- Special LLM Command Handlers ---
+
+def handle_loot_command(engine: 'GameEngine', game_state: 'GameState', args: List[str]) -> CommandResult:
+    """Handles the /loot command to collect available loot from defeated enemies."""
+    loot_list = getattr(game_state, 'available_loot', [])
+    
+    if not loot_list:
+        return CommandResult.failure("There is no loot to collect.")
+
+    inv_mgr = get_inventory_manager()
+    collected_names = []
+    items_added_count = 0
+    
+    for entry in loot_list:
+        try:
+            # Loot entries are dicts with 'item_data', 'source', etc.
+            item_data = entry.get('item_data')
+            if item_data:
+                # Reconstruct Item object from dictionary
+                item_obj = dict_to_item(item_data)
+                # Add to player inventory
+                added_ids = inv_mgr.add_item(item_obj)
+                if added_ids:
+                    collected_names.append(item_obj.name)
+                    items_added_count += 1
+        except Exception as e:
+            logger.error(f"Failed to process loot item: {e}")
+
+    # Clear the loot pile in game state
+    game_state.available_loot = []
+    
+    # Notify UI that loot state changed (cleared)
+    engine.request_ui_update()
+
+    if items_added_count == 0:
+        return CommandResult.failure("Failed to collect items (inventory full or error).")
+
+    # Format output message
+    counts = Counter(collected_names)
+    msg_parts = [f"{count}x {name}" if count > 1 else name for name, count in counts.items()]
+    msg = f"Looted {items_added_count} items: " + ", ".join(msg_parts)
+    
+    engine._output("system", msg)
+    return CommandResult.success(msg)
 
 def handle_mode_transition(engine: 'GameEngine', game_state: 'GameState', args: List[str]) -> CommandResult:
     """Handles the MODE_TRANSITION command from LLM output.
@@ -372,6 +416,7 @@ MODE_TRANSITION_COMMANDS = {
     "unequip": _handle_unequip_command,
     # Music control (direct command): forwards to the same handler used by LLM MUSIC
     "music": _handle_music_command,
+    "loot": handle_loot_command, # Added loot command registration
     # Add other mode transition commands here
 }
 

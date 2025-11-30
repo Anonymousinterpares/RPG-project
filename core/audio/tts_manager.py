@@ -1,11 +1,12 @@
 """
 Placeholder Text-to-Speech (TTS) Manager.
 """
-import logging
 from typing import Optional
 from PySide6.QtCore import QObject, Signal, QTimer, Slot
 
-logger = logging.getLogger("TTS_MANAGER")
+from core.utils.logging_config import get_logger
+
+logger = get_logger("TTS_MANAGER")
 
 class TTSManager(QObject):
     """

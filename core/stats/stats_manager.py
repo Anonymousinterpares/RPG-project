@@ -354,13 +354,6 @@ class StatsManager(QObject):
     def set_base_stat(self, stat_type: Union[StatType, str], value: float) -> None:
         """
         Set the base value of a primary stat.
-
-        Args:
-            stat_type: The stat type to set.
-            value: The new base value.
-
-        Raises:
-            ValueError: If the stat is not found or is not a primary stat.
         """
         if isinstance(stat_type, str):
             # Prefer registry alias resolution first
@@ -368,7 +361,6 @@ class StatsManager(QObject):
             if isinstance(enum_val, StatType):
                 stat_type = enum_val
             else:
-                # Fallback to legacy parser for strict primary types
                 try:
                     stat_type = StatType.from_string(stat_type)
                 except ValueError:
@@ -385,6 +377,39 @@ class StatsManager(QObject):
         
         # Emit signal with current stats
         self.stats_changed.emit(self.get_all_stats())
+
+    def set_base_stats_bulk(self, stats_dict: Dict[Union[StatType, str], float]) -> None:
+        """
+        Set multiple primary stats at once, recalculating derived stats only once at the end.
+        
+        Args:
+            stats_dict: Dictionary mapping StatType or stat name strings to float values.
+        """
+        updates_made = False
+        
+        for stat_key, value in stats_dict.items():
+            stat_type = stat_key
+            if isinstance(stat_key, str):
+                enum_val = resolve_stat_enum(stat_key)
+                if isinstance(enum_val, StatType):
+                    stat_type = enum_val
+                else:
+                    try:
+                        stat_type = StatType.from_string(stat_key)
+                    except ValueError:
+                        logger.warning(f"set_base_stats_bulk: Unknown stat '{stat_key}', skipping.")
+                        continue
+
+            if stat_type in self.stats:
+                self.stats[stat_type].base_value = float(value)
+                updates_made = True
+            else:
+                logger.warning(f"set_base_stats_bulk: Stat {stat_type} not found in primary stats.")
+
+        if updates_made:
+            logger.debug(f"Bulk updated {len(stats_dict)} stats. Recalculating derived stats once.")
+            self._recalculate_derived_stats()
+            self.stats_changed.emit(self.get_all_stats())
 
     def add_modifier(self, modifier: StatModifier) -> None:
         """

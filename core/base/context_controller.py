@@ -1,11 +1,10 @@
-import json
-import logging
 from typing import Dict, Any, Optional
 from PySide6.QtCore import QObject, Signal
 
 from core.context.game_context import GameContext, canonicalize_context, enrich_context_from_location
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger("CONTEXT_CTRL")
+logger = get_logger("CONTEXT_CTRL")
 
 class GameContextController(QObject):
     """

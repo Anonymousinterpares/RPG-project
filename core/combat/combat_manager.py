@@ -426,37 +426,48 @@ class CombatManager:
         cm.combat_log = data.get("combat_log", [])
         cm.last_action_results = data.get("last_action_results", {})
 
-        # --- FIX: Hydrate StatsManager Cache for loaded entities ---
-        # This ensures stats exist even if the NPC isn't in the global NPCSystem registry
+        # --- FIX: Hydrate StatsManager Cache for loaded entities using BULK update ---
         from core.stats.stats_manager import StatsManager
         from core.stats.stats_base import StatType, DerivedStatType
+        from core.stats.registry import resolve_stat_enum
         
         for entity in cm.entities.values():
             if entity.entity_type == EntityType.PLAYER: continue # Player handled globally
             
             # Create a transient StatsManager
             sm = StatsManager()
+            
+            primary_stats_buffer = {}
+            
             # Populate it from the saved CombatEntity stats
             for stat_key, value in entity.stats.items():
                 # Handle both Enum keys and string keys
                 key = stat_key
                 if isinstance(stat_key, str):
                     # Try to resolve to enum
-                    try: key = StatType.from_string(stat_key)
-                    except: 
-                        try: key = DerivedStatType.from_string(stat_key)
-                        except: pass
+                    enum_val = resolve_stat_enum(stat_key)
+                    if enum_val:
+                        key = enum_val
+                    else:
+                        try: key = StatType.from_string(stat_key)
+                        except: 
+                            try: key = DerivedStatType.from_string(stat_key)
+                            except: pass
                 
-                # Set value (direct base_value setting for reconstruction)
+                # Collect primary stats for bulk update
                 if isinstance(key, StatType):
-                    sm.set_base_stat(key, float(value))
+                    primary_stats_buffer[key] = float(value)
+                # Set derived stats directly (they don't trigger recalc usually, but better safe)
                 elif isinstance(key, DerivedStatType):
                     if key not in sm.derived_stats:
-                        # Initialize if missing
                         from core.stats.stats_base import Stat, StatCategory
                         sm.derived_stats[key] = Stat(name=key, base_value=float(value), category=StatCategory.DERIVED)
                     else:
                         sm.derived_stats[key].base_value = float(value)
+
+            # Apply primary stats in bulk to avoid recalculation spam
+            if primary_stats_buffer:
+                sm.set_base_stats_bulk(primary_stats_buffer)
 
             # Register it
             cm.register_stats_manager(entity.id, sm)
