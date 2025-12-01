@@ -49,9 +49,23 @@ class NPCSystem:
         """Load all persisted NPCs."""
         return self.persistence.load_all_npcs()
     
-    def save_all_npcs(self) -> Tuple[int, int]:
-        """Save all persistent NPCs."""
-        return self.persistence.save_all_persistent_npcs()
+    def save_all_npcs(self, target_directory: Optional[str] = None) -> Tuple[int, int]:
+        """
+        Save all persistent NPCs.
+        
+        Args:
+            target_directory: Optional directory to save to. If None, uses default.
+        """
+        return self.persistence.save_all_persistent_npcs(target_directory)
+
+    def switch_save_directory(self, new_directory: str) -> None:
+        """
+        Switch the active save directory for the NPC system.
+        Used when loading a different game slot.
+        """
+        self.manager.set_save_directory(new_directory)
+        # Also update persistence reference if it caches the path
+        self.persistence.save_directory = new_directory
     
     def clear_all_npcs(self) -> None:
         """Clear all NPCs from the system."""

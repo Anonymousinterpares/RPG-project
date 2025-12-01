@@ -238,6 +238,17 @@ class NPCManager:
         self.npcs_by_location.clear()
         logger.info("Cleared all NPCs from manager")
 
+    def set_save_directory(self, new_directory: str) -> None:
+        """
+        Update the save directory for NPC persistence.
+        
+        Args:
+            new_directory: The new directory path.
+        """
+        self.save_directory = new_directory
+        # Ensure directory exists immediately to prevent IO errors later
+        os.makedirs(self.save_directory, exist_ok=True)
+        logger.info(f"NPC Manager save directory updated to: {self.save_directory}")
 
 # Singleton instance for NPC manager
 _npc_manager_instance = None

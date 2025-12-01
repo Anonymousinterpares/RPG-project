@@ -126,7 +126,8 @@ class NPC:
     memories: List[NPCMemory] = field(default_factory=list)
     current_resolve: float = 0.0 # Current social 'health'
     active_social_effects: List[StatusEffectData] = field(default_factory=list)
-
+    is_dead: bool = False 
+    
     def __post_init__(self):
         """Initialize any empty fields."""
         if self.inventory is None:
@@ -175,6 +176,7 @@ class NPC:
             "gender": self.gender,
             "age": self.age,
             "is_persistent": self.is_persistent,
+            "is_dead": self.is_dead,  # Added persistence for death state
             "last_interaction": self.last_interaction.isoformat() if self.last_interaction else None,
             "interaction_count": self.interaction_count,
             "stats_generated": self.stats_generated,
@@ -195,6 +197,10 @@ class NPC:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'NPC':
         """Create from dictionary after deserialization."""
+        # Fix Loot Duplication: Explicitly load inventory from data, defaulting to empty list if missing.
+        # This replaces any default initialization, preventing 'append' duplication logic elsewhere.
+        loaded_inventory = data.get("inventory", [])
+        
         npc = cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", "Unknown NPC"),
@@ -207,16 +213,16 @@ class NPC:
             gender=data.get("gender"),
             age=data.get("age"),
             is_persistent=data.get("is_persistent", False),
+            is_dead=data.get("is_dead", False),  # Load death state
             interaction_count=data.get("interaction_count", 0),
             stats_generated=data.get("stats_generated", False),
             appearance=data.get("appearance"),
             personality=data.get("personality"),
             goals=data.get("goals"),
             secrets=data.get("secrets"),
-            inventory=data.get("inventory", []),
+            inventory=loaded_inventory, # Direct assignment
             known_information=data.get("known_information", {}),
             dialog_history=data.get("dialog_history", [])
-            # current_resolve and active_social_effects will be loaded below
         )
 
         # Load last_interaction
@@ -226,6 +232,10 @@ class NPC:
         # Load stats if they exist
         if npc.stats_generated and data.get("stats"):
             npc.stats_manager = StatsManager.from_dict(data["stats"])
+            
+            # Sync is_dead with HP if stats exist
+            if npc.is_dead and npc.stats_manager:
+                npc.stats_manager.set_current_stat(DerivedStatType.HEALTH, 0)
 
         # Load equipment if it exists
         if data.get("equipment"):

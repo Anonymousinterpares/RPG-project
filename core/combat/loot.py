@@ -16,62 +16,60 @@ def generate_combat_loot(manager: 'CombatManager', engine: 'GameEngine'):
     from core.combat.enums import CombatState
     
     if manager.state != CombatState.PLAYER_VICTORY:
-        return  # Only generate loot on player victory
+        return 
     
     try:
-        # Get state manager to access NPCs
         state_manager = engine._state_manager if hasattr(engine, '_state_manager') else None
         if not state_manager or not state_manager.current_state:
-            logger.warning("Cannot generate loot: State manager unavailable")
             return
         
         game_state = state_manager.current_state
         available_loot = []
         loot_sources = []
         
-        # Access NPC System correctly from StateManager
         npc_system = state_manager.get_npc_system()
-        if not npc_system:
-            # Fallback to global getter if available
-            try:
-                from core.character.npc_system import get_npc_system
-                npc_system = get_npc_system()
-            except ImportError:
-                pass
         
-        if not npc_system:
-            logger.warning("Loot generation failed: NPC System unavailable.")
-            return
+        npcs_modified = False # Track if we need to save
 
-        # Check each defeated enemy entity for loot
         for entity_id, entity in manager.entities.items():
             if entity.entity_type == EntityType.ENEMY and not entity.is_alive():
-                # Try to get the NPC from the NPC system using the entity ID (which matches NPC ID)
+                # Get Persistent NPC
                 npc = npc_system.get_npc_by_id(entity_id)
                 
                 if npc:
-                    # Extract equipment AND inventory (surrendered items) from defeated NPC
+                    # Mark dead in persistent system immediately
+                    npc.is_dead = True
+                    # Ensure stats reflect death (0 HP)
+                    if npc.stats_manager:
+                        from core.stats.stats_base import DerivedStatType
+                        npc.stats_manager.set_current_stat(DerivedStatType.HEALTH, 0)
+                        
+                    # Extract loot
                     npc_loot = _extract_npc_loot(npc, entity.combat_name)
                     if npc_loot:
                         available_loot.extend(npc_loot)
                         loot_sources.append(entity.combat_name)
-                    else:
-                        logger.debug(f"NPC {npc.name} ({entity_id}) had no loot to extract.")
+                    
+                    npcs_modified = True
                 else:
-                    logger.debug(f"CombatEntity {entity.combat_name} ({entity_id}) not found in NPC System (Transient?).")
+                    # Logic for non-persistent/transient NPCs (template loot generation) could go here
+                    pass
         
-        # Store loot in game state for player to collect
+        # Save the updated state of NPCs (Dead + Empty Inventory)
+        if npcs_modified:
+            npc_system.save_all_npcs()
+            logger.info("Saved NPC states (marked dead/looted) to disk.")
+
+        # ... (Rest of the function handling game_state.available_loot assignment is fine)
         if available_loot:
             if not hasattr(game_state, 'available_loot'):
                 game_state.available_loot = []
             game_state.available_loot.extend(available_loot)
             
-            # Generate loot message
             loot_count = len(available_loot)
             source_names = ", ".join(loot_sources)
             loot_message = f"Victory! Found {loot_count} item(s) from defeated enemies: {source_names}. Use 'loot' to examine available items."
             
-            # Queue loot notification
             loot_event = DisplayEvent(
                 type=DisplayEventType.SYSTEM_MESSAGE,
                 content=loot_message,
@@ -79,13 +77,7 @@ def generate_combat_loot(manager: 'CombatManager', engine: 'GameEngine'):
                 gradual_visual_display=False
             )
             engine._combat_orchestrator.add_event_to_queue(loot_event)
-            
-            # Force UI update so the loot button/panel appears if implemented
             engine.request_ui_update()
-            
-            logger.info(f"Generated {loot_count} loot items from {len(loot_sources)} defeated enemies")
-        else:
-            logger.debug("No loot generated from combat - no items found on defeated enemies")
             
     except Exception as e:
         logger.error(f"Error generating combat loot: {e}", exc_info=True)

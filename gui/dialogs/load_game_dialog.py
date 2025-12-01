@@ -4,7 +4,6 @@ Load game dialog for the RPG game GUI.
 This module provides a dialog for loading a saved game.
 """
 
-import logging
 import os
 import json
 from typing import Optional
@@ -18,11 +17,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Slot
 
+from core.utils.logging_config import get_logger
 from gui.dialogs.base_dialog import BaseDialog
 from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_styled_button_style, create_text_edit_style
 from gui.styles.theme_manager import get_theme_manager
 
-
+logger = get_logger("LoadGameDialog")
 class LoadGameDialog(BaseDialog):
     """Dialog for loading a saved game."""
     
@@ -260,7 +260,7 @@ class LoadGameDialog(BaseDialog):
             if os.path.exists(save_path_to_delete):
                 try:
                     os.remove(save_path_to_delete)
-                    logging.info(f"Successfully deleted save file: {self.selected_save}")
+                    logger.info(f"Successfully deleted save file: {self.selected_save}")
                     
                     # Refresh the saves list
                     self._load_saves()
@@ -273,7 +273,7 @@ class LoadGameDialog(BaseDialog):
                     
                     QMessageBox.information(self, "Success", "Save file deleted successfully.")
                 except Exception as e:
-                    logging.error(f"Error deleting save file {self.selected_save}: {e}")
+                    logger.error(f"Error deleting save file {self.selected_save}: {e}")
                     QMessageBox.warning(self, "Error", f"Could not delete the save file.\n\nError: {e}")
             else:
                 QMessageBox.warning(self, "Error", "Save file not found. It may have already been deleted.")
@@ -287,7 +287,7 @@ class LoadGameDialog(BaseDialog):
             from core.base.state import get_state_manager
             saves = get_state_manager().get_available_saves()
         except Exception as e:
-            logging.error(f"Failed to get available saves: {e}")
+            logger.error(f"Failed to get available saves: {e}")
             # Optionally, show an error message to the user
             return
 
@@ -315,19 +315,14 @@ class LoadGameDialog(BaseDialog):
         self.saves_table.setSortingEnabled(True) # Re-enable sorting
     
     def _get_character_name(self, save_path: str) -> str:
-        """Get the character name from a save file.
-        
-        Args:
-            save_path: The path to the save file.
-        
-        Returns:
-            The character name, or "Unknown" if not found.
-        """
+        """Get the character name from a save file."""
         try:
-            with open(save_path, "r") as f:
+            # FIX: Append state.json to the directory path
+            state_file = os.path.join(save_path, "state.json")
+            
+            with open(state_file, "r") as f:
                 save_data = json.load(f)
                 
-                # Try to get the character name
                 if "player" in save_data and "name" in save_data["player"]:
                     return save_data["player"]["name"]
         except Exception as e:
@@ -336,18 +331,14 @@ class LoadGameDialog(BaseDialog):
         return "Unknown"
     
     def _get_save_details(self, save_path: str) -> str:
-        """Get the details for a save file.
-        
-        Args:
-            save_path: The path to the save file.
-        
-        Returns:
-            The save details as a formatted string.
-        """
+        """Get the details for a save file."""
         try:
-            with open(save_path, "r", encoding='utf-8') as f:
+            # FIX: Append state.json to the directory path
+            state_file = os.path.join(save_path, "state.json")
+            
+            with open(state_file, "r", encoding='utf-8') as f:
                 save_data = json.load(f)
-                
+                # ... (rest of the method remains identical)
                 player_data = save_data.get("player", {})
                 world_data = save_data.get("world", {})
                 
@@ -366,47 +357,45 @@ class LoadGameDialog(BaseDialog):
                         origin_name = origins_config.get(origin_id, {}).get('name', origin_id)
                         details.append(f"<b>Origin:</b> {origin_name}")
                     except Exception:
-                        details.append(f"<b>Origin:</b> {origin_id}") # Fallback to ID
+                        details.append(f"<b>Origin:</b> {origin_id}")
 
                 details.append(f"<b>Race:</b> {player_data.get('race', 'Unknown')}")
                 details.append(f"<b>Class:</b> {player_data.get('path', 'Unknown')}")
                 details.append(f"<b>Level:</b> {player_data.get('level', 1)}")
-                details.append("") # Spacer
+                details.append("") 
                 
                 # --- Background Summary ---
                 background_summary = player_data.get('background_summary')
                 if background_summary:
                     details.append("<b>Background:</b>")
                     details.append(background_summary)
-                    details.append("") # Spacer
+                    details.append("")
                 
                 # --- Last Events Summary ---
                 last_events_summary = save_data.get('last_events_summary')
                 if last_events_summary:
                     details.append("<b>Last Events:</b>")
                     details.append(last_events_summary)
-                    details.append("") # Spacer
+                    details.append("")
                 
                 # --- World Information ---
                 if world_data:
                     details.append("<b>World Information:</b>")
                     details.append(f"<b>Location:</b> {player_data.get('current_location', 'Unknown')}")
-                    # Use the new, user-friendly calendar string and time of day
                     calendar_str = world_data.get('calendar_string', 'Unknown Date')
                     time_of_day = world_data.get('time_of_day', 'Unknown Time')
                     details.append(f"<b>Time:</b> {calendar_str} ({time_of_day})")
-                    details.append("") # Spacer
+                    details.append("")
 
                 # --- Save File Information ---
-                mod_time = datetime.fromtimestamp(os.path.getmtime(save_path))
+                mod_time = datetime.fromtimestamp(os.path.getmtime(state_file)) # Use state_file time
                 details.append("<b>Save Information:</b>")
                 details.append(f"<b>Saved On:</b> {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
-                details.append(f"<b>File:</b> {os.path.basename(save_path)}")
+                details.append(f"<b>Folder:</b> {os.path.basename(save_path)}")
                 
-                # Use html-like formatting for QTextEdit
                 return "<br>".join(details)
         except Exception as e:
-            logging.error(f"Error loading save details for '{save_path}': {e}", exc_info=True)
+            logger.error(f"Error loading save details for '{save_path}': {e}", exc_info=True)
             return f"Error loading save details: {str(e)}"
     
     def _on_save_selected(self):

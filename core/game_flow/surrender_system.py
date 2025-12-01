@@ -36,7 +36,7 @@ def process_surrender_consequences(engine: 'GameEngine', combat_manager: 'Combat
         logger.warning("Surrender accepted but no enemies found to take loot.")
         return result_log
 
-    # Pick a recipient
+    # Pick a recipient (CombatEntity)
     recipient_entity = random.choice(enemies)
     
     # 2. Collect Player Items
@@ -70,36 +70,48 @@ def process_surrender_consequences(engine: 'GameEngine', combat_manager: 'Combat
     if not npc_system:
         npc_system = get_npc_system()
     
-    # Retrieve the actual NPC object
+    # Retrieve the actual NPC object (Persistence Shell)
     target_npc = npc_system.get_npc_by_id(recipient_entity.id)
     
     if not target_npc:
         logger.error(f"Could not find persistent NPC object for CombatEntity {recipient_entity.id} ({recipient_entity.name}).")
-        # Attempt to find it in the manager's internal lists directly as a Hail Mary
+        # Check internal manager list
         if hasattr(npc_system, 'manager'):
             target_npc = npc_system.manager.get_npc_by_id(recipient_entity.id)
-            if target_npc:
-                logger.info("Found NPC in internal manager storage.")
 
     if target_npc:
         # Initialize inventory if needed
         if not hasattr(target_npc, 'inventory') or target_npc.inventory is None:
             target_npc.inventory = []
             
-        # Serialize and Transfer
+        # Serialize and Transfer Inventory
         for item in items_to_transfer:
             item_data = item_to_dict(item, include_unknown=True)
             target_npc.inventory.append(item_data)
             
         logger.info(f"Transferred {len(items_to_transfer)} items to NPC {target_npc.name} ({target_npc.id})")
         
-        # 4. Persistence & Location
+        # 4. Persistence & Stats Synchronization (CRITICAL FIX)
         target_npc.is_persistent = True
         
-        # Sync HP state
-        if hasattr(target_npc, 'stats_manager') and target_npc.stats_manager:
+        # --- FIX START: Sync Combat Stats to Persistent NPC ---
+        # Retrieve the active StatsManager from the CombatManager (which tracks current HP, etc.)
+        active_stats_manager = combat_manager._get_entity_stats_manager(recipient_entity.id)
+        
+        if active_stats_manager:
+            # Assign the active stats manager to the persistent NPC object
+            # This ensures current HP, attributes, and level are saved to disk.
+            target_npc.stats_manager = active_stats_manager
+            target_npc.stats_generated = True
+            
+            # Explicitly sync derived stats like current HP
             from core.stats.stats_base import DerivedStatType
             target_npc.stats_manager.set_current_stat(DerivedStatType.HEALTH, recipient_entity.current_hp)
+            
+            logger.info(f"Synced stats for {target_npc.name}. HP: {recipient_entity.current_hp}")
+        else:
+            logger.warning(f"Could not find active StatsManager for {recipient_entity.name}. NPC saved without stats!")
+        # --- FIX END ---
 
         # Update location to where the fight happened
         current_loc = getattr(player_entity, 'location', None)

@@ -16,6 +16,7 @@ from PySide6.QtCore import Slot
 from gui.dialogs.base_dialog import BaseDialog
 from gui.styles.stylesheet_factory import create_dialog_style, create_groupbox_style, create_line_edit_style, create_list_widget_style, create_styled_button_style
 from gui.styles.theme_manager import get_theme_manager
+from core.base.state import get_state_manager  # Import StateManager
 
 class SaveGameDialog(BaseDialog):
     """Dialog for saving the game."""
@@ -158,31 +159,27 @@ class SaveGameDialog(BaseDialog):
         self.save_button.setEnabled(has_name)
     
     def _load_existing_saves(self):
-        """Load existing saves into the list."""
+        """Load existing saves into the list using the centralized StateManager."""
         # Clear the list
         self.saves_list.clear()
         
-        # Get the saves directory
-        saves_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "saves")
-        
-        # Check if the directory exists
-        if not os.path.exists(saves_dir):
-            return
-        
-        # Get all save files
-        save_files = [f for f in os.listdir(saves_dir) if f.endswith(".json")]
-        
-        # Sort by modification time (newest first)
-        save_files.sort(key=lambda x: os.path.getmtime(os.path.join(saves_dir, x)), reverse=True)
-        
-        # Add to list
-        for save_file in save_files:
-            # Get the save name without extension
-            save_name = os.path.splitext(save_file)[0]
+        # Use StateManager to get saves (consistent with LoadGameDialog)
+        try:
+            state_manager = get_state_manager()
+            saves = state_manager.get_available_saves()
             
-            # Create and add the item
-            item = QListWidgetItem(save_name)
-            self.saves_list.addItem(item)
+            # Add to list
+            for save_info in saves:
+                # 'filename' in the dict represents the folder name (Save ID)
+                save_name = save_info.get('filename', 'Unknown')
+                
+                # Create and add the item
+                item = QListWidgetItem(save_name)
+                self.saves_list.addItem(item)
+                
+        except Exception as e:
+            # Fallback (empty list) if state manager fails
+            print(f"Error loading saves list in dialog: {e}")
     
     def _on_save_selected(self, item):
         """Handle save selection."""

@@ -97,22 +97,47 @@ class NPCPersistence:
             logger.error(f"Error loading NPC {npc_id}: {e}")
             return None
     
-    def save_all_persistent_npcs(self) -> Tuple[int, int]:
+    def save_all_persistent_npcs(self, target_directory: Optional[str] = None) -> Tuple[int, int]:
         """
         Save all persistent NPCs to file.
+        
+        Args:
+            target_directory: Optional override directory. If provided, NPCs are saved 
+                              to this path instead of self.save_directory.
         
         Returns:
             Tuple of (success_count, total_count)
         """
+        # Use provided target or default to manager's directory
+        save_dir = target_directory if target_directory else self.save_directory
+        
+        try:
+            os.makedirs(save_dir, exist_ok=True)
+        except Exception as e:
+            logger.error(f"Failed to create NPC save directory {save_dir}: {e}")
+            return 0, 0
+
         persistent_npcs = [npc for npc in self.npc_manager.npcs.values() if npc.is_persistent]
         success_count = 0
         
         for npc in persistent_npcs:
-            if self.save_npc(npc):
+            if self._save_npc_to_dir(npc, save_dir):
                 success_count += 1
         
-        logger.info(f"Saved {success_count}/{len(persistent_npcs)} persistent NPCs")
+        logger.info(f"Saved {success_count}/{len(persistent_npcs)} persistent NPCs to {save_dir}")
         return success_count, len(persistent_npcs)
+
+    def _save_npc_to_dir(self, npc: NPC, directory: str) -> bool:
+        """Internal helper to save a specific NPC to a specific directory."""
+        try:
+            filename = os.path.join(directory, f"{npc.id}.json")
+            npc_data = npc.to_dict()
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(npc_data, f, indent=2, ensure_ascii=False)
+            return True
+        except Exception as e:
+            logger.error(f"Error saving NPC {npc.name} to {directory}: {e}")
+            return False
     
     def load_all_npcs(self) -> int:
         """
