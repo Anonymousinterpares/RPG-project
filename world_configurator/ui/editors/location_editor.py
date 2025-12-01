@@ -2,11 +2,10 @@
 Location editor component for the World Configurator Tool.
 """
 
-import logging
 import os
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, Optional, Any
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
@@ -18,8 +17,9 @@ from models.location_data import LocationManager
 from models.world_data import CultureManager
 from models.location_defaults_manager import LocationDefaultsManager
 from models.context_location_map import ContextLocationMapManager
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.location_editor")
+logger = setup_logging("world_configurator.ui.location_editor")
 
 class FeatureDialog(QDialog):
     """Dialog for editing a location feature."""

@@ -5,12 +5,11 @@ Game output widget for the RPG game GUI.
 This module provides a widget for displaying game output.
 """
 
-import logging
 from typing import List, Optional, Dict, Any, Iterator, Tuple
 
-from PySide6.QtWidgets import QTextEdit, QWidget, QHBoxLayout, QFrame, QStackedLayout, QVBoxLayout
+from PySide6.QtWidgets import QTextEdit, QWidget, QFrame, QVBoxLayout
 from PySide6.QtGui import QTextCursor, QColor, QTextCharFormat, QFont
-from PySide6.QtCore import Qt, QTimer, Signal, QSettings, QDir, Slot
+from PySide6.QtCore import QTimer, Signal, QSettings, QDir, Slot
 
 from core.utils.logging_config import get_logger
 from gui.components.skill_check_display import SkillCheckDisplay
@@ -211,7 +210,7 @@ class GameOutputWidget(QFrame):
         elif format == self.system_format: format_name = "system_format"
         elif format == self.player_format: format_name = "player_format"
         elif format == self.default_format: format_name = "default_format"
-        logging.debug(f"GameOutputWidget.append_text: Format: '{format_name}', Requested Gradual: {gradual}, Active Gradual: {self._is_gradual_display_active}, Text: '{text[:50]}...'")
+        logger.debug(f"GameOutputWidget.append_text: Format: '{format_name}', Requested Gradual: {gradual}, Active Gradual: {self._is_gradual_display_active}, Text: '{text[:50]}...'")
 
         # Determine if gradual display should actually be used based on request AND global setting
         gradual_display_enabled_by_setting = self.settings.value("display/gradual_text_narrative", True, type=bool)
@@ -219,27 +218,27 @@ class GameOutputWidget(QFrame):
         
         # Override for specific welcome/background texts to always be immediate
         if "CHARACTER BACKGROUND" in text.upper() or "WELCOME TO YOUR ADVENTURE" in text.upper() or "WELCOME BACK" in text.upper():
-            logging.info("Special text detected, forcing immediate display for GameOutputWidget.")
+            logger.info("Special text detected, forcing immediate display for GameOutputWidget.")
             effective_gradual = False
 
         if not text.strip():
-            logging.warning("GameOutputWidget: Attempting to append empty text, ignoring.")
+            logger.warning("GameOutputWidget: Attempting to append empty text, ignoring.")
             self.visualDisplayComplete.emit() 
             return
 
         if not effective_gradual and self._is_gradual_display_active:
-            logging.info(f"GameOutputWidget: Queueing immediate message '{text[:50]}...' as a gradual display is active.")
+            logger.info(f"GameOutputWidget: Queueing immediate message '{text[:50]}...' as a gradual display is active.")
             self._pending_immediate_messages.append((text, format if format else self.default_format))
             return
 
         if not self._is_gradual_display_active: # Can only start new display if not already active
             if not effective_gradual:
-                logging.debug("GameOutputWidget: Appending immediate message directly.")
+                logger.debug("GameOutputWidget: Appending immediate message directly.")
                 self._insert_text_immediately(text, format) 
                 self.visualDisplayComplete.emit() 
                 self._process_pending_immediate_messages() 
             else:
-                logging.debug(f"GameOutputWidget: Starting gradual display: '{text[:50]}...'")
+                logger.debug(f"GameOutputWidget: Starting gradual display: '{text[:50]}...'")
                 self._is_gradual_display_active = True
                 # Ensure pending immediate queue is cleared *before* starting new gradual display
                 # if any were processed just before this.
@@ -291,7 +290,7 @@ class GameOutputWidget(QFrame):
         
         while self._pending_immediate_messages:
             text, text_format = self._pending_immediate_messages.pop(0)
-            logging.info(f"GameOutputWidget: Processing pending immediate message '{text[:50]}...'")
+            logger.info(f"GameOutputWidget: Processing pending immediate message '{text[:50]}...'")
             self._insert_text_immediately(text, text_format)
             # Emitting visualDisplayComplete for each processed pending message
             # might be too chatty for the orchestrator.
@@ -328,7 +327,7 @@ class GameOutputWidget(QFrame):
                 self._gradual_timer.start(char_delay)
 
         except StopIteration:
-            logging.debug("GameOutputWidget: Gradual display finished for one segment.")
+            logger.debug("GameOutputWidget: Gradual display finished for one segment.")
             cursor = self.text_edit.textCursor()
             cursor.movePosition(QTextCursor.End)
             self.text_edit.setTextCursor(cursor)
@@ -348,7 +347,7 @@ class GameOutputWidget(QFrame):
             self._process_pending_immediate_messages()
 
         except Exception as e:
-             logging.error(f"GameOutputWidget: Error during gradual display: {e}", exc_info=True)
+             logger.error(f"GameOutputWidget: Error during gradual display: {e}", exc_info=True)
              self._is_gradual_display_active = False
              self._gradual_text_iterator = None
              self._gradual_text_format = None
@@ -372,33 +371,33 @@ class GameOutputWidget(QFrame):
 
     def append_system_message(self, message: str, gradual: bool = False):
         """Append a system message."""
-        logging.debug(f"GAME_OUTPUT: append_system_message called. Gradual: {gradual}, Content: '{message[:50]}...'")
+        logger.debug(f"GAME_OUTPUT: append_system_message called. Gradual: {gradual}, Content: '{message[:50]}...'")
         self.append_text("[SYSTEM] " + message, self.system_format, gradual=gradual)
 
     def append_gm_message(self, message: str, gradual: bool = True):
         """Append a game master message."""
-        logging.debug(f"GAME_OUTPUT: append_gm_message called. Gradual: {gradual}, Content: '{message[:50]}...'")
+        logger.debug(f"GAME_OUTPUT: append_gm_message called. Gradual: {gradual}, Content: '{message[:50]}...'")
         
         # Special logging for reintroductory narrative debugging
         if "night air" in message.lower() or "find yourself" in message.lower():
-            logging.info(f"LIFECYCLE_DEBUG: append_gm_message - This appears to be reintroductory narrative")
-            logging.info(f"LIFECYCLE_DEBUG: Message length: {len(message)}")
-            logging.info(f"LIFECYCLE_DEBUG: Gradual setting: {gradual}")
-            logging.info(f"LIFECYCLE_DEBUG: Current gradual display active: {self._is_gradual_display_active}")
-            logging.info(f"LIFECYCLE_DEBUG: Message preview: '{message[:200]}...'")
+            logger.info(f"LIFECYCLE_DEBUG: append_gm_message - This appears to be reintroductory narrative")
+            logger.info(f"LIFECYCLE_DEBUG: Message length: {len(message)}")
+            logger.info(f"LIFECYCLE_DEBUG: Gradual setting: {gradual}")
+            logger.info(f"LIFECYCLE_DEBUG: Current gradual display active: {self._is_gradual_display_active}")
+            logger.info(f"LIFECYCLE_DEBUG: Message preview: '{message[:200]}...'")
         
         processed_message = "\n".join(message.split("\n"))
         if "===== CHARACTER BACKGROUND =====" in message:
-            logging.info("Character background detected, using immediate display for GM message")
+            logger.info("Character background detected, using immediate display for GM message")
             gradual = False
             
-        logging.info(f"LIFECYCLE_DEBUG: About to call append_text with gradual={gradual}")
+        logger.info(f"LIFECYCLE_DEBUG: About to call append_text with gradual={gradual}")
         self.append_text(processed_message, self.gm_format, gradual=gradual)
-        logging.info(f"LIFECYCLE_DEBUG: append_text call completed")
+        logger.info(f"LIFECYCLE_DEBUG: append_text call completed")
 
     def append_player_message(self, message: str, gradual: bool = False):
         """Append a player message."""
-        logging.debug(f"GAME_OUTPUT: append_player_message called. Gradual: {gradual}, Content: '{message[:50]}...'")
+        logger.debug(f"GAME_OUTPUT: append_player_message called. Gradual: {gradual}, Content: '{message[:50]}...'")
         self.append_text("You: " + message, self.player_format, gradual=gradual)
 
     def clear(self):
@@ -424,7 +423,7 @@ class GameOutputWidget(QFrame):
         """
         # Stop any gradual display and clear state before showing skill check
         if self._gradual_timer and self._gradual_timer.isActive():
-            logging.debug("Stopping gradual display for skill check.")
+            logger.debug("Stopping gradual display for skill check.")
             self._gradual_timer.stop()
         self._is_gradual_display_active = False
         self._gradual_text_iterator = None
@@ -458,7 +457,7 @@ class GameOutputWidget(QFrame):
             # Parse the command format {STAT_CHECK:<stat>:<difficulty>:<context>}
             parts = command.strip().split(':')
             if len(parts) < 3:
-                logging.warning(f"Invalid STAT_CHECK command format: {command}")
+                logger.warning(f"Invalid STAT_CHECK command format: {command}")
                 return False
 
             stat_type = parts[1].strip().upper()
@@ -470,7 +469,7 @@ class GameOutputWidget(QFrame):
             check_result = rule_checker.perform_skill_check(stat_type, difficulty, context)
 
             if not check_result["success"]:
-                logging.error(f"Skill check failed: {check_result.get('error', 'Unknown error')}")
+                logger.error(f"Skill check failed: {check_result.get('error', 'Unknown error')}")
                 return False
 
             # Display the skill check result
@@ -479,12 +478,12 @@ class GameOutputWidget(QFrame):
             return True
 
         except Exception as e:
-            logging.error(f"Error processing skill check command: {e}")
+            logger.error(f"Error processing skill check command: {e}")
             return False
 
     def stop_gradual_display(self):
         """Immediately stops any ongoing gradual text display and processes pending messages quickly."""
-        logging.info("GameOutputWidget: Stopping current gradual display and flushing pending messages.")
+        logger.info("GameOutputWidget: Stopping current gradual display and flushing pending messages.")
         if self._gradual_timer and self._gradual_timer.isActive():
             self._gradual_timer.stop()
         

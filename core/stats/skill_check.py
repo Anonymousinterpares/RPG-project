@@ -7,15 +7,12 @@ calculating success chances, and processing check results.
 
 import random
 import math
-import logging
 from typing import Dict, Any, Optional, Union, Tuple
 
 from core.stats.stats_base import StatType, DerivedStatType
+from core.utils.logging_config import get_logger
 
-# Import skill manager only when needed to avoid circular imports
-# The skill_manager module imports StatType from stats_base
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def calculate_success_chance(

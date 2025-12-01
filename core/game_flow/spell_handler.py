@@ -1,4 +1,3 @@
-import logging
 import random
 from typing import Optional, List, Dict, Any
 
@@ -9,8 +8,9 @@ from core.effects.effects_engine import apply_effects, TargetContext
 from core.stats.stats_base import DerivedStatType
 from core.combat.combat_entity import EntityType
 from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger("SPELL_HANDLER")
+logger = get_logger("SPELL_HANDLER")
 
 def execute_cast_spell(engine, spell_id: str, target_id: Optional[str] = None, enforce_known_spells: bool = True) -> CommandResult:
     """

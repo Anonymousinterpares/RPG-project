@@ -4,10 +4,8 @@ Assistant dock widget.
 from __future__ import annotations
 
 import json
-import traceback
 from typing import List, Optional
 
-import logging
 from PySide6.QtCore import Qt, QThread, Signal, QObject
 from PySide6.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
@@ -18,9 +16,9 @@ from .context import AssistantContext, PatchOp, AssistantContextProvider
 from .prompt_builder import build_messages, build_messages_analyze
 from llm.client_base import OpenAILikeClient
 from llm.settings import load_llm_settings
+from world_configurator.utils.logging_setup import setup_logging
 
-
-logger = logging.getLogger("world_configurator.ui.assistant")
+logger = setup_logging("world_configurator.ui.assistant")
 
 class _Worker(QObject):
     finished = Signal(dict, str)

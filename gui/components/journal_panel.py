@@ -4,22 +4,22 @@ Journal panel widget for the RPG game GUI.
 This module provides a widget for displaying and editing the player's journal.
 """
 
-import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from enum import Enum
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout, 
-    QScrollArea, QFrame, QGroupBox, QListWidget, QListWidgetItem,
-    QPushButton, QTabWidget, QTextEdit, QSplitter, QTabBar
+    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QListWidget, QListWidgetItem,
+    QPushButton, QTabWidget, QTextEdit, QSplitter
 )
-from PySide6.QtCore import Qt, Signal, Slot, QSize
-from PySide6.QtGui import QFont, QTextCharFormat, QColor
+from PySide6.QtCore import Qt, Signal, Slot
 
 from core.base.state import get_state_manager
+from core.utils.logging_config import get_logger
 from gui.styles.stylesheet_factory import create_context_menu_style, create_list_widget_style, create_main_tab_widget_style, create_secondary_tab_widget_style, create_styled_button_style, create_text_edit_style
 from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
+
+logger = get_logger("GUI")
 
 class JournalSectionType(Enum):
     """Types of journal sections."""
@@ -794,10 +794,10 @@ class JournalPanelWidget(QScrollArea):
                 if hasattr(self.state_manager.current_state, "journal"):
                     journal_data = self.state_manager.current_state.journal
                 else:
-                    logging.warning("No journal data available to update journal panel")
+                    logger.warning("No journal data available to update journal panel")
                     return
             else:
-                logging.warning("No state available to update journal panel")
+                logger.warning("No state available to update journal panel")
                 return
         
         # Update journal data

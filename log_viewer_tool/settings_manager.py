@@ -1,10 +1,10 @@
-from PySide6.QtCore import QSettings, QSize, QPoint, QByteArray
+from PySide6.QtCore import QSettings, QByteArray
 from PySide6.QtGui import QColor
-from typing import Dict, Any, Optional, List, Set, Tuple
-import json
-import logging
+from typing import Dict, Any, Optional, List, Tuple
 
-logger = logging.getLogger("LogViewerTool.Settings")
+from core.utils.logging_config import get_logger
+
+logger = get_logger("LogViewerTool.Settings")
 
 class SettingsManager:
     """

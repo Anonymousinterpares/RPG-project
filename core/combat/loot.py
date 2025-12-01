@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, List, Any, TYPE_CHECKING
 
 from core.combat.combat_entity import EntityType
@@ -8,8 +7,9 @@ from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTar
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.combat.combat_manager import CombatManager
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def generate_combat_loot(manager: 'CombatManager', engine: 'GameEngine'):
     """Generate loot from defeated NPCs and make it available to the player."""
@@ -60,7 +60,6 @@ def generate_combat_loot(manager: 'CombatManager', engine: 'GameEngine'):
             npc_system.save_all_npcs()
             logger.info("Saved NPC states (marked dead/looted) to disk.")
 
-        # ... (Rest of the function handling game_state.available_loot assignment is fine)
         if available_loot:
             if not hasattr(game_state, 'available_loot'):
                 game_state.available_loot = []

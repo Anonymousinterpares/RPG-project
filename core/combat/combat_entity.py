@@ -4,10 +4,10 @@ Combat entity class for representing combatants.
 
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Set, Union, Tuple
-import logging
+from typing import Dict, List, Any, Optional, Union
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 from core.stats.stats_base import StatType, DerivedStatType
 

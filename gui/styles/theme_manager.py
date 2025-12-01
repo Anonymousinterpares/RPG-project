@@ -2,11 +2,12 @@
 """
 Manages loading and switching UI themes.
 """
-import logging
 import importlib
 from PySide6.QtCore import QObject, Signal
 
-logger = logging.getLogger("GUI")
+from core.utils.logging_config import get_logger
+
+logger = get_logger("GUI")
 
 class ThemeManager(QObject):
     """Singleton class to manage the application's visual theme."""

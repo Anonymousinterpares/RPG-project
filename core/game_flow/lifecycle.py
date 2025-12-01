@@ -4,8 +4,7 @@ Handles game lifecycle operations like starting, loading, saving, and ticking.
 """
 
 import os
-import logging
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 # Need to import GameEngine for type hinting and accessing its members
 # Use a forward reference (string) to avoid circular import at runtime
@@ -18,7 +17,6 @@ if TYPE_CHECKING:
     from core.base.state import GameState # Keep GameState
 
 # Import interaction_core to call its functions
-from core.game_flow import interaction_core
 from core.base.state import GameState
 from core.utils.logging_config import get_logger
 from core.inventory import get_inventory_manager, get_item_factory

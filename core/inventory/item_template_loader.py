@@ -9,13 +9,11 @@ from configuration files.
 from typing import Dict, List, Optional, Any, Union, Set
 import os
 import json
-import logging
 from pathlib import Path
 
 from core.utils.logging_config import get_logger
 from core.inventory.item import Item
-from core.inventory.item_enums import ItemType, ItemRarity, EquipmentSlot
-from core.inventory.item_stat import ItemStat
+from core.inventory.item_enums import ItemType, ItemRarity
 from core.inventory.item_serialization import dict_to_item
 from core.base.config import get_config
 

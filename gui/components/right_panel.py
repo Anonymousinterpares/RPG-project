@@ -4,15 +4,13 @@ Right panel widget for the RPG game GUI.
 This module provides a collapsible, tabbed right panel.
 """
 
-import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTabWidget, QFrame, 
-    QHBoxLayout, QPushButton, QStackedWidget, QToolButton, QTabBar, QSizePolicy
+    QStackedWidget, QTabBar, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QSize, QEasingCurve, Property, QSettings
-from PySide6.QtGui import QIcon, QPixmap, QCursor
+from PySide6.QtCore import Signal, Slot, QPropertyAnimation, QSize, QEasingCurve, QSettings
 
 from gui.styles.stylesheet_factory import create_main_tab_widget_style
 from gui.styles.theme_manager import get_theme_manager

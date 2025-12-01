@@ -4,18 +4,15 @@ Anthropic provider tab for the RPG game GUI.
 This module provides a tab for configuring Anthropic LLM provider settings.
 """
 
-import logging
 from typing import Dict, Any, List, Tuple
 
-from PySide6.QtWidgets import QFormLayout
-from PySide6.QtCore import Qt
-
+from core.utils.logging_config import get_logger
 from gui.dialogs.settings.llm_provider_tab import LLMProviderTab
 from gui.dialogs.settings.model_management_widget import ModelManagementWidget
 from core.llm.provider_manager import ProviderType
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class AnthropicTab(LLMProviderTab):
     """Tab for Anthropic settings."""

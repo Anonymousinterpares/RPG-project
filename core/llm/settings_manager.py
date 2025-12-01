@@ -8,8 +8,7 @@ LLM settings, API keys, and agent configurations.
 
 import os
 import json
-from typing import Dict, List, Optional, Any, Union
-import logging
+from typing import Dict, List, Optional, Any
 
 from core.utils.logging_config import get_logger
 from core.base.config import get_config
@@ -399,7 +398,7 @@ def get_settings_manager() -> SettingsManager:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    logger.basicConfig(level=logger.INFO)
     
     # Create the settings manager
     manager = get_settings_manager()

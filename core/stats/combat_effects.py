@@ -3,15 +3,15 @@ System for managing combat-related stat modifiers and status effects.
 """
 
 from enum import Enum, auto
-from typing import Dict, List, Any, Optional, Union, Set
-import logging
+from typing import Dict, List, Any, Optional, Set
 import uuid
 
 from core.stats.stats_base import StatType, DerivedStatType
-from core.stats.modifier import StatModifier, ModifierGroup, ModifierType, ModifierSource
+from core.stats.modifier import ModifierGroup, ModifierType, ModifierSource
+from core.utils.logging_config import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class StatusEffectType(Enum):

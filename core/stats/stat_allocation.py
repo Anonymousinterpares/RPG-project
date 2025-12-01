@@ -2,14 +2,14 @@
 System for managing stat point allocation during character creation and leveling.
 """
 
-from typing import Dict, List, Any, Optional, Union, Tuple
-import logging
+from typing import Dict, List, Any
 
 from core.stats.stats_base import StatType
 from core.stats.stats_manager import StatsManager
+from core.utils.logging_config import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class StatPointAllocator:

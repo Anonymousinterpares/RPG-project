@@ -3,23 +3,21 @@ Main window for the World Configurator Tool.
 """
 
 import os
-import sys
-import logging
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Tuple
 
 import json
 from PySide6.QtCore import Qt, QSize, Signal, Slot
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTabWidget, QPushButton, QMenuBar, QMenu,
+    QMainWindow, QWidget, QVBoxLayout,
+    QTabWidget, QPushButton, QMenuBar,
     QToolBar, QFileDialog, QMessageBox, QDialog,
-    QStatusBar, QLabel, QSplitter, QTextEdit, QComboBox
+    QStatusBar, QLabel, QSplitter, QTextEdit
 )
 from PySide6.QtGui import QIcon, QCloseEvent, QAction, QFont
 
 # Corrected import path assumption (models likely in a subfolder)
 from models.world_config import WorldConfigManager
-from utils.file_manager import get_project_root, get_world_config_dir, load_json
+from utils.file_manager import get_project_root, load_json
 
 from .editors.culture_editor import CultureEditor
 from .editors.location_editor import LocationEditor
@@ -37,8 +35,9 @@ from .editors.race_editor import RaceEditor
 from .dialogs.new_project_dialog import NewProjectDialog
 from .dialogs.export_dialog import ExportDialog
 from .dialogs.settings_dialog import SettingsDialog
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.main_window")
+logger = setup_logging("world_configurator.ui.main_window")
 
 class MainWindow(QMainWindow):
     """Main window for the World Configurator Tool."""

@@ -3,8 +3,11 @@
 Initialize application settings with default values if they don't exist.
 """
 
-import logging
 from PySide6.QtCore import QSettings
+
+from core.utils.logging_config import get_logger
+
+logger = get_logger("GUI")
 
 def init_default_settings():
     """Initialize default settings if they don't exist."""
@@ -84,4 +87,4 @@ def init_default_settings():
     # Sync settings to disk
     settings.sync()
 
-    logging.info("Default settings initialized")
+    logger.info("Default settings initialized")

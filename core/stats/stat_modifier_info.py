@@ -4,8 +4,7 @@ Module for handling race and class stat modifiers.
 
 import os
 import json
-import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, Optional
 
 from core.utils.logging_config import get_logger, log_migration_fix
 

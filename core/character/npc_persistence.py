@@ -5,14 +5,14 @@ NPC Persistence module handling saving, loading, and serialization of NPCs.
 
 import os
 import json
-import logging
-from typing import Dict, List, Any, Optional, Tuple, Set
+from typing import Optional, Tuple
 from datetime import datetime
 
-from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_base import NPC
 from core.character.npc_manager import NPCManager
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NPCPersistence:

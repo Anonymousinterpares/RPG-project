@@ -6,10 +6,9 @@ This module provides a widget for adding, removing, and modifying
 available LLM models for each provider.
 """
 
-import logging
 import os
 import json
-from typing import List, Dict, Any, Callable, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
@@ -20,6 +19,7 @@ from PySide6.QtCore import Qt, Signal, Slot
 
 from core.llm.provider_manager import ProviderType, get_provider_manager
 from core.llm.settings_manager import get_settings_manager
+from core.utils.logging_config import get_logger
 from gui.styles.theme_manager import get_theme_manager
 from gui.styles.stylesheet_factory import (
     create_styled_button_style, create_groupbox_style, 
@@ -27,7 +27,7 @@ from gui.styles.stylesheet_factory import (
 )
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class AddEditModelDialog(QDialog):
     """Dialog for adding or editing a model."""

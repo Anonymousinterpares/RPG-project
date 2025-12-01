@@ -6,9 +6,8 @@ This module provides functionality for creating variations of items
 with different stats and properties.
 """
 
-from typing import Dict, List, Optional, Any, Union, Tuple, Set
+from typing import List, Optional
 import random
-import logging
 import copy
 import uuid
 

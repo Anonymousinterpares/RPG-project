@@ -5,8 +5,7 @@ Currency management module.
 This module provides functionality for managing in-game currency.
 """
 
-from typing import Dict, Optional, Tuple
-import logging
+from typing import Dict
 
 from core.utils.logging_config import get_logger
 

@@ -2,10 +2,8 @@
 Settings dialog for the World Configurator Tool.
 """
 
-import logging
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLabel, QLineEdit,
+    QVBoxLayout, QLabel, QLineEdit,
     QPushButton, QHBoxLayout, QTabWidget, QWidget,
     QCheckBox, QComboBox, QSpinBox, QFileDialog
 )
@@ -13,8 +11,9 @@ import os
 from utils.file_manager import get_config_dir, load_json, save_json
 
 from ui.dialogs.base_dialog import BaseDialog
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.dialogs.settings")
+logger = setup_logging("world_configurator.ui.dialogs.settings")
 
 class SettingsDialog(BaseDialog):
     """

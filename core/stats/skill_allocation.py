@@ -2,12 +2,12 @@
 System for managing skill point allocation during character creation and leveling.
 """
 
-from typing import List, Dict, Any, Optional
-import logging
+from typing import List
 
 from core.stats.stats_manager import StatsManager
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class SkillAllocator:
     """

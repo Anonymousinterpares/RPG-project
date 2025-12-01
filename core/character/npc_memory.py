@@ -3,14 +3,14 @@
 NPC Memory module for tracking interactions and NPC memory management.
 """
 
-import logging
-from typing import Dict, List, Any, Optional, Set, Tuple
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 
-from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_base import NPC, NPCRelationship, NPCInteractionType, NPCMemory
 from core.character.npc_manager import NPCManager
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NPCMemoryManager:

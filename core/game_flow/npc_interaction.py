@@ -3,24 +3,22 @@
 Handles logic related to NPC actions and interactions.
 """
 
-import logging
 import json
 import re # Import re for cleaning intent
-from typing import Optional, TYPE_CHECKING, Dict, Any
+from typing import Optional, TYPE_CHECKING
 
 from core.interaction.enums import InteractionMode
 from core.interaction.context_builder import ContextBuilder
 from core.combat.combat_entity import EntityType
 from core.agents.base_agent import AgentContext
-from core.agents.combat_narrator import get_combat_narrator_agent
+from core.utils.logging_config import get_logger
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.base.state import GameState
-    from core.combat.combat_manager import CombatManager 
 
 
-logger = logging.getLogger("INTERACTION_PROC") # Keep original logger name
+logger = get_logger("INTERACTION_PROC") # Keep original logger name
 
 
 def get_npc_intent(engine: 'GameEngine', game_state: 'GameState', npc_id: str) -> Optional[str]:

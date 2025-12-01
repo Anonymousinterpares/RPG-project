@@ -4,10 +4,11 @@ Dice rolling utilities for the game.
 
 import re
 import random
-from typing import List, Tuple, Dict, Any, Union, Optional
-import logging
+from typing import List, Tuple, Dict, Any
 
-logger = logging.getLogger(__name__)
+from core.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # Regular expression for dice notation, e.g., "2d6+3"
 DICE_PATTERN = re.compile(r'(\d+)d(\d+)(?:([\+\-])(\d+))?')

@@ -3,8 +3,6 @@
 Agent setup tab for the RPG game GUI.
 This module provides a tab for configuring which LLM provider and model to use for each agent.
 """
-
-import logging
 from typing import Dict, Any, Optional
 
 from PySide6.QtWidgets import (
@@ -16,11 +14,12 @@ from PySide6.QtCore import Qt, Slot
 
 from core.llm.provider_manager import ProviderType, get_provider_manager
 from core.llm.settings_manager import get_settings_manager
+from core.utils.logging_config import get_logger
 from gui.styles.theme_manager import get_theme_manager
 from gui.styles.stylesheet_factory import create_dialog_style, create_styled_button_style
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class AgentSetupDialog(QDialog):
     """Dialog for configuring an agent's LLM settings."""

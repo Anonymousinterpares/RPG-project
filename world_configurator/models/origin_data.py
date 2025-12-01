@@ -4,17 +4,17 @@ Origin data models for starting origins.
 (Formerly Scenario Data)
 """
 
-import logging
 import os
 import shutil
 import datetime
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, Optional
 
 # Assuming Origin model exists in base_models with the new fields
 from models.base_models import Origin, Quest, QuestObjective, WorldModelState
 from utils.file_manager import load_json, save_json, get_world_config_dir
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.origin_data") # Updated logger name
+logger = setup_logging("world_configurator.models.origin_data") # Updated logger name
 
 class OriginManager: # Renamed class
     """

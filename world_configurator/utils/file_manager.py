@@ -4,12 +4,13 @@ File management utilities for the World Configurator Tool.
 
 import os
 import json
-import logging
 import shutil
 import datetime
 from typing import Dict, Any, Optional, Union
 
-logger = logging.getLogger("world_configurator.file_manager")
+from world_configurator.utils.logging_setup import setup_logging
+
+logger = setup_logging("world_configurator.file_manager")
 
 def get_project_root() -> str:
     """

@@ -5,12 +5,12 @@ Manages config/audio/context_location_map.json with by_id/by_name mapping.
 from __future__ import annotations
 from typing import Dict, Any, Optional
 import os
-import logging
 
 from utils.file_manager import load_json, save_json, get_config_dir
 from models.base_models import WorldModelState
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.context_location_map")
+logger = setup_logging("world_configurator.models.context_location_map")
 
 
 class ContextLocationMapManager:

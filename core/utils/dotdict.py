@@ -6,9 +6,7 @@ This module provides a dictionary subclass that allows accessing keys
 using dot notation (e.g., d.key instead of d['key']).
 """
 
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
-import logging
-
+from typing import Any, Dict
 from core.utils.logging_config import get_logger
 
 # Get the module logger
@@ -198,7 +196,7 @@ class DotDict(dict):
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    logger.basicConfig(level=logger.INFO)
     
     # Create a DotDict
     config = DotDict({

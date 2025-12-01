@@ -3,18 +3,16 @@
 Editor for a specific category of items (e.g., origin_items.json).
 """
 
-import logging
 import os
 import json
-from typing import Dict, List, Optional, Any, Union
-
+from typing import Dict, List, Optional, Any
+from world_configurator.utils.logging_setup import setup_logging
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (QDialogButtonBox,
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QComboBox,
     QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QCheckBox,
-    QDoubleSpinBox, QSpinBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QInputDialog
+    QDoubleSpinBox, QSpinBox, QTableWidget, QTableWidgetItem, QHeaderView
 )
 # Safe import of core stats enums even when world_configurator runs standalone
 try:
@@ -38,9 +36,10 @@ except ModuleNotFoundError:
 from ui.dialogs.base_dialog import BaseDialog
 from ui.widgets.typed_resistances_editor import TypedResistancesEditor
 from ui.widgets.multiselect_combo import MultiSelectCombo
-from utils.file_manager import load_json, save_json, get_project_root
+from utils.file_manager import load_json, save_json
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.specific_item_editor")
+logger = setup_logging("world_configurator.ui.specific_item_editor")
 
 # --- Stat Entry Dialog (for item stats) ---
 class ItemStatDialog(BaseDialog):

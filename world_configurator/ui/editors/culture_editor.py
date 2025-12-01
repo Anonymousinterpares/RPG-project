@@ -2,10 +2,9 @@
 Culture editor component for the World Configurator Tool.
 """
 
-import logging
-from typing import Dict, List, Optional, Callable
+from typing import Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
@@ -14,8 +13,9 @@ from PySide6.QtWidgets import (
 
 from models.base_models import Culture, CultureValue, Tradition
 from models.world_data import CultureManager
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.culture_editor")
+logger = setup_logging("world_configurator.ui.culture_editor")
 
 class ValueDialog(QDialog):
     """Dialog for editing a cultural value."""

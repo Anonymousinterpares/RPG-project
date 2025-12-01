@@ -3,11 +3,10 @@
 Race editor component for the World Configurator Tool.
 """
 
-import logging
 import copy
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
@@ -18,8 +17,9 @@ from PySide6.QtWidgets import (
 from ui.dialogs.base_dialog import BaseDialog
 from models.base_models import Race, RaceTrait
 from models.world_data import RaceManager
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.race_editor")
+logger = setup_logging("world_configurator.ui.race_editor")
 
 # --- Helper Dialogs ---
 

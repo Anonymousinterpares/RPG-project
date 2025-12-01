@@ -11,11 +11,12 @@ import uuid
 import dataclasses
 import datetime
 import enum
-from typing import Any, Dict, List, Set, Tuple, Union, Optional
-import logging
+from typing import Any, Dict, Set, Optional
+
+from core.utils.logging_config import get_logger
 
 # Get the module logger
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class EnhancedJSONEncoder(json.JSONEncoder):
     """Enhanced JSON encoder to handle various Python types."""
@@ -212,7 +213,7 @@ def enhanced_json_loads(json_str: str) -> Any:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    logger.basicConfig(level=logger.INFO)
     
     # Example dataclass
     @dataclasses.dataclass

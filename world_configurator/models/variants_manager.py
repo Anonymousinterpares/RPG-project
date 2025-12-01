@@ -2,16 +2,15 @@
 VariantsManager for handling config/npc/variants.json within the World Configurator.
 """
 import os
-import json
-import logging
 import shutil
 import datetime
 from typing import Optional, Dict, Any, List
 
 from models.base_models import WorldModelState
 from utils.file_manager import get_config_dir, save_json, load_json
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.variants_manager")
+logger = setup_logging("world_configurator.models.variants_manager")
 
 class VariantsManager:
     """Manager for NPC variants configuration (config/npc/variants.json)."""

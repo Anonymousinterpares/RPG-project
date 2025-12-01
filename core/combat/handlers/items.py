@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, Any, TYPE_CHECKING
 from core.stats.combat_effects import StatusEffect, StatusEffectType
 from core.stats.derived_stats import DerivedStatType
@@ -10,8 +9,9 @@ if TYPE_CHECKING:
     from core.combat.combat_manager import CombatManager
     from core.stats.stats_manager import StatsManager
     from core.base.engine import GameEngine
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def handle_item_action(manager: 'CombatManager', action: CombatAction, performer: CombatEntity, performer_stats_manager: 'StatsManager', engine: 'GameEngine', current_result_detail: Dict) -> Dict[str, Any]:
     """Handle using an item in combat."""

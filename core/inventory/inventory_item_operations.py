@@ -6,8 +6,7 @@ This module extends the base inventory with methods
 for adding, removing, and managing items.
 """
 
-from typing import Dict, List, Optional, Any, Union
-import logging
+from typing import List, Optional
 import copy
 
 from core.utils.logging_config import get_logger

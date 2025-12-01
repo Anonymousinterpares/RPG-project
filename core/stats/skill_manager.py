@@ -5,12 +5,12 @@ Skill Manager for loading and managing skills from external JSON files.
 import os
 import json
 import time
-import logging
-from typing import Dict, Any, Optional, List, Set, Tuple
+from typing import Dict, Any, Optional
 
 from core.stats.stats_base import StatType
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class SkillManager:
     """

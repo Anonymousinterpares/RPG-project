@@ -4,22 +4,19 @@ NPC generator for creating NPCs with appropriate stats based on interaction need
 """
 
 import random
-import logging
 import os
 import json
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, Any, Optional
 
 from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType
 from core.stats.stats_manager import StatsManager
-from core.stats.stats_base import StatType, DerivedStatType, Stat
-from core.stats.combat_effects import StatusEffect, StatusEffectType
-from core.inventory.item_factory import ItemFactory
-from core.inventory.item_template_loader import get_item_template_loader
+from core.stats.stats_base import StatType
 from core.inventory.item_variation_generator import ItemVariationGenerator
 from core.inventory.item_enums import ItemType, ItemRarity, EquipmentSlot
 from core.inventory.equipment_manager import EquipmentManager
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NPCGenerator:

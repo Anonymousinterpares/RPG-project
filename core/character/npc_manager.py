@@ -4,18 +4,15 @@ NPC Manager for tracking and persisting NPCs in the game world.
 Implements the just-in-time generation of NPC stats based on context.
 """
 
-import logging
 import os
-import json
-from typing import Dict, List, Any, Optional, Union, Set
+from typing import Dict, List, Optional, Union, Set
 from datetime import datetime
 
-from core.character.npc_base import NPC, NPCType, NPCRelationship, NPCInteractionType, NPCMemory
+from core.character.npc_base import NPC, NPCType, NPCRelationship
 from core.character.npc_generator import NPCGenerator
-from core.stats.stats_base import StatType, DerivedStatType
-from core.utils.dotdict import DotDict
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NPCManager:

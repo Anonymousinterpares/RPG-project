@@ -2,12 +2,12 @@
 Data validation utilities for the World Configurator Tool.
 """
 
-import re
 import json
-import logging
 import os
 import sys
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Optional, Union
+
+from world_configurator.utils.logging_setup import setup_logging
 
 try:
     import jsonschema
@@ -15,8 +15,9 @@ try:
 except Exception:  # jsonschema may be missing in some environments
     jsonschema = None
     validator_for = None
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.data_validator")
+logger = setup_logging("world_configurator.data_validator")
 
 class ValidationError:
     """

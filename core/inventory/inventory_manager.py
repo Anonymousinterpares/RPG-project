@@ -5,15 +5,14 @@ This module implements the InventoryManager class which combines all
 inventory-related functionality into a single interface.
 """
 
-from typing import Dict, List, Optional, Any, Tuple, Set, Union
-import logging
+from typing import Dict, Optional, Any, Tuple
 import json
 import os
 import uuid
 
 from core.utils.logging_config import get_logger
 from core.inventory.item import Item
-from core.inventory.item_enums import ItemType, ItemRarity, EquipmentSlot
+from core.inventory.item_enums import ItemType, EquipmentSlot
 from core.inventory.item_serialization import item_to_dict, dict_to_item
 from core.inventory.inventory_item_operations import InventoryItemOperations
 from core.inventory.inventory_limits import InventoryLimits

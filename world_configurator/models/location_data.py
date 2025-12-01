@@ -2,16 +2,16 @@
 Location data models for the world configurator.
 """
 
-import logging
 import os
 import shutil
 import datetime
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Optional
 
 from models.base_models import Location, LocationConnection, LocationFeature, WorldModelState
 from utils.file_manager import load_json, save_json, get_world_config_dir
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.location_data")
+logger = setup_logging("world_configurator.models.location_data")
 
 class LocationManager:
     """

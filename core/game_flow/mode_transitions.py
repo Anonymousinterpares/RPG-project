@@ -3,29 +3,27 @@
 Handles transitions between different interaction modes.
 """
 
-import logging
 import time
 import json
 from typing import Dict, List, Optional, Any, TYPE_CHECKING, Tuple
 
 from core.interaction.enums import InteractionMode
 from core.combat.enums import CombatState
-from core.character.npc_system import NPCSystem
 from core.base.state import get_state_manager, GameState # Import GameState for type hinting
-from core.combat.dev_commands import create_enemy_combat_entity, create_player_combat_entity
+from core.combat.dev_commands import create_player_combat_entity
 from core.stats.stats_base import DerivedStatType, StatType # Import StatType for checks
 from core.combat.combat_entity import EntityType, CombatEntity # Import EntityType and CombatEntity
 from core.stats.skill_check import SkillCheckResult # Import SkillCheckResult
 
 # Import necessary functions/classes from interaction_core
 from core.game_flow.game_flow_utils import get_participant_by_id # Assuming this helper stays in interaction_core
-from core.game_flow.npc_interaction import trigger_combat_narration # Assuming this is called after combat init
+from core.utils.logging_config import get_logger # Assuming this is called after combat init
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine # Import GameEngine for type hinting
 
 
-logger = logging.getLogger("INTERACTION_PROC")
+logger = get_logger("INTERACTION_PROC")
 
 
 # --- Helper: Mode Transition Cooldown ---

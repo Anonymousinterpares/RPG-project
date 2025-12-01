@@ -3,12 +3,10 @@
 Skills editor component for the World Configurator Tool.
 """
 
-import logging
 import os
-import json
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, Optional, Any, Tuple
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QComboBox,
@@ -16,9 +14,10 @@ from PySide6.QtWidgets import (
 )
 
 from ui.dialogs.base_dialog import BaseDialog # Assuming base_dialog.py is in gui.dialogs
-from utils.file_manager import get_project_root, load_json, save_json
+from utils.file_manager import  load_json, save_json
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.skills_editor")
+logger = setup_logging("world_configurator.ui.skills_editor")
 
 # Define typical RPG stats and categories for dropdowns
 PRIMARY_STATS = ["STRENGTH", "DEXTERITY", "CONSTITUTION", "INTELLIGENCE", "WISDOM", "CHARISMA", "WILLPOWER", "INSIGHT", "NONE"]

@@ -4,14 +4,14 @@ Origin editor component for the World Configurator Tool.
 (Formerly Scenario Editor)
 """
 
-import logging
-import copy
-from typing import Dict, List, Optional, Callable, Any
 
-from PySide6.QtCore import Qt, Signal, Slot
+import copy
+from typing import List, Optional
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
-    QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
+    QPushButton, QListWidget, QListWidgetItem, QFormLayout,
     QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox,
     QInputDialog, QTableWidget, QTableWidgetItem, QHeaderView
 )
@@ -21,8 +21,9 @@ from models.base_models import Origin, OriginTrait
 from models.origin_data import OriginManager # Renamed import
 from models.location_data import LocationManager
 from models.origin_data import QuestManager
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.origin_editor") # Updated logger name
+logger = setup_logging("world_configurator.ui.origin_editor") # Updated logger name
 
 
 class OriginTraitDialog(BaseDialog):

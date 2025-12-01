@@ -6,13 +6,12 @@ This module provides command handlers for inventory-related commands
 like 'inventory', 'equip', 'unequip', 'examine', etc.
 """
 
-from typing import List, Optional
-import logging
+from typing import List
 
 from core.utils.logging_config import get_logger
 from core.base.state import GameState
 from core.base.commands import CommandResult, get_command_processor
-from core.inventory import get_inventory_manager, EquipmentSlot, ItemType
+from core.inventory import get_inventory_manager, ItemType
 
 # Import command functions from other modules
 from core.inventory.inventory_commands_2 import (

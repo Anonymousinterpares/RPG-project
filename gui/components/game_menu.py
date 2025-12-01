@@ -4,7 +4,6 @@ Game menu widget for the RPG game GUI.
 This module provides a widget for game menu options.
 """
 
-import logging
 from typing import Optional
 
 from PySide6.QtWidgets import (

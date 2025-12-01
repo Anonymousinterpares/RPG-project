@@ -1,22 +1,23 @@
 """
 Variants editor for config/npc/variants.json.
 """
-import logging
 import os
-from typing import Dict, Any, Optional, List
+from typing import Dict, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QDoubleSpinBox,
-    QComboBox, QMessageBox, QSplitter, QFrame, QCheckBox, QSpinBox,
-    QGroupBox, QScrollArea, QTabWidget
+    QComboBox, QMessageBox, QSplitter, QFrame,
+    QGroupBox, QScrollArea
 )
+from world_configurator.utils.logging_setup import setup_logging
 
 from models.variants_manager import VariantsManager
 from utils.file_manager import get_config_dir
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.variants_editor")
+logger = setup_logging("world_configurator.ui.variants_editor")
 
 class StatModifierWidget(QWidget):
     """Widget for editing stat modifiers."""

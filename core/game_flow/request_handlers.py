@@ -3,30 +3,23 @@
 Handles execution of validated structured requests (skill checks, state changes).
 """
 
-import logging
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+from typing import Dict, Optional, Any, TYPE_CHECKING
 
 # --- Core Imports ---
 from core.stats.combat_effects import StatusEffect, StatusEffectType
-from core.stats.enums import Skill
-from core.stats.stats_base import StatType, DerivedStatType
 from core.stats.stats_manager import get_stats_manager
-from core.interaction.enums import InteractionMode
-from core.interaction.social_effects import SocialStatusEffect
-from core.combat.combat_entity import CombatEntity, EntityType
-from core.combat.combat_manager import CombatManager
-from core.combat.enums import CombatState
 from core.combat.combat_action import CombatAction, ActionType, AttackAction # Import relevant actions
 
 # --- Utils ---
 from core.game_flow.game_flow_utils import get_participant_by_id
+from core.utils.logging_config import get_logger
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.base.state import GameState
 
 # --- Logger ---
-logger = logging.getLogger("INTERACTION_PROC") # Keep original logger name
+logger = get_logger("INTERACTION_PROC") # Keep original logger name
 
 
 def _process_skill_check_request(engine: 'GameEngine', game_state: 'GameState', request: Dict[str, Any], effective_actor_id: str) -> str:

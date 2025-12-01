@@ -5,12 +5,14 @@ This module provides a centralized system for loading and managing GUI resources
 """
 
 import os
-import logging
 from typing import Dict, Optional, List, Tuple
 
 from PySide6.QtGui import QPixmap, QIcon, QMovie # Added QMovie
-from PySide6.QtCore import QSize, QByteArray # Added QByteArray for QMovie
+from PySide6.QtCore import QSize
 
+from core.utils.logging_config import get_logger # Added QByteArray for QMovie\
+
+logger = get_logger("GUI")
 class ResourceManager:
     """Manages the loading and caching of GUI resources."""
     
@@ -59,7 +61,7 @@ class ResourceManager:
             pixmap = QPixmap(full_path)
             
             if pixmap.isNull():
-                logging.warning(f"Failed to load pixmap: {full_path}")
+                logger.warning(f"Failed to load pixmap: {full_path}")
                 # Return an empty pixmap
                 pixmap = QPixmap()
             else:
@@ -73,7 +75,7 @@ class ResourceManager:
             return pixmap
             
         except Exception as e:
-            logging.error(f"Error loading pixmap {full_path}: {e}")
+            logger.error(f"Error loading pixmap {full_path}: {e}")
             return QPixmap()
     
     def get_icon(self, name: str) -> QIcon:
@@ -130,7 +132,7 @@ class ResourceManager:
             return icon
             
         except Exception as e:
-            logging.error(f"Error loading icon {name}: {e}")
+            logger.error(f"Error loading icon {name}: {e}")
             return QIcon()
     
 
@@ -138,7 +140,7 @@ class ResourceManager:
         """List available background image/animation names and their extensions."""
         backgrounds = []
         if not os.path.isdir(self.background_path):
-            logging.warning(f"Background directory not found: {self.background_path}")
+            logger.warning(f"Background directory not found: {self.background_path}")
             return backgrounds
         try:
             for filename in os.listdir(self.background_path):
@@ -147,7 +149,7 @@ class ResourceManager:
                 if ext_lower in [".png", ".gif"]:
                     backgrounds.append((name, ext)) # Store name and extension
         except Exception as e:
-            logging.error(f"Error listing backgrounds in {self.background_path}: {e}")
+            logger.error(f"Error listing backgrounds in {self.background_path}: {e}")
         return sorted(backgrounds, key=lambda x: x[0]) # Sort by name
 
     def get_background_pixmap(self, name: str) -> QPixmap:
@@ -172,7 +174,7 @@ class ResourceManager:
             pixmap = QPixmap(full_path)
 
             if pixmap.isNull():
-                logging.warning(f"Failed to load background pixmap: {full_path}")
+                logger.warning(f"Failed to load background pixmap: {full_path}")
                 pixmap = QPixmap() # Return an empty pixmap
             else:
                 # Cache the resource
@@ -181,7 +183,7 @@ class ResourceManager:
             return pixmap
 
         except Exception as e:
-            logging.error(f"Error loading background pixmap {full_path}: {e}")
+            logger.error(f"Error loading background pixmap {full_path}: {e}")
             return QPixmap()
 
     def get_background_movie(self, name: str) -> QMovie:
@@ -210,7 +212,7 @@ class ResourceManager:
             movie = QMovie(full_path)
 
             if not movie.isValid():
-                logging.warning(f"Failed to load or invalid background movie: {full_path}")
+                logger.warning(f"Failed to load or invalid background movie: {full_path}")
                 # Return an empty/invalid movie
                 return QMovie()
             else:
@@ -219,7 +221,7 @@ class ResourceManager:
                 return movie
 
         except Exception as e:
-            logging.error(f"Error loading background movie {full_path}: {e}")
+            logger.error(f"Error loading background movie {full_path}: {e}")
             return QMovie()
 
     def get_gif_path(self, name: str) -> str:
@@ -239,7 +241,7 @@ class ResourceManager:
         if os.path.exists(full_path):
             return full_path
         else:
-            logging.warning(f"GIF resource not found: {full_path}")
+            logger.warning(f"GIF resource not found: {full_path}")
             return ""
 
     def clear_cache(self):

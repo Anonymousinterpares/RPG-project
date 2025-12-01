@@ -3,9 +3,7 @@
 Dialog for selecting items from a filterable, sortable list.
 """
 
-import logging
 import os
-import json
 from typing import List, Dict, Optional, Set, Any
 
 from PySide6.QtCore import Qt
@@ -15,9 +13,10 @@ from PySide6.QtWidgets import (
 )
 
 from ui.dialogs.base_dialog import BaseDialog
-from utils.file_manager import get_project_root, load_json
+from utils.file_manager import load_json
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.item_selection_dialog")
+logger = setup_logging("world_configurator.ui.item_selection_dialog")
 
 class ItemSelectionDialog(BaseDialog):
     """

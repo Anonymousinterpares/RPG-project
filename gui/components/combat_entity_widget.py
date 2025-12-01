@@ -2,13 +2,12 @@
 """
 Combat entity widget for the combat display.
 """
-import logging
 import re
 from typing import Dict, Optional, List, Any
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar
 from PySide6.QtCore import Slot, QTimer
-from PySide6.QtGui import QFont, QColor
+from PySide6.QtGui import QFont
 
 from core.base.engine import get_game_engine
 from core.utils.logging_config import get_logger

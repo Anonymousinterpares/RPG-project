@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, TYPE_CHECKING
 from core.stats.stats_base import DerivedStatType
 from core.orchestration.events import DisplayEvent, DisplayEventType
@@ -8,8 +7,9 @@ if TYPE_CHECKING:
     from core.stats.stats_manager import StatsManager
     from core.base.engine import GameEngine
     from core.combat.combat_entity import CombatEntity
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def apply_and_display_costs(manager: 'CombatManager', performer: 'CombatEntity', performer_stats_manager: 'StatsManager', engine: 'GameEngine', result_detail: Dict):
     """

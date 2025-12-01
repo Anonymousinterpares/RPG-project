@@ -7,7 +7,6 @@ weight and slot limits.
 """
 
 from typing import Dict
-import logging
 
 from core.utils.logging_config import get_logger
 from core.inventory.inventory_base import InventoryBase

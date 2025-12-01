@@ -6,24 +6,22 @@ Settings dialog for the RPG game GUI.
 This module provides a dialog for configuring game settings.
 """
 
-import logging
-import json
-import os
-from typing import Dict, Any
 from core.base.config import get_config
 
+from core.utils.logging_config import get_logger
 from gui.dialogs.base_dialog import BaseDialog
 from gui.dialogs.settings.style_tab import StyleTab
 from gui.dialogs.settings.background_tab import BackgroundTab 
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
+    QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
     QPushButton, QTabWidget, QWidget, QFormLayout,
     QCheckBox, QSpinBox, QGroupBox, QRadioButton, QButtonGroup,
     QSlider 
 )
 from PySide6.QtCore import Qt, Signal, QSettings, QSize, Slot
-from PySide6.QtGui import QColor 
+
+logger = get_logger("GUI")
 
 class SettingsDialog(BaseDialog):
     """Dialog for configuring game settings."""
@@ -375,7 +373,7 @@ class SettingsDialog(BaseDialog):
             # self.resolution_combo.setCurrentIndex(self.resolution_combo.count() - 1)
             # Option 2: Default to first item if not found
              self.resolution_combo.setCurrentIndex(0)
-             logging.warning(f"Saved windowed resolution {resolution_str} not found in options. Defaulting.")
+             logger.warning(f"Saved windowed resolution {resolution_str} not found in options. Defaulting.")
 
 
         # Load UI scale (unchanged)
@@ -513,7 +511,7 @@ class SettingsDialog(BaseDialog):
                     w, h = map(int, resolution_text.split('x'))
                     self.settings.setValue("display/windowed_size", (w, h))
                 except ValueError:
-                    logging.error(f"Could not parse resolution text '{resolution_text}' during save.")
+                    logger.error(f"Could not parse resolution text '{resolution_text}' during save.")
                     # Optionally save a default or skip saving resolution
 
         # Save UI scale (unchanged)

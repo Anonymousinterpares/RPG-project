@@ -2,22 +2,21 @@
 History editor component for the World Configurator Tool.
 """
 
-import logging
-from typing import Dict, List, Optional, Callable, Union
+from typing import Dict, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
-    QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox,
-    QTableWidget, QTableWidgetItem, QHeaderView, QTabWidget, QGroupBox
+    QDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QGroupBox
 )
 
 from ui.dialogs.base_dialog import BaseDialog
 from models.base_models import WorldHistory, Era, HistoricalEvent
 from models.world_data import WorldHistoryManager
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.history_editor")
+logger = setup_logging("world_configurator.ui.history_editor")
 
 class EventDialog(BaseDialog):
     """Dialog for editing a historical event."""

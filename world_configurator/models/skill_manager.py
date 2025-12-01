@@ -3,7 +3,6 @@
 Manager for skill data (skills.json).
 """
 
-import logging
 import os
 import shutil
 import datetime
@@ -11,8 +10,9 @@ from typing import Dict, Optional, Any
 
 from models.base_models import WorldModelState
 from utils.file_manager import load_json, save_json, get_project_root, get_config_dir
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.skill_manager")
+logger = setup_logging("world_configurator.models.skill_manager")
 
 class SkillManager:
     """

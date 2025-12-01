@@ -4,7 +4,6 @@ Character sheet widget for the RPG game GUI.
 This module provides a widget for displaying the player character's information.
 """
 
-import logging
 import re
 from typing import Optional, Dict, Any, List
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
@@ -12,7 +11,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
     QScrollArea, QFrame, QGroupBox, QProgressBar, QMenu, QToolTip,
     QToolButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, Slot, Signal, QPoint, QPropertyAnimation, QEasingCurve, QAbstractAnimation
+from PySide6.QtCore import Qt, Slot, Signal, QPoint, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import  QPixmap, QCursor, QMouseEvent
 
 from core.base.state import get_state_manager
@@ -1007,7 +1006,7 @@ class CharacterSheetWidget(QScrollArea):
             bar_type_key_internal = "health"
         
         if bar_type_key_internal not in self.resource_bars:
-            logging.warning(f"CharacterSheet: Bar type '{bar_type_key_internal}' (from original key '{bar_type_key}') not found for phase 1 animation.")
+            logger.warning(f"CharacterSheet: Bar type '{bar_type_key_internal}' (from original key '{bar_type_key}') not found for phase 1 animation.")
             return
 
         label, bar = self.resource_bars[bar_type_key_internal]
@@ -1015,12 +1014,12 @@ class CharacterSheetWidget(QScrollArea):
         max_value = update_data.get("max_value")
         
         if new_value_preview is None or max_value is None:
-            logging.error(f"CharacterSheet: Missing new_value_preview or max_value for phase 1 of {bar_type_key_internal}")
+            logger.error(f"CharacterSheet: Missing new_value_preview or max_value for phase 1 of {bar_type_key_internal}")
             return
             
         is_loss = new_value_preview < bar.value()
 
-        logging.debug(f"CharacterSheet: Phase 1 Anim for {bar_type_key_internal} - Preview: {new_value_preview}/{max_value}")
+        logger.debug(f"CharacterSheet: Phase 1 Anim for {bar_type_key_internal} - Preview: {new_value_preview}/{max_value}")
 
         display_name = label.text().split(':')[0] 
         label.setText(f"{display_name}: {bar.value()}/{max_value} -> {new_value_preview}/{max_value}")

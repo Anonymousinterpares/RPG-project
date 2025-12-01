@@ -6,15 +6,12 @@ This module provides a command line utility for managing LLM settings,
 including API keys, provider selection, and agent configuration.
 """
 
-import os
-import sys
 import argparse
 import json
-from typing import Dict, List, Optional, Any
-import logging
+from typing import Dict, Any
 
 from core.utils.logging_config import get_logger
-from core.llm.settings_manager import SettingsManager, get_settings_manager
+from core.llm.settings_manager import get_settings_manager
 from core.llm.provider_manager import ProviderType
 
 # Get the module logger

@@ -3,20 +3,20 @@ Manages the sequential display of combat events, including narratives,
 system messages, and UI updates, respecting delays and completion signals.
 """
 import collections
-import logging
 import weakref
 from typing import Dict, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
+from core.utils.logging_config import get_logger
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.combat.combat_manager import CombatManager
     from core.audio.tts_manager import TTSManager # Placeholder
 
-logger = logging.getLogger("ORCHESTRATOR") # New logger category
+logger = get_logger("ORCHESTRATOR") # New logger category
 
 class CombatOutputOrchestrator(QObject):
     """

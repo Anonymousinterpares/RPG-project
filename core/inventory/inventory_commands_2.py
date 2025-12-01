@@ -7,13 +7,12 @@ like 'equip', 'unequip', 'examine', etc.
 """
 
 from typing import List, Optional
-import logging
 
 from core.inventory.item import Item
 from core.utils.logging_config import get_logger
 from core.base.state import GameState
 from core.base.commands import CommandResult
-from core.inventory import get_inventory_manager, EquipmentSlot, ItemType
+from core.inventory import get_inventory_manager, EquipmentSlot
 
 # Get module logger
 logger = get_logger("INVENTORY")

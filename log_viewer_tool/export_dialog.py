@@ -1,12 +1,14 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QListWidget, QListWidgetItem,
-    QPushButton, QCheckBox, QLineEdit, QLabel, QFileDialog, QButtonGroup, QRadioButton
+    QPushButton, QLineEdit, QButtonGroup, QRadioButton
 )
 from PySide6.QtCore import Qt
-from typing import Any, List, Set, Tuple, Dict
-import logging
+from typing import Any, List, Set, Dict
 
-logger = logging.getLogger("LogViewerTool.ExportDialog")
+from core.utils.logging_config import get_logger
+
+
+logger = get_logger("LogViewerTool.ExportDialog")
 
 class ExportDialog(QDialog):
     """

@@ -3,7 +3,6 @@
 Dialog for displaying detailed item information.
 """
 
-import logging
 from typing import Optional, Dict, Any
 
 from PySide6.QtWidgets import (
@@ -14,11 +13,12 @@ from PySide6.QtCore import Qt,Slot
 
 from core.inventory.item import Item
 from core.inventory.currency_manager import CurrencyManager
+from core.utils.logging_config import get_logger
 from gui.dialogs.base_dialog import BaseDialog
 from gui.styles.stylesheet_factory import create_styled_button_style, create_text_edit_style
 from gui.styles.theme_manager import get_theme_manager 
 
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class ItemInfoDialog(BaseDialog):
     """Dialog to display detailed information about an item."""

@@ -6,8 +6,7 @@ This module provides the remaining command handlers for inventory-related comman
 like 'currency', 'equipment', and 'drop'.
 """
 
-from typing import List, Optional
-import logging
+from typing import List
 
 from core.utils.logging_config import get_logger
 from core.base.state import GameState

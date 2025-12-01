@@ -2,16 +2,16 @@
 LocationDefaultsManager for handling config/world/locations/defaults.json within the World Configurator.
 """
 import os
-import json
-import logging
+
 import shutil
 import datetime
 from typing import Optional, Dict, Any
 
 from models.base_models import WorldModelState
 from utils.file_manager import get_world_config_dir, save_json, load_json
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.location_defaults_manager")
+logger = setup_logging("world_configurator.models.location_defaults_manager")
 
 class LocationDefaultsManager:
     """Manager for world/locations/defaults.json which includes global culture_mix defaults."""

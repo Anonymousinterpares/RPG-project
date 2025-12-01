@@ -3,8 +3,7 @@ World configuration manager for the World Configurator Tool.
 """
 
 import os
-import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from models.base_models import WorldModelState
 from models.world_data import CultureManager, WorldHistoryManager, WorldRulesManager, RaceManager, ClassManager, MagicSystemManager
@@ -14,10 +13,11 @@ from models.location_defaults_manager import LocationDefaultsManager
 from models.variants_manager import VariantsManager
 from models.context_location_map import ContextLocationMapManager
 from models.origin_data import OriginManager, QuestManager
-from utils.file_manager import get_config_dir, get_project_root, get_world_config_dir, load_json, save_json
-from utils.data_validator import DataValidator, ValidationError
+from utils.file_manager import get_config_dir, get_project_root
+from utils.data_validator import DataValidator
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.world_config")
+logger = setup_logging("world_configurator.models.world_config")
 
 # Define expected filenames for each component relative to the main 'config' directory
 COMPONENT_FILES = {

@@ -3,13 +3,13 @@ Manager for handling stat modifiers.
 """
 
 from typing import Dict, List, Set, Optional, Union, Any
-import logging
 
 from core.stats.stats_base import StatType, DerivedStatType
 from core.stats.modifier import StatModifier, ModifierGroup, ModifierType, ModifierSource
+from core.utils.logging_config import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ModifierManager:

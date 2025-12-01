@@ -3,8 +3,6 @@
 Main panel for managing different types of items.
 """
 
-import logging
-import os
 from typing import Dict, Optional, Any
 
 from PySide6.QtCore import Qt, Signal, Slot
@@ -12,11 +10,12 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QSplitter, QFrame, QStackedWidget, QMessageBox
 )
+from world_configurator.utils.logging_setup import setup_logging
 
 # Placeholder for individual item category editors
 # from .specific_item_editor import SpecificItemEditor # Example, will be created later
 
-logger = logging.getLogger("world_configurator.ui.item_editor_panel")
+logger = setup_logging("world_configurator.ui.item_editor_panel")
 
 ITEM_CATEGORIES = {
     "Starting Items": "config/items/origin_items.json",

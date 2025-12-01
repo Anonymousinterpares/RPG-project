@@ -1,5 +1,4 @@
 import random
-import logging
 from typing import Dict, List, Any, Optional, TYPE_CHECKING
 
 from core.stats.combat_effects import StatusEffect, StatusEffectType
@@ -19,8 +18,9 @@ if TYPE_CHECKING:
     from core.combat.combat_manager import CombatManager
     from core.stats.stats_manager import StatsManager
     from core.base.engine import GameEngine
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # -----------------------------------------------------------------------------
 # Main Handler Function

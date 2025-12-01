@@ -1,19 +1,19 @@
-import logging
 import random
-from typing import List, TYPE_CHECKING
+from typing import  TYPE_CHECKING
 
 from core.character.npc_system import get_npc_system
 from core.inventory import get_inventory_manager
 from core.inventory.item_serialization import item_to_dict
 from core.game_flow.lifecycle import save_game
 from core.combat.combat_entity import EntityType
+from core.utils.logging_config import get_logger
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.combat.combat_manager import CombatManager
     from core.combat.combat_entity import CombatEntity
 
-logger = logging.getLogger("SURRENDER_SYSTEM")
+logger = get_logger("SURRENDER_SYSTEM")
 
 def process_surrender_consequences(engine: 'GameEngine', combat_manager: 'CombatManager', player_entity: 'CombatEntity') -> dict:
     """

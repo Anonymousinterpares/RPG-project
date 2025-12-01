@@ -1,18 +1,17 @@
-import logging
 from typing import Dict, Any, Optional, TYPE_CHECKING
-import copy
 
-from PySide6.QtCore import QObject, Signal, Slot, QThread
+from PySide6.QtCore import QObject, Signal, Slot
 
 from core.agents.base_agent import AgentContext
-from core.combat.enums import CombatStep, CombatState
+from core.combat.enums import CombatStep
 from core.combat.combat_action import ActionType
+from core.utils.logging_config import get_logger
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.combat.combat_manager import CombatManager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class LLMAttemptWorker(QObject):
     finished = Signal(str)

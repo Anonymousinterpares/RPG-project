@@ -1,4 +1,3 @@
-import logging
 import random
 import copy
 from typing import Optional, TYPE_CHECKING
@@ -10,7 +9,6 @@ from core.combat.combat_entity import EntityType
 from core.combat.combat_action import AttackAction, SpellAction, DefendAction, FleeAction, SurrenderAction, ActionType, CombatAction
 from core.stats.stats_base import DerivedStatType
 from core.stats.combat_effects import StatusEffect, StatusEffectType
-from core.stats.modifier import ModifierSource
 from core.game_flow.npc_interaction import get_npc_intent
 from core.orchestration.events import DisplayEvent, DisplayEventType, DisplayTarget
 from core.combat.narration import LLMAttemptWorker, LLMOutcomeWorker, LLMResultBridge
@@ -19,8 +17,9 @@ from core.combat.loot import generate_combat_loot
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
     from core.combat.combat_manager import CombatManager
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class CombatFlow:
     """Handles the state transitions and logic steps of the combat loop."""

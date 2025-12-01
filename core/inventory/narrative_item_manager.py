@@ -8,10 +8,7 @@ items based on the LLM's descriptions.
 """
 
 import re
-import logging
-import random
-from typing import Dict, List, Optional, Any, Tuple, Set, Union
-import json
+from typing import Dict, List, Any, Tuple
 
 from core.utils.logging_config import get_logger
 from core.inventory import (

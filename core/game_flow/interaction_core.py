@@ -4,24 +4,23 @@ Core interaction processing loop and main entry points for natural language inpu
 """
 
 import json
-import logging
-from typing import Optional, TYPE_CHECKING, Dict, Any, List, Tuple
+from typing import Optional, TYPE_CHECKING, Dict, Any
 
 from core.base.commands import CommandResult
 from core.interaction.enums import InteractionMode
 from core.interaction.context_builder import ContextBuilder
 from core.interaction.structured_requests import AgentOutput 
 from core.agents.base_agent import AgentContext
-from core.agents.rule_checker import RuleCheckerAgent
 from core.base.state import GameState
 from core.game_flow.mode_transitions import _handle_transition_request
 from core.game_flow.request_handlers import _process_skill_check_request, _process_state_change_request
+from core.utils.logging_config import get_logger
 
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
 
-logger = logging.getLogger("INTERACTION_PROC") # Keep original logger name for minimal changes
+logger = get_logger("INTERACTION_PROC") # Keep original logger name for minimal changes
 
 # --- Helper Functions (General) ---
 

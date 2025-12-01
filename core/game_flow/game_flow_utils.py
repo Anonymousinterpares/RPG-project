@@ -3,15 +3,15 @@
 Utility functions for game flow modules.
 """
 
-import logging
 from typing import Optional, Any
 
 from core.base.state import GameState
 from core.interaction.enums import InteractionMode
-from core.character.npc_base import NPC # Moved from local import
+from core.character.npc_base import NPC
+from core.utils.logging_config import get_logger # Moved from local import
 
 # Get the module logger
-logger = logging.getLogger("GAME_FLOW_UTILS")
+logger = get_logger("GAME_FLOW_UTILS")
 
 def get_participant_by_id(game_state: 'GameState', entity_id: str, try_fuzzy_match: bool = True) -> Optional[Any]: # Use Any for broader compatibility
     """Helper to find a participant (player or NPC/CombatEntity) by ID.

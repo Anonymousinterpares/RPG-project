@@ -1,10 +1,11 @@
 import re
 from datetime import datetime
 from typing import Optional, List
-from .log_entry import LogEntry
-import logging
 
-logger = logging.getLogger("LogViewerTool.Parser")
+from core.utils.logging_config import get_logger
+from .log_entry import LogEntry
+
+logger = get_logger("LogViewerTool.Parser")
 
 class LogParser:
     """

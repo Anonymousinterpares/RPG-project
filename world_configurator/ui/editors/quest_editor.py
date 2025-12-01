@@ -2,24 +2,24 @@
 Quest editor component for the World Configurator Tool.
 """
 
-import logging
 import uuid
-from typing import Dict, List, Optional, Callable, Any
+from typing import Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
     QDialog, QMessageBox, QSplitter, QScrollArea, QFrame, QComboBox,
-    QInputDialog, QTabWidget
+    
 )
 
 from ui.dialogs.base_dialog import BaseDialog
 from models.base_models import Quest, QuestObjective
 from models.origin_data import QuestManager
 from models.location_data import LocationManager
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.quest_editor")
+logger = setup_logging("world_configurator.ui.quest_editor")
 
 class QuestObjectiveDialog(BaseDialog):
     """Dialog for editing a quest objective."""

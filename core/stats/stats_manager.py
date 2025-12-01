@@ -4,7 +4,6 @@ Manager for character statistics.
 
 import math
 from typing import Dict, List, Any, Optional, Tuple, Union, Set
-import logging
 import json
 import os
 import random
@@ -19,9 +18,10 @@ from core.stats.combat_effects import StatusEffect, StatusEffectManager, StatusE
 from core.base.config import get_config
 from core.stats.registry import resolve_stat_enum
 from core.stats.skill_manager import get_skill_manager
+from core.utils.logging_config import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class StatsManager(QObject):

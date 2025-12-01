@@ -2,17 +2,16 @@
 Export dialog for the World Configurator Tool.
 """
 
-import logging
 from typing import Dict
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QCheckBox, QLabel,
+    QVBoxLayout, QCheckBox, QLabel,
     QPushButton, QHBoxLayout, QGroupBox
 )
 
 from ui.dialogs.base_dialog import BaseDialog
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.dialogs.export")
+logger = setup_logging("world_configurator.ui.dialogs.export")
 
 class ExportDialog(BaseDialog):
     """

@@ -3,19 +3,18 @@
 Background selection tab for the settings dialog.
 """
 
-import logging
-import os
-from typing import List, Optional, Tuple # Added Tuple
+from typing import List, Tuple # Added Tuple
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal, QSettings, QSize
-from PySide6.QtGui import QPixmap, QMovie # Added QMovie
+from PySide6.QtCore import Qt, Signal, QSettings
+from PySide6.QtGui import QPixmap
 
+from core.utils.logging_config import get_logger
 from gui.utils.resource_manager import get_resource_manager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class BackgroundTab(QWidget):
     """Widget for selecting the main window background."""

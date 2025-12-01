@@ -2,12 +2,11 @@
 Base dialog class for the World Configurator Tool.
 """
 
-import logging
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import QSize
 from PySide6.QtWidgets import QDialog
-from PySide6.QtGui import QScreen
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.dialogs.base_dialog")
+logger = setup_logging("world_configurator.ui.dialogs.base_dialog")
 
 
 class BaseDialog(QDialog):

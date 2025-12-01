@@ -6,10 +6,7 @@ This module provides functions for creating items from narrative text
 and LLM commands.
 """
 
-import re
-import random
-import logging
-from typing import Dict, List, Optional, Any, Tuple, Set, Union
+from typing import Any
 
 from core.utils.logging_config import get_logger
 from core.inventory import (

@@ -1,16 +1,18 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-    QPushButton, QColorDialog, QLabel, QHeaderView, QAbstractItemView,
-    QScrollArea, QWidget, QGridLayout, QGroupBox
+    QPushButton, QColorDialog, QHeaderView, QAbstractItemView,
+    QGroupBox
 )
 from PySide6.QtGui import QColor, QIcon, QPixmap
 from PySide6.QtCore import Qt, Signal
-from typing import Dict, Optional, Set, Tuple
-import logging
+from typing import Dict, Optional, Set
+
+from core.utils.logging_config import get_logger
+
 
 from .settings_manager import SettingsManager
 
-logger = logging.getLogger("LogViewerTool.ColorSettings")
+logger = get_logger("LogViewerTool.ColorSettings")
 
 class ColorSettingsDialog(QDialog):
     """

@@ -6,8 +6,7 @@ This module provides the base InventoryManager class with
 core properties and query methods.
 """
 
-from typing import Dict, List, Optional, Any, Tuple, Set, Union
-import logging
+from typing import Dict, List, Optional, Union
 
 from core.utils.logging_config import get_logger
 from core.inventory.item import Item

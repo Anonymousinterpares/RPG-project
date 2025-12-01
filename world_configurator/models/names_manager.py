@@ -2,16 +2,15 @@
 NamesManager for handling config/npc/names.json within the World Configurator.
 """
 import os
-import json
-import logging
 import shutil
 import datetime
 from typing import Optional, Dict, Any
 
 from models.base_models import WorldModelState
 from utils.file_manager import get_config_dir, save_json, load_json
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.names_manager")
+logger = setup_logging("world_configurator.models.names_manager")
 
 class NamesManager:
     """Manager for culture-aware names configuration (config/npc/names.json)."""

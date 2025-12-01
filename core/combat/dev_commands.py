@@ -5,24 +5,20 @@ Developer commands for the combat system.
 This module provides developer commands for testing and debugging the combat system.
 """
 
-import logging
-from typing import Dict, List, Any, Optional, Union, TYPE_CHECKING
-import uuid
+from typing import Dict, List, TYPE_CHECKING
 
 from core.base.commands import CommandProcessor, CommandResult
 from core.base.state import GameState, get_state_manager
 from core.interaction.enums import InteractionMode
 from core.utils.logging_config import get_logger
 from core.combat.combat_entity import CombatEntity, EntityType
-from core.combat.combat_action import CombatAction, ActionType, AttackAction
 from core.combat.enums import CombatStep
-from core.character.npc_system import NPCSystem
-from core.stats.stats_base import StatType, DerivedStatType
+from core.stats.stats_base import DerivedStatType
 from core.stats.stats_manager import get_stats_manager
 from core.game_flow.npc_interaction import trigger_combat_narration
 
-if TYPE_CHECKING:
-    from core.combat.combat_manager import CombatManager
+# if TYPE_CHECKING:
+#     from core.combat.combat_manager import CombatManager
 
 # Get the module logger
 logger = get_logger("GAME")

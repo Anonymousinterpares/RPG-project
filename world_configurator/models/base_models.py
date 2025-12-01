@@ -3,12 +3,12 @@ Base data models for the World Configurator Tool.
 """
 
 from dataclasses import dataclass, field, asdict, fields # Added 'fields' import
-from typing import Dict, List, Any, Optional, Union, Literal
+from typing import Dict, List, Any, Optional, Literal
 import json
 import uuid
-import logging
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models")
+logger = setup_logging("world_configurator.models")
 
 @dataclass
 class BaseModel:

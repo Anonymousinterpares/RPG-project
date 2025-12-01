@@ -3,21 +3,20 @@
 Dialog for selecting skills from a filterable, sortable list.
 """
 
-import logging
 import os
-import json
 from typing import Any, List, Dict, Optional, Set
 
-from PySide6.QtCore import Qt, QSortFilterProxyModel, QRegularExpression
+from PySide6.QtCore import Qt, QSortFilterProxyModel
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QListWidget,
     QListWidgetItem, QPushButton, QDialogButtonBox, QLabel, QMessageBox
 )
 
 from ui.dialogs.base_dialog import BaseDialog # Assuming base_dialog.py is in gui.dialogs
-from utils.file_manager import get_project_root, load_json
+from utils.file_manager import load_json
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.skill_selection_dialog")
+logger = setup_logging("world_configurator.ui.skill_selection_dialog")
 
 class SkillSortFilterProxyModel(QSortFilterProxyModel):
     """Proxy model for sorting and filtering skills."""

@@ -2,13 +2,13 @@
 Functions for calculating derived stats based on primary stats.
 """
 
-import logging
 from typing import Dict, Any, Optional, Union, Callable
 import math
 
-from core.stats.stats_base import StatType, DerivedStatType, Stat, StatCategory
+from core.stats.stats_base import StatType, DerivedStatType, Stat
+from core.utils.logging_config import get_logger
 
-logger = logging.getLogger("STATS")
+logger = get_logger("STATS")
 
 def get_modifier_from_stat(stat_value: float) -> int:
     """

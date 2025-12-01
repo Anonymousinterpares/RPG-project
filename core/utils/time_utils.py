@@ -7,12 +7,11 @@ time in the game world, including conversions between game time and
 real time, and human-readable time formatting.
 """
 
-import time
 import datetime
-from typing import Optional, Tuple, Union, Dict, Any
-import logging
+from typing import Optional
 
 from core.utils.logging_config import get_logger
+
 
 # Get the module logger
 logger = get_logger("SYSTEM")
@@ -375,8 +374,8 @@ def format_timestamp(timestamp: float, format_str: str = "%Y-%m-%d %H:%M:%S") ->
 
 # Example usage
 if __name__ == "__main__":
-    # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    # Set up basic logger.
+    logger.basicConfig(level=logger.INFO)
     
     # Example game time (1 day and 12 hours from epoch)
     game_time = DAY + 12 * HOUR

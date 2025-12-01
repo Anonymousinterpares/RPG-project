@@ -6,10 +6,8 @@ This module provides functions for discovering and examining items
 in the narrative context.
 """
 
-import re
 import random
-import logging
-from typing import Dict, List, Optional, Any, Tuple, Set, Union
+from typing import Any
 
 from core.utils.logging_config import get_logger
 from core.inventory import get_inventory_manager

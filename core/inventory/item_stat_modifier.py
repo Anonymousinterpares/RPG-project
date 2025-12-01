@@ -5,9 +5,8 @@ Item stat modifier module.
 This module provides functionality for modifying individual item stats.
 """
 
-from typing import Dict, List, Optional, Any, Union, Tuple
+from typing import Optional
 import random
-import logging
 import copy
 
 from core.utils.logging_config import get_logger

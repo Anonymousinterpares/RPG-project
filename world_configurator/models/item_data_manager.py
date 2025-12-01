@@ -3,7 +3,6 @@
 Manager for all item data files (origin_items.json, base_weapons.json, etc.).
 """
 
-import logging
 import os
 import shutil
 import datetime
@@ -11,8 +10,9 @@ from typing import Dict, List, Optional, Any
 
 from models.base_models import WorldModelState
 from utils.file_manager import load_json, save_json, get_project_root, get_config_dir
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.models.item_data_manager")
+logger = setup_logging("world_configurator.models.item_data_manager")
 
 # This mapping should ideally match ItemEditorPanel.ITEM_CATEGORIES keys to file paths
 # It defines which item files this manager is responsible for.

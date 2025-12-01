@@ -6,8 +6,7 @@ This module extends the inventory system with methods to manage
 equipped items and equipment slots.
 """
 
-from typing import Dict, List, Optional, Any, Set, Union
-import logging
+from typing import Dict, List, Optional, Any, Union
 
 from core.utils.logging_config import get_logger
 from core.inventory.item import Item

@@ -2,7 +2,6 @@
 World data models for cultures, history, and rules.
 """
 
-import logging
 import os
 import shutil
 import datetime
@@ -10,9 +9,9 @@ from typing import Dict, Optional
 
 from models.base_models import CharacterClass, Culture, Race, WorldHistory, WorldRules, MagicalSystem, Spell, WorldModelState
 from utils.file_manager import load_json, save_json, get_world_config_dir
+from world_configurator.utils.logging_setup import setup_logging
 
-
-logger = logging.getLogger("world_configurator.models.world_data")
+logger = setup_logging("world_configurator.models.world_data")
 
 class CultureManager:
     """

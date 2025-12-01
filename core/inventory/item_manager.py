@@ -3,9 +3,7 @@ Item manager module.
 
 This module provides a global access point to the inventory manager.
 """
-import logging # Added for logging within this module
 from typing import Optional
-import uuid # Added for instance ID
 
 from core.inventory.inventory_manager import InventoryManager
 from core.utils.logging_config import get_logger # Ensure get_logger is available

@@ -4,20 +4,20 @@ LLM provider settings tab for the RPG game GUI.
 This module provides a base tab for configuring LLM provider settings.
 """
 
-import logging
 from typing import Dict, Any, List, Tuple, Optional
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QGroupBox, 
-    QLineEdit, QComboBox, QCheckBox, QLabel
+    QLineEdit, QCheckBox, QLabel
 )
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Slot
 
+from core.utils.logging_config import get_logger
 from gui.styles.theme_manager import get_theme_manager
 from gui.styles.stylesheet_factory import create_checkbox_style, create_groupbox_style, create_line_edit_style
 
 # Get the module logger
-logger = logging.getLogger("GUI")
+logger = get_logger("GUI")
 
 class LLMProviderTab(QWidget):
     """Base tab for provider LLM settings."""

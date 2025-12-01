@@ -4,15 +4,13 @@ Menu panel widget for the RPG game GUI.
 This module provides a collapsible left menu panel.
 """
 
-import logging
-from typing import Optional, List
+from typing import Optional
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QFrame, 
-    QToolButton, QLabel, QSizePolicy
+    QToolButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QSize, QEasingCurve, Property
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, QSize, QEasingCurve
 
 from gui.styles.stylesheet_factory import create_image_button_style
 from gui.styles.theme_manager import get_theme_manager

@@ -2,12 +2,11 @@
 Magic Systems editor component for the World Configurator Tool.
 """
 
-import logging
 import os
 import re
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Any
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
     QPushButton, QListWidget, QListWidgetItem, QFormLayout, QSpinBox,
@@ -21,8 +20,9 @@ from ui.dialogs.base_dialog import BaseDialog
 from models.base_models import MagicalSystem, Spell, SpellEffect, RacialAffinity, ClassAffinity
 from models.world_data import MagicSystemManager
 from utils.file_manager import load_json, get_project_root
+from world_configurator.utils.logging_setup import setup_logging
 
-logger = logging.getLogger("world_configurator.ui.magic_systems_editor")
+logger = setup_logging("world_configurator.ui.magic_systems_editor")
 
 class SpellEffectDialog(BaseDialog):
     """Dialog for editing a spell effect."""
@@ -588,7 +588,7 @@ class AtomDialog(QDialog):
                     self.damage_type_combo.setCurrentText(current_dt)
         except Exception as e:
             # Non-fatal; keep defaults
-            logger = logging.getLogger("world_configurator.ui.magic_systems_editor")
+            logger = setup_logging("world_configurator.ui.magic_systems_editor")
             logger.warning(f"Failed to load canonical damage types: {e}")
 
     def _init_stat_list(self, preselect: str = "") -> None:
@@ -627,7 +627,7 @@ class AtomDialog(QDialog):
                         if idx >= 0:
                             self.mag_stat_name_combo.setCurrentIndex(idx)
         except Exception as e:
-            logger = logging.getLogger("world_configurator.ui.magic_systems_editor")
+            logger = setup_logging("world_configurator.ui.magic_systems_editor")
             logger.warning(f"Failed to load stat registry: {e}")
 
     def _make_stat_combo(self, preselect: str = "") -> QComboBox:

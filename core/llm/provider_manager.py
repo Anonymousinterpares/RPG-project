@@ -8,8 +8,7 @@ and management of different LLM providers (OpenAI, Anthropic, Google).
 
 import os
 import json
-from typing import Dict, List, Optional, Any, Union
-import logging
+from typing import Dict, List, Optional, Any
 from enum import Enum, auto
 import threading
 
@@ -618,7 +617,7 @@ def get_provider_manager() -> ProviderManager:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    logger.basicConfig(level=logger.INFO)
     
     # Create the provider manager
     manager = get_provider_manager()
