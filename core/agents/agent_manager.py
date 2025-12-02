@@ -20,6 +20,7 @@ from core.agents.narrator import get_narrator_agent
 from core.agents.rule_checker import get_rule_checker_agent
 from core.agents.context_evaluator import get_context_evaluator_agent
 from core.agents.data_retrieval_commands import process_data_retrieval_command
+from core.agents.archivist import ArchivistAgent
 
 # Get the module logger
 logger = get_logger("AGENT")
@@ -54,6 +55,9 @@ class AgentManager:
         self._narrator_agent = get_narrator_agent()
         self._rule_checker_agent = get_rule_checker_agent()
         self._context_evaluator_agent = get_context_evaluator_agent()
+        
+        # Initialize Archivist
+        self._archivist_agent = ArchivistAgent()
         
         # Initialize command processor
         self._command_processor = get_command_processor()

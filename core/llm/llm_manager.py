@@ -879,7 +879,7 @@ def get_llm_manager() -> LLMManager:
 # Example usage
 if __name__ == "__main__":
     # Set up basic logging
-    logging.basicConfig(level=logging.INFO)
+    logger.basicConfig(level=logger.INFO)
     
     # Create the LLM manager
     manager = get_llm_manager()

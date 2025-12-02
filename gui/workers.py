@@ -82,3 +82,30 @@ class NewGameWorker(QObject):
         except Exception as e:
             logger.error(f"Error starting new game in worker thread: {e}", exc_info=True)
             self.error.emit(str(e))
+
+class ArchivistWorker(QObject):
+    """
+    Async worker for the Archivist Agent (Journal/Codex updates).
+    Running this in a thread prevents the GUI from freezing during LLM generation.
+    """
+    finished = Signal(str, str) # topic, updated_content
+    error = Signal(str)
+
+    def __init__(self, agent, existing_content, history, topic):
+        super().__init__()
+        self.agent = agent
+        self.existing_content = existing_content
+        self.history = history
+        self.topic = topic
+
+    def run(self):
+        try:
+            # Call the specialized process method on the agent
+            updated_content = self.agent.process_update(
+                self.existing_content, 
+                self.history, 
+                self.topic
+            )
+            self.finished.emit(self.topic, updated_content)
+        except Exception as e:
+            self.error.emit(str(e))

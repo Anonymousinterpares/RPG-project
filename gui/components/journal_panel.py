@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Journal panel widget for the RPG game GUI.
-This module provides a widget for displaying and editing the player's journal.
+This module provides a widget for displaying and editing the player's journal,
+including persistent Character data, Quests, the Dynamic Codex, and User Notes.
 """
 
 from typing import Optional, Dict, Any
@@ -9,13 +10,17 @@ from enum import Enum
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QListWidget, QListWidgetItem,
-    QPushButton, QTabWidget, QTextEdit, QSplitter
+    QPushButton, QTabWidget, QTextEdit, QSplitter, QLabel, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal, Slot
 
 from core.base.state import get_state_manager
 from core.utils.logging_config import get_logger
-from gui.styles.stylesheet_factory import create_context_menu_style, create_list_widget_style, create_main_tab_widget_style, create_secondary_tab_widget_style, create_styled_button_style, create_text_edit_style
+from gui.styles.stylesheet_factory import (
+    create_context_menu_style, create_list_widget_style, 
+    create_main_tab_widget_style, create_secondary_tab_widget_style, 
+    create_styled_button_style, create_text_edit_style, create_groupbox_style
+)
 from gui.styles.theme_manager import get_theme_manager
 from gui.utils.resource_manager import get_resource_manager
 
@@ -26,7 +31,7 @@ class JournalSectionType(Enum):
     CHARACTER = 0
     QUESTS = 1
     NOTES = 2
-
+    CODEX = 3  # Added CODEX
 
 class JournalPanelWidget(QScrollArea):
     """Widget for displaying and editing the journal."""
@@ -52,10 +57,11 @@ class JournalPanelWidget(QScrollArea):
         self.journal_widget = QWidget()
         self.setWidget(self.journal_widget)
         
-        # Journal data structure
+        # Journal data structure - Updated default to match new GameState structure
         self.journal_data = {
-            "character": "",
+            "character": {"biography": "", "traits": []},
             "quests": {},
+            "codex": {},
             "notes": []
         }
         
@@ -76,11 +82,11 @@ class JournalPanelWidget(QScrollArea):
         if hasattr(main_win, 'link_cursor'):
             # Apply to tab bars
             self.tab_widget.tabBar().setCursor(main_win.link_cursor)
-            self.quest_status_tabs.tabBar().setCursor(main_win.link_cursor)
+            if hasattr(self, 'quest_status_tabs'):
+                self.quest_status_tabs.tabBar().setCursor(main_win.link_cursor)
         
         if hasattr(main_win, 'text_cursor'):
-            # Apply to editable text widgets
-            self.character_info_editor.viewport().setCursor(main_win.text_cursor)
+            # Apply to editable text widgets (Notes only now, Char is read-only)
             self.note_editor.viewport().setCursor(main_win.text_cursor)
 
     @Slot(dict)
@@ -97,7 +103,7 @@ class JournalPanelWidget(QScrollArea):
         """)
         
         self.tab_widget.setStyleSheet(create_main_tab_widget_style(self.palette))
-        self.character_info_editor.setStyleSheet(create_text_edit_style(self.palette))
+        self.character_bio_view.setStyleSheet(create_text_edit_style(self.palette, read_only=True))
         
         self.quest_status_tabs.setStyleSheet(create_secondary_tab_widget_style(self.palette))
         list_style = create_list_widget_style(self.palette)
@@ -106,13 +112,17 @@ class JournalPanelWidget(QScrollArea):
         self.failed_quests_list.setStyleSheet(list_style)
         self.quest_details.setStyleSheet(create_text_edit_style(self.palette, read_only=True))
         
+        # Codex Styles
+        self.codex_list.setStyleSheet(list_style)
+        self.codex_content.setStyleSheet(create_text_edit_style(self.palette, read_only=True))
+
         self.notes_list.setStyleSheet(list_style)
         self.note_editor.setStyleSheet(create_text_edit_style(self.palette))
         
         button_style = create_styled_button_style(self.palette)
-        self.new_note_button.setStyleSheet(button_style)
-        self.delete_note_button.setStyleSheet(button_style)
-        self.save_note_button.setStyleSheet(button_style)
+        # Apply to all buttons found
+        for btn in self.findChildren(QPushButton):
+            btn.setStyleSheet(button_style)
 
     def _setup_ui(self):
         """Set up the user interface."""
@@ -127,24 +137,32 @@ class JournalPanelWidget(QScrollArea):
         # Add tabs for each section
         self._setup_character_tab()
         self._setup_quests_tab()
+        self._setup_codex_tab() # NEW: Dynamic Codex Tab
         self._setup_notes_tab()
         
         # Add tab widget to main layout
         self.main_layout.addWidget(self.tab_widget)
     
     def _setup_character_tab(self):
-        """Set up the character information tab."""
+        """Set up the character information tab (Read-Only / Generated)."""
         # Create character tab
         character_tab = QWidget()
         character_layout = QVBoxLayout(character_tab)
         
-        # Create character info editor
-        self.character_info_editor = QTextEdit()
-        self.character_info_editor.setPlaceholderText("Character bio and information will appear here...")
-        self.character_info_editor.textChanged.connect(self._on_character_info_changed)
+        # Header
+        self.char_header = QLabel("Biography & Traits")
+        # Use theme colors if possible, else default
+        color = self.palette['colors']['text_primary'] if self.palette else '#000'
+        self.char_header.setStyleSheet(f"font-weight: bold; font-size: 14px; color: {color};")
+        character_layout.addWidget(self.char_header)
+
+        # Create character info viewer (Read Only)
+        self.character_bio_view = QTextEdit()
+        self.character_bio_view.setReadOnly(True)
+        self.character_bio_view.setPlaceholderText("Character biography from origins will appear here.")
         
         # Add editor to layout
-        character_layout.addWidget(self.character_info_editor)
+        character_layout.addWidget(self.character_bio_view)
         
         # Add tab to tab widget
         self.tab_widget.addTab(character_tab, "Character")
@@ -198,6 +216,47 @@ class JournalPanelWidget(QScrollArea):
         
         # Add tab to tab widget
         self.tab_widget.addTab(quests_tab, "Quests")
+
+    def _setup_codex_tab(self):
+        """Setup for the persistent World Info / Codex tab (NEW)."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        splitter = QSplitter(Qt.Horizontal)
+        
+        # List of Topics (Left side)
+        self.codex_list = QListWidget()
+        self.codex_list.setAlternatingRowColors(True)
+        self.codex_list.itemClicked.connect(self._on_codex_selected)
+        
+        # Content View (Right side)
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.codex_title = QLabel("Select a Topic")
+        color = self.palette['colors']['text_primary'] if self.palette else '#c9a875'
+        self.codex_title.setStyleSheet(f"font-weight: bold; font-size: 16px; color: {color};")
+        
+        self.codex_content = QTextEdit()
+        self.codex_content.setReadOnly(True)
+        
+        # Manual Update Button (Triggers LLM)
+        self.btn_update_entry = QPushButton("Update Entry (AI)")
+        self.btn_update_entry.setToolTip("Ask the Archivist to update this entry based on recent events.")
+        self.btn_update_entry.clicked.connect(self._request_codex_update)
+        self.btn_update_entry.setEnabled(False)
+
+        right_layout.addWidget(self.codex_title)
+        right_layout.addWidget(self.codex_content)
+        right_layout.addWidget(self.btn_update_entry)
+        
+        splitter.addWidget(self.codex_list)
+        splitter.addWidget(right_widget)
+        splitter.setSizes([150, 350])
+        
+        layout.addWidget(splitter)
+        self.tab_widget.addTab(tab, "Codex")
     
     def _setup_notes_tab(self):
         """Set up the personal notes tab."""
@@ -256,14 +315,89 @@ class JournalPanelWidget(QScrollArea):
         # Add tab to tab widget
         self.tab_widget.addTab(notes_tab, "Notes")
 
-    def _on_character_info_changed(self):
-        """Handle character info text changes."""
-        # Update journal data
-        self.journal_data["character"] = self.character_info_editor.toPlainText()
+    # --- CHARACTER DATA HANDLING ---
+
+    def _update_character_tab(self):
+        """Populate the character tab from the journal dict."""
+        char_data = self.journal_data.get("character", {})
         
-        # Emit journal updated signal
-        self._emit_journal_updated()
-    
+        # Handle case where character data is just a string (legacy)
+        if isinstance(char_data, str):
+            self.character_bio_view.setPlainText(char_data)
+            return
+
+        # Handle structured dictionary (New)
+        bio = char_data.get("biography", "")
+        traits = char_data.get("traits", [])
+        
+        # Format HTML for display
+        colors = self.palette['colors'] if self.palette else {'text_primary': '#000', 'text_bright': '#333'}
+        html = f"""
+        <style>
+            h3 {{ color: {colors['text_primary']}; margin-top: 10px; border-bottom: 1px solid {colors['text_primary']}; }}
+            ul {{ margin-left: 20px; }}
+            li {{ color: {colors['text_bright']}; }}
+            p {{ color: {colors['text_bright']}; }}
+        </style>
+        <h3>Biography & Origin</h3>
+        <p>{bio}</p>
+        """
+        
+        if traits:
+            html += "<h3>Traits</h3><ul>"
+            for t in traits:
+                # Traits might be strings or dicts depending on where they came from
+                t_text = t.get('name', str(t)) if isinstance(t, dict) else str(t)
+                html += f"<li>{t_text}</li>"
+            html += "</ul>"
+        
+        self.character_bio_view.setHtml(html)
+
+    # --- CODEX HANDLING ---
+
+    def _refresh_codex_list(self):
+        """Populate the Codex list from journal_data['codex']."""
+        current_item = self.codex_list.currentItem()
+        current_topic = current_item.text() if current_item else None
+        
+        self.codex_list.clear()
+        codex_data = self.journal_data.get("codex", {})
+        
+        # Sort keys alphabetically
+        sorted_topics = sorted(codex_data.keys())
+        
+        for topic in sorted_topics:
+            item = QListWidgetItem(topic)
+            self.codex_list.addItem(item)
+            if topic == current_topic:
+                self.codex_list.setCurrentItem(item)
+
+    def _on_codex_selected(self, item: QListWidgetItem):
+        """Handle selection of a Codex topic."""
+        topic = item.text()
+        entry = self.journal_data.get("codex", {}).get(topic, {})
+        
+        self.codex_title.setText(topic)
+        content = entry.get("content", "No information available.")
+        self.codex_content.setPlainText(content)
+        self.btn_update_entry.setEnabled(True)
+        # Store current topic for update logic
+        self.codex_content.setProperty("current_topic", topic)
+
+    def _request_codex_update(self):
+        """Triggers the async Archivist worker via the MainWindow."""
+        topic = self.codex_content.property("current_topic")
+        if not topic: return
+        
+        # Find main window to trigger worker
+        main_win = self.window()
+        if hasattr(main_win, "trigger_archivist_update"):
+            self.btn_update_entry.setEnabled(False)
+            self.btn_update_entry.setText("Updating...")
+            main_win.trigger_archivist_update(topic)
+
+    # --- QUEST HANDLING (PRESERVED) ---
+
     def _on_quest_selected(self, item: QListWidgetItem):
         """Handle quest selection."""
         # Get the quest ID from the item
@@ -345,146 +479,7 @@ class JournalPanelWidget(QScrollArea):
         elif current_tab_index == 2:
             return "failed"
         return None
-    
-    def _on_note_selected(self, item: QListWidgetItem):
-        """Handle note selection."""
-        # Get the note index from the item
-        note_index = item.data(Qt.UserRole)
-        
-        # Enable delete and save buttons
-        self.delete_note_button.setEnabled(True)
-        self.save_note_button.setEnabled(True)
-        
-        # Get the note data
-        if 0 <= note_index < len(self.journal_data["notes"]):
-            note_data = self.journal_data["notes"][note_index]
-            
-            # Update note editor
-            self.note_editor.setPlainText(note_data["content"])
-            
-            # Store the current note index
-            self.note_editor.setProperty("note_index", note_index)
-    
-    def _on_note_text_changed(self):
-        """Handle note text changes."""
-        # Enable the save button if there is text
-        self.save_note_button.setEnabled(bool(self.note_editor.toPlainText()))
-    
-    def _on_new_note_clicked(self):
-        """Handle new note button click."""
-        # Create a new note with a timestamp
-        from datetime import datetime
-        
-        # Create new note with current time
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-        new_note = {
-            "title": f"Note {len(self.journal_data['notes']) + 1}",
-            "timestamp": timestamp,
-            "content": ""
-        }
-        
-        # Add to journal data
-        self.journal_data["notes"].append(new_note)
-        
-        # Add to list
-        self._update_notes_list()
-        
-        # Select the new note
-        self.notes_list.setCurrentRow(len(self.journal_data["notes"]) - 1)
-        
-        # Set focus to the editor
-        self.note_editor.clear()
-        self.note_editor.setFocus()
-        
-        # Store the current note index
-        self.note_editor.setProperty("note_index", len(self.journal_data["notes"]) - 1)
-        
-        # Enable delete and save buttons
-        self.delete_note_button.setEnabled(True)
-        self.save_note_button.setEnabled(False)
-    
-    def _on_delete_note_clicked(self):
-        """Handle delete note button click."""
-        # Get the current note index
-        note_index = self.note_editor.property("note_index")
-        
-        if note_index is not None and 0 <= note_index < len(self.journal_data["notes"]):
-            # Remove from journal data
-            self.journal_data["notes"].pop(note_index)
-            
-            # Update list
-            self._update_notes_list()
-            
-            # Clear editor
-            self.note_editor.clear()
-            self.note_editor.setProperty("note_index", None)
-            
-            # Disable delete and save buttons
-            self.delete_note_button.setEnabled(False)
-            self.save_note_button.setEnabled(False)
-            
-            # Emit journal updated signal
-            self._emit_journal_updated()
-    
-    def _on_save_note_clicked(self):
-        """Handle save note button click."""
-        # Get the current note index
-        note_index = self.note_editor.property("note_index")
-        
-        if note_index is not None and 0 <= note_index < len(self.journal_data["notes"]):
-            # Update note content
-            self.journal_data["notes"][note_index]["content"] = self.note_editor.toPlainText()
-            
-            # Update the list item title (first line of content)
-            content = self.note_editor.toPlainText()
-            first_line = content.split("\n")[0][:30]
-            if len(first_line) < len(content.split("\n")[0]):
-                first_line += "..."
-            
-            self.journal_data["notes"][note_index]["title"] = first_line
-            
-            # Update list
-            self._update_notes_list()
-            
-            # Reselect the note
-            self.notes_list.setCurrentRow(note_index)
-            
-            # Emit journal updated signal
-            self._emit_journal_updated()
-    
-    def _update_notes_list(self):
-        """Update the notes list with current journal data.
-        
-        This list is intended to show only the user's free-form journal notes.
-        Structured entries (e.g., objective notes saved with _type="objective_note")
-        may be present in journal_data["notes"], but they don't have 'title'/'timestamp'.
-        We skip any entries missing those keys to avoid KeyError and to keep the
-        list focused.
-        """
-        # Save the currently selected row
-        current_row = self.notes_list.currentRow()
-        
-        # Clear the list
-        self.notes_list.clear()
-        
-        # Add notes to the list (only those with required fields)
-        for i, note in enumerate(self.journal_data.get("notes", [])):
-            title = note.get("title")
-            timestamp = note.get("timestamp")
-            if title is None or timestamp is None:
-                # Skip structured notes (like objective notes) or malformed entries
-                continue
-            # Create list item
-            item = QListWidgetItem(f"{title} - {timestamp}")
-            item.setData(Qt.UserRole, i)
-            
-            # Add to list
-            self.notes_list.addItem(item)
-        
-        # Restore selection if possible
-        if 0 <= current_row < self.notes_list.count():
-            self.notes_list.setCurrentRow(current_row)
-    
+
     def _update_quests_lists(self):
         """Update the quest lists with current journal data."""
         # Save the currently selected items
@@ -552,20 +547,6 @@ class JournalPanelWidget(QScrollArea):
                 if self.failed_quests_list.item(i).data(Qt.UserRole) == failed_quest_id:
                     self.failed_quests_list.setCurrentRow(i)
                     break
-    
-    def _emit_journal_updated(self):
-        """Emit the journal updated signal."""
-        self.journal_updated.emit(self.journal_data)
-
-    def clear_all(self):
-        """Clear all journal UI content to a blank state (used before loading a save)."""
-        self.journal_data = {"character": "", "quests": {}, "notes": []}
-        self.character_info_editor.clear()
-        self.active_quests_list.clear()
-        self.completed_quests_list.clear()
-        self.failed_quests_list.clear()
-        self.quest_details.clear()
-        self.notes_list.clear()
 
     def _show_active_context_menu(self, pos):
         """Show context menu for active quest list to manage objectives and notes."""
@@ -781,6 +762,159 @@ class JournalPanelWidget(QScrollArea):
                     self._on_quest_selected(it)
                     return
 
+    # --- NOTE HANDLING (PRESERVED) ---
+
+    def _on_note_selected(self, item: QListWidgetItem):
+        """Handle note selection."""
+        # Get the note index from the item
+        note_index = item.data(Qt.UserRole)
+        
+        # Enable delete and save buttons
+        self.delete_note_button.setEnabled(True)
+        self.save_note_button.setEnabled(True)
+        
+        # Get the note data
+        if 0 <= note_index < len(self.journal_data["notes"]):
+            note_data = self.journal_data["notes"][note_index]
+            
+            # Update note editor
+            self.note_editor.setPlainText(note_data["content"])
+            
+            # Store the current note index
+            self.note_editor.setProperty("note_index", note_index)
+    
+    def _on_note_text_changed(self):
+        """Handle note text changes."""
+        # Enable the save button if there is text
+        self.save_note_button.setEnabled(bool(self.note_editor.toPlainText()))
+    
+    def _on_new_note_clicked(self):
+        """Handle new note button click."""
+        # Create a new note with a timestamp
+        from datetime import datetime
+        
+        # Create new note with current time
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        new_note = {
+            "title": f"Note {len(self.journal_data['notes']) + 1}",
+            "timestamp": timestamp,
+            "content": ""
+        }
+        
+        # Add to journal data
+        self.journal_data["notes"].append(new_note)
+        
+        # Add to list
+        self._update_notes_list()
+        
+        # Select the new note
+        self.notes_list.setCurrentRow(len(self.journal_data["notes"]) - 1)
+        
+        # Set focus to the editor
+        self.note_editor.clear()
+        self.note_editor.setFocus()
+        
+        # Store the current note index
+        self.note_editor.setProperty("note_index", len(self.journal_data["notes"]) - 1)
+        
+        # Enable delete and save buttons
+        self.delete_note_button.setEnabled(True)
+        self.save_note_button.setEnabled(False)
+    
+    def _on_delete_note_clicked(self):
+        """Handle delete note button click."""
+        # Get the current note index
+        note_index = self.note_editor.property("note_index")
+        
+        if note_index is not None and 0 <= note_index < len(self.journal_data["notes"]):
+            # Remove from journal data
+            self.journal_data["notes"].pop(note_index)
+            
+            # Update list
+            self._update_notes_list()
+            
+            # Clear editor
+            self.note_editor.clear()
+            self.note_editor.setProperty("note_index", None)
+            
+            # Disable delete and save buttons
+            self.delete_note_button.setEnabled(False)
+            self.save_note_button.setEnabled(False)
+            
+            # Emit journal updated signal
+            self._emit_journal_updated()
+    
+    def _on_save_note_clicked(self):
+        """Handle save note button click."""
+        # Get the current note index
+        note_index = self.note_editor.property("note_index")
+        
+        if note_index is not None and 0 <= note_index < len(self.journal_data["notes"]):
+            # Update note content
+            self.journal_data["notes"][note_index]["content"] = self.note_editor.toPlainText()
+            
+            # Update the list item title (first line of content)
+            content = self.note_editor.toPlainText()
+            first_line = content.split("\n")[0][:30]
+            if len(first_line) < len(content.split("\n")[0]):
+                first_line += "..."
+            
+            self.journal_data["notes"][note_index]["title"] = first_line
+            
+            # Update list
+            self._update_notes_list()
+            
+            # Reselect the note
+            self.notes_list.setCurrentRow(note_index)
+            
+            # Emit journal updated signal
+            self._emit_journal_updated()
+    
+    def _update_notes_list(self):
+        """Update the notes list with current journal data."""
+        # Save the currently selected row
+        current_row = self.notes_list.currentRow()
+        
+        # Clear the list
+        self.notes_list.clear()
+        
+        # Add notes to the list (only those with required fields)
+        for i, note in enumerate(self.journal_data.get("notes", [])):
+            title = note.get("title")
+            timestamp = note.get("timestamp")
+            if title is None or timestamp is None:
+                # Skip structured notes (like objective notes) or malformed entries
+                continue
+            # Create list item
+            item = QListWidgetItem(f"{title} - {timestamp}")
+            item.setData(Qt.UserRole, i)
+            
+            # Add to list
+            self.notes_list.addItem(item)
+        
+        # Restore selection if possible
+        if 0 <= current_row < self.notes_list.count():
+            self.notes_list.setCurrentRow(current_row)
+
+    # --- GENERAL ---
+
+    def _emit_journal_updated(self):
+        """Emit the journal updated signal."""
+        self.journal_updated.emit(self.journal_data)
+
+    def clear_all(self):
+        """Clear all journal UI content to a blank state (used before loading a save)."""
+        self.journal_data = {"character": {"biography": "", "traits": []}, "quests": {}, "codex": {}, "notes": []}
+        self.character_bio_view.clear()
+        self.active_quests_list.clear()
+        self.completed_quests_list.clear()
+        self.failed_quests_list.clear()
+        self.quest_details.clear()
+        self.codex_list.clear()
+        self.codex_content.clear()
+        self.notes_list.clear()
+        self.note_editor.clear()
+
     def update_journal(self, journal_data: Dict[str, Any] = None):
         """
         Update the journal panel with journal data.
@@ -800,20 +934,28 @@ class JournalPanelWidget(QScrollArea):
                 logger.warning("No state available to update journal panel")
                 return
         
-        # Update journal data
         self.journal_data = journal_data
         
-        # Update character info
-        self.character_info_editor.setPlainText(journal_data.get("character", ""))
+        # Update Character Tab
+        self._update_character_tab()
         
-        # Update quests lists
+        # Update Codex Tab
+        self._refresh_codex_list()
+        # If a codex entry was selected, try to reselect it or clear details
+        cur_codex = self.codex_list.currentItem()
+        if cur_codex:
+            self._on_codex_selected(cur_codex)
+        else:
+            self.codex_content.clear()
+            self.btn_update_entry.setEnabled(False)
+
+        # Update Quests Tab
         self._update_quests_lists()
-        # If a quest is selected, refresh its details to ensure colors/styles render
-        cur = self.active_quests_list.currentItem() or self.completed_quests_list.currentItem() or self.failed_quests_list.currentItem()
-        if cur:
-            self._on_quest_selected(cur)
+        cur_quest = self.active_quests_list.currentItem() or self.completed_quests_list.currentItem() or self.failed_quests_list.currentItem()
+        if cur_quest:
+            self._on_quest_selected(cur_quest)
         else:
             self.quest_details.clear()
         
-        # Update notes list
+        # Update Notes Tab
         self._update_notes_list()

@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
     QToolButton, QGraphicsOpacityEffect, QMessageBox, QSizePolicy,
     QMenu, QSlider, QWidgetAction, QLineEdit, QTextEdit, QPlainTextEdit, QTabBar
 )
-from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QSettings, QObject, QThread, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QPixmap, QTextCursor, QCursor
+from PySide6.QtCore import Qt, Slot, QTimer, QSize, QSettings, QThread, QParallelAnimationGroup, QPropertyAnimation, QEasingCurve, QPoint
+from PySide6.QtGui import QPixmap, QCursor
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
@@ -40,6 +40,8 @@ from gui.dialogs.settings.settings_dialog import SettingsDialog
 from gui.dialogs.load_game_dialog import LoadGameDialog
 from gui.workers import SaveGameWorker, LoadGameWorker, NewGameWorker
 from gui.components.loading_bar import LoadingProgressBar
+from gui.workers import ArchivistWorker
+
 
 # New Handlers
 from gui.handlers.input_handler import InputHandler
@@ -354,6 +356,77 @@ class MainWindow(QMainWindow):
         self.loading_opacity_effect = QGraphicsOpacityEffect(self.loading_overlay)
         self.loading_overlay.setGraphicsEffect(self.loading_opacity_effect)
         self.loading_opacity_effect.setOpacity(0.0)
+
+        # Connect specific journal signals
+        if hasattr(self.right_panel, 'journal_panel'):
+            # When manual notes are saved, ensure GameState is updated so save game works
+            self.right_panel.journal_panel.journal_updated.connect(self._on_journal_data_updated)
+
+    def _on_journal_data_updated(self, new_data):
+        """Syncs GUI journal changes back to the GameState."""
+        state = self.game_engine.state_manager.current_state
+        if state:
+            state.journal = new_data
+
+    def trigger_archivist_update(self, topic: str):
+        """
+        Called by JournalPanel to trigger an AI update for a Codex entry.
+        """
+        
+        state = self.game_engine.state_manager.current_state
+        if not state: return
+
+        # 1. Get Agent
+        agent = self.game_engine._agent_manager._archivist_agent
+        
+        # 2. Prepare Data
+        existing_entry = state.journal.get("codex", {}).get(topic, {}).get("content", "")
+        # Get full conversation history
+        history = state.conversation_history 
+        
+        # 3. Setup Worker
+        self.archivist_thread = QThread()
+        self.archivist_worker = ArchivistWorker(agent, existing_entry, history, topic)
+        self.archivist_worker.moveToThread(self.archivist_thread)
+        
+        # 4. Connect Signals
+        self.archivist_thread.started.connect(self.archivist_worker.run)
+        self.archivist_worker.finished.connect(self._on_archivist_finished)
+        self.archivist_worker.error.connect(self._on_archivist_error)
+        self.archivist_worker.finished.connect(self.archivist_thread.quit)
+        self.archivist_worker.finished.connect(self.archivist_worker.deleteLater)
+        self.archivist_thread.finished.connect(self.archivist_thread.deleteLater)
+        
+        # 5. Start
+        self.archivist_thread.start()
+        self.game_output.append_system_message(f"Archivist is updating entry for '{topic}'...")
+
+    def _on_archivist_finished(self, topic, content):
+        """Handle successful Codex update."""
+        state = self.game_engine.state_manager.current_state
+        if state:
+            # Update state
+            if "codex" not in state.journal: state.journal["codex"] = {}
+            
+            # Preserve metadata if exists, update content
+            if topic not in state.journal["codex"]:
+                state.journal["codex"][topic] = {"type": "general", "created_at": 0}
+            
+            state.journal["codex"][topic]["content"] = content
+            
+            # Refresh UI
+            self.right_panel.journal_panel.update_journal(state.journal)
+            
+            # Reset button state in panel
+            self.right_panel.journal_panel.btn_update_entry.setText("Update Entry (AI)")
+            self.right_panel.journal_panel.btn_update_entry.setEnabled(True)
+            
+            self.game_output.append_system_message(f"Codex updated: {topic}")
+
+    def _on_archivist_error(self, error_msg):
+        logger.error(f"Archivist failed: {error_msg}")
+        self.right_panel.journal_panel.btn_update_entry.setText("Update Failed")
+        self.right_panel.journal_panel.btn_update_entry.setEnabled(True)
 
     def _create_music_controls(self):
         music_widget = QWidget()

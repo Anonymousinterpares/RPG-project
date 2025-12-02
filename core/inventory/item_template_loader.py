@@ -6,6 +6,7 @@ This module provides functionality for loading item templates
 from configuration files.
 """
 
+import random
 from typing import Dict, List, Optional, Any, Union, Set
 import os
 import json

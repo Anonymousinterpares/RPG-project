@@ -71,9 +71,19 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
         game_state.player.inventory_id = inventory_manager_id
         logger.warning(f"InventoryManager instance did not have 'inventory_id_for_debug'. Assigned new ID for player state: {inventory_manager_id}")
 
+    # --- JOURNAL INITIALIZATION (Character Data & Structure) ---
+    # Ensure the journal structure is a dictionary with specific keys
+    if not hasattr(game_state, 'journal') or not isinstance(game_state.journal, dict):
+        game_state.journal = {
+            "character": {"biography": "", "traits": [], "description": ""},
+            "quests": {},
+            "codex": {}, # The new persistent world info
+            "notes": []
+        }
 
     # Configure world time and settings based on origin
     origin_id = game_state.player.origin_id 
+    introduction_text_for_llm = game_state.player.background
 
     if origin_id:
         from core.base.config import get_config
@@ -82,6 +92,20 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
 
         if origins_config and isinstance(origins_config, dict) and origin_id in origins_config:
             origin_data = origins_config[origin_id]
+            
+            # --- POPULATE JOURNAL CHARACTER TAB ---
+            # Inject the origin description/intro directly into the journal
+            bio = origin_data.get('introduction_text', '') or origin_data.get('description', '')
+            traits = origin_data.get('origin_traits', [])
+            game_state.journal['character']['biography'] = bio
+            # Format traits for storage
+            formatted_traits = []
+            for t in traits:
+                if isinstance(t, dict):
+                    formatted_traits.append(f"{t.get('name', 'Unknown')}: {t.get('description', '')}")
+                else:
+                    formatted_traits.append(str(t))
+            game_state.journal['character']['traits'] = formatted_traits
             
             # Set starting location based on origin settings
             starting_location_id = origin_data.get('starting_location_id')
@@ -92,6 +116,16 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
                 game_state.player.current_location = resolved_location
                 game_state.world.current_location = resolved_location
                 logger.info(f"Set starting location to '{resolved_location}' (id='{starting_location_id}') for origin '{origin_id}'")
+                
+                # --- AUTO-CREATE FIRST CODEX ENTRY ---
+                # Create an initial Codex entry for the starting location
+                loc_desc = config.get(f"locations.{starting_location_id}.description", "A location in the world.")
+                game_state.journal['codex'][resolved_location] = {
+                    "type": "location",
+                    "content": loc_desc,
+                    "discovered_at": 0.0
+                }
+
                 try:
                     from core.utils.logging_config import get_logger as _gl
                     _gl('GAME').info("LOCATION_MGMT: origin starting_location applied id=%s name=%s", starting_location_id, resolved_location)
@@ -112,7 +146,7 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
             # Initialize Engine GameContext BEFORE first LLM prompt (authoritative for Calendar)
             try:
                 engine.set_game_context({
-                    'location': { 'name': resolved_location },
+                    'location': { 'name': resolved_location if 'resolved_location' in locals() else "Unknown" },
                     'time_of_day': effective_period
                 }, location_id=starting_location_id)
                 try:
@@ -157,6 +191,10 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
                         logger.warning(f"Failed to add starting item '{item_template_id}' to inventory for player '{game_state.player.name}'.")
                 else:
                     logger.warning(f"Could not create starting item from template_id: '{item_template_id}' for player '{game_state.player.name}'. Template not found or creation failed.")
+            
+            # Update intro text for LLM context
+            introduction_text_for_llm = origin_data.get('introduction_text', game_state.player.background)
+
         elif not origins_config:
             logger.warning("Origins configuration data not found or is not a dictionary. Cannot add starting items.")
         else: 
@@ -259,14 +297,6 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
 
     # Send welcome message
     welcome_message_base = f"==== WELCOME TO YOUR ADVENTURE ====\n\nGreetings, {game_state.player.name} the {game_state.player.race} {game_state.player.path} from {game_state.player.background}!"
-    
-    introduction_text_for_llm = game_state.player.background 
-    if origin_id: 
-        from core.base.config import get_config
-        config = get_config() 
-        origins_config = config.get('origins') 
-        if origins_config and isinstance(origins_config, dict) and origin_id in origins_config:
-            introduction_text_for_llm = origins_config[origin_id].get('introduction_text', game_state.player.background)
     
     full_welcome_message = f"{welcome_message_base}\n\nYour journey begins now..." 
     
