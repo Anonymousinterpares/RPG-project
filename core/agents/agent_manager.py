@@ -594,15 +594,10 @@ class AgentManager:
                         import json
                         commands.append(("QUEST_STATUS", json.dumps(req)))
                     elif action == "request_mode_transition":
-                        # Add support for mode transitions
-                        target_mode = req.get("target_mode", "UNKNOWN")
-                        origin_mode = req.get("origin_mode", "UNKNOWN")
-                        reason = req.get("reason", "")
-                        target_entity_id = req.get("target_entity_id", "")
-                        surprise = "true" if req.get("surprise", False) else "false"
-                        # Format as a MODE_TRANSITION command
-                        commands.append(("MODE_TRANSITION", 
-                                       f"{target_mode}:{origin_mode}:{surprise}:{target_entity_id}:{reason}"))
+                        # Updated to pass the full request as JSON string
+                        # This allows handling complex enemy spawn data in command_handlers.py
+                        import json
+                        commands.append(("MODE_TRANSITION", json.dumps(req)))
             
             # Create AgentResponse object
             response = AgentResponse(

@@ -90,7 +90,7 @@ class NarratorAgent(BaseAgent):
         if context.additional_context and "player_stamina_status" in context.additional_context:
             stamina_note_for_prompt = f"\n        - System Note: {context.additional_context['player_stamina_status']}"
 
-        # --- Refined Prompt with JSON Emphasis ---
+        # --- Refined Prompt with JSON Emphasis and Semantic Spawning ---
         system_prompt = f"""You are the Narrator, an AI game master for a text-based RPG. Your role is to create immersive narrative based on player input and game state.
 
         ## Current Game State
@@ -138,22 +138,13 @@ class NarratorAgent(BaseAgent):
             "target_mode": "COMBAT",
             "origin_mode": "NARRATIVE",
             "reason": "Player initiated attack on guard.",
-            "target_entity_id": "guard_1",
-            "surprise": false,
-            "enemy_template": "beast_easy_base",
-            "enemy_count": 1,
-            "enemy_level": 1,
-            "spawn_hints": {{
-              "actor_type": "beast",
-              "threat_tier": "easy",
-              "species_tags": ["wolf"],
-              "role_hint": "skirmisher",
-              "is_boss": false,
-              "overlay": null
-            }},
-            "additional_context": {{
-              "original_intent": "I lunge at the wolf and start a fight."
-            }}
+            "enemies": [
+              {{
+                "name": "City Guard",
+                "description": "A well-armored watchman.",
+                "keywords": ["humanoid", "soldier", "normal"]
+              }}
+            ]
             }},
             {{
             "action": "request_state_change",
@@ -202,31 +193,11 @@ class NarratorAgent(BaseAgent):
           • Example: {{"action":"request_state_change","target_entity":"{{player_id}}","attribute":"inventory","change_type":"remove","template_id":"ritual_dagger","quantity":1,"context":"Player offers the dagger to the Elder as part of the ritual."}}
         - **Stamina Regeneration (NARRATIVE Mode):** If the 'System Note' indicates player stamina is not full, evaluate if context (time passed, player actions) warrants regeneration. If yes, include a `request_state_change` for 'stamina' with a positive 'value' and narrate briefly (e.g., "You feel somewhat refreshed."). If not appropriate, omit this request.
         - **Mode Transitions:** If player input clearly initiates combat ("attack", "fight"), trade ("trade", "buy", "sell"), or social conflict ("confront", "intimidate"), YOU MUST include a `request_mode_transition` in the `requests` list.
-- **Spawn Hints for COMBAT (Optional):** When requesting COMBAT, include a compact spawn specification only if needed:
-          * Prefer setting `enemy_template` to a known family/variant id (e.g., `beast_easy_base`, `verdant_alpha`).
-          * If you do not know a valid id, include `spawn_hints` with:
-            - `actor_type`, `threat_tier`, optional `species_tags`, `role_hint`, `is_boss`, `overlay`
-            - `name` (the display name to use, e.g., "Wolf", "White Wolf", "Ogre")
-            - `classification`: `{{ "variant_id": string | null, "family_id": string | null }}` (at least one when known)
-          * Do NOT invent any family_id. Provide classification ONLY via enums:
-            - actor_type ∈ {{beast, humanoid, undead, construct, elemental, spirit}}
-            - threat_tier ∈ {{harmless, easy, normal, dangerous, ferocious, mythic}}
-            * Provide these under spawn_hints.classification and omit family_id.
-          * For multiple different enemies, prefer an `enemies` array instead of a single `enemy_template`/`spawn_hints`:
-            ```json
-            {{
-              "action": "request_mode_transition",
-              "target_mode": "COMBAT",
-              "origin_mode": "NARRATIVE",
-              "reason": "Player attacks nearby threats.",
-              "enemies": [
-                {{ "name": "Wolf", "count": 1, "level": 1, "spawn_hints": {{ "actor_type": "beast", "threat_tier": "easy", "classification": {{ "family_id": "beast_easy_base" }}, "species_tags": ["wolf"] }} }},
-                {{ "name": "Ogre", "count": 1, "level": 2, "spawn_hints": {{ "actor_type": "beast", "threat_tier": "normal", "classification": {{ "family_id": "beast_normal_base" }} }} }}
-              ]
-            }}
-            ```
-          * Also include `additional_context.original_intent` containing the exact natural language phrase that triggered combat.
-          * Keep this section minimal and structured; do not dump lists or catalogs.
+        - **Combat Spawning (Simplified):** When requesting COMBAT, if new enemies are involved, provide an `enemies` list.
+          * For each enemy, provide a `name` (display name, e.g., "Rabid Wolf", "Bandit Leader").
+          * Provide `keywords` as a list of strings describing the enemy's nature and difficulty.
+          * **Keywords:** Include the type (e.g., "beast", "humanoid", "undead"), the difficulty/role (e.g., "easy", "normal", "hard", "boss"), and any specific traits (e.g., "wolf", "archer", "fire").
+          * Do NOT invent internal IDs. Just describe the enemy semantically.
         - **Skill Checks:** Identify verbs implying effort/uncertainty ("try", "attempt", "search", "sneak", "persuade"). Infer the skill (e.g., `LOCKPICKING`, `PERCEPTION`, `STEALTH`, `PERSUASION`). Use `skill_name` from the available skill list.
         - **State Changes:** Identify direct actions ("drink potion", "give item", "pull lever"). Infer target, attribute, change type, value.
         - **Data Retrieval:** Only use `request_data_retrieval` if the player *explicitly asks* for their stats, inventory, quests, etc. Do not guess. If used, the `narrative` should usually be empty or very brief (e.g., "Checking your inventory...").
@@ -244,8 +215,7 @@ class NarratorAgent(BaseAgent):
         Respond to the player's input by generating the required JSON `AgentOutput` object ONLY.
         """
         return system_prompt
-
-
+    
     def _format_memories(self, context: AgentContext) -> str:
         """
         Format memory context specifically for the narrator.

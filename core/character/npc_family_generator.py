@@ -686,3 +686,47 @@ class NPCFamilyGenerator:
         )
         return npc
 
+    def resolve_family_from_keywords(self, keywords: list[str]) -> str:
+        """
+        Fuzzy-match a list of keywords (e.g., ['beast', 'easy', 'wolf']) to the best
+        fitting family_id in the configuration.
+        """
+        best_family = "humanoid_normal_base" # Default fallback
+        best_score = -1
+
+        # Normalize keywords
+        keywords = [k.lower().strip() for k in keywords]
+
+        for family_id, family_data in self._families.items():
+            score = 0
+            
+            # 1. Match Actor Type (High Weight)
+            actor_type = family_data.get("actor_type", "").lower()
+            if actor_type in keywords:
+                score += 10
+            
+            # 2. Match Threat Tier (Medium Weight)
+            tier = family_data.get("threat_tier", "").lower()
+            if tier in keywords:
+                score += 5
+            
+            # 3. Match Biome/Tags/Name (Low Weight)
+            tags = family_data.get("default_tags", [])
+            for tag in tags:
+                # tags are "key:value"
+                if ":" in tag:
+                    val = tag.split(":")[1]
+                    if val in keywords:
+                        score += 2
+            
+            # 4. Match Family Name parts
+            fam_name_parts = family_data.get("name", "").lower().split()
+            for part in fam_name_parts:
+                if part in keywords:
+                    score += 1
+
+            if score > best_score:
+                best_score = score
+                best_family = family_id
+        
+        return best_family

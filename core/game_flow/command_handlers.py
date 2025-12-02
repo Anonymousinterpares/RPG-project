@@ -2,14 +2,19 @@
 Handles the execution of specific direct commands (e.g., /save, /quit, mode changes).
 """
 
+import json
 from collections import Counter
-from typing import List, TYPE_CHECKING, Optional
+from typing import List, TYPE_CHECKING, Optional, Dict, Any
 
 from core.base.commands import CommandResult
 from core.interaction.enums import InteractionMode
 from core.inventory.item_serialization import dict_to_item
 from core.utils.logging_config import get_logger
-from core.inventory import get_inventory_manager, EquipmentSlot, get_item_factory # Added EquipmentSlot, get_item_factory
+from core.inventory import get_inventory_manager, EquipmentSlot, get_item_factory
+from core.character.npc_manager import get_npc_manager
+# We import NPCFamilyGenerator locally to avoid circular imports at module level if possible,
+# but here it is safe as this module is downstream.
+from core.character.npc_family_generator import NPCFamilyGenerator
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
@@ -65,39 +70,124 @@ def handle_loot_command(engine: 'GameEngine', game_state: 'GameState', args: Lis
 
 def handle_mode_transition(engine: 'GameEngine', game_state: 'GameState', args: List[str]) -> CommandResult:
     """Handles the MODE_TRANSITION command from LLM output.
-
-    Format is: target_mode:origin_mode:surprise:target_entity_id:reason
+    
+    Supports two formats:
+    1. Legacy String: target_mode:origin_mode:surprise:target_entity_id:reason
+    2. Semantic JSON: {"target_mode": "COMBAT", "enemies": [{"name": "Wolf", "keywords": ["beast", "easy"]}]}
+    
+    If Semantic JSON is provided with 'enemies', this handler will:
+    - Resolve the keywords to a concrete Family ID.
+    - Generate the NPC(s) immediately.
+    - Register them in the NPCManager.
+    - Pass the ID of the first enemy as the 'target_entity_id' to the transition logic.
     """
     logger.info(f"Handling mode transition command with args: {args}")
     if not args:
         return CommandResult.invalid("MODE_TRANSITION command requires arguments.")
 
-    # Parse the arguments string
     arg_str = args[0]
-    parts = arg_str.split(":", 4)  # Allow up to 5 parts
+    request = {}
     
-    if len(parts) < 2:
-        return CommandResult.invalid("MODE_TRANSITION requires at least target_mode and origin_mode.")
+    # Attempt JSON parsing first (Semantic Bridge)
+    try:
+        # Check if it looks like JSON to avoid expensive try/except on simple strings
+        if arg_str.strip().startswith("{"):
+            json_req = json.loads(arg_str)
+            
+            # Base mapping
+            target_mode_str = json_req.get("target_mode", "NARRATIVE").upper()
+            origin_mode_str = json_req.get("origin_mode", "NARRATIVE").upper()
+            surprise = json_req.get("surprise", False)
+            reason = json_req.get("reason", "Mode transition requested.")
+            
+            # Handle Semantic Enemy Spawning
+            target_entity_id = json_req.get("target_entity_id") # Might be null or empty
+            enemies_spec = json_req.get("enemies", [])
+            
+            if target_mode_str == "COMBAT" and enemies_spec:
+                logger.info(f"Semantic Enemy Spawning triggered for {len(enemies_spec)} entities.")
+                
+                npc_manager = get_npc_manager()
+                fam_gen = NPCFamilyGenerator()
+                
+                generated_ids = []
+                
+                for enemy_spec in enemies_spec:
+                    try:
+                        # 1. Extract Semantic Data
+                        name = enemy_spec.get("name", "Unknown Enemy")
+                        desc = enemy_spec.get("description", "")
+                        # Combine 'keywords' list with 'type' and 'difficulty' fields if present
+                        keywords = enemy_spec.get("keywords", [])
+                        if "type" in enemy_spec: keywords.append(enemy_spec["type"])
+                        if "difficulty" in enemy_spec: keywords.append(enemy_spec["difficulty"])
+                        
+                        # 2. Resolve to Family ID (The Bridge)
+                        family_id = fam_gen.resolve_family_from_keywords(keywords)
+                        logger.info(f"Resolved enemy '{name}' (keywords: {keywords}) to family '{family_id}'")
+                        
+                        # 3. Mint the NPC
+                        # Determine level (default to player level or 1)
+                        player_level = game_state.player.level if game_state.player else 1
+                        
+                        npc = fam_gen.generate_npc_from_family(
+                            family_id=family_id,
+                            name=name,
+                            location=game_state.player.current_location,
+                            level=player_level
+                        )
+                        
+                        # Update description if provided by LLM
+                        if desc:
+                            npc.description = desc
+                            
+                        # 4. Register and Persist
+                        npc.is_persistent = False # Combat spawns are usually transient unless boss
+                        # Check for boss keyword to toggle persistence/importance
+                        if "boss" in keywords or "boss" in str(enemy_spec.get("difficulty", "")).lower():
+                            npc.is_persistent = True
+                            
+                        npc_manager.add_npc(npc)
+                        generated_ids.append(npc.id)
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to spawn semantic enemy {enemy_spec}: {e}")
+                
+                # If we generated enemies, update the target_entity_id to the first one
+                # This ensures the CombatManager focuses on a valid target immediately.
+                if generated_ids and not target_entity_id:
+                    target_entity_id = generated_ids[0]
+                    logger.info(f"Auto-assigned target_entity_id to spawned NPC: {target_entity_id}")
+
+            # Construct the internal request object
+            request = {
+                "target_mode": target_mode_str,
+                "origin_mode": origin_mode_str,
+                "surprise": surprise,
+                "target_entity_id": target_entity_id,
+                "reason": reason
+            }
+            
+        else:
+            raise ValueError("Not JSON")
+
+    except (json.JSONDecodeError, ValueError, TypeError):
+        # Fallback to Legacy String Parsing
+        parts = arg_str.split(":", 4)
+        if len(parts) < 2:
+            return CommandResult.invalid("MODE_TRANSITION requires at least target_mode and origin_mode.")
+        
+        request = {
+            "target_mode": parts[0].upper(),
+            "origin_mode": parts[1].upper(),
+            "surprise": parts[2].lower() == "true" if len(parts) > 2 else False,
+            "target_entity_id": parts[3] if len(parts) > 3 and parts[3] else None,
+            "reason": parts[4] if len(parts) > 4 else "Mode transition requested."
+        }
+
+    logger.info(f"Transition Request Prepared: {request['origin_mode']} -> {request['target_mode']}")
     
-    # Extract the parts
-    target_mode_str = parts[0].upper()
-    origin_mode_str = parts[1].upper()
-    surprise = parts[2].lower() == "true" if len(parts) > 2 else False
-    target_entity_id = parts[3] if len(parts) > 3 and parts[3] else None
-    reason = parts[4] if len(parts) > 4 else "Mode transition requested."
-    
-    logger.info(f"Mode transition requested: {origin_mode_str} -> {target_mode_str} (Surprise: {surprise}, Target: {target_entity_id}, Reason: {reason})")
-    
-    # Create a structured request for the mode transition handler
-    request = {
-        "target_mode": target_mode_str,
-        "origin_mode": origin_mode_str,
-        "surprise": surprise,
-        "target_entity_id": target_entity_id,
-        "reason": reason
-    }
-    
-    # Import the handler directly
+    # Import the handler directly (to avoid circular dependency at top level if any)
     from core.game_flow.mode_transitions import _handle_transition_request
     
     # Get the actor ID (typically the player)
