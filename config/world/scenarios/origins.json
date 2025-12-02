@@ -172,7 +172,7 @@
     "ashen_covenant_recruit": {
       "id": "ashen_covenant_recruit",
       "name": "Ashen Covenant Recruit",
-      "description": "You've recently joined the nomadic Ashen Covenant, embracing their philosophy of impermanence. You seek to learn their unique spiritual practices, including the mysterious art of Ash Walking.",
+      "description": "Having recently joined the nomadic Ashen Covenant, you embrace their philosophy of impermanence. Once a scholar from the Shifting Library, you sought forbidden knowledge, delving into texts that spoke of the Ashen Plane. The truths you uncovered shattered your previous life, leading you to seek solace and purpose among the Covenant's ranks. Now, you seek to learn their unique spiritual practices, including the mysterious art of Ash Walking, hoping to find answers and perhaps a new path forward.",
       "starting_location_id": "ashen_camp",
       "starting_items": [
         "alchemical_antidote",

@@ -6,11 +6,12 @@ This module provides a dialog for loading a saved game.
 
 import os
 import json
+import shutil
 from typing import Optional
 from datetime import datetime
 
 from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, 
+    QVBoxLayout, QHBoxLayout, QMessageBox,
     QPushButton, QGroupBox,
     QSplitter, QWidget, QTextEdit, QHeaderView, QTableWidget,
     QTableWidgetItem, QAbstractItemView
@@ -237,9 +238,6 @@ class LoadGameDialog(BaseDialog):
         if not self.selected_save:
             return
 
-        from PySide6.QtWidgets import QMessageBox
-        from core.base.engine import get_game_engine
-
         # Ask for confirmation
         reply = QMessageBox.question(
             self,
@@ -250,17 +248,21 @@ class LoadGameDialog(BaseDialog):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            engine = get_game_engine()
             # The state manager's delete_save is designed for simple files,
             # but we can adapt the logic here to remove the directory.
             saves_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "saves")
             save_path_to_delete = os.path.join(saves_dir, self.selected_save)
             
-            # The actual save file is a .json file, so we target that.
+            # Check if it exists
             if os.path.exists(save_path_to_delete):
                 try:
-                    os.remove(save_path_to_delete)
-                    logger.info(f"Successfully deleted save file: {self.selected_save}")
+                    # FIX: Use shutil.rmtree for directories, os.remove for files
+                    if os.path.isdir(save_path_to_delete):
+                        shutil.rmtree(save_path_to_delete)
+                    else:
+                        os.remove(save_path_to_delete)
+                        
+                    logger.info(f"Successfully deleted save: {self.selected_save}")
                     
                     # Refresh the saves list
                     self._load_saves()
@@ -271,12 +273,12 @@ class LoadGameDialog(BaseDialog):
                     self.load_button.setEnabled(False)
                     self.delete_button.setEnabled(False)
                     
-                    QMessageBox.information(self, "Success", "Save file deleted successfully.")
+                    QMessageBox.information(self, "Success", "Save deleted successfully.")
                 except Exception as e:
-                    logger.error(f"Error deleting save file {self.selected_save}: {e}")
-                    QMessageBox.warning(self, "Error", f"Could not delete the save file.\n\nError: {e}")
+                    logger.error(f"Error deleting save {self.selected_save}: {e}")
+                    QMessageBox.warning(self, "Error", f"Could not delete the save.\n\nError: {e}")
             else:
-                QMessageBox.warning(self, "Error", "Save file not found. It may have already been deleted.")
+                QMessageBox.warning(self, "Error", "Save not found. It may have already been deleted.")
                 self._load_saves() # Refresh list in case of mismatch
 
     def _load_saves(self):

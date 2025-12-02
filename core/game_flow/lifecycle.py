@@ -95,7 +95,7 @@ def start_new_game_with_state(engine: 'GameEngine', game_state: 'GameState') -> 
             
             # --- POPULATE JOURNAL CHARACTER TAB ---
             # Inject the origin description/intro directly into the journal
-            bio = origin_data.get('introduction_text', '') or origin_data.get('description', '')
+            bio = origin_data.get('description', '')
             traits = origin_data.get('origin_traits', [])
             game_state.journal['character']['biography'] = bio
             # Format traits for storage
