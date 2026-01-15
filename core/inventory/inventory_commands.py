@@ -56,7 +56,7 @@ def register_inventory_commands():
         syntax="inventory [category]",
         description="Display the contents of your inventory, optionally filtered by category.",
         examples=["inventory", "inventory weapons", "inventory armor"],
-        aliases=["inv", "i"]
+        aliases=["inv", "i", "GET_INVENTORY"]
     )
     
     # Register the equip command

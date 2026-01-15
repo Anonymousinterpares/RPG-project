@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Command processing for the RPG game.
 
@@ -9,11 +10,13 @@ and a CommandResult dataclass for representing command execution results.
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Callable
+from typing import Any, Dict, List, Optional, Tuple, Callable, TYPE_CHECKING
 from enum import Enum, auto
 
 from core.utils.logging_config import get_logger
-from core.base.state import GameState
+
+if TYPE_CHECKING:
+    from core.base.state import GameState
 
 # Get the module logger
 logger = get_logger("GAME")
@@ -105,7 +108,7 @@ class CommandProcessor:
     _instance = None
     
     # Command handler type
-    CommandHandler = Callable[[GameState, List[str]], CommandResult]
+    CommandHandler = Callable[["GameState", List[str]], CommandResult]
     
     # Command help data
     @dataclass

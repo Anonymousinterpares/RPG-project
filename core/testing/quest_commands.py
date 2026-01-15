@@ -19,7 +19,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from core.utils.logging_config import get_logger
 from core.base.commands import CommandResult, get_command_processor
 from core.base.state import GameState
-from core.base.engine import get_game_engine
+# from core.base.engine import get_game_engine (moved to function scope to avoid circular import)
 
 logger = get_logger("QUEST_CMDS_TEST")
 
@@ -170,6 +170,7 @@ def quest_command(game_state: GameState, args: List[str]) -> CommandResult:
     # quest complete-first (test helper)
     if sub == "complete-first":
         try:
+            from core.base.engine import get_game_engine
             engine = get_game_engine()
 
             # 1) Confirm the engine recorded the defeat event for the test wolf.
@@ -251,7 +252,7 @@ def register_quest_commands() -> None:
             syntax="quests [status]",
             description="List quests in your journal (optionally filter by status).",
             examples=["quests", "quests active", "quests completed"],
-            aliases=["journal", "q"]
+            aliases=["journal", "q", "GET_QUESTS"]
         )
         cp.register_command(
             name="quest",

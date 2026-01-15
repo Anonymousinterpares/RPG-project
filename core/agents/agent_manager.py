@@ -22,6 +22,7 @@ from core.agents.rule_checker import get_rule_checker_agent
 from core.agents.context_evaluator import get_context_evaluator_agent
 from core.agents.data_retrieval_commands import process_data_retrieval_command
 from core.agents.archivist import ArchivistAgent
+from core.agents.intent_sentinel import get_intent_sentinel
 
 # Get the module logger
 logger = get_logger("AGENT")
@@ -60,6 +61,9 @@ class AgentManager:
         # Initialize Archivist
         self._archivist_agent = ArchivistAgent()
         
+        # Initialize Intent Sentinel
+        self._intent_sentinel = get_intent_sentinel()
+        
         # Initialize command processor
         self._command_processor = get_command_processor()
         
@@ -97,6 +101,11 @@ class AgentManager:
             if hasattr(self._context_evaluator_agent, 'reset'):
                 self._context_evaluator_agent.reset()
                 logger.info("Reset context evaluator agent state")
+
+            # Reset sentinel if it has a reset method
+            if hasattr(self._intent_sentinel, 'reset'):
+                self._intent_sentinel.reset()
+                logger.info("Reset intent sentinel agent state")
             
             # Reset narrative item manager if needed
             if hasattr(self._narrative_item_manager, 'reset'):
@@ -123,6 +132,9 @@ class AgentManager:
             
             if hasattr(self._context_evaluator_agent, 'reload_settings'):
                 self._context_evaluator_agent.reload_settings()
+
+            if hasattr(self._intent_sentinel, 'reload_settings'):
+                self._intent_sentinel.reload_settings()
             
             logger.info("Agent settings reloaded")
         except Exception as e:

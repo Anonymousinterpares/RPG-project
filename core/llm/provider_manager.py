@@ -98,6 +98,9 @@ class ProviderManager:
             ProviderType.OPENROUTER: OPENAI_AVAILABLE,  # OpenRouter uses OpenAI's API
         }
         
+        # Initialization lock for thread safety
+        self._init_lock = threading.Lock()
+        
         # On-demand initialization; do not initialize all providers on startup
         # self._initialize_providers()
         
@@ -106,17 +109,18 @@ class ProviderManager:
 
     def initialize_provider(self, provider_type: ProviderType) -> bool:
         """Initialize a specific LLM provider client."""
-        if provider_type in self._clients:
-            return True # Already initialized
-        
-        if provider_type == ProviderType.OPENAI:
-            return self._initialize_openai()
-        elif provider_type == ProviderType.ANTHROPIC:
-            return self._initialize_anthropic()
-        elif provider_type == ProviderType.GOOGLE:
-            return self._initialize_google()
-        elif provider_type == ProviderType.OPENROUTER:
-            return self._initialize_openrouter()
+        with self._init_lock:
+            if provider_type in self._clients:
+                return True # Already initialized
+            
+            if provider_type == ProviderType.OPENAI:
+                return self._initialize_openai()
+            elif provider_type == ProviderType.ANTHROPIC:
+                return self._initialize_anthropic()
+            elif provider_type == ProviderType.GOOGLE:
+                return self._initialize_google()
+            elif provider_type == ProviderType.OPENROUTER:
+                return self._initialize_openrouter()
         
         logger.warning(f"Attempted to initialize an unknown provider type: {provider_type.name}")
         return False
@@ -381,7 +385,6 @@ class ProviderManager:
             The provider client, or None if not available.
         """
         if provider_type not in self._clients:
-            logger.warning(f"Provider client not available: {provider_type.name}")
             return None
         
         return self._clients[provider_type]["client"]

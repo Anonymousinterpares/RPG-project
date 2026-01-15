@@ -261,7 +261,13 @@ class LLMManager:
         # Get provider client and settings
         client = self._provider_manager.get_client(provider_type)
         
-        # Add a check to ensure the client was initialized successfully
+        # If client is missing, attempt on-demand initialization
+        if client is None:
+            logger.info(f"Provider client {provider_type.name} missing. Attempting on-demand initialization...")
+            if self._provider_manager.initialize_provider(provider_type):
+                client = self._provider_manager.get_client(provider_type)
+            
+        # Final check if client is still missing
         if client is None:
             logger.error(f"Failed to get a valid client for provider {provider_type.name}. Check API keys and settings.")
             return None

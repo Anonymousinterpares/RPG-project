@@ -161,7 +161,13 @@ class GameEngine(QObject):
         except Exception:
             pass
         
+        # Lazy imports to avoid circular dependencies
+        from core.testing.quest_commands import register_quest_commands
+        from core.stats.stats_commands import register_stats_commands
+        
         register_inventory_commands()
+        register_quest_commands()
+        register_stats_commands()
         
         self._input_router = get_input_router()
         self._use_llm = True  

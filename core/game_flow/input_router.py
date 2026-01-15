@@ -21,9 +21,8 @@ from core.game_flow.npc_interaction import get_npc_intent
 
 
 if TYPE_CHECKING:
-    from core.base.engine import GameEngine
     from core.base.state import GameState
-    from core.agents.base_agent import BaseAgent
+    from core.agents.base_agent import BaseAgent, AgentContext
 
 # Get the module logger
 logger = get_logger("INPUT_ROUTER")
@@ -147,7 +146,38 @@ class InputRouter:
                 return CommandResult.invalid(f"Please wait, currently processing {display_name}'s turn or resolving actions.")
 
         elif current_mode == InteractionMode.NARRATIVE:
-            # ... (rest of narrative logic remains the same) ...
+            # --- PHASE 1: Intent Sentinel classification ---
+            if engine._use_llm:
+                try:
+                    from core.agents.base_agent import AgentContext
+                    # Lightweight context for sentinel
+                    sentinel_context = AgentContext(
+                        game_state={"mode": current_mode.name},
+                        player_state={}, world_state={},
+                        player_input=input_text, conversation_history=[]
+                    )
+                    intent_data = engine._agent_manager._intent_sentinel.classify(sentinel_context)
+                    intent = intent_data.get("intent")
+                    confidence = intent_data.get("confidence", 0.0)
+                    
+                    logger.info(f"SENTINEL: Detected intent '{intent}' (Confidence: {confidence})")
+                    
+                    # Direct bypass for STATUS intent (e.g. "show items", "inventory")
+                    if intent == "STATUS" and confidence > 0.7:
+                        logger.info("SENTINEL: Bypassing to STATUS retrieval.")
+                        # Determine which status to show based on input keywords
+                        status_cmd = "status"
+                        if any(k in input_text.lower() for k in ["inv", "item", "backpack", "pack", "bag"]):
+                            status_cmd = "inventory"
+                        elif any(k in input_text.lower() for k in ["quest", "log", "objective", "journal"]):
+                            status_cmd = "quests"
+                        
+                        return self._process_direct_command(engine, game_state, status_cmd)
+
+                except Exception as e:
+                    logger.error(f"Intent Sentinel routing failed: {e}")
+
+            # ... continue to unified loop ...
             if should_narrative_use_unified_loop(input_text):
                 logger.info(f"NARRATIVE input routed to unified loop: '{input_text}'")
                 if not is_ui_generated_command: engine._output("player", input_text)
