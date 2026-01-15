@@ -13,6 +13,8 @@ from core.combat.combat_action import CombatAction, ActionType, AttackAction # I
 # --- Utils ---
 from core.game_flow.game_flow_utils import get_participant_by_id
 from core.utils.logging_config import get_logger
+from core.interaction.enums import InteractionMode
+from core.utils.difficulty_scaler import calculate_dc
 
 if TYPE_CHECKING:
     from core.base.engine import GameEngine
@@ -25,118 +27,160 @@ logger = get_logger("INTERACTION_PROC") # Keep original logger name
 def _process_skill_check_request(engine: 'GameEngine', game_state: 'GameState', request: Dict[str, Any], effective_actor_id: str) -> str:
     """
     Processes a skill check request by constructing and performing the corresponding
-    CombatAction via the CombatManager. Uses combat_name for lookups.
+    CombatAction via the CombatManager (in combat) or a direct stat check (in narrative).
     """
     skill_name_str = request.get("skill_name")
-    # --- MODIFICATION: Get names instead of IDs ---
     actor_combat_name = request.get("actor_id") # This field now holds the combat_name
     target_combat_name = request.get("target_actor_id")
-    # --- END MODIFICATION ---
     context_msg = request.get("context", f"Attempting {skill_name_str or 'skill check'}")
 
     logger.debug(f"Processing SkillCheckRequest for actor '{actor_combat_name}': {request}")
 
-    try:
-        if not skill_name_str: raise ValueError("Missing 'skill_name'")
-        if not game_state.combat_manager: raise ValueError("CombatManager not found in GameState.")
-        if not actor_combat_name: raise ValueError("Missing 'actor_id' (combat_name) in request")
+    current_mode = getattr(game_state, 'current_mode', InteractionMode.NARRATIVE)
 
-        # --- MODIFICATION: Find entities by combat_name ---
-        actor = game_state.combat_manager._find_entity_by_combat_name(actor_combat_name)
-        if not actor: raise ValueError(f"Actor '{actor_combat_name}' not found in combat.")
-        actor_internal_id = actor.id # Get the actual UUID
+    # Check mode to determine processing path.
+    # Logic for both modes to be expanded upon in the future.
+    if current_mode == InteractionMode.COMBAT:
+        try:
+            if not skill_name_str: raise ValueError("Missing 'skill_name'")
+            if not game_state.combat_manager: raise ValueError("CombatManager not found in GameState.")
+            if not actor_combat_name: raise ValueError("Missing 'actor_id' (combat_name) in request")
 
-        target = None
-        target_internal_id = None
-        is_attack_skill = skill_name_str.upper() in ["MELEE_ATTACK", "RANGED_ATTACK", "UNARMED_ATTACK", "SPELL_ATTACK"]
-        if is_attack_skill:
-            if not target_combat_name:
-                raise ValueError(f"Attack skill '{skill_name_str}' requires a target_actor_id (combat_name).")
-            target = game_state.combat_manager._find_entity_by_combat_name(target_combat_name)
-            if not target:
-                 # Allow action to proceed but log error and potentially return specific message
-                 logger.error(f"Target '{target_combat_name}' not found for skill check {skill_name_str}.")
-                 # Return error message immediately, prevents further processing with invalid target
-                 return f"Action failed: Target '{target_combat_name}' not found."
-            target_internal_id = target.id # Get the actual UUID
-        # --- END MODIFICATION ---
+            # --- MODIFICATION: Find entities by combat_name ---
+            actor = game_state.combat_manager._find_entity_by_combat_name(actor_combat_name)
+            if not actor: raise ValueError(f"Actor '{actor_combat_name}' not found in combat.")
+            actor_internal_id = actor.id # Get the actual UUID
 
-        action_to_perform: Optional[CombatAction] = None
-        skill_upper = skill_name_str.upper()
+            target = None
+            target_internal_id = None
+            is_attack_skill = skill_name_str.upper() in ["MELEE_ATTACK", "RANGED_ATTACK", "UNARMED_ATTACK", "SPELL_ATTACK"]
+            if is_attack_skill:
+                if not target_combat_name:
+                    raise ValueError(f"Attack skill '{skill_name_str}' requires a target_actor_id (combat_name).")
+                target = game_state.combat_manager._find_entity_by_combat_name(target_combat_name)
+                if not target:
+                     # Allow action to proceed but log error and potentially return specific message
+                     logger.error(f"Target '{target_combat_name}' not found for skill check {skill_name_str}.")
+                     # Return error message immediately, prevents further processing with invalid target
+                     return f"Action failed: Target '{target_combat_name}' not found."
+                target_internal_id = target.id # Get the actual UUID
+            # --- END MODIFICATION ---
 
-        if is_attack_skill:
-            # Use internal UUIDs for the action
-            action_to_perform = AttackAction(
-                performer_id=actor_internal_id,
-                target_id=target_internal_id,
-                weapon_name=request.get("weapon_name", skill_name_str),
-                dice_notation=request.get("dice_notation", "1d6"),
-            )
-            action_to_perform.action_type = ActionType.ATTACK
-        elif skill_upper == "DEFENSE":
-             logger.warning("DEFENSE skill check request currently not linked to a CombatAction.")
-             return f"{actor.combat_name} attempts to defend (DEFENSE check not fully implemented)."
-        elif skill_upper == "DODGE":
-             logger.warning("DODGE skill check request currently not linked to a CombatAction.")
-             return f"{actor.combat_name} attempts to dodge (DODGE check not fully implemented)."
-        else:
-             logger.warning(f"Unhandled skill check request type for direct action: {skill_name_str}. Processing as generic check.")
-             return f"System Error: Skill check '{skill_name_str}' cannot be directly performed as a combat action in this context."
+            action_to_perform: Optional[CombatAction] = None
+            skill_upper = skill_name_str.upper()
 
-        if action_to_perform:
-            logger.info(f"Attempting to perform action via CombatManager: {action_to_perform.name} by {actor.combat_name} ({actor_internal_id})")
-            action_result = game_state.combat_manager.perform_action(action_to_perform)
+            if is_attack_skill:
+                # Use internal UUIDs for the action
+                action_to_perform = AttackAction(
+                    performer_id=actor_internal_id,
+                    target_id=target_internal_id,
+                    weapon_name=request.get("weapon_name", skill_name_str),
+                    dice_notation=request.get("dice_notation", "1d6"),
+                )
+                action_to_perform.action_type = ActionType.ATTACK
+            elif skill_upper == "DEFENSE":
+                 logger.warning("DEFENSE skill check request currently not linked to a CombatAction.")
+                 return f"{actor.combat_name} attempts to defend (DEFENSE check not fully implemented)."
+            elif skill_upper == "DODGE":
+                 logger.warning("DODGE skill check request currently not linked to a CombatAction.")
+                 return f"{actor.combat_name} attempts to dodge (DODGE check not fully implemented)."
+            else:
+                 logger.warning(f"Unhandled skill check request type for direct action: {skill_name_str}. Processing as generic check.")
+                 return f"System Error: Skill check '{skill_name_str}' cannot be directly performed as a combat action in this context."
 
-            # --- Format Narrative from Action Result (Uses combat_names) ---
-            performer_name_display = action_result.get("performer", actor.combat_name)
-            target_name_display = action_result.get("target", target.combat_name if target else "target")
+            if action_to_perform:
+                logger.info(f"Attempting to perform action via CombatManager: {action_to_perform.name} by {actor.combat_name} ({actor_internal_id})")
+                action_result = game_state.combat_manager.perform_action(action_to_perform)
 
-            if action_result.get("success"):
-                damage = action_result.get("damage", 0)
-                hp_remaining_val = action_result.get("target_hp_remaining", '?')
-                hp_remaining = f"{hp_remaining_val:.0f}" if isinstance(hp_remaining_val, (int, float)) else '?'
-                max_hp_val = action_result.get("target_max_hp", '?') # Assuming result might include max hp
-                max_hp = f"{max_hp_val:.0f}" if isinstance(max_hp_val, (int, float)) else '?'
-                target_defeated = action_result.get("target_defeated", False)
-                crit_str = " Critically!" if action_result.get("is_critical") else ""
+                # --- Format Narrative from Action Result (Uses combat_names) ---
+                performer_name_display = action_result.get("performer", actor.combat_name)
+                target_name_display = action_result.get("target", target.combat_name if target else "target")
 
-                if damage > 0:
-                    narrative = f"{performer_name_display} hits {target_name_display}{crit_str} for {damage} damage."
-                    if target_defeated: narrative += f" {target_name_display} is defeated!"
-                    else: narrative += f" (HP: {hp_remaining}/{max_hp})"
-                else:
-                    narrative = f"{performer_name_display}'s attack hits {target_name_display} but deals no damage."
+                if action_result.get("success"):
+                    damage = action_result.get("damage", 0)
+                    hp_remaining_val = action_result.get("target_hp_remaining", '?')
+                    hp_remaining = f"{hp_remaining_val:.0f}" if isinstance(hp_remaining_val, (int, float)) else '?'
+                    max_hp_val = action_result.get("target_max_hp", '?') # Assuming result might include max hp
+                    max_hp = f"{max_hp_val:.0f}" if isinstance(max_hp_val, (int, float)) else '?'
+                    target_defeated = action_result.get("target_defeated", False)
+                    crit_str = " Critically!" if action_result.get("is_critical") else ""
 
-                stamina_cost_val = action_result.get('stamina_cost')
-                stamina_rem_val = action_result.get('stamina_remaining')
-                stamina_cost_str = f"{stamina_cost_val:.1f}" if isinstance(stamina_cost_val, (int, float)) else '?'
-                stamina_rem_str = f"{stamina_rem_val:.1f}" if isinstance(stamina_rem_val, (int, float)) else '?'
-                narrative += f" (Stamina Cost: {stamina_cost_str}, Remaining: {stamina_rem_str})"
+                    if damage > 0:
+                        narrative = f"{performer_name_display} hits {target_name_display}{crit_str} for {damage} damage."
+                        if target_defeated: narrative += f" {target_name_display} is defeated!"
+                        else: narrative += f" (HP: {hp_remaining}/{max_hp})"
+                    else:
+                        narrative = f"{performer_name_display}'s attack hits {target_name_display} but deals no damage."
 
-            else: # Action failed
-                narrative = action_result.get("message", f"{performer_name_display}'s action failed.")
-                stamina_cost_val = action_result.get('stamina_cost')
-                stamina_rem_val = action_result.get('stamina_remaining')
-                if stamina_cost_val is not None and stamina_rem_val is not None:
+                    stamina_cost_val = action_result.get('stamina_cost')
+                    stamina_rem_val = action_result.get('stamina_remaining')
                     stamina_cost_str = f"{stamina_cost_val:.1f}" if isinstance(stamina_cost_val, (int, float)) else '?'
                     stamina_rem_str = f"{stamina_rem_val:.1f}" if isinstance(stamina_rem_val, (int, float)) else '?'
                     narrative += f" (Stamina Cost: {stamina_cost_str}, Remaining: {stamina_rem_str})"
 
-            logger.info(f"Skill Check Action Result Narrative: {narrative}")
-            return narrative
-        else:
-            logger.error(f"No CombatAction constructed for skill check request: {request}")
-            return f"System Error: Could not determine action for skill '{skill_name_str}'."
+                else: # Action failed
+                    narrative = action_result.get("message", f"{performer_name_display}'s action failed.")
+                    stamina_cost_val = action_result.get('stamina_cost')
+                    stamina_rem_val = action_result.get('stamina_remaining')
+                    if stamina_cost_val is not None and stamina_rem_val is not None:
+                        stamina_cost_str = f"{stamina_cost_val:.1f}" if isinstance(stamina_cost_val, (int, float)) else '?'
+                        stamina_rem_str = f"{stamina_rem_val:.1f}" if isinstance(stamina_rem_val, (int, float)) else '?'
+                        narrative += f" (Stamina Cost: {stamina_cost_str}, Remaining: {stamina_rem_str})"
 
-    except ValueError as e:
-        logger.error(f"Validation error processing SkillCheckRequest {request}: {e}")
-        return f"System Error: Invalid skill check request ({e})."
-    except AttributeError as e:
-         logger.error(f"Missing attribute processing SkillCheckRequest {request}: {e}", exc_info=True)
-         return f"System Error: Missing data for skill check ({e})."
-    except Exception as e:
-        logger.error(f"Unexpected error performing skill check {request}: {e}", exc_info=True)
-        return f"System Error: Unexpected error during {skill_name_str or 'skill'} check."
+                logger.info(f"Skill Check Action Result Narrative: {narrative}")
+                return narrative
+            else:
+                logger.error(f"No CombatAction constructed for skill check request: {request}")
+                return f"System Error: Could not determine action for skill '{skill_name_str}'."
+
+        except ValueError as e:
+            logger.error(f"Validation error processing SkillCheckRequest {request}: {e}")
+            return f"System Error: Invalid skill check request ({e})."
+        except AttributeError as e:
+             logger.error(f"Missing attribute processing SkillCheckRequest {request}: {e}", exc_info=True)
+             return f"System Error: Missing data for skill check ({e})."
+        except Exception as e:
+            logger.error(f"Unexpected error performing skill check {request}: {e}", exc_info=True)
+            return f"System Error: Unexpected error during {skill_name_str or 'skill'} check."
+    else:
+        # Narrative-mode path (Non-combat)
+        try:
+            if not skill_name_str: raise ValueError("Missing 'skill_name'")
+
+            # Resolve DC from tier (matches AgentManager logic)
+            tier = request.get("difficulty_tier", "normal")
+            player_level = getattr(game_state.player, 'level', 1)
+            difficulty = calculate_dc(tier, player_level)
+
+            # Resolve actor's StatsManager
+            stats_manager = None
+            if actor_combat_name in ("Player", "player") or effective_actor_id == getattr(game_state.player, 'id', None):
+                stats_manager = game_state.player.stats_manager
+            else:
+                # Attempt lookup via engine helper
+                stats_manager = engine._get_entity_stats_manager(effective_actor_id) if hasattr(engine, '_get_entity_stats_manager') else None
+
+            if not stats_manager:
+                raise ValueError(f"StatsManager not found for actor '{actor_combat_name}'")
+
+            # Perform the check using the stats system directly
+            result = stats_manager.perform_skill_check(
+                stat_type=skill_name_str,
+                difficulty=difficulty,
+                skill_name=skill_name_str
+            )
+
+            # Format results for system output
+            success_str = "Success" if result.success else "Failure"
+            narrative = f"[{skill_name_str} {success_str} (DC {difficulty})]: {context_msg}"
+            return narrative
+
+        except ValueError as e:
+            logger.error(f"Validation error in narrative skill check: {e}")
+            return f"System Error: {e}"
+        except Exception as e:
+            logger.error(f"Unexpected error in narrative skill check: {e}", exc_info=True)
+            return f"System Error: Unexpected error during narrative skill check."
 
 def _process_state_change_request(engine: 'GameEngine', game_state: 'GameState', request: Dict[str, Any], effective_actor_id: str) -> str:
     """Processes a single state change request and returns the narrative result. Uses combat_name.

@@ -119,10 +119,7 @@ class NarratorAgent(BaseAgent):
             "action": "request_skill_check",
             "actor_id": "{{player_id}}",
             "skill_name": "LOCKPICKING",
-            "stat_name": "DEXTERITY",
-            "target_actor_id": null,
-            "difficulty_class": 14,
-            "modifiers": {{}},
+            "difficulty_tier": "hard",
             "context": "Player attempting to pick the chest lock."
             }},
             {{
@@ -140,9 +137,9 @@ class NarratorAgent(BaseAgent):
             "reason": "Player initiated attack on guard.",
             "enemies": [
               {{
-                "name": "City Guard",
-                "description": "A well-armored watchman.",
-                "keywords": ["humanoid", "soldier", "normal"]
+            "name": "City Guard",
+            "description": "A well-armored watchman.",
+            "keywords": ["humanoid", "soldier", "normal"]
               }}
             ]
             }},
@@ -198,9 +195,17 @@ class NarratorAgent(BaseAgent):
           * Provide `keywords` as a list of strings describing the enemy's nature and difficulty.
           * **Keywords:** Include the type (e.g., "beast", "humanoid", "undead"), the difficulty/role (e.g., "easy", "normal", "hard", "boss"), and any specific traits (e.g., "wolf", "archer", "fire").
           * Do NOT invent internal IDs. Just describe the enemy semantically.
-        - **Skill Checks:** Identify verbs implying effort/uncertainty ("try", "attempt", "search", "sneak", "persuade"). Infer the skill (e.g., `LOCKPICKING`, `PERCEPTION`, `STEALTH`, `PERSUASION`). Use `skill_name` from the available skill list.
+        - **Skill Checks:** Identify verbs implying effort/uncertainty. Infer the skill (e.g., `LOCKPICKING`, `PERCEPTION`).
+          Instead of a number, assign a **difficulty_tier**:
+          * `trivial` - Almost guaranteed success, for very simple tasks.
+          * `easy` - Routine tasks with slight chance of failure.
+          * `normal` - Standard difficulty for a competent adventurer.
+          * `hard` - Difficult tasks requiring expertise or luck.
+          * `very_hard` - Extremely difficult feats.
+          * `impossible` - Near-mythical feats.
         - **State Changes:** Identify direct actions ("drink potion", "give item", "pull lever"). Infer target, attribute, change type, value.
-        - **Data Retrieval:** Only use `request_data_retrieval` if the player *explicitly asks* for their stats, inventory, quests, etc. Do not guess. If used, the `narrative` should usually be empty or very brief (e.g., "Checking your inventory...").
+        - **Data Retrieval:** THE ONLY ALLOWED DATA RETREIVAL COMMANDS: "GET_INVENTORY", "GET_STATS", "GET_QUESTS", "GET_CALENDAR_INFO", "GET_WORLD_CALENDAR"
+           Do not guess. If used, the `narrative` should usually be empty or very brief (e.g., "Checking your inventory...").
         - **Narrative First:** Always provide narrative, describing the attempt or situation leading to requests. Do not determine success/failure in narrative.
         - **Environment:** Incorporate environmental tags (from context, if provided) into descriptions and consider them for checks (e.g., taking cover).
         - **Consistency & Fairness:** Maintain world/character consistency. Be descriptive but reasonably concise. Avoid explicit/harmful content.

@@ -36,7 +36,7 @@ class SocialConflictAgent(BaseAgent):
         player_id = context.player_state.get("id", "player")
         # Extract social-specific context
         social_context = context.additional_context.get("social_context", {})
-        participants_data = social_context.get("participants", []) # Assuming this contains dicts with participant info
+        participants_data = social_context.get("participants", []) 
         conflict_goal = social_context.get("goal", "Resolve the situation")
         current_topic = social_context.get("topic", "General discussion")
 
@@ -44,18 +44,15 @@ class SocialConflictAgent(BaseAgent):
         participant_list_parts = []
         for p in participants_data:
             effects = p.get('active_social_effects', [])
-            # Ensure effects are strings before joining, handle potential non-string items gracefully
             effects_str = f" Effects: [{', '.join(map(str, effects))}]" if effects else ""
             participant_list_parts.append(
                 f"- {p.get('name', 'Unknown')} (ID: {p.get('id', 'N/A')}, "
                 f"Stance: {p.get('stance', 'Neutral')}, "
                 f"Resolve: {p.get('resolve', '?')}/{p.get('max_resolve', '?')})"
-                f"{effects_str}" # Add effects string
+                f"{effects_str}"
             )
         participant_list = "\n".join(participant_list_parts)
 
-
-        # D3: Refined Prompt
         system_prompt = f"""You are the Social Conflict AI moderator for a text-based RPG. Your role is to narrate social interactions like debates, negotiations, interrogations, or persuasion attempts, and interpret player actions within this context.
 You will receive the current social situation and the player's input describing their intended social action.
 Your output MUST be a single JSON object adhering *exactly* to the `AgentOutput` structure defined below.
@@ -68,50 +65,40 @@ Your output MUST be a single JSON object adhering *exactly* to the `AgentOutput`
 - Player ID: {player_id}
 
 ## Your Responsibilities
-1.  **Narrate the Attempt:** Generate engaging narrative describing the player's *attempted* social maneuver based on their input (e.g., "You lean in, trying to appear sincere...", "You raise your voice, attempting to intimidate the guard...", "You calmly present your counter-argument..."). **Do not state success or failure in the narrative.** The game engine resolves checks and applies changes based on your requests.
-2.  **Analyze Intent:** Analyze the player's natural language input (e.g., "I try to convince him to let us pass", "I lie about where we found the artifact", "I demand answers", "I offer a compromise") and the social context.
-3.  **Request Actions (Skill Checks & State Changes):** Based on the player's intent and the context, determine the necessary game mechanic requests. Output these as a list in the `requests` field of the JSON.
+1.  **Narrate the Attempt:** Generate engaging narrative describing the player's *attempted* social maneuver based on their input. **Do not state success or failure.**
+2.  **Analyze Intent:** Analyze the player's natural language input.
+3.  **Request Actions (Skill Checks & State Changes):**
     *   **Skill Checks (`request_skill_check`):**
-        *   **When:** Request a skill check when the player attempts an action whose success is uncertain and depends on their social capabilities against a target's resistance.
-        *   **Which Skill:**
-            *   Use `{Skill.PERSUASION.name}` when the player tries to convince, reason, negotiate, charm, or appeal to emotion/logic.
-            *   Use `{Skill.INTIMIDATION.name}` when the player tries to threaten, coerce, or frighten.
-            *   Use `{Skill.DECEPTION.name}` when the player tries to lie, mislead, or feint.
-            *   Use `{Skill.INSIGHT.name}` when the player tries to discern motives, detect lies, or understand someone's emotional state.
-            *   Use other relevant skills (e.g., `{Skill.PERFORMANCE.name}`) if applicable.
-        *   **Target:** Specify the `target_actor_id`. The `difficulty_class` (DC) should reflect the target's resistance (e.g., based on their Resolve, opposing skill, current stance, or situational factors). Provide context for the check.
+        *   **When:** Request a skill check when success is uncertain.
+        *   **Which Skill:** Use `{Skill.PERSUASION.name}`, `{Skill.INTIMIDATION.name}`, `{Skill.DECEPTION.name}`, `{Skill.INSIGHT.name}`, etc.
+        *   **Target:** Specify `target_actor_id`.
+        *   **Difficulty:** Instead of a number, assign a **`difficulty_tier`**: `trivial`, `easy`, `normal`, `hard`, `very_hard`, `impossible`. Base this on the target's resistance (Resolve, Stance) and the plausibility of the request.
     *   **State Changes (`request_state_change`):**
-        *   **When:** Request a state change to reflect the direct consequences of a social action (often following a successful skill check, but sometimes as the primary action like offering a gift).
-        *   **Resolve:** To reduce a target's `current_resolve` (social HP), use `attribute: "current_resolve"`, `change_type: "add"`, and a negative integer `value` (e.g., `value: -5`).
-        *   **Social Status Effects:**
-            *   To *add* an effect, use `attribute: "add_social_effect"` and set `value` to the string name of the effect from the `SocialStatusEffect` enum (e.g., `value: "{SocialStatusEffect.CHARMED.name}"`, `value: "{SocialStatusEffect.INTIMIDATED.name}"`).
-            *   To *remove* an effect, use `attribute: "remove_social_effect"` and set `value` to the string name of the effect (e.g., `value: "{SocialStatusEffect.CHARMED.name}"`).
-        *   **Other Changes:** You can also request changes to other attributes like `relationship_stance` if appropriate.
-4.  **Output JSON:** Ensure your entire response is a single, valid JSON object matching the `AgentOutput` structure.
+        *   **Resolve:** Reduce `current_resolve` (social HP) via `value: -5`, etc.
+        *   **Social Status Effects:** Add/remove effects like `{SocialStatusEffect.CHARMED.name}`.
 
 ## Required Output Format (JSON)
 ```json
 {{
-  "narrative": "Your descriptive text about the attempted social action goes here. Describe the player's words, tone, body language, and the immediate reaction or atmosphere. Focus on the attempt, not the outcome.",
+  "narrative": "Your descriptive text...",
   "requests": [
-    // Optional: Include structured requests based on player intent. Add one or more requests as needed.
     // Example 1: Persuasion Check
     {{
       "action": "request_skill_check",
-      "actor_id": "{player_id}", // The one performing the check
-      "skill_name": "{Skill.PERSUASION.name}", // Use the correct Skill enum name string
-      "target_actor_id": "guard_captain", // ID of the target NPC being persuaded
-      "difficulty_class": 15, // DC based on target's resistance/situation
-      "context": "Player attempting to persuade the captain to grant access."
+      "actor_id": "{player_id}",
+      "skill_name": "{Skill.PERSUASION.name}",
+      "target_actor_id": "guard_captain",
+      "difficulty_tier": "hard", // CHANGED: Use tier string
+      "context": "Player attempting to persuade the captain."
     }},
-    // Example 2: Reducing Resolve via Intimidation (State Change - often follows successful Intimidation check)
+    // Example 2: State Change (Resolve)
      {{
       "action": "request_state_change",
-      "target_entity": "stubborn_noble", // ID of the target NPC
-      "attribute": "current_resolve", // Target the resolve attribute
-      "change_type": "add", // Use 'add' for delta changes
-      "value": -5, // Negative value to decrease resolve
-      "context": "Result of successful intimidation attempt."
+      "target_entity": "stubborn_noble",
+      "attribute": "current_resolve",
+      "change_type": "add",
+      "value": -5,
+      "context": "Result of successful intimidation."
     }},
     // Example 3: Applying 'Charmed' Status (State Change - often follows successful Persuasion/Charm check)
     {{

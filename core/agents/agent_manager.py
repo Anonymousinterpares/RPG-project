@@ -11,6 +11,7 @@ from typing import List, Optional, Any, Tuple
 from core.interaction.enums import InteractionMode
 from core.stats.stats_base import DerivedStatType
 from core.stats.stats_manager import get_stats_manager
+from core.utils.difficulty_scaler import calculate_dc
 from core.utils.logging_config import get_logger
 from core.base.state import GameState
 from core.base.commands import get_command_processor
@@ -568,10 +569,21 @@ class AgentManager:
             for req in requests:
                 if isinstance(req, dict) and "action" in req:
                     action = req["action"]
-                    # Format depends on action type
+                    
                     if action == "request_skill_check":
                         skill_name = req.get("skill_name", "unknown")
-                        difficulty = req.get("difficulty_class", 10)
+                        
+                        if "difficulty_tier" in req:
+                            # Extract tier from LLM
+                            tier = req["difficulty_tier"]
+                            # Extract level from context
+                            level = context.player_state.get("level", 1)
+                            # Calculate DC
+                            difficulty = calculate_dc(tier, level)
+                        else:
+                            # Legacy fallback
+                            difficulty = req.get("difficulty_class", 10)
+
                         commands.append(("STAT_CHECK", f"{skill_name}:{difficulty}"))
                     elif action == "request_state_change":
                         # Preserve all fields by passing JSON; normalize target_id if only target_entity/target provided

@@ -37,27 +37,29 @@ class CombatNarratorAgent(BaseAgent):
         # --- Context Extraction (Use combat_name where appropriate) ---
         player_id_internal = context.player_state.get("id", "player")
         combat_context = context.additional_context.get("combat_context", {})
-        participants_data = context.additional_context.get("participants", []) # Get full participant data
+        participants_data = context.additional_context.get("participants", []) 
         turn_order_ids = combat_context.get("turn_order", [])
         current_turn_internal_id = combat_context.get("current_turn", "Unknown")
 
-        # Create mapping from internal ID to combat name for easier lookup
         id_to_combat_name = {p.get('id', 'N/A'): p.get('combat_name', p.get('name', 'Unknown')) for p in participants_data}
 
-        turn_order_str = ", ".join([id_to_combat_name.get(p_id, '?') for p_id in turn_order_ids]) # Use combat names
+        turn_order_str = ", ".join([id_to_combat_name.get(p_id, '?') for p_id in turn_order_ids])
         current_turn_combat_name = id_to_combat_name.get(current_turn_internal_id, "Unknown")
 
         participant_list_parts = []
-        player_combat_name = "Player" # Default
+        player_combat_name = "Player"
+        
+        # Identify the faction of the current actor to help prompt logic
+        current_actor_is_player = (current_turn_internal_id == player_id_internal)
+        current_actor_is_enemy = not current_actor_is_player # Simple assumption for now
 
         for p in participants_data:
             p_internal_id = p.get('id', 'N/A')
-            p_combat_name = id_to_combat_name.get(p_internal_id, p.get('name', 'Unknown')) # Get combat name via mapping
+            p_combat_name = id_to_combat_name.get(p_internal_id, p.get('name', 'Unknown'))
 
             if p_internal_id == player_id_internal:
-                player_combat_name = p_combat_name # Store player's combat name
+                player_combat_name = p_combat_name
 
-            # Format status effects (assuming dict {name: duration/data})
             effects = p.get('status_effects', {})
             effects_str_parts = []
             if isinstance(effects, dict):
@@ -65,26 +67,28 @@ class CombatNarratorAgent(BaseAgent):
                     duration = None
                     if isinstance(duration_data, int):
                         duration = duration_data
-                    elif isinstance(duration_data, dict): # Handle StatusEffectData dicts
+                    elif isinstance(duration_data, dict):
                         duration = duration_data.get('duration')
 
                     if duration is None:
                         effects_str_parts.append(str(name))
                     else:
-                        effects_str_parts.append(f"{name}({duration}t)") # Use 't' for turns
-            elif isinstance(effects, (list, set)): # Fallback for list/set format
+                        effects_str_parts.append(f"{name}({duration}t)")
+            elif isinstance(effects, (list, set)):
                 effects_str_parts = [str(eff) for eff in effects]
 
             effects_str = f" Effects: [{', '.join(effects_str_parts)}]" if effects_str_parts else ""
 
-            # Get HP/Stamina safely
             hp = p.get('hp', '?')
             max_hp = p.get('max_hp', '?')
-            stamina = p.get('stamina', '?') # Assuming stamina might be in context now
+            stamina = p.get('stamina', '?')
             max_stamina = p.get('max_stamina', '?')
-
+            
+            # Add Type/Faction info to the list for the LLM
+            p_type = p.get('entity_type', 'UNKNOWN') # e.g. PLAYER, ENEMY
+            
             participant_list_parts.append(
-                f"- Combat Name: '{p_combat_name}' (Original: {p.get('name', 'Unknown')}, "
+                f"- Combat Name: '{p_combat_name}' (Type: {p_type}, "
                 f"HP: {hp}/{max_hp}, "
                 f"Stamina: {stamina}/{max_stamina})"
                 f"{effects_str}"
@@ -93,102 +97,71 @@ class CombatNarratorAgent(BaseAgent):
 
         round_num = combat_context.get("round", 1)
 
-        # --- Load Skills (existing logic) ---
         try:
             from core.stats.skill_manager import get_skill_manager
             skill_manager = get_skill_manager()
             available_skills = skill_manager.get_skill_list_for_llm()
         except Exception as e:
             logger.warning(f"Could not load skills from SkillManager: {e}. Using defaults.")
-            available_skills = """Available skills for checks (use exact names):
-    - MELEE_ATTACK: Physical close-range combat attacks
-    - RANGED_ATTACK: Physical ranged combat attacks
-    - UNARMED_ATTACK: Attacking without weapons
-    - SPELL_ATTACK: Magical attacks
-    - DEFENSE: Blocking or parrying attacks
-    - DODGE: Avoiding attacks and obstacles"""
+            available_skills = """Available skills: MELEE_ATTACK, RANGED_ATTACK, UNARMED_ATTACK, SPELL_ATTACK, DEFENSE, DODGE"""
 
-        # --- SYSTEM PROMPT (Emphasize Combat Names) ---
+        # --- SYSTEM PROMPT (Added Targeting Logic) ---
         system_prompt = f"""You are the Combat Narrator AI for a text-based RPG. Your role is to process combat action INTENT, describe the attempted action, and output the corresponding game mechanics as structured requests.
 
         ## CRITICAL INSTRUCTION: JSON OUTPUT ONLY & COMBAT NAMES
-        Your *ENTIRE* response MUST be a single, valid JSON object. NO introductory text, explanations, markdown, or other characters outside the JSON structure.
-        **ABSOLUTELY NO COMMENTS (like // or /* */) INSIDE THE JSON.**
-        **VERY IMPORTANT**: When referring to entities in the `"requests"` list (`actor_id`, `target_actor_id`, `target_entity`), YOU MUST use their **Combat Name** exactly as listed in the 'Participants' section below (e.g., 'Qa', 'elder', 'Goblin 1'). Do **NOT** use original names or generic terms like 'player'.
+        Your *ENTIRE* response MUST be a single, valid JSON object. NO introductory text.
+        **VERY IMPORTANT**: When referring to entities in the `"requests"` list (`actor_id`, `target_actor_id`), YOU MUST use their **Combat Name** exactly as listed below.
+
+        ## Targeting Logic (CRITICAL)
+        1. **Identify the Actor:** The actor is the entity listed in 'Current Turn'.
+        2. **Identify the Target:**
+           - If the Actor is an **ENEMY**, they MUST target the **PLAYER** ('{player_combat_name}') or a Player ALLY.
+           - **NEVER** allow an ENEMY to target themselves or another ENEMY with an attack.
+           - If the intent provided is ambiguous (e.g., "Attack"), assume the target is the primary opponent (the Player).
+           - If the Actor is the **PLAYER**, they target ENEMIES.
+        3. **Self-Targeting:** Only allowed for beneficial actions (Healing, Buffs, Defend).
 
         ## Required Output Format (JSON Object Only)
         ```json
         {{
-        "narrative": "Your descriptive text about the ATTEMPTED combat action. Describe the wind-up, movement, target, etc. Focus on the *attempt*, NOT the outcome (success/failure). Do NOT repeat the input intent verbatim.",
+        "narrative": "Your descriptive text about the ATTEMPTED combat action. Focus on the *attempt*, NOT the outcome (success/failure).",
         "requests": [
-            // REQUIRED: Include one or more structured requests based on the action intent.
-            // Use the examples below ONLY as structural guides. DO NOT use the specific values from the examples.
-            // --- Example 1: Physical Attack (Melee/Ranged/Unarmed) ---
+            // --- Example 1: Physical Attack ---
             {{
             "action": "request_skill_check",
-            "actor_id": "[ACTOR_COMBAT_NAME]", // **USE COMBAT NAME** of the entity performing the action (from Current Turn context)
-            "skill_name": "[ATTACK_SKILL_NAME]", // MELEE_ATTACK, RANGED_ATTACK, or UNARMED_ATTACK
-            "stat_name": "[PHYSICAL_STAT]", // Typically STRENGTH or DEXTERITY
-            "target_actor_id": "[TARGET_COMBAT_NAME]", // **USE COMBAT NAME** of the target entity (from Action Intent or Participants list)
-            "difficulty_class": "[ESTIMATED_DEFENSE]", // Target's Defense score - Estimate 10-15 if unknown
-            "modifiers": {{}}, // Optional: {{"circumstance_bonus": 2}}
-            "context": "[Brief context, e.g., 'Actor attacking Target with weapon_name']"
-            }},
-            // --- Example 2: Spell Attack ---
-            {{
-            "action": "request_skill_check",
-            "actor_id": "[ACTOR_COMBAT_NAME]", // **USE COMBAT NAME**
-            "skill_name": "SPELL_ATTACK",
-            "stat_name": "[SPELLCASTING_STAT]", // Typically INTELLIGENCE, WISDOM, or CHARISMA
-            "target_actor_id": "[TARGET_COMBAT_NAME]", // **USE COMBAT NAME**
-            "difficulty_class": "[ESTIMATED_MAGIC_DEFENSE]", // Target's Magic Defense or Save DC estimate (10-15)
-            "modifiers": {{}},
-            "context": "[Brief context, e.g., 'Actor casting spell_name at Target']"
-            }},
-            // --- Example 3: Applying Status Effect ---
-            {{
-            "action": "request_state_change",
-            "target_entity": "[TARGET_COMBAT_NAME]", // **USE COMBAT NAME**
-            "attribute": "add_status_effect", // Or "remove_status_effect"
-            "change_type": "set", // Usually 'set' for effects
-            "value": "[EFFECT_NAME]", // String name (e.g., BURNING, STUNNED, DEFENDING)
-            "duration": "[DURATION_TURNS]", // Optional: Integer number of turns
-            "context": "[Brief context, e.g., 'Result of spell hitting target']"
+            "actor_id": "[ACTOR_COMBAT_NAME]", 
+            "skill_name": "[ATTACK_SKILL_NAME]", 
+            "stat_name": "[PHYSICAL_STAT]", 
+            "target_actor_id": "[TARGET_COMBAT_NAME]", 
+            "difficulty_tier": "normal", 
+            "modifiers": {{}}, 
+            "context": "Actor attacking Target with weapon_name"
             }}
-            // Add other request types (like Defend via state change) as needed.
         ]
         }}
         ```
 
         ## Current Combat State (Round {round_num})
-        - Participants (Use **'Combat Name'** for IDs in JSON requests):
+        - Participants (Use **'Combat Name'** for IDs):
     {participant_list}
         - Turn Order (Combat Names): {turn_order_str}
         - Current Turn: '{current_turn_combat_name}'
         - Player Combat Name: '{player_combat_name}'
 
-        ## Available Skills for Checks (Use ONLY these skill names in `skill_name`)
+        ## Available Skills for Checks
     {available_skills}
 
         ## Task: Process Action Intent into JSON Output
-        Given the current combat state and the 'Action Intent to Process' below:
-        1.  **Narrate Attempt:** Describe the action attempt. DO NOT determine success/failure.
-        2.  **Determine Mechanics & Target:**
-            *   Analyze the 'Action Intent'. Identify the intended action type (physical attack, spell, defend, etc.) and the intended target (by name or description).
-            *   Find the Target **Combat Name**: Match the intended target name/description from the intent to a participant in the 'Participants' list. Use the corresponding **Combat Name** for `target_actor_id` or `target_entity`. **CRITICAL: Use ONLY Combat Names listed in the 'Participants' section.**
-            *   Find the Actor **Combat Name**: Use the name provided in 'Current Turn'.
-        3.  **Select Skill & Stat:** Choose the most appropriate `skill_name` from the 'Available Skills' list. Determine the likely primary `stat_name`.
-        4.  **Construct Request(s):** Create the JSON request object(s).
-            *   Use the correct Actor **Combat Name** and Target **Combat Name** found in step 2.
-            *   Fill in other fields (`skill_name`, `stat_name`, `difficulty_class`, etc.) based on the action. For attacks, estimate target defenses (10-15) if unknown.
-        5.  **Output JSON:** Ensure the final output is ONLY the valid JSON object. NO EXTRA TEXT.
+        1.  **Narrate Attempt:** Describe the action attempt.
+        2.  **Determine Mechanics:** Analyze 'Action Intent'.
+        3.  **Targets:** Use **Combat Names** for IDs. **ENFORCE TARGETING LOGIC.**
+        4.  **Difficulty:** Assign a `difficulty_tier` (`trivial`, `easy`, `normal`, `hard`, `very_hard`, `impossible`).
+        5.  **Output JSON:** Ensure valid JSON.
 
         ## Action Intent to Process:
         ```
         {context.player_input}
         ```
-
-        ## REMEMBER: YOUR ENTIRE RESPONSE MUST BE A SINGLE VALID JSON OBJECT. USE ONLY **COMBAT NAMES** FOR IDs.
         """
         return system_prompt
 

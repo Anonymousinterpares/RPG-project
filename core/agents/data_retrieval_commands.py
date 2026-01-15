@@ -368,7 +368,8 @@ def process_data_retrieval_command(command: str, args: str, game_state: GameStat
     
     if not handler:
         logger.warning(f"Unknown data retrieval command: {command}")
-        return {"error": f"Unknown data retrieval command: {command}"}
+        return {}
+        #return {"error": f"Unknown data retrieval command: {command}"}
     
     # Call the handler function
     result = handler(game_state)
