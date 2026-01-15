@@ -107,7 +107,7 @@ class NarratorAgent(BaseAgent):
         1. Generate vivid narrative responses to player actions.
         2. Maintain world lore and character consistency.
         3. **NARRATIVE FOCUS:** Analyze the player's natural language input. Identify actions implying skill checks (e.g., "I try to pick the lock") or state changes (e.g., "I drink the potion").
-        4. **Output JSON:** Your *ENTIRE* response MUST be a single, valid JSON object adhering *exactly* to the `AgentOutput` structure below. NO extra text, explanations, or markdown formatting outside the JSON.
+        4. **Output JSON:** Your *ENTIRE* response MUST be a single, valid JSON object adhering *exactly* to the `AgentOutput` structure below. Do NOT wrap it in Markdown code blocks (```json ... ```). NO extra text, explanations, or narrative outside the JSON. If you include narrative, it MUST be inside the `"narrative"` field of the JSON.
 
         ## Required Output Format (JSON Object Only)
         ```json
@@ -788,32 +788,29 @@ class NarratorAgent(BaseAgent):
             # The LLM might return a mix of text and JSON, or just the JSON
             # We need to try multiple parsing strategies
             try:
-                # First try: Look for JSON code block
-                json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', llm_response_content, re.DOTALL)
-                if json_match:
-                    # Extract JSON from code block
-                    cleaned_response = json_match.group(1).strip()
-                    logger.debug(f"Found JSON in code block: {cleaned_response[:100]}...")
+                # Log response for debugging
+                logger.debug(f"Parsing Narrator response (length: {len(llm_response_content)})")
+                
+                # First try: Look for JSON code block (most likely if it fails to follow "no markdown" rule)
+                json_block_match = re.search(r'```(?:json)?\s*({.*?})\s*```', llm_response_content, re.DOTALL)
+                if json_block_match:
+                    cleaned_response = json_block_match.group(1).strip()
+                    logger.debug("Found JSON in code block.")
                 else:
-                    # Second try: See if the entire response is JSON
-                    if llm_response_content.strip().startswith('{'):
-                        cleaned_response = llm_response_content.strip()
-                        logger.debug("Response appears to be raw JSON")
+                    # Second try: Look for the first '{' and the last '}'
+                    first_brace = llm_response_content.find('{')
+                    last_brace = llm_response_content.rfind('}')
+                    
+                    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                        cleaned_response = llm_response_content[first_brace:last_brace+1].strip()
+                        logger.debug(f"Extracted possible JSON between braces: {cleaned_response[:50]}...")
                     else:
-                        # Third try: Look for JSON anywhere in the text
-                        # More robust pattern that handles nested structures better
-                        json_pattern = r'({\s*"narrative"\s*:.+?"requests"\s*:\s*\[.*?\]\s*})'
-                        json_match = re.search(json_pattern, llm_response_content, re.DOTALL)
-                        if json_match:
-                            cleaned_response = json_match.group(1).strip()
-                            logger.debug(f"Found JSON pattern in response: {cleaned_response[:100]}...")
-                        else:
-                            # Final fallback: Treat the whole text as narrative with no requests
-                            logger.warning("No JSON found in response. Treating entire text as narrative.")
-                            return {
-                                "narrative": llm_response_content.strip(),
-                                "requests": []
-                            }
+                        # Final fallback: Treat the whole text as narrative with no requests
+                        logger.warning("No JSON structure (braces) found in response. Treating entire text as narrative.")
+                        return {
+                            "narrative": llm_response_content.strip(),
+                            "requests": []
+                        }
                 
                 # Parse the extracted JSON
                 try:

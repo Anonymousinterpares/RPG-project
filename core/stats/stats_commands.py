@@ -27,16 +27,19 @@ def status_command(game_state: GameState, args: List[str]) -> CommandResult:
     lines.append("")
 
     # Vitals
+    hp_curr = stats_mgr.get_current_stat_value(DerivedStatType.HEALTH)
     hp_max = stats_mgr.get_stat_value(DerivedStatType.MAX_HEALTH)
+    mana_curr = stats_mgr.get_current_stat_value(DerivedStatType.MANA)
     mana_max = stats_mgr.get_stat_value(DerivedStatType.MAX_MANA)
+    stamina_curr = stats_mgr.get_current_stat_value(DerivedStatType.STAMINA)
     stamina_max = stats_mgr.get_stat_value(DerivedStatType.MAX_STAMINA)
     
-    lines.append(f"HP: {p.hp:.1f}/{hp_max:.1f} | Mana: {p.mana:.1f}/{mana_max:.1f} | Stamina: {p.stamina:.1f}/{stamina_max:.1f}")
+    lines.append(f"HP: {hp_curr:.1f}/{hp_max:.1f} | Mana: {mana_curr:.1f}/{mana_max:.1f} | Stamina: {stamina_curr:.1f}/{stamina_max:.1f}")
     
     # Check if resolve exists
     try:
         max_resolve = stats_mgr.get_stat_value(DerivedStatType.MAX_RESOLVE)
-        curr_resolve = getattr(p, 'resolve', 0.0)
+        curr_resolve = stats_mgr.get_current_stat_value(DerivedStatType.RESOLVE)
         lines.append(f"Resolve: {curr_resolve:.1f}/{max_resolve:.1f}")
     except (AttributeError, ValueError):
         pass
@@ -52,6 +55,21 @@ def status_command(game_state: GameState, args: List[str]) -> CommandResult:
         mod_str = f"+{mod}" if mod >= 0 else str(mod)
         name_pretty = stat_type.value.replace("_", " ").title()
         lines.append(f"  {name_pretty:<12}: {val:>2.0f} ({mod_str})")
+
+    # Skills section
+    lines.append("")
+    lines.append("Skills:")
+    all_stats = stats_mgr.get_all_stats()
+    skills = all_stats.get("skills", {})
+    if not skills:
+        lines.append("  No skills learned yet.")
+    else:
+        # Sort skills by value
+        sorted_skills = sorted(skills.items(), key=lambda x: x[1].get('value', 0), reverse=True)
+        for skill_id, skill_data in sorted_skills:
+            name = skill_data.get("name", skill_id.replace("_", " ").title())
+            val = skill_data.get("value", 0.0)
+            lines.append(f"  {name:<15}: {val:>4.1f}")
 
     lines.append("")
     lines.append("Derived Stats:")

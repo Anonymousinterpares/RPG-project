@@ -171,6 +171,8 @@ class InputRouter:
                             status_cmd = "inventory"
                         elif any(k in input_text.lower() for k in ["quest", "log", "objective", "journal"]):
                             status_cmd = "quests"
+                        elif "skill" in input_text.lower():
+                            status_cmd = "status" # Default to status which now includes skills
                         
                         return self._process_direct_command(engine, game_state, status_cmd)
 

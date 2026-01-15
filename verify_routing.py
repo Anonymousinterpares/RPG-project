@@ -88,6 +88,7 @@ def test_input_router_logic():
         ("I check my inventory", "STATUS", 0.9, "inventory"),
         ("Show my stats", "STATUS", 0.9, "status"),
         ("What are my quests?", "STATUS", 0.9, "quests"),
+        ("What are my skills?", "STATUS", 0.9, "status"),
     ]
     
     all_pass = True
@@ -112,27 +113,38 @@ def test_status_command_execution():
     print("\n--- Testing Status Command Execution ---")
     mock_engine, mock_state = setup_mock_game()
     
-    # Ensure player vitals are definitely floats
-    mock_state.player.hp = 10.0
-    mock_state.player.mana = 10.0
-    mock_state.player.stamina = 10.0
-    mock_state.player.level = 1
+    # Player vitals are now fetched from StatsManager, so these values on PlayerState shouldn't matter
+    # but we'll set them to demonstrate the fix (they won't cause AttributeErrors because we use StatsManager)
     
     cp = get_command_processor()
     
-    # Mock StatsManager to return floats
+    # Mock StatsManager to return floats and skills
     mock_stats_mgr = MagicMock()
+    mock_stats_mgr.get_current_stat_value.return_value = 50.0
     mock_stats_mgr.get_stat_value.return_value = 100.0
+    mock_stats_mgr.get_all_stats.return_value = {
+        "skills": {
+            "melee_attack": {"name": "Melee Attack", "value": 15.0},
+            "dodge": {"name": "Dodge", "value": 12.0}
+        }
+    }
     
-    with patch('core.stats.stats_manager.get_stats_manager', return_value=mock_stats_mgr):
+    # We need to patch get_stats_manager in the stats_commands module
+    with patch('core.stats.stats_commands.get_stats_manager', return_value=mock_stats_mgr):
         result = cp.process_command(mock_state, "status")
     
     if result and result.status.name == "SUCCESS":
         print("EXEC: 'status' executed successfully.")
         print("Output Preview:")
         print("-" * 20)
-        print(result.message[:200] + "...")
+        print(result.message[:300] + "...")
         print("-" * 20)
+        
+        # Verify content
+        assert "HP: 50.0/100.0" in result.message
+        assert "Skills:" in result.message
+        assert "Melee Attack" in result.message
+        assert "15.0" in result.message
         return True
     else:
         msg = result.message if result else "No result"
